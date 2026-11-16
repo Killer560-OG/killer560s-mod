@@ -57,7 +57,7 @@ public final class ArrowAlignConfig {
     private int highlightColor = DEFAULT_HIGHLIGHT_COLOR;
     private float numberScale = 1.0f;
     private boolean preventMisclicksEnabled = false;
-    // Sneak lets a blocked click through (Odin/NoammAddons "sneak to disable"). On by default so Prevent Misclicks
+    // Sneak lets a blocked click through (other implementations "sneak to disable"). On by default so Prevent Misclicks
     // can never fully lock a manual click out - it only matters once Prevent Misclicks itself is switched on.
     private boolean crouchOverride = true;
     private boolean solveTimeEnabled = false;

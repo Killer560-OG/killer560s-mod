@@ -8,7 +8,7 @@ import java.util.List;
 import java.util.PriorityQueue;
 
 /**
- * Port of QUOI's {@code DungeonMapPathfinder} ("ty rice skyblock addons"): A* over rooms on the 11x11 map, rooms
+ * Port of the {@code DungeonMapPathfinder} ("ty rice skyblock addons"): A* over rooms on the 11x11 map, rooms
  * joined by the door cell between two tiles. Reads a {@link DungeonLayout} snapshot instead of {@code ScanUtils.grid}.
  */
 public final class DungeonMapPathfinder {
@@ -19,7 +19,7 @@ public final class DungeonMapPathfinder {
     private DungeonMapPathfinder() {
     }
 
-    /** QUOI {@code RoomPath}: a room and the door taken out of it (-1 in the goal room). */
+    /** The reference {@code RoomPath}: a room and the door taken out of it (-1 in the goal room). */
     public record RoomStep(int room, int door) {
     }
 
@@ -86,7 +86,7 @@ public final class DungeonMapPathfinder {
         return new BlockPos(lock.getX() + dx * 2, lock.getY() - 1, lock.getZ() + dz * 2);
     }
 
-    /** QUOI {@code stupid()}: {door index, index of the tile you reach it from, room distance}. */
+    /** The reference {@code stupid}: {door index, index of the tile you reach it from, room distance}. */
     public static int[] resolve(DungeonLayout layout, int start, int door, boolean ignoreLocked) {
         if (!layout.isDoor(door)) {
             return null;
@@ -144,7 +144,7 @@ public final class DungeonMapPathfinder {
     }
 
     private static int heuristic(DungeonLayout layout, int from, int to) {
-        // QUOI: manhattan distance between text placements (20 map px per room) / 20 == grid units / 2.
+        // Manhattan distance between text placements (20 map px per room) / 20 == grid units / 2.
         return (int) ((Math.abs(layout.labelGX(from) - layout.labelGX(to)) + Math.abs(layout.labelGZ(from) - layout.labelGZ(to))) / 2f);
     }
 

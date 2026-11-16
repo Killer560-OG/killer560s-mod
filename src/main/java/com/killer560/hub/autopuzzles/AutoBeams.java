@@ -15,10 +15,10 @@ import java.util.List;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Auto Creeper Beams - port of QUOI {@code CreeperBeamsSolver.kt}'s {@code auto} on top of this mod's
+ * Auto Creeper Beams - port of 's {@code auto} on top of this mod's
  * {@link BeamsSolverFeature} lit-pair scan. Standing on the center platform (y == 75), it picks the first lit pair and
  * shoots its first lantern, then its second, with the held shortbow. Progress comes from the elder guardian hurt
- * sound at the lantern (pitch 1.3968254 = first hit, 2.0 = pair done - QUOI's exact values, via
+ * sound at the lantern (pitch 1.3968254 = first hit, 2.0 = pair done - the exact values, via
  * {@code PuzzlePacketMixin}). The shot aims at the lantern's etherwarp-visible face point (falls back to its
  * center). If the creeper is between the player and the lantern it (with "Etherwarp Reposition" on) moves to the
  * first platform spot with a clear line; the same toggle also warps onto the platform when off it. After 4 solved
@@ -154,7 +154,7 @@ public final class AutoBeams {
         }
         active = true;
         boolean melee = cfg.isAutoBeamsMelee();
-        // QUOI recalculateLanternPairs: drop the active pair once its first lantern is no longer lit. Melee hits the nearer
+        // The reference recalculateLanternPairs: drop the active pair once its first lantern is no longer lit. Melee hits the nearer
         // end first, which may be the solver's second, so it asks whether the pair itself is still listed.
         if (activePair != null && !(melee ? containsPair(pairs, activePair) : containsFirst(pairs, activePair.first))) {
             LOGGER.info("[AutoPuzzles] Beams: active pair {} - {} (stage {}) no longer listed by the solver - dropped"
@@ -339,7 +339,7 @@ public final class AutoBeams {
      * a little inside the block, each checked with a collider ray from the REAL eye.
      *
      * <p>This was {@link AutoPuzzleUtil#etherwarpDirection}, which aims from a SNEAKING eye whatever his stance and
-     * at QUOI's etherwarp sample points - face edges 0.001 in, and a top center that sits exactly on the face. An
+     * at the etherwarp sample points - face edges 0.001 in, and a top center that sits exactly on the face. An
      * arrow is not an etherwarp: from the real eye an edge aim lands on the neighbor as often as on the lantern,
      * and the etherwarp ray treats ladders, buttons and lanterns as see-through where an arrow does not.
      */

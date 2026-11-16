@@ -66,8 +66,8 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.rendertype.RenderType;
 
 /**
- * Real Hypixel Skyblock Etherwarp landing-prediction overlay, ported from Odin's own {@code Etherwarp.kt}
- * - specifically just its real "Show Guess" box (the client-side-predicted-execution half of Odin's own
+ * Real Hypixel Skyblock Etherwarp landing-prediction overlay
+ * - specifically just its real "Show Guess" box (the client-side-predicted-execution half of the
  * feature, which forcibly overrides the player's real position the instant Etherwarp is used, is
  * deliberately NOT ported here: getting a real voxel raycast even slightly wrong there could put the
  * player inside a wall or off a ledge, a real safety risk this pure-rendering version can't have since
@@ -78,7 +78,7 @@ import net.minecraft.client.renderer.rendertype.RenderType;
  * Conduit, or any item with the real "ethermerge" NBT flag) and either holding shift or holding the
  * Conduit specifically, this raycasts a real voxel traversal along your exact look direction up to a
  * real max distance (57 blocks, extended by the real "tuned_transmission" reforge/enchant stat) using
- * the same real per-block-type passability rules Odin's own confirmed, shipped mod uses, and highlights
+ * the same real per-block-type passability rules the confirmed, shipped mod uses, and highlights
  * where you'd land - green if it's a real safe landing spot, red if it isn't.
  */
 public final class EtherwarpOverlayFeature {

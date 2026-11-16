@@ -8,8 +8,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Party leader for the Party line's crown marker (SkyHanni {@code PartyApi.partyLeader}). Same chat patterns as
- * Odin/NoammAddons {@code PartyUtils}; kept inside the scoreboard package so the Party line doesn't depend on another
+ * Party leader for the Party line's crown marker. Same chat patterns as
+ * Other implementations {@code PartyUtils}; kept inside the scoreboard package so the Party line doesn't depend on another
  * feature's internals. Member names still come from {@code leapmenu.PartyTracker}.
  */
 final class ScoreboardPartyLeader {

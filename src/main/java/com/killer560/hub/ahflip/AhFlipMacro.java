@@ -27,7 +27,7 @@ import java.util.regex.Pattern;
  *
  * <p>One flip at a time, only while no screen is open and outside a dungeon, so it never takes a menu out from under him:
  * {@code /viewauction <id>}, then "Buy Item Right Now" on Hypixel's "BIN Auction View", then "Confirm" on "Confirm Purchase"
- * (names as SkyHanni matches them; the slots are found by name, never by number), and it waits for Hypixel's
+ * (names matches them; the slots are found by name, never by number), and it waits for Hypixel's
  * "You purchased NAME for N coins!" (his Dungeons logs, 2026-10). A page it does not know, a missing button or a timeout
  * closes the menu and drops that flip. Every command and click goes through {@link ActionGate} on START_CLIENT_TICK, with a
  * random 250-500 ms between steps. It stops buying after Max Buys Per Session, after three failed buys in a row, and when

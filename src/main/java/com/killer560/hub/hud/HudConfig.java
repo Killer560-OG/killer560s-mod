@@ -35,7 +35,7 @@ public final class HudConfig {
      *  filtered view. */
     private boolean editorShowAll = false;
     /**
-     * The global HUD scale on the Home tab (killer560, 2026-10-04: "a GUI resizer slider... just like SkyHanni... from
+     * The global HUD scale on the Home tab (killer560, 2026-10-04: "a GUI resizer slider...... from
      * 5% to 300% in 5% increments. It should resize everything my mod has uniformly"). Every element is drawn at its
      * own scale TIMES this, and the per-element scale is stored on its own, so an element set to 2.0x with this at 0.5
      * draws at its original size and goes back to 2.0x when this returns to 100%. Lives in this file so a profile

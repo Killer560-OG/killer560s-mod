@@ -172,13 +172,13 @@ public final class SimBlazePuzzle {
      * and identical in 26.1.2 and 26.2 (javap); {@code ArmorStand.onSyncedDataUpdated} calls
      * {@code refreshDimensions()} on exactly that key, so the box really does collapse.
      *
-     * <p>A marker also fits Odin's offsets better than a full stand did: its box center IS its position, so
+     * <p>A marker also fits the offsets better than a full stand did: its box center IS its position, so
      * "1 block under the stand" from {@code getY() + bbHeight + 0.1} lands at blaze y + 0.9 - the blaze's own
      * center (it is 1.8 tall). The full stand put that point a block higher, at the blaze's head.
      *
      * <p><b>The one dial here, said out loud.</b> The stand sits just above the blaze, which is
      * {@code SimMobs}' own star-tag placement and the only one in this codebase shown not to swallow a kill.
-     * Both the solver's highlight and Auto Blaze's aim are RECONSTRUCTED from the stand with offsets Odin tuned
+     * Both the solver's highlight and Auto Blaze's aim are RECONSTRUCTED from the stand with offsets the reference tuned
      * against Hypixel's own stand geometry - {@code getBoundingBox().inflate(0.5, 1.0, 0.5).move(0, -1, 0)} for
      * the box, and {@code boundingBox.getCenter().y - 1.0} for the aim - and that geometry cannot be measured
      * from a capture, because a stand is an entity. So if the highlight reads as too tall or Auto Blaze shoots
@@ -375,7 +375,7 @@ public final class SimBlazePuzzle {
         // FROM THE BOTTOM IN BOTH ROOMS. Higher Blaze used to search down from the room's top, and the first
         // air-over-solid on the way down is the cobblestone landing at capture y 118 - so all ten blazes went in
         // the 11 blocks between that landing and the ceiling (capture 119..129), stacked one apart. killer560's
-        // log, 2026-10-04 18:06: Auto Blaze repositioned onto relative y 88 (one of QUOI's HIGHER_SPOTS, 85..118)
+        // log, 2026-10-04 18:06: Auto Blaze repositioned onto relative y 88 (one of the HIGHER_SPOTS, 85..118)
         // and its first target's stand was 37 blocks over his head - "they were all way too high and it made the
         // auto solver bug out". Decoding the two captures settles the shape: Higher Blaze (y 65..133) and Lower
         // Blaze (y 15..83) are the same shaft 50 blocks apart - floor block at 69 / 19, open air from 70 / 20 up to
@@ -383,7 +383,7 @@ public final class SimBlazePuzzle {
         // the blazes float at different heights through that shaft, around the bar ("a tall chamber with blazes",
         // wiki); only the kill order differs between the two rooms. So both now start on the shaft's floor and
         // spread up through the clear air above it (layoutAround, up to 5 apart: relative 71..116 in Higher Blaze),
-        // which is the band QUOI's standing spots were chosen to shoot into.
+        // which is the band the standing spots were chosen to shoot into.
         int from = p.room().minY;
         int step = 1;
         int span = p.room().maxY - p.room().minY + 1;

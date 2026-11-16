@@ -30,27 +30,26 @@ import java.util.stream.Collectors;
  * way a real "/f7" typed by a party leader would.
  * <p>
  * <b>Where the real syntax came from.</b> Not guessed - this mod already sends {@code /joininstance} for the
- * exact same instance ids from {@code partycommands.PartyCommandsFeature} (Odin's ported {@code !f1}..{@code !f7}/
+ * exact same instance ids from {@code partycommands.PartyCommandsFeature} (the ported {@code !f1}..{@code !f7}/
  * {@code !m1}..{@code !m7}/{@code !t1}..{@code !t5} floor-queue command, {@code instanceFor()}/{@code QUEUE_INSTANCE}):
  * {@code catacombs_floor_<word>}, {@code master_catacombs_floor_<word>}, {@code kuudra_<tier>} with
  * {@code tier} one of {@code normal, hot, burning, fiery, infernal} (Hypixel's own internal name for the
  * tier killer560 and the in-game menu call "Basic" is {@code normal} - confirmed against both
- * {@code PartyCommandsFeature.KUUDRA_TIERS} and Devonian's {@code kuudraTiers}/{@code DevonianCommand.kt},
- * which send the identical {@code joininstance kuudra_<tier>} for its own {@code !t1}..{@code !t5}).
- * NoammAddons' {@code PartyHelper.kt}/{@code DungeonUtils.kt} independently confirm the same
+ * {@code PartyCommandsFeature.KUUDRA_TIERS}, which sends the identical {@code joininstance kuudra_<tier>} for its own
+ * {@code !t1}..{@code !t5}). Other implementations independently confirm the same
  * {@code CATACOMBS_FLOOR_<WORD>} / {@code MASTER_CATACOMBS_FLOOR_<WORD>} ids (Hypixel's own command parsing is
  * case-insensitive; this mod sends them lower-case to match {@code PartyCommandsFeature}'s existing, already
  * shipped strings).
  * <p>
  * <b>The one id this mod had no prior example for: Catacombs Floor 0 (the entrance).</b>
- * {@code PartyCommandsFeature}'s own floor pattern only accepts 1-7 (Odin never had an "!f0"), so there is no
- * already-shipped, already-tested string to copy for it. NoammAddons builds its floor id from one array,
+ * {@code PartyCommandsFeature}'s own floor pattern only accepts 1-7 (the reference never had an "!f0"), so there is no
+ * already-shipped, already-tested string to copy for it. The reference builds its floor id from one array,
  * {@code FLOOR_NAMES = ["ENTRANCE", "ONE", ... "SEVEN"]}, plugged into the SAME {@code CATACOMBS_FLOOR_<WORD>}
  * template used for every other floor - i.e. {@code catacombs_floor_entrance} - so that is what {@code /f0}
- * sends here, for consistency with every other floor id in this file. Devonian instead special-cases the
+ * sends here, for consistency with every other floor id in this file. The reference instead special-cases the
  * entrance as {@code catacombs_entrance} (no "floor") sent through the DIFFERENT {@code /joindungeon} command
  * (not {@code /joininstance}) for every floor including the entrance - a second, older-looking convention
- * that disagrees with both NoammAddons and this mod's own shipped {@code /joininstance} usage. Flagged in the
+ * that disagrees with both the reference and this mod's own shipped {@code /joininstance} usage. Flagged in the
  * staging notes as unverified; if {@code /f0} doesn't work in-game, {@code catacombs_entrance} via
  * {@code /joindungeon} is the fallback to try.
  * <p>

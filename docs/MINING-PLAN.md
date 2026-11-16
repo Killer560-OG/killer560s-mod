@@ -174,7 +174,7 @@ Two halves, and the legit one is the foundation:
 - **The macro** uses the same calculation to find the treasure itself. If **several candidate points** come
   out of it, **teleport to one as a guess; if it is not there, teleport to the next**.
 
-Reference other mods for the maths - NoammAddons, Devonian, QUOI and SkyHanni all have local source or jars
+Reference other mods for the maths - other implementations all have local source or jars
 on this machine, and the research pass is reading them.
 
 ---

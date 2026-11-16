@@ -20,9 +20,9 @@ import com.killer560.hub.compat.McRender;
  * a real dungeon minimap, etc).
  * <p>
  * The actual vertex layout (which corners, in which order, for {@code RenderTypes.debugFilledBox()}'s
- * QUADS format and a plain LINES wireframe) is ported directly from Odin's own
+ * QUADS format and a plain LINES wireframe) is own
  * {@code PrimitiveRenderer.addChainedFilledBoxVertices}/{@code renderLineBox} - real, proven-compiling
- * code confirmed against this exact Minecraft version (Odin's {@code gradle.properties} pins
+ * code confirmed against this exact Minecraft version (the {@code gradle.properties} pins
  * {@code minecraft_version=26.1.2}), not a guess at this version's newer RenderPipeline-based API.
  */
 public final class WorldRenderUtils {
@@ -30,7 +30,7 @@ public final class WorldRenderUtils {
     private WorldRenderUtils() {
     }
 
-    /** Draws a solid box, respecting depth (won't show through walls) - same choice Odin's Simon Says
+    /** Draws a solid box, respecting depth (won't show through walls) - same choice the Simon Says
      *  highlight uses by default, since this is meant to highlight a button you can already see. */
     public static void renderFilledBox(LevelRenderContext context, AABB box, float r, float g, float b, float a) {
         McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.FILLED, (pose, buffer) -> {

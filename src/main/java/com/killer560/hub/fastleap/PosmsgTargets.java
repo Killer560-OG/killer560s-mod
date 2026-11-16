@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
 /**
  * Target Mode "Posmsg": remembers, per leap target, the party member who most recently announced that position in
  * party chat this world. Catches both this mod's own Posmsg lines ("[PM]EE2 (High - Lever Device)|x|y|z|r" - only the
- * entry name is matched) and plain position messages from Odin's Positional Messages / other mods ("At EE2!",
+ * entry name is matched) and plain position messages from the Positional Messages / other mods ("At EE2!",
  * "At Core!", "Inside Tunnel!"). Keywords are comma-separated, case-insensitive, and must match as whole words; when a
  * line matches several targets, only the targets with the longest matching keyword take it (so "Inside Core!" goes to
  * S4's "inside core", not S3's "core"). Your own messages are ignored. Cleared on world change.

@@ -11,8 +11,8 @@ import com.killer560.hub.util.ModLog;
 
 /**
  * Reads the vanilla Hypixel dungeon map item (hotbar slot 9) into the same 11x11 room/door grid
- * {@link LiveMapFeature} scans from the world - a straight port of NoammAddons' own
- * {@code MapUtils.calibrateMap} + {@code HotbarMapScanner} (26.1.2 branch), with QUOI's
+ * {@link LiveMapFeature} scans from the world - a straight port of the
+ * {@code MapUtils.calibrateMap} + {@code HotbarMapScanner} (26.1.2 branch), with the
  * {@code MapRenderer.update} as a cross-check (same calibration constants, same color ids).
  * <p>
  * Used for two things only: (1) room connectivity for cells whose chunks the world scan hasn't loaded
@@ -31,7 +31,7 @@ final class DungeonMapScanner {
     static final int KIND_SEPARATOR = 2;
     static final int KIND_DOOR = 3;
 
-    // Same order/ordinals as NoammAddons' RoomState - lower ordinal = further progressed.
+    // Same order/ordinals RoomState - lower ordinal = further progressed.
     static final int STATE_GREEN = 0;
     static final int STATE_CLEARED = 1;
     static final int STATE_DISCOVERED = 2;
@@ -147,15 +147,15 @@ final class DungeonMapScanner {
         return calibrated && kinds[idx] == KIND_DOOR ? centerColors[idx] & 0xFF : 0;
     }
 
-    /** Interactive map: the map's room color id for a room cell (NoammAddons {@code RoomType.fromMapColor}: 18 blood,
+    /** Interactive map: the map's room color id for a room cell (18 blood,
      *  82 fairy, 34 rare, 74 champion, 66 puzzle, 62 trap, 63/85 normal, 30 entrance), or 0 when unknown. */
     static int roomColorAt(int idx) {
         return calibrated && kinds[idx] == KIND_ROOM ? sideColors[idx] & 0xFF : 0;
     }
 
     /** Interactive map: player markers from the dungeon map item's decorations, in the order Hypixel sends them -
-     *  NoammAddons {@code MapUpdater.updatePlayers} / QUOI {@code MapRenderer.update}. Each entry is
-     *  {@code {worldX, worldZ, yawDegrees, isSelf(1/0)}} using NoammAddons' {@code DungeonPlayer.getRealPos}
+     *  the reference {@code MapUpdater.updatePlayers} / the reference {@code MapRenderer.update}. Each entry is
+     *  {@code {worldX, worldZ, yawDegrees, isSelf(1/0)}} using the {@code DungeonPlayer.getRealPos}
      *  transform. Empty without a calibrated map (p3sim, boss). */
     static java.util.List<double[]> playerMarkers(Minecraft client) {
         java.util.List<double[]> out = new java.util.ArrayList<>();
@@ -303,7 +303,7 @@ final class DungeonMapScanner {
     /** The calibration failure last logged (logging only), so a once-a-second retry logs only when it changes. */
     private static String lastCalibrationFailure;
 
-    /** Port of NoammAddons' {@code HotbarMapScanner.scanTile} + the monotonic state merge in
+    /** Port of the {@code HotbarMapScanner.scanTile} + the monotonic state merge in
      *  {@code MapUpdater.updateRooms} (a tile's state only moves forward, except puzzles which can fail). */
     private static void classify(int idx, int x, int y) {
         int center = centerColors[idx] & 0xFF;
@@ -356,7 +356,7 @@ final class DungeonMapScanner {
         }
     }
 
-    /** NoammAddons {@code RoomType.fromMapColor}. */
+    /** The reference {@code RoomType.fromMapColor}. */
     private static boolean isRoomColor(int color) {
         return switch (color) {
             case 18, 82, 34, 74, 66, 62, 63, 85, 30 -> true;
@@ -364,7 +364,7 @@ final class DungeonMapScanner {
         };
     }
 
-    /** NoammAddons {@code DoorType.fromMapColor}. */
+    /** The reference {@code DoorType.fromMapColor}. */
     private static LiveMapFeature.Tile doorFromColor(int color) {
         return switch (color) {
             case 18 -> LiveMapFeature.Tile.DOOR_BLOOD;
@@ -375,7 +375,7 @@ final class DungeonMapScanner {
         };
     }
 
-    /** Port of NoammAddons' {@code MapUtils.calibrateMap}/{@code findEntranceCorner}: the entrance room is
+    /** Port of the {@code MapUtils.calibrateMap}/{@code findEntranceCorner}: the entrance room is
      *  the first horizontal run of color 30 at least 16 pixels long; its length (16 or 18) is the map's
      *  room size, and the per-floor start corner follows from it. */
     private static boolean calibrate(byte[] colors) {
@@ -415,7 +415,7 @@ final class DungeonMapScanner {
         mapRoomSize = foundLength;
         int measuredX = (foundStart & 127) % (mapRoomSize + 4);
         int measuredZ = (foundStart >> 7) % (mapRoomSize + 4);
-        // Every floor's corner from a table, not just E-F3 (NoammAddons measures F4 and up from the entrance run).
+        // Every floor's corner from a table, not just E-F3 (the reference measures F4 and up from the entrance run).
         // His logs (26.1.2 Dungeons, 2026-10): F5/F6/F7/M5 calibrated at (5,5) 193 times and M4 at (5,16) 47 times, but
         // two M5 runs on 2026-10-08 measured (16,5) - a 5-wide grid on a 6x6 floor - and that reading is used for the
         // whole run. A floor's corner is fixed (its grid is centered on the 128px map), so the table cannot be wrong
@@ -441,7 +441,7 @@ final class DungeonMapScanner {
     }
 
     /** The map's start corner and room size {x, z, size} for a floor number (0 = Entrance), or null when the floor is
-     *  unknown. E-F3 are NoammAddons' table (18px rooms); F4 (6x5) and F5-F7 (6x6) are the corners his own logs show
+     *  unknown. E-F3 are the table (18px rooms); F4 (6x5) and F5-F7 (6x6) are the corners his own logs show
      *  those floors at (16px rooms). Each is the floor's grid centered on the 128px map, rounded down. */
     static int[] knownCorner(int floor) {
         return switch (floor) {
@@ -471,7 +471,7 @@ final class DungeonMapScanner {
         return Character.isDigit(last) ? last - '0' : -1;
     }
 
-    /** Hypixel keeps the dungeon map in hotbar slot 9 (NoammAddons reads {@code getHotbarSlot(8)}). */
+    /** Hypixel keeps the dungeon map in hotbar slot 9 (the reference reads {@code getHotbarSlot(8)}). */
     private static MapItemSavedData findDungeonMap(Minecraft client) {
         if (client.player == null || client.level == null) {
             return null;

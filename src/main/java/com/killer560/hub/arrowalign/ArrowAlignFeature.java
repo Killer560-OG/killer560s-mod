@@ -32,13 +32,13 @@ import com.killer560.hub.compat.McRender;
  * (Goldor arena, player side is +X, device stand at 0,120,77). Each right-click rotates a frame by one of its 8
  * steps; the device completes once every arrow points along the path.
  * <p>
- * Solution data: the 9 known layouts, identical across Odin ({@code features/impl/boss/ArrowAlign.kt}), NoammAddons
- * ({@code features/impl/floor7/devices/ArrowAlign.kt}), QUOI ({@code module/impl/floor7/ArrowAlign.kt}, same 9 in a
- * different order) and Devonian ({@code ArrowAlignSolver.kt}, same 9 re-indexed as {@code (dy shl 3) or dz}). Index
+ * Solution data: the 9 known layouts, identical across the reference ({@code features/impl/boss/ArrowAlign.kt}), the reference
+ * ({@code features/impl/floor7/devices/ArrowAlign.kt}), the reference ({@code module/impl/floor7/ArrowAlign.kt}, same 9 in a
+ * different order) and the reference ({@code ArrowAlignSolver.kt}, same 9 re-indexed as {@code (dy shl 3) or dz}). Index
  * is {@code dy + dz * 5}; {@code -1} = no arrow frame there. A layout matches when arrow-frame presence matches its
  * non-{@code -1} cells exactly; the value is the target rotation, and clicks needed = {@code (target - current) & 7}.
  * <p>
- * Rotation tracking (the Devonian/QUOI idea, made explicit): the client never predicts an item-frame rotation
+ * Rotation tracking (the other implementations idea, made explicit): the client never predicts an item-frame rotation
  * ({@code ItemFrame#interact} returns SUCCESS client-side without touching it - checked in the 26.1.2 jar), so the
  * real value only changes when the server's entity-data update arrives, which lags on Hypixel. Every click that goes
  * out (real, via {@code ArrowAlignInteractMixin}, or this feature's own) books a pending click on that frame; the
@@ -55,10 +55,10 @@ public final class ArrowAlignFeature {
     private static final int GRID_Y = 120;
     private static final int GRID_Z = 75;
     private static final Vec3 DEVICE_STAND = Vec3.atCenterOf(new BlockPos(0, 120, 77));
-    // Odin/NoammAddons use distSqr 200 around the device; a bit wider so the solver is already up when walking in.
+    // Other implementations use distSqr 200 around the device; a bit wider so the solver is already up when walking in.
     private static final double ACTIVE_RANGE_SQ = 15.0 * 15.0;
     private static final AABB SCAN_BOX = new AABB(GRID_X - 1, GRID_Y - 1, GRID_Z - 1, GRID_X + 2, GRID_Y + 6, GRID_Z + 6);
-    // Same 1000ms "recent click" window Odin/NoammAddons/QUOI hold their local rotation guess for.
+    // Same 1000ms "recent click" window other implementations hold their local rotation guess for.
     private static final long PENDING_TIMEOUT_MS = 1000L;
 
     private static final int COLOR_GREEN = 0xFF55FF55;
@@ -757,7 +757,7 @@ public final class ArrowAlignFeature {
         }
     }
 
-    /** Odin/NoammAddons dynamic colors: under 3 green, under 5 gold, else red. */
+    /** Other implementations dynamic colors: under 3 green, under 5 gold, else red. */
     private static int colorFor(int clicks) {
         return clicks < 3 ? COLOR_GREEN : clicks < 5 ? COLOR_GOLD : COLOR_RED;
     }

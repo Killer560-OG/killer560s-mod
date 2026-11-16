@@ -232,7 +232,7 @@ public final class SimLiveMobs {
                         if (layout.roomAtWorld(x + 0.5, z + 0.5) != room) continue;
                         // c is a tile center at the doorways' feet level + 1: never under that floor less one, nor more than four
                         // above it - a pit or a high ledge was a mob Auto Clear could not reach and a key nobody could pick up
-                        // (doc-adm-sim-1101: Flags' key 3 below the floor, then a zombie 8 above it).
+                        // (doc-sim-1101: Flags' key 3 below the floor, then a zombie 8 above it).
                         for (int y = c.getY() - 2; y <= c.getY() + 3; y++) {
                             BlockPos feet = new BlockPos(x, y, z);
                             if (solid(level, feet.below()) && !solid(level, feet) && !solid(level, feet.above())
@@ -358,7 +358,7 @@ public final class SimLiveMobs {
     private static BlockPos besideSpot(ServerLevel level, DungeonLayout layout, int room, BlockPos near, List<BlockPos> taken,
                                        java.util.Random rng) {
         // Never below the floor the doorways stand on, less one: a pit or the hollow under a floor is no place for a mob (a
-        // key that drops there cannot be reached; doc-adm-sim-1101, a Flags key 3 below the floor).
+        // key that drops there cannot be reached; doc-sim-1101, a Flags key 3 below the floor).
         int floorMin = DungeonLayout.doorBlock(0).getY() - 1;
         for (int tries = 0; tries < 60; tries++) {
             int x = near.getX() + rng.nextInt(9) - 4;

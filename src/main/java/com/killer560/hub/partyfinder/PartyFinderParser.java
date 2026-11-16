@@ -13,21 +13,21 @@ import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** Party Finder lore parsing - a port of Devonian's {@code api/dungeon/PartyFinderListener.kt} (regexes, data model,
+/** Party Finder lore parsing - a port of (regexes, data model,
  *  join-status rules). Pure functions; {@link PartyFinderOverlay} decides when to call them. */
 public final class PartyFinderParser {
 
     public static final String PARTY_FINDER_TITLE = "Party Finder";
     public static final String CATACOMBS_GATE_TITLE = "Catacombs Gate";
-    /** Devonian reads the selected class from this slot of the Catacombs Gate menu. */
+    /** The reference reads the selected class from this slot of the Catacombs Gate menu. */
     public static final int GATE_CLASS_SLOT = 45;
 
     private static final Pattern TYPE = Pattern.compile("^Dungeon: (Master Mode )?(The Catacombs)$");
-    /** "Floor: Floor VII", or "Floor: Entrance" (floor 0, Hypixel's key "0" for its times). Devonian matches only the
+    /** "Floor: Floor VII", or "Floor: Entrance" (floor 0, Hypixel's key "0" for its times). The reference matches only the
      *  first, which left an Entrance party with floor -1 and no PB for anyone. */
     private static final Pattern FLOOR = Pattern.compile("^Floor: (?:Floor ([IV]+)|(Entrance))$");
     // killer560 9.1: was anchored ^...$ (the whole line had to be EXACTLY " Name: Class (Level)", nothing
-    // after), so anything appended to that line - most notably another mod restyling the same lore (Devonian's
+    // after), so anything appended to that line - most notably another mod restyling the same lore (the
     // Party Finder Overview tacking its own extra stats on the end every tick; see
     // DetectedMods#isDevonianPartyFinderOverviewOn, found 2026-09-21 as the cause of "the current style does
     // not work") - broke the match completely and silently emptied the whole party: no members, "Missing:"
@@ -63,7 +63,7 @@ public final class PartyFinderParser {
         if (stack == null || stack.isEmpty() || !stack.is(Items.PLAYER_HEAD)) return null;
         // The SERVER's lore for this slot when we have it, the live stack only as a fallback.
         //
-        // Devonian's Party Finder Overview rewrites this lore in place every tick, so the live stack holds its
+        // The Party Finder Overview rewrites this lore in place every tick, so the live stack holds its
         // edits rather than Hypixel's text - which is what emptied this overlay entirely (2026-09-21). Loosening
         // the regexes recovered some of it, but no parser can be made proof against arbitrary rewriting by an
         // arbitrary mod. The packet copy cannot be rewritten by anyone. See PartyFinderLoreCache.

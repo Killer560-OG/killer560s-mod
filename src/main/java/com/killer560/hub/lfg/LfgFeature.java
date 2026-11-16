@@ -71,7 +71,7 @@ public final class LfgFeature {
     private static final String RANKED = "(?:\\[[A-Z+]{1,12}\\] )?[A-Za-z0-9_]{1,16}";
     /** Hypixel's "X has disbanded the party!" (group 1: the name, rank tag dropped). */
     public static final Pattern DISBANDED = Pattern.compile("^(?:\\[[A-Z+]{1,12}\\] )?([A-Za-z0-9_]{1,16}) has disbanded the party!$");
-    /** The party ended for us (Odin's PartyUtils leave/disband lines, names bounded). */
+    /** The party ended for us (the PartyUtils leave/disband lines, names bounded). */
     static final List<Pattern> PARTY_ENDED = List.of(
             Pattern.compile("^You have been kicked from the party by " + RANKED + "$"),
             Pattern.compile("^The party was disbanded because all invites expired and the party was empty\\.$"),

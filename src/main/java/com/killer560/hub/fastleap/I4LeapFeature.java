@@ -17,14 +17,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * I4 leap out - QUOI {@code AutoLeap.kt}'s "I4 leap" (+ "Auto", "Leap Melody"), split into its own independent feature
+ * I4 leap out - 's "I4 leap" (+ "Auto", "Leap Melody"), split into its own independent feature
  * (killer560, 2026-09-15). Options:
  * <ul>
- * <li><b>Auto</b> (QUOI): your own "&lt;you&gt; completed a device!" line while standing in QUOI's pre4 box, in the
+ * <li><b>Auto</b>: your own "&lt;you&gt; completed a device!" line while standing in the pre4 box, in the
  * F7/M7 boss.</li>
- * <li><b>Fast Leap</b> (QUOI): left-clicking a Spirit Leap while in the pre4 box (handled in
+ * <li><b>Fast Leap</b>: left-clicking a Spirit Leap while in the pre4 box (handled in
  * {@link FastLeapFeature#onLeftClick()}).</li>
- * <li><b>Target</b>: a Class (first alive teammate), a Player name, or Melody - QUOI's melody detection: the last
+ * <li><b>Target</b>: a Class (first alive teammate), a Player name, or Melody - the melody detection: the last
  * "Name:" in a party line containing a Melody progress token ("1/3", "2/3", "33%", "67%"; the old 4-row "1/4".."75%" too). Melody has a
  * Class/Player backup used when no melody player is known, they can't be leapt to, or they're not in the leap menu.</li>
  * <li><b>Prevent Inputs</b>: while Auto i4 is on and you're on the i4 pad (x 62-65, z 34-37, |y-127| &lt; 0.5) after the
@@ -36,13 +36,13 @@ import java.util.regex.Pattern;
 public final class I4LeapFeature {
 
     private static final AABB PRE4_BOX = new AABB(62.0, 127.0, 34.0, 65.0, 130.0, 37.0);
-    // NoammAddons I4Helper.devBlocks (same wall as i4sensors)
+    // The reference I4Helper.devBlocks (same wall as i4sensors)
     private static final List<BlockPos> DEV_BLOCKS = List.of(
             new BlockPos(68, 130, 50), new BlockPos(66, 130, 50), new BlockPos(64, 130, 50),
             new BlockPos(68, 128, 50), new BlockPos(66, 128, 50), new BlockPos(64, 128, 50),
             new BlockPos(68, 126, 50), new BlockPos(66, 126, 50), new BlockPos(64, 126, 50));
     // The 3-row Melody of 0.27.2 (2026-10-06) is announced as 1/3, 2/3, 33%, 66%/67% - both sets are accepted.
-    // "34%" is NoammAddons 1.2.9 MelodyDisplay's ceil(1 * 33.33), which it accepts beside 33%/66%/67%.
+    // "34%" is the reference 1.2.9 MelodyDisplay's ceil(1 * 33.33), which it accepts beside 33%/66%/67%.
     private static final Set<String> MELODY_PROGRESS = Set.of("1/3", "2/3", "33%", "34%", "66%", "67%",
             "1/4", "2/4", "3/4", "25%", "50%", "75%");
     /**
@@ -60,7 +60,7 @@ public final class I4LeapFeature {
      */
     private static final Pattern MELODY_PARTY_LINE = Pattern.compile(
             "^Party > (?:\\[[^\\]]+\\] )?([A-Za-z0-9_]{1,16}): (.*)$");
-    // QUOI deviceDoneRegex, plus an optional suffix (Odin's Terminal Splits appends times)
+    // The reference deviceDoneRegex, plus an optional suffix (the Terminal Splits appends times)
     private static final Pattern DEVICE_DONE_REGEX = Pattern.compile("^([A-Za-z0-9_]{1,16}) completed a device! \\((.*?)\\)(?:\\s.*)?$");
     private static final int RELIGHT_GRACE_TICKS = 40;
     // Safety: no lit target for this long = stop treating the device as running, so a missed completion line can
@@ -93,7 +93,7 @@ public final class I4LeapFeature {
         }
         if (cfg.getTargetType() == TargetType.MELODY) {
             Matcher party = MELODY_PARTY_LINE.matcher(unformatted);
-            // NoammAddons 1.2.9 MelodyDisplay.parseMelodyMessage ignores a progress line ending in ")". Not copied here:
+            // The reference 1.2.9 MelodyDisplay.parseMelodyMessage ignores a progress line ending in ")". Not copied here:
             // this mod's own announcement ended in ")" until 70e8dec7, so friends on an older jar would stop counting.
             if (party.matches()) {
                 String sender = party.group(1);
@@ -184,7 +184,7 @@ public final class I4LeapFeature {
                 && com.killer560.hub.i4sensors.I4SensorsConfig.getInstance().isAutoI4Enabled();
     }
 
-    /** QUOI {@code leapToPre4Target()}. */
+    /** The reference {@code leapToPre4Target}. */
     static void leapToTarget() {
         I4LeapConfig cfg = I4LeapConfig.getInstance();
         boolean block = cfg.isPreventInputs();

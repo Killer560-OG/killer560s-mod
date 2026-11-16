@@ -19,7 +19,7 @@ import java.util.Set;
 /**
  * Est. Item Value: the item's own price plus what was applied to it, each part priced from {@link PriceData}.
  *
- * <p>The parts and field names follow SkyHanni's EstimatedItemValueCalculator and the SkyHelper networth constants
+ * <p>The parts and field names follow the EstimatedItemValueCalculator and the SkyHelper networth constants
  * (research 2026-10-15; reimplemented, not copied), with every field name checked against real auction NBT that day:
  * base price, Recombobulator ({@code rarity_upgrades}), Hot/Fuming Potato Books ({@code hot_potato_count}, the first 10
  * hot), enchantments (the Bazaar's {@code ENCHANTMENT_<NAME>_<LEVEL>}), dungeon stars ({@code upgrade_level} or the
@@ -30,8 +30,8 @@ import java.util.Set;
  * merge, ability scrolls, power scroll, enrichment, boosters, drill and rod parts, dye, helmet skin, rune, pet held item
  * and pet skin. Reforges are NOT counted: nothing keyless maps a reforge to its stone.
  *
- * <p>{@link PriceTooltipConfig.ValueMode#NETWORTH} weighs each part by SkyHelper's application worth (what Skyblocker's
- * "Est. Item Value" shows); {@link PriceTooltipConfig.ValueMode#FULL} counts everything at full price (SkyHanni).
+ * <p>{@link PriceTooltipConfig.ValueMode#NETWORTH} weighs each part by SkyHelper's application worth (what the
+ * "Est. Item Value" shows); {@link PriceTooltipConfig.ValueMode#FULL} counts everything at full price.
  */
 public final class ItemValueCalc {
 

@@ -21,10 +21,10 @@ import java.util.concurrent.ConcurrentHashMap;
  * ({@code config/killer560/skyblock/pathfinding/killer560smod-pathfinding/graphs/}), a failed fetch backs off instead of retrying every tick, and a
  * previously downloaded copy keeps working while the network is down.
  * <p>
- * Source: SkyHanni's own public data repo, {@code constants/island_graphs/<ISLAND>.json} in
- * https://github.com/hannibal002/SkyHanni-REPO (MIT licensed). That is the exact same file SkyHanni's own client
- * downloads, so the data stays current instead of going stale in a bundled copy. Pinned to the {@code main} branch
- * (SkyHanni's clients read that branch too); the jsDelivr CDN mirror of the same branch is the fallback when
+ * Source: the public data repo, {@code constants/island_graphs/<ISLAND>.json} in
+ * https://github.com/hannibal002/SkyHanni-REPO (MIT licensed). That is the exact same file the community clients
+ * download, so the data stays current instead of going stale in a bundled copy. Pinned to the {@code main} branch
+ * (the clients read that branch too); the jsDelivr CDN mirror of the same branch is the fallback when
  * raw.githubusercontent.com is unreachable.
  */
 public final class GraphRepository {

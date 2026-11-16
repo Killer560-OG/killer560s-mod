@@ -38,11 +38,11 @@ import java.util.regex.Pattern;
 
 /**
  * Blood Rush Helper (killer560, 2026-11-03: "Theirs shows where you should go to kill blood rush mobs. That is what I
- * want." - the reference mod adm's BR Roles). On the blood rush a room's Wither Key drops only once its starred mobs are
+ * want." - the usual blood rush roles). On the blood rush a room's Wither Key drops only once its starred mobs are
  * dead; this boxes them, shares them out between the killers, numbers yours in kill order, fills in the next one, and
  * drops each box as its mobs die. Information only: it never moves, aims, clicks or chats.
  *
- * <p>Behaviors mirrored from adm's own code (facts, our code): a starred mob is claimed by the box its body overlapped
+ * <p>Behaviors mirrored from known behavior (facts, our code): a starred mob is claimed by the box its body overlapped
  * most where first seen, else the nearest box of its room within {@link #CLAIM_REACH} blocks; a box shows until every mob
  * it claimed is dead (it shows before any is in view too) or the map shows the room cleared; Hypixel sends no death, so a
  * mob removed within {@link #DIES_ALONE} blocks, or within {@link #DIES_WITH_TAG} on the same tick as its name tag, is
@@ -52,13 +52,13 @@ import java.util.regex.Pattern;
  * Entrance side of the path); roles, the door runner, Door Kills, the drop at fairy and master mode class roles are in
  * {@link BloodRushRoles}; a room with one box is a miniboss room and every role kills it.
  *
- * <p><b>The split</b> is where adm has hand-made plans per room x entry door x team size on its site. Ours is a rule
- * fitted to those plans ({@link BloodRushSplit}; killer560s-mod-logs\adm-study\measure_final.py): the room's boxes are grouped into one region a role
+ * <p><b>The split</b> is where hand-made plans exist per room x entry door x team size. Ours is a rule
+ * fitted to those plans ({@link BloodRushSplit}; a private measurement script): the room's boxes are grouped into one region a role
  * with k-means seeded from the box farthest from the door, regions kept to equal box counts on normal floors; roles are
  * numbered farthest region first on normal floors, most boxes first in master mode; inside a role the kill order walks
  * from the door, nearest first, then each next nearest the last. Once your own boxes are done, the others' that are left
- * show as help. Agreement with adm's plans is measured, not exact: an adm player and one of ours can still share a box,
- * so with adm's role lines in party chat the HUD says so.
+ * show as help. Agreement with those plans is measured, not exact: a player on the usual roles and one of ours can still share a box,
+ * so with role lines in party chat the HUD says so.
  *
  * <p><b>Boxes</b> come from the room's known spawn spots ({@link BloodRushSpots}: earlier sightings, his own and the
  * jar's shipped table, grouped
@@ -73,9 +73,9 @@ public final class BloodRushHelperFeature {
 
     /** Learned spots, and mobs no learned box claims, this close (each of x/z, 3 in y) are one box. */
     static final double LINK = 3.5;
-    /** adm: a box further than this from a mob does not claim it. */
+    /** A box further than this from a mob does not claim it. */
     static final double CLAIM_REACH = 5.0;
-    /** adm's death rule: removed this close is dead... */
+    /** Death rule: removed this close is dead... */
     static final double DIES_ALONE = 32.0;
     /** ...or this close on the same tick as its name tag. */
     static final double DIES_WITH_TAG = 48.0;
@@ -221,7 +221,7 @@ public final class BloodRushHelperFeature {
                 });
     }
 
-    /** The notice a party running adm's roles gets (killer560, 2026-11-03: "I just don't want someone on their mod to be
+    /** The notice a party running the usual roles gets (killer560, 2026-11-03: "I just don't want someone on their mod to be
      *  player 1 and ours 2 and they go for the same mobs"). */
     public static final String ADM_NOTICE = "ADM players in party: our split is close to ADM's, not identical - call your rooms";
 
@@ -233,7 +233,7 @@ public final class BloodRushHelperFeature {
         return List.of(ADM_NOTICE, "BR roles: " + BloodRushRoles.summary());
     }
 
-    /** The roles line: shown only while someone in the party has claimed a role in adm's form. Movable in the HUD editor. */
+    /** The roles line: shown only while someone in the party has claimed a role in the usual form. Movable in the HUD editor. */
     public static final com.killer560.hub.hud.HudElement HUD = new com.killer560.hub.hud.BasicHud("blood_rush_roles", "Blood Rush Roles", 4, 120) {
 
         @Override
@@ -423,7 +423,7 @@ public final class BloodRushHelperFeature {
             BloodRushSpots.saveIfDirty(true);
             com.killer560.hub.roomsim.SimMobLooks.saveIfDirty(true);
             if (client.level != level) {
-                // adm's rule: party-chat roles last until the dungeon they were for is over.
+                // Party-chat roles last until the dungeon they were for is over.
                 BloodRushRoles.newWorld(wasInDungeon);
                 wasInDungeon = false;
             }
@@ -494,7 +494,7 @@ public final class BloodRushHelperFeature {
     }
 
     /**
-     * adm's step rule: from one room's tile into the next tile over, belonging to another room, is through the doorway
+     * Step rule: from one room's tile into the next tile over, belonging to another room, is through the doorway
      * between them, halfway between the two tiles' centres; a jump of more than one tile (a leap, a pearl) is no door.
      */
     private static void trackSteps(Minecraft client, DungeonLayout layout) {
@@ -658,7 +658,7 @@ public final class BloodRushHelperFeature {
     }
 
     /**
-     * The rush path, adm's way: the rooms join as a tree, and every wither door and the blood door is on the way from the
+     * The rush path: the rooms join as a tree, and every wither door and the blood door is on the way from the
      * Entrance to Blood, so the rush's rooms are those on the way from the Entrance to each of those doors (and to every
      * room the rush has been in), each entered by its door on the Entrance side. Legit reads the doors the hotbar map shows;
      * {@code scanned} (Whole Rush Path, cheat build) the scanned dungeon's. Returns room -> its entrance-side door (x, z).

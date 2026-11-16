@@ -41,7 +41,7 @@ import java.util.UUID;
  *
  * <h2>The rules are read off the live solver, not invented</h2>
  *
- * {@code puzzlesolvers/IcePathSolverFeature} is the ported, working QUOI solver, and every number below is its
+ * {@code puzzlesolvers/IcePathSolverFeature} is the ported, working the reference solver, and every number below is its
  * number rather than a fresh guess:
  *
  * <ul>
@@ -878,7 +878,7 @@ public final class SimIcePathPuzzle {
      * An arrow against a resting silverfish is a shove, in the direction the SHOT WAS AIMED.
      *
      * <p>Auto Ice Path shoots straight down from on top of it, so the arrow's flight says nothing about which way to
-     * push and the aim's yaw says everything - that is the reading QUOI's auto relies on, on Hypixel. The aim is
+     * push and the aim's yaw says everything - that is the reading the auto relies on, on Hypixel. The aim is
      * NOT {@code arrow.getYRot()}: that is the projectile's own yaw, which is mirrored against a look yaw, near
      * meaningless for a vertical shot, and turned ~180 degrees when the arrow bounces off this invulnerable fish -
      * so the shove went backward along one board axis or the other, usually into a wall where nothing moves and

@@ -18,7 +18,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Sky Mall Display (legit, both builds; SkyHanni's Sky Mall Display): each SkyBlock day Hypixel announces your Heart of the
+ * Sky Mall Display (legit, both builds; the Sky Mall Display): each SkyBlock day Hypixel announces your Heart of the
  * Mountain Sky Mall buff ("New buff: Gain +100⸕ Mining Speed."); this keeps it on a movable HUD, and can flash a title
  * when the new buff is the one you want (Alert On). The buff lasts one SkyBlock day (20 minutes), so a line older than
  * that is dropped. The Heart of the Forest's rotating perks use the same "New buff:" words; only the six Sky Mall buffs
@@ -26,7 +26,7 @@ import java.util.regex.Pattern;
  */
 public final class SkyMallDisplay {
 
-    /** The six Sky Mall buffs: name shown, and words that identify the chat line (SkyHanni's SkymallPerk). */
+    /** The six Sky Mall buffs: name shown, and words that identify the chat line (the SkymallPerk). */
     public enum Buff {
         MINING_SPEED("+100 Mining Speed", "mining speed"),
         MINING_FORTUNE("+50 Mining Fortune", "mining fortune"),
@@ -49,7 +49,7 @@ public final class SkyMallDisplay {
             .flag("miningOnly", true)
             .num("alert", 0, 0, Buff.values().length);
 
-    /** SkyHanni's HotxPatterns rotating-perk line; the perk text is bounded. */
+    /** The HotxPatterns rotating-perk line; the perk text is bounded. */
     private static final Pattern NEW_BUFF = Pattern.compile("^New buff: (.{1,100})$");
     private static final long DAY_MS = 20 * 60_000L;
 

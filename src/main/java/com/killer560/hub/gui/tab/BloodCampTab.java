@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Blood Camp settings - see {@link com.killer560.hub.bloodcamp.BloodCampFeature}'s class doc for the
- *  real Noamm-ported mechanic this is built on. Every label reads a {@code ...Raw()} getter: the gated
+ *  real mechanic this is built on. Every label reads a {@code...Raw} getter: the gated
  *  getters are false outside Skyblock, so reading them here made every row show OFF and made a click
  *  write true no matter what the saved value was. The cheat build's Trigger Bot and Aura rows moved to their
  *  own {@link AutoBloodCampTab} on 2026-10-07 (killer560: "make auto blood camp its own cheat tab"). */

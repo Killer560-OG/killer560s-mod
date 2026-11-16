@@ -28,8 +28,8 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * Blood Rush Splits: the blood rush, room by room (Doc 2026-11-01, "the blood rush split stuff" of the reference mod adm;
- * its idea and its timeline, read not copied - adm is All Rights Reserved).
+ * Blood Rush Splits: the blood rush, room by room (Doc 2026-11-01, "the blood rush split stuff" of other blood rush tools;
+ * its idea and its timeline, read not copied - that mod is All Rights Reserved).
  *
  * <p>A rush room starts when the door into it opens ("&lt;name&gt; opened a WITHER door!", the first one at Mort's line) and
  * ends when the door out of it opens, so the rooms tile end to end until "The BLOOD DOOR has been opened!". Inside a room:

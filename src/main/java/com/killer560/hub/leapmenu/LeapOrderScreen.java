@@ -262,7 +262,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         return String.join(",", Arrays.stream(layout).map(n -> n == null ? "" : n).toList());
     }
 
-    /** "Default Order: Odin" - the label is also the tooltip key "default order". */
+    /** "Default Order: the reference" - the label is also the tooltip key "default order". */
     public static Component defaultOrderText() {
         return Component.literal("Default Order: §6" + LeapMenuConfig.getInstance().getDefaultOrder().label());
     }

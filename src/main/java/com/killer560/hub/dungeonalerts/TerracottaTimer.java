@@ -15,11 +15,11 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Terracotta Timer (F6/M6 boss) - ported from Odin {@code features/impl/boss/TerracottaTimer.kt}, cross-checked
- * with NoammAddons (26.1.2 upstream) {@code features/impl/dungeon/TerracottaTimer.kt}. Both agree: when a block
+ * Terracotta Timer (F6/M6 boss) -, cross-checked
+ * with the reference (26.1.2 upstream) {@code features/impl/dungeon/TerracottaTimer.kt}. Both agree: when a block
  * changes into a {@link FlowerPotBlock} during the F6/M6 boss fight, a terracotta will respawn there in 15 s
- * (F6) / 12 s (M6) (Noamm: 300 / 240 server ticks). Odin's text: "§a" &gt; 5 s, "§6" &gt; 2 s, else "§c",
- * value to 2 decimals + "s", scale 2 at the block center. Noamm's extra: clear everything 10 ticks after
+ * (F6) / 12 s (M6) (300 / 240 server ticks). The text: "§a" &gt; 5 s, "§6" &gt; 2 s, else "§c",
+ * value to 2 decimals + "s", scale 2 at the block center. The extra: clear everything 10 ticks after
  * "[BOSS] Sadan: ENOUGH!".
  * <p>
  * Deviation: both references count down on SERVER ticks; this mod has no server-tick source, so this counts

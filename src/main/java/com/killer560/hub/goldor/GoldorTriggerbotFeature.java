@@ -255,7 +255,7 @@ public final class GoldorTriggerbotFeature {
 
     /**
      * The real boss wither whose hitbox the crosshair line actually passes through, nearest first, or null.
-     * {@link WitherEspFeature#isRealWither} is Noamm's filter - Hypixel's invisible / 800-invulnerable-tick
+     * {@link WitherEspFeature#isRealWither} is the filter - Hypixel's invisible / 800-invulnerable-tick
      * display withers are not Goldor and must never be clicked.
      */
     private static Entity aimedAtBoss(Minecraft client, LocalPlayer player, double range, float partialTick) {

@@ -21,13 +21,13 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
- * Bazaar Order Helper (killer560, 2026-11-02: "add in skyhanni's bazaar order helper as well"). In Hypixel's Manage
+ * Bazaar Order Helper (killer560, 2026-11-02: "add in another mod's bazaar order helper as well"). In Hypixel's Manage
  * Orders menu ({@code Your Bazaar Orders} / {@code Co-op Bazaar Orders}) each order's slot is colored: green when it is
  * filled (100%) or has something to claim, red when another player has a better order on its side (a buy order below
  * the best buy order, a sell offer above the cheapest sell offer). Its tooltip says which, against what price, and how
  * old that price is.
  * <p>
- * SkyHanni's {@code BazaarOrderHelper.kt} (behavior only, read 2026-11-02): full orders green, a buy order under the
+ *  (behavior only, read 2026-11-02): full orders green, a buy order under the
  * instant-sell price or a sell offer over the instant-buy price gold, nothing else. Here the orders are read by the
  * mod's own {@link BazaarOrderParser} (the same one {@link BazaarOrders} and the Bazaar screen use), the judgment is
  * {@link BazaarOrders#standing} against the mod's own Bazaar API data ({@link BazaarApi}), and an order that only has

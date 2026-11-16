@@ -8,8 +8,8 @@ import java.util.regex.Pattern;
 /**
  * Chat Hider's dungeon pack (2026-10-25): six families of dungeon chat, each its own switch in {@link ChatTidyConfig},
  * hidden at display time from {@link ChatTidy#shouldHide} and only while in a dungeon. Every line shape was checked
- * against his own 26.1.2 (Dungeons) chat log (2026-09 to 2026-10-25) and against SkyHanni {@code DungeonChatFilter} /
- * {@code DungeonBossMessages} and Skyblocker {@code DungeonBreakerFilter}. Every pattern matches the WHOLE plain line,
+ * against his own 26.1.2 (Dungeons) chat log (2026-09 to 2026-10-25) and against the reference {@code DungeonChatFilter} /
+ * {@code DungeonBossMessages} and the reference {@code DungeonBreakerFilter}. Every pattern matches the WHOLE plain line,
  * and a name is {@code [A-Za-z0-9_]{1,16}}, so a player's chat ("Party > [MVP+] Eve: [BOSS] Maxor: ...") never matches:
  * every player channel carries a prefix with a colon none of these lines can start with.
  */
@@ -28,7 +28,7 @@ public final class DungeonChatHider {
     /** Dungeon bosses only ("[BOSS] Bal" is the Crimson Isle and stays). F5's fake Livids and Endermen carry a word. */
     static final Pattern BOSS = Pattern.compile("^\\[BOSS\\] (?:The Watcher|Bonzo|Scarf|The Professor|Thorn|Sadan|Maxor"
             + "|Storm|Goldor|Necron|Wither King|(?:[A-Z][a-z]{1,10} )?Livid|[A-Z][a-z]{1,10} Enderman): .{1,250}$");
-    /** Kept (SkyHanni keeps it too): the Watcher's "blood is done" line. */
+    /** Kept (the reference keeps it too): the Watcher's "blood is done" line. */
     static final String WATCHER_DONE = "[BOSS] The Watcher: You have proven yourself. You may pass.";
 
     static final Pattern MORT = Pattern.compile("^\\[NPC\\] Mort: .{1,200}$");
@@ -60,7 +60,7 @@ public final class DungeonChatHider {
             Pattern.compile("^You formed a tether with " + NAME + "!$"),
     };
 
-    /** Skyblocker {@code DungeonBreakerFilter}, verbatim. */
+    /** The reference {@code DungeonBreakerFilter}, verbatim. */
     static final Pattern BREAKER = Pattern.compile("^(?:A mystical force prevents you (?:from digging that block|digging in this "
             + "room|digging there)|You don't have enough charges to break this block right now)!$");
 

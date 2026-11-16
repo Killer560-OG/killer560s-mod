@@ -17,7 +17,7 @@ import java.util.List;
 /**
  * Nucleus Run Profit tracker (killer560, verbatim: "nuc run profit tracker") - see
  * {@link NucleusRunProfitTracker}'s class doc for exactly how a "run" is detected (Hypixel's own Crystal
- * Nucleus loot-bundle chat message, verified against the public SkyHanni mod's real detector) and how
+ * Nucleus loot-bundle chat message, verified against the public the reference mod's real detector) and how
  * per-item value is priced. Observational only, not cheat-gated. Defaults OFF.
  */
 public class NucleusRunProfitTab extends BaseTab {

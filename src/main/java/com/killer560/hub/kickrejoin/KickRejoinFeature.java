@@ -25,7 +25,7 @@ import java.util.regex.Pattern;
 
 /**
  * Kick Rejoin Timer (killer560, 2026-11-03: "it should be for kicked to spawn. when you have to wait 1m to rejoin"):
- * SkyHanni's {@code SkyBlockKickDuration}, our own code. Kicked out of SkyBlock into a Hypixel lobby, Hypixel will not
+ * The {@code SkyBlockKickDuration}, our own code. Kicked out of SkyBlock into a Hypixel lobby, Hypixel will not
  * let you back in for about a minute; a HUD counts it down and a title and sound say when you can rejoin.
  * <p>
  * The lines, as they appear in his own logs (26.1.2 Dungeons / Mod Only Test, July-October 2026):

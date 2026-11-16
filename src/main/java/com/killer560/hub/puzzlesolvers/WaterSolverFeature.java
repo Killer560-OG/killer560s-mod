@@ -28,11 +28,11 @@ import com.killer560.hub.compat.McRender;
 import com.killer560.hub.util.ChatColors;
 
 /**
- * Real Hypixel dungeon "Water Board" puzzle solver, ported from Odin's own {@code WaterSolver.kt}. This
+ * Real Hypixel dungeon "Water Board" puzzle solver. This
  * is the most involved real puzzle mechanic ported so far: exactly 3 of 5 real wool colors get pushed out
  * (a real 5-choose-3 = 10 combinations) and one of 4 real marker blocks identifies which physical board
  * layout is active; together these key into a bundled real lever-timing database
- * ({@code assets/killer560smod/puzzles/water-solutions.json}, copied verbatim from Odin) giving each of 7
+ * ({@code assets/killer560smod/puzzles/water-solutions.json}) giving each of 7
  * real interactable blocks (6 levers + the water bucket) a real list of click times in seconds, relative
  * to the moment the water lever is first flicked (that's the real puzzle-wide synchronized start signal).
  * Highlights the single soonest real next click with a tracer, and floats a real live countdown ("Xs" /
@@ -41,7 +41,7 @@ import com.killer560.hub.util.ChatColors;
  * have already been consumed per lever.
  * <p>
  * Like Boulder/Quiz/Ice Fill Solver, the 7 real lever positions are bundled FIXED relative coordinates
- * (ported from Odin), not derived live - so this carries the same one flagged cross-mod corner/rotation
+ * , not derived live - so this carries the same one flagged cross-mod corner/rotation
  * convention risk documented for those solvers (see TESTING.md Round 76). Unlike Weirdos Solver, there's
  * no live-entity self-reference here to sidestep that risk.
  */
@@ -157,7 +157,7 @@ public final class WaterSolverFeature {
     private static void tick(Minecraft client) { tickInner(client); }
 
     private static void tickInner(Minecraft client) {
-        // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
+        // Boss check: the reference e42d3316 "reset when entering boss" (2026-09-14 port).
         if (!WaterSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
             if (!"none".equals(LOG.roomKey)) {
                 LOG.room("none", "solver idle: enabled=" + WaterSolverConfig.getInstance().isEnabled()
@@ -333,7 +333,7 @@ public final class WaterSolverFeature {
         return realPos(lever.x, lever.y, lever.z, clayAndRotation);
     }
 
-    /** The soonest remaining click (same ordering as the tracer/QUOI {@code solutionList}), for AutoPuzzles. */
+    /** The soonest remaining click (same ordering as the tracer/the reference {@code solutionList}), for AutoPuzzles. */
     public record NextClick(boolean water, BlockPos pos, int relativeZ, double time) {
     }
 

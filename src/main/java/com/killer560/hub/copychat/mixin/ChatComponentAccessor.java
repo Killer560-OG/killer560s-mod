@@ -13,7 +13,7 @@ import java.util.List;
  *  is the actual wrapped/visible line list (one entry per on-screen row, not per full message), and
  *  {@code getScale()}/{@code getLineHeight()} are the exact real values the chat GUI itself already uses
  *  to lay those rows out, needed to correctly reverse a raw click Y back into a specific line index -
- *  same math quoi's own {@code ChatUtils.toChatLineMY}/{@code getMessageLineIdx} use (decompiled
+ *  same math another mod's own {@code ChatUtils.toChatLineMY}/{@code getMessageLineIdx} use (decompiled
  *  2026-09-09 as reference), reproduced here via accessors instead of duplicating the formula by hand so
  *  it can never drift from what the screen actually rendered. */
 @Mixin(ChatComponent.class)

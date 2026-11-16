@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Name Changer's central hooks - the same two chokepoints quoi's {@code FontMixin} uses. Verified with javap against
+ * Name Changer's central hooks - the same two chokepoints another mod's {@code FontMixin} uses. Verified with javap against
  * the 26.1.2 merged jar: all GUI text (chat, tab list, scoreboard, lore/tooltips, titles) is prepared through
  * {@code GuiTextRenderState.ensurePrepared -> Font.prepareText(FormattedCharSequence,FFIZZI)}, world text (name tags)
  * through {@code Font.drawInBatch -> prepareText(...)}, and centering/backgrounds use {@code Font.width(...)}.

@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /** Hotbar (and offhand) rarity backgrounds: HEAD of {@code Hud#extractSlot}, which runs after the hotbar
- *  sprite and before the item (including its pickup "pop" scale) is drawn - same hook NoammAddons'
+ *  sprite and before the item (including its pickup "pop" scale) is drawn - same hook the
  *  {@code MixinGui#onRenderHotbarSlot} uses on 26.1.2.
  *  <p>
  *  Verified with javap against minecraft-merged-043a8b3edf-26.1.2.jar: {@code private void

@@ -8,7 +8,7 @@ import java.util.Locale;
  * Which part of the F7/M7 fight an aim spot belongs to. The phase gate reuses {@link Floor7Tracker} (chat-driven
  * phase, position-driven fallback) - no new phase detection.
  * <p>
- * Dragon names are the mod's existing pairing ({@code witherdragons/WitherDragon.java}, ported from Odin's
+ * Dragon names are the mod's existing pairing ({@code witherdragons/WitherDragon.java}
  * {@code WitherDragonsEnum.kt}): Red = Power, Orange = Flame, Green = Apex, Blue = Ice, Purple = Soul.
  */
 public enum AimSituation {

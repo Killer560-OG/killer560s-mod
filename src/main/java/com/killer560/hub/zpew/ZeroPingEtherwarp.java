@@ -28,7 +28,7 @@ import java.util.Locale;
 /**
  * Zero Ping Etherwarp (both builds since 2026-10-26, being camera only; killer560, 2026-10-25: "0 ping etherwarping", and "I want 0 ping etherwarp to
  * work with multiple etherwarps per tick"). The moment an etherwarp is SENT, the camera is drawn from where it will land,
- * instead of waiting a round trip for the server's teleport. RSM's 1.21 "Zpew" works the same way, camera only.
+ * instead of waiting a round trip for the server's teleport. The 1.21 "Zpew" works the same way, camera only.
  *
  * <p><b>Purely visual.</b> Nothing here writes his position, velocity or rotation, and nothing is sent: the player stays
  * where the server has him until the server's own position packet moves him there (the mod's rule: never setPos). The

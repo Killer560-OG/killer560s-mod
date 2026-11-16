@@ -20,8 +20,8 @@ import java.util.regex.Pattern;
  * Formats (read 2026-10-07; color codes stripped). The tab list is server-only text: no player's chat can write it.
  * <ul>
  *   <li>Footer: a line {@code Cookie Buff}, then the time left on the next line, or, when off, the two lines
- *       {@code Not active! Obtain booster cookies from the community} / {@code shop in the hub.} - SkyHanni
- *       {@code features/misc/compacttablist/TabListReader.kt} (beta) and Skyblocker
+ *       {@code Not active! Obtain booster cookies from the community} / {@code shop in the hub.} - the reference
+ *       {@code features/misc/compacttablist/TabListReader.kt} (beta) and the reference
  *       {@code skyblock/tabhud/widget/EffectWidget.java} (main), whose footer regex takes the line after
  *       {@code Cookie Buff} and calls it inactive when it starts with "Not", otherwise the time left.</li>
  *   <li>The Cookie Buff tab widget: {@code Cookie Buff: <time>}, {@code INACTIVE} when off, or a line starting
@@ -32,7 +32,7 @@ import java.util.regex.Pattern;
  *       future.</li>
  * </ul>
  * The time-left format itself is not in any source, so an active line is anything short that is not "Not active",
- * as Skyblocker reads it. Every line is matched whole and every quantifier is bounded.
+ * as the reference reads it. Every line is matched whole and every quantifier is bounded.
  */
 public final class BoosterCookie {
 

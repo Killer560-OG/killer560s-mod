@@ -7,7 +7,7 @@ import com.killer560.hub.util.ConfigJson;
 import java.nio.file.Path;
 
 /** Persisted "Secret Triggerbot" settings - see {@link SecretTriggerbotFeature}. Cheat build only, ships disabled.
- *  Slider ranges follow QUOI's SecretTriggerbot ("Interact delay" 0-5 ticks is exposed here in ms, same as the
+ *  Slider ranges follow the SecretTriggerbot ("Interact delay" 0-5 ticks is exposed here in ms, same as the
  *  Simon Says trigger bot delay; "Swap slot" 1-9; "Swap back" default off). */
 public final class SecretTriggerbotConfig {
 

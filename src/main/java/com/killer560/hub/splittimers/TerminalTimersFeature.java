@@ -20,18 +20,18 @@ import java.util.regex.Pattern;
  * "Terminal Timers" - killer560's own request (2026-09-14): "a setting called terminal timers that after each
  * completed terminal sends a client side message about how fast it was and it should include devices. Bundle
  * the simon says one into this as well... messages like [Killer560 completed a device! (0/7)] should have times
- * next to them, reference odin." Ported from Odin's own {@code TerminalTimes.kt} (reference clone under the
+ * next to them, reference another mod." Ported from the {@code TerminalTimes.kt} (reference clone under the
  * odin-ref scratchpad), both halves:
  * <ul>
- * <li><b>Solve times</b> (Odin "Terminal Times"): "§a&lt;Terminal&gt; §7solved in §6X.XXs§7!" for each terminal YOU
+ * <li><b>Solve times</b> (the reference "Terminal Times"): "§a&lt;Terminal&gt; §7solved in §6X.XXs§7!" for each terminal YOU
  * complete. The duration is {@code TerminalSolverFeature}'s GUI open-to-close measurement; it's only posted once
  * your own "completed a terminal!" line confirms the terminal was actually solved (not just closed), in
  * whichever order the close and the chat line arrive.</li>
- * <li><b>Splits</b> (Odin "Terminal Splits"): every "&lt;name&gt; activated/completed a terminal/device/lever!
- * (n/m)" line is rewritten to Odin's exact format with "§8(§7&lt;section&gt;s §8| §7&lt;phase&gt;s§8)" appended -
+ * <li><b>Splits</b> (the reference "Terminal Splits"): every "&lt;name&gt; activated/completed a terminal/device/lever!
+ * (n/m)" line is rewritten to the exact format with "§8(§7&lt;section&gt;s §8| §7&lt;phase&gt;s§8)" appended -
  * section time since the current P3 section started, phase time since Goldor's "Who dares trespass" line - and
  * "Times: a | b | c | d, Total: X" is posted when the core opens. Section bookkeeping (gate blown, n/m wrap) is
- * Odin's, line for line. Real time, like Odin's default "Use Real Time".</li>
+ * The, line for line. Real time default "Use Real Time".</li>
  * <li><b>Simon Says time</b>: gates {@code SimonSaysFeature}'s own "Whole device solved" message.</li>
  * </ul>
  * Replaces this mod's older, differently-worded "Device/Lever Times" suffix (deleted 2026-09-29, with the
@@ -40,7 +40,7 @@ import java.util.regex.Pattern;
  */
 public final class TerminalTimersFeature {
 
-    // Odin's regex, plus an optional trailing suffix so a line another mod already annotated still matches.
+    // The regex, plus an optional trailing suffix so a line another mod already annotated still matches.
     private static final Pattern COMPLETE_REGEX =
             Pattern.compile("^(\\w{1,16}) (activated|completed) a (terminal|lever|device)! \\((\\d)/(\\d)\\)(?:\\s.*)?$");
     private static final String GATE_DESTROYED = "The gate has been destroyed!";
@@ -48,7 +48,7 @@ public final class TerminalTimersFeature {
     private static final String CORE_OPENING = "The Core entrance is opening!";
     private static final long SOLVE_MATCH_WINDOW_MS = 3000L;
 
-    // --- splits (Odin's own state) ---
+    // --- splits (the state) ---
     private static int completedCurrent = 0;
     private static int completedTotal = 7;
     private static final List<Float> sectionTimes = new ArrayList<>();
@@ -59,7 +59,7 @@ public final class TerminalTimersFeature {
     private static String lastRewrittenPlain = null;
     private static long lastRewrittenAtMs = 0L;
 
-    // --- breakdown (Devonian): per player {terminals, devices, levers} since Goldor's opening line, posted when the core opens ---
+    // --- breakdown: per player {terminals, devices, levers} since Goldor's opening line, posted when the core opens ---
     private static final java.util.Map<String, int[]> breakdown = new java.util.LinkedHashMap<>();
     private static final int BREAKDOWN_MAX_PLAYERS = 16;
 
@@ -79,7 +79,7 @@ public final class TerminalTimersFeature {
             if (client.level != lastLevel) {
                 lastLevel = client.level;
                 breakdown.clear();
-                resetSection(true); // Odin: LevelEvent.Load
+                resetSection(true); // LevelEvent.Load
             }
         }));
     }
@@ -130,7 +130,7 @@ public final class TerminalTimersFeature {
         if (originalStyle.getHoverEvent() != null) {
             rewritten.withStyle(style -> style.withHoverEvent(originalStyle.getHoverEvent()));
         }
-        // Odin's section bookkeeping, verbatim.
+        // The section bookkeeping, verbatim.
         if ((current == total && gateBlown) || current < completedCurrent) {
             resetSection(false);
         } else {

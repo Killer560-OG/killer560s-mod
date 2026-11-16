@@ -37,10 +37,10 @@ import java.util.regex.Pattern;
 import com.killer560.hub.compat.McBlocks;
 
 /**
- * A live, self-drawn dungeon room/door map - killer560's "reference Noamm for the map, essentially
+ * A live, self-drawn dungeon room/door map - killer560's "reference the reference for the map, essentially
  * duplicate their map" request.
  * <p>
- * Real, confirmed data reused from NoammAddons' own {@code DungeonScanner.kt}/{@code ScanUtils.kt}/
+ * Real, confirmed data reused from the {@code DungeonScanner.kt}/{@code ScanUtils.kt}/
  * {@code DoorType.kt}, not guessed:
  * <ul>
  * <li>The dungeon's room grid is a FIXED 11x11 coordinate system starting at world (-185, -185) with
@@ -50,9 +50,9 @@ import com.killer560.hub.compat.McBlocks;
  * <li><b>Room identity (2026-09-13 update):</b> now uses the real room database (see
  * {@link RoomDatabase}) to identify each room's actual NAME by hashing its blocks and matching against
  * ~140 known rooms, and its real ROTATION/corner by finding the real blue-terracotta roof marker - the
- * same technique {@link com.killer560.hub.roomdatabase} ported directly from NoammAddons' own code.
+ * same technique {@link com.killer560.hub.roomdatabase} own code.
  * <li><b>Multi-tile rooms (2026-09-15 update):</b> 1x2/1x3/1x4/2x2/L rooms are grouped into ONE room
- * the way NoammAddons' {@code UniqueRoom}/{@code RoomTile.addToUnique} does - tiles sharing a database
+ * the way the {@code UniqueRoom}/{@code RoomTile.addToUnique} does - tiles sharing a database
  * name join one room, and "connector" cells (the filled gap between two tiles of the same room, from the
  * world scan or from the vanilla dungeon map item via {@link DungeonMapScanner}) join the tiles on either
  * side. A room's name, rotation/corner, map state and label are shared by every tile of it. Merges that
@@ -117,12 +117,12 @@ public final class LiveMapFeature {
     private static final int[] groupOfCell = new int[GRID * GRID];
     private static final List<RoomGroup> groups = new ArrayList<>();
     private static boolean groupsDirty = true;
-    /** Per-room secrets found, from the action bar's "x/y Secrets" (NoammAddons' ActionBarParser). */
+    /** Per-room secrets found, from the action bar's "x/y Secrets" (the ActionBarParser). */
     private static final Map<String, Integer> foundSecretsByRoom = new HashMap<>();
     private static final Pattern ACTION_BAR_SECRETS = Pattern.compile("(\\d{1,4})/(\\d{1,4}) Secrets");
     private static final Pattern COLOUR_CODE = Pattern.compile("§.");
 
-    // Boss room bounds per floor 1..7 - copied verbatim from NoammAddons' own (26.1.2 upstream)
+    // Boss room bounds per floor 1..7 - own (26.1.2 upstream)
     // LocationUtils.bossRoomBounds; {x1, y1, z1, x2, y2, z2}, min/max normalized by AABB's constructor.
     private static final net.minecraft.world.phys.AABB[] BOSS_ROOM_BOUNDS = {
             new net.minecraft.world.phys.AABB(-14, 55, 49, -72, 146, -40),
@@ -161,7 +161,7 @@ public final class LiveMapFeature {
 
     /** One real dungeon room - one or more grid tiles plus the connector cells between them. */
     static final class RoomGroup {
-        /** Top-left tile (smallest grid x, then z) - NoammAddons' {@code UniqueRoom.mainRoom}. */
+        /** Top-left tile (smallest grid x, then z) - the {@code UniqueRoom.mainRoom}. */
         final int mainIdx;
         /** Even (room) cells. */
         final int[] tiles;
@@ -172,7 +172,7 @@ public final class LiveMapFeature {
         final int maxGX;
         final int minGZ;
         final int maxGZ;
-        /** Label center in grid units (QUOI's {@code OdonRoom.textPlacement}). */
+        /** Label center in grid units. */
         final float labelGX;
         final float labelGZ;
         final boolean lShape;
@@ -201,7 +201,7 @@ public final class LiveMapFeature {
             float lz = (mnZ + mxZ) / 2f;
             lShape = tiles.length == 3 && mxX - mnX == 2 && mxZ - mnZ == 2;
             if (lShape) {
-                // L-shape: center on the horizontal pair (QUOI textPlacement).
+                // L-shape: center on the horizontal pair (the reference textPlacement).
                 for (int a = 0; a < 3; a++) {
                     for (int b = a + 1; b < 3; b++) {
                         if (tiles[a] / GRID == tiles[b] / GRID) {
@@ -556,7 +556,7 @@ public final class LiveMapFeature {
         }
     }
 
-    /** Port of NoammAddons' {@code UniqueRoom.findRotation}: Fairy has no marker (fixed corner, rotation 0);
+    /** Port of the {@code UniqueRoom.findRotation}: Fairy has no marker (fixed corner, rotation 0);
      *  a complete non-L room checks the 4 corners of the bounding box around all its tiles; L-shaped rooms,
      *  incomplete rooms and rooms with no database match fall back to each tile's own 4 corners (the
      *  pre-grouping behavior). */
@@ -669,7 +669,7 @@ public final class LiveMapFeature {
     }
 
     /** Union-find over the 121 cells. Real sources, in order: (1) connector cells join their neighbors -
-     *  NoammAddons' {@code DungeonScanner.scanTile} "connection between large rooms"/"2x2 center" branches,
+     *  the {@code DungeonScanner.scanTile} "connection between large rooms"/"2x2 center" branches,
      *  plus {@code HotbarMapScanner.getConnected} for map-only cells; (2) tiles with the same database name
      *  join - {@code DungeonScanner.uniqueRooms} keyed by name. A union is refused when both sides have
      *  different names or the result would exceed the room's shape tile count, so bad data degrades to
@@ -719,7 +719,7 @@ public final class LiveMapFeature {
             // A world-scanned connector only merges when something confirms it: the dungeon map shows a
             // room separator here, or an adjacent tile is identified (so the shape cap/name check apply).
             // No map + no database = no merge = single tiles, exactly the pre-grouping behavior. Never next
-            // to the Entrance - NoammAddons turns that gap into an entrance door.
+            // to the Entrance - the reference turns that gap into an entrance door.
             boolean anchored = mapKind == DungeonMapScanner.KIND_SEPARATOR;
             boolean nearEntrance = false;
             for (int dx = -1; dx <= 1; dx++) {
@@ -952,7 +952,7 @@ public final class LiveMapFeature {
         return gid >= 0 ? groups.get(gid) : null;
     }
 
-    /** NoammAddons {@code ActionBarParser}: the action bar's "x/y Secrets" is the current room's count;
+    /** The reference {@code ActionBarParser}: the action bar's "x/y Secrets" is the current room's count;
      *  only trusted when y matches the room's database secret total. */
     private static void onActionBar(String text) {
         if (text == null || !DungeonState.isInDungeon() || isInBoss() || !text.contains("Secrets")) {
@@ -1030,7 +1030,7 @@ public final class LiveMapFeature {
     }
 
     /** @return the player's current grid cell, clamped to the real 11x11 bounds - same transform as
-     *  NoammAddons' own {@code ScanUtils.getRoomGraf}. */
+     *  the {@code ScanUtils.getRoomGraf}. */
     static int[] gridCellFor(Vec3 pos) {
         // From the tile's center BLOCK's middle (START + 0.5): a position in the one-block gap between two tiles goes
         // to the tile it is nearer, not always the +x / +z one (DungeonLayout.roomAtWorld, 2026-10-12).
@@ -1140,7 +1140,7 @@ public final class LiveMapFeature {
                 START_X + maxGX * HALF_ROOM + 16, START_Z + maxGZ * HALF_ROOM + 16};
     }
 
-    /** Real bug found and fixed (2026-09-14, code review + NoammAddons e42d3316 "reset when entering
+    /** Real bug found and fixed (2026-09-14, code review + the reference e42d3316 "reset when entering
      *  boss"): {@link #gridCellFor} clamps to the 11x11 grid, so standing in a boss room (outside the
      *  -201..-9 dungeon footprint) mapped to corner cell (10,10) and solvers could "match" whatever room
      *  was identified there. @return the player's current room cell index, or -1 when there's no
@@ -1170,8 +1170,8 @@ public final class LiveMapFeature {
 
     /** @return true while the player is in (or has entered, this run) the current floor's boss room -
      *  real F7/M7 boss-phase detection ({@link DungeonState#isBossPhaseActive()}, which is also forced
-     *  on by /killer560 sim) OR NoammAddons' own per-floor boss-room bounds. The bounds check also
-     *  requires being outside the room-grid footprint, since NoammAddons' F1-F4 boxes overlap the
+     *  on by /killer560 sim) OR the per-floor boss-room bounds. The bounds check also
+     *  requires being outside the room-grid footprint, since the F1-F4 boxes overlap the
      *  grid's corner cells. Latched until the next grid reset (dungeon entry / world change). */
     public static boolean isInBoss() {
         return bossLatched || DungeonState.isBossPhaseActive();
@@ -1526,7 +1526,7 @@ public final class LiveMapFeature {
         }
 
         /**
-         * Pixels of background between the rooms and the map's edge on each side. NoammAddons' map is a 128px box with the
+         * Pixels of background between the rooms and the map's edge on each side. The map is a 128px box with the
          * 116px room grid inside it ({@code MapRenderer.renderBackground}, start corner 5,5 in {@code MapUtils}); 6 a side
          * gives the same 128px box, centered (2 until 2026-10-19, which left the rooms almost touching the border).
          */
@@ -1554,7 +1554,7 @@ public final class LiveMapFeature {
          * the map itself. History: full size until 2026-10-07 ("Crypts 0/5  Deaths 0" filled the map's whole width),
          * then 0.75 in four rows ("The text under the map should also be smaller and fit better"), then half size in two
          * rows the same evening ("Try to make it smaller and only take up 2 rows"); 2026-10-15 the rows are centered and
-         * filled NoammAddons-style ("lots of space to be used and it is used poorly") at the same sharp half size.
+         * filled ("lots of space to be used and it is used poorly") at the same sharp half size.
          */
         private static final float EXTRA_TEXT_MAP = 256f; // 240 until the map grew to 128px (2026-10-19): still half size
 
@@ -1663,7 +1663,7 @@ public final class LiveMapFeature {
             int row = extraRow();
             int lineY = y + EXTRA_GAP + 1;
             for (String line : lines) {
-                // Each row is its own band, row units tall, centered under the map like NoammAddons' (2026-10-15).
+                // Each row is its own band, row units tall, centered under the map (2026-10-15).
                 graphics.pose().pushMatrix();
                 graphics.pose().translate(x + w / 2f, lineY);
                 graphics.pose().scale(s, s);
@@ -1948,7 +1948,7 @@ public final class LiveMapFeature {
             graphics.fill(x, y, x + size, y + size, cfg.getMapBackground());
             int border = cfg.drawnBorderColor();
             if ((border >>> 24) != 0) {
-                // One frame round the map AND the Extra Info under it, as NoammAddons draws them (renderBackground: one
+                // One frame round the map AND the Extra Info under it draws them (renderBackground: one
                 // 128x140 box), not a box with a second strip hanging off it.
                 graphics.outline(x, y, size, size + extraInfoHeight(extraInfoLines()), border);
             }

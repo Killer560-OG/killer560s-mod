@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Split Timers settings - see {@link com.killer560.hub.splittimers.SplitTimersFeature}'s class doc
- *  for the real Odin-ported boss-dialogue split points this is built on. */
+ *  for the real boss-dialogue split points this is built on. */
 public class SplitTimersTab extends BaseTab {
 
     public SplitTimersTab() {

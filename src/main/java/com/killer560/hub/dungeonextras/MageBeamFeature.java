@@ -16,7 +16,7 @@ import java.util.List;
 import com.killer560.hub.compat.McRender;
 
 /**
- * Custom Mage Beam - port of NoammAddons' {@code MageBeam.kt} (origin/26.1.2). The Mage beam arrives as a run of
+ * Custom Mage Beam - port of (origin/26.1.2). The Mage beam arrives as a run of
  * {@code ClientboundLevelParticlesPacket}s with {@code ParticleTypes.FIREWORK}, spaced ~0.5 blocks along a straight
  * line, sent within one tick of each other. Consecutive collinear points (|dot| &gt; 0.99, &lt; 0.5 blocks from the
  * current end, &lt;= 1 tick apart) extend the same beam; anything else starts a new one. Hypixel sends every beam

@@ -23,7 +23,7 @@ import com.killer560.hub.compat.McCompat;
 /**
  * Draw a floor room by room, then play it.
  *
- * <p>killer560 (2026-09-29), of Ashfall's Dungeon Maker: "make this page that map selection instead of the
+ * <p>killer560 (2026-09-29), of the Dungeon Maker: "make this page that map selection instead of the
  * pick specific rooms thing." The old picker dropped him into ONE room; this lays out a whole floor - pick a
  * room from the list on the right, click a cell on the left, press Play.
  *

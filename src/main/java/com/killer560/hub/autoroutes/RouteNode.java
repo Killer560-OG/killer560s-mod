@@ -9,13 +9,13 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * One node of an Auto Route (QUOI {@code RouteRing} + its {@code RingAction}, flattened into a single class so it
+ * One node of an Auto Route (the reference {@code RouteRing} + its {@code RingAction}, flattened into a single class so it
  * round-trips through the hand-editable routes file without a polymorphic type registry). Cheat build only.
  * <p>
  * Everything spatial is <b>room-relative</b> ({@link RouteCoords}) so a route recorded in one run works when the
  * same room shows up rotated in another. {@link #pathIndex} anchors the node to the recorded movement
  * ({@link RoutePath}): playback performs the node once the path seek reaches that sample, and a route with no
- * recorded path falls back to QUOI's "stand in the ring" trigger.
+ * recorded path falls back to the "stand in the ring" trigger.
  */
 public final class RouteNode {
 
@@ -121,7 +121,7 @@ public final class RouteNode {
     public float pitch;
     /** Index into the route's {@link RoutePath} this node is anchored to; 0 for a route with no path. */
     public int pathIndex;
-    /** Ring diameter in blocks (QUOI's {@code radius} is really a diameter - kept for parity). */
+    /** Ring diameter in blocks (the {@code radius} is really a diameter - kept for parity). */
     public double radius = DEFAULT_RADIUS;
     /** Optional per-node ARGB color, or null to use the type / uniform color from the settings. */
     public Integer colour;
@@ -368,7 +368,7 @@ public final class RouteNode {
         hasLanding = true;
     }
 
-    /** QUOI {@code RouteRing.boundingBox}: a flat ring-shaped box around the node's REAL position. An {@link Type#ALIGN}
+    /** The reference {@code RouteRing.boundingBox}: a flat ring-shaped box around the node's REAL position. An {@link Type#ALIGN}
      *  node's box is its width x length instead, turned with the room ({@code rotation}, the frame's). */
     public AABB boundingBox(Vec3 real, double height, int rotation) {
         double hx = halfRealX(rotation);

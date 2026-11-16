@@ -148,16 +148,16 @@ public final class CroesusConfig {
     private final java.util.Set<String> rerollFloors = new java.util.LinkedHashSet<>(java.util.List.of("F7", "M7"));
     public static final java.util.List<String> ALL_FLOORS = java.util.List.of(
             "F1", "F2", "F3", "F4", "F5", "F6", "F7", "M1", "M2", "M3", "M4", "M5", "M6", "M7");
-    /** Reroll Protection (NoammAddons ChestProfit.kt "Reroll Value"): his click on a reward chest's Kismet "Reroll Chest"
+    /** Reroll Protection ("Reroll Value"): his click on a reward chest's Kismet "Reroll Chest"
      *  button is dropped while the chest's profit is above {@link #rerollProtectAboveK}. Ctrl lets it through. */
     private boolean rerollProtection = false;
-    /** NoammAddons' default, 5M. */
+    /** The default, 5M. */
     private int rerollProtectAboveK = 5_000;
-    /** The Kismet Feathers he carries, drawn as the reroll button's stack number (SkyHanni "Kismet Amount"). */
+    /** The Kismet Feathers he carries, drawn as the reroll button's stack number (the reference "Kismet Amount"). */
     private boolean kismetCount = false;
     /** Croesus Chests HUD: Hypixel's tab line " Unclaimed chests: N" as "N/60", and his Kismet Feathers, outside the menu. */
     private boolean chestCountHud = false;
-    /** A chat warning once the unclaimed count reaches this (Odin Croesus.kt "Chest Warning Threshold", 55). */
+    /** A chat warning once the unclaimed count reaches this ("Chest Warning Threshold", 55). */
     private int chestWarnAt = 55;
     public static final int MAX_CHEST_WARN_AT = 60;
 

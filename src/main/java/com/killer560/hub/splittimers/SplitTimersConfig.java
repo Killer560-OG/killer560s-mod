@@ -25,7 +25,7 @@ public final class SplitTimersConfig {
     private boolean announceInChat = true;
     // Killer560's own explicit request (2026-09-14): "for others it should go based off of section open.
     // So use the split timer to figure out when p2 started, then how long it took for their chat
-    // message... (od has this feature.)" - real reference: Odin's own confirmed TerminalTimes.kt, which
+    // message... (od has this feature.)" - real reference: the confirmed TerminalTimes.kt, which
     // rewrites the real "X completed a device!"/"X activated a lever!" chat line in place to append how
     // long the current split segment has been running. Defaults on, matching that being a definite ask.
     // M7 Phase 5 lines (2026-09-15, killer560's M7 request "split timers lines to the right ... relic stuff"):
@@ -34,7 +34,7 @@ public final class SplitTimersConfig {
     private boolean p5RelicLines = false;
     /** true = a column to the right of the normal split rows, false = under them. */
     private boolean p5LinesRight = true;
-    /** Devonian {@code WatcherSplits} "Watcher Move" - entity-movement driven, not a chat line. Default OFF. */
+    /** The reference {@code WatcherSplits} "Watcher Move" - entity-movement driven, not a chat line. Default OFF. */
     private boolean watcherMoveSplit = false;
     // Core entry times (2026-09-16, killer560: "add a time to enter core after terms finish timer with an
     // option to send slowest to chat") - see CoreEntryTimes.

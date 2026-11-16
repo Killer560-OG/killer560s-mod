@@ -22,7 +22,7 @@ import java.util.Locale;
  *
  * <p>The destination is the area of the first open commission that names one ({@link MiningState#COMMISSION_AREAS}:
  * "Lava Springs Mithril" goes to Lava Springs); a commission with no area ("Mithril Miner", "Goblin Slayer") is skipped,
- * and with none left there is no line. The path is the shortest one over SkyHanni's Dwarven Mines island graph (the one
+ * and with none left there is no line. The path is the shortest one over the Dwarven Mines island graph (the one
  * {@link MinesAreaMap} names areas from), from the node nearest him to the nearest node of that area
  * ({@link GraphPathfinder}, one Dijkstra), drawn from where he stands through the nodes. For a mithril or titanium area
  * commission the goal is the area's nodes that have ore beside them in the loaded world ({@link OreNodes}: at least
@@ -610,7 +610,7 @@ public final class CommissionRoute {
     }
 
 
-    /** Graph node ids (SkyHanni's keys) along the current path, in order. */
+    /** Graph node ids (the keys) along the current path, in order. */
     public static List<Integer> pathNodeIds() {
         IslandGraph g = MinesAreaMap.graph();
         int[] n = pathNodes;

@@ -18,9 +18,9 @@ import java.util.Set;
 /**
  * Room Alerts - reworked 2026-09-27 (killer560: "Make room alerts only have cleared room alert and secrets
  * in a room done alert"), replacing the old "walk into a named/puzzle room" trigger entirely. Presentation
- * still follows NoammAddons (26.1.2 upstream) {@code features/impl/dungeon/RoomAlerts.kt}: centered HUD text
+ * still follows the reference (26.1.2 upstream) {@code features/impl/dungeon/RoomAlerts.kt}: centered HUD text
  * (default at 44.4% screen height, meant for scale 2.5), NOTE_BLOCK_PLING vol 0.25 pitch 1, visible for
- * "Display Time" seconds (0.5-3.0, default 2.0) - Noamm's own two triggers ("Cleared" / "§aSecrets Done!")
+ * "Display Time" seconds (0.5-3.0, default 2.0) - the two triggers ("Cleared" / "§aSecrets Done!")
  * are exactly the two this now alerts on:
  * <ul>
  * <li><b>Room Cleared</b> - only the room he is standing in (killer560, 2026-10-18: "room alerts should only be for the room

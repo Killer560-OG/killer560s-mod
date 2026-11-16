@@ -10,7 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted Livid Solver settings - see {@link LividSolverFeature}'s class doc for the real
- *  Odin-ported wool/entity identification this is built on. Ships disabled by default, same as every
+ *  wool/entity identification this is built on. Ships disabled by default, same as every
  *  other new feature in this mod. */
 public final class LividSolverConfig {
 

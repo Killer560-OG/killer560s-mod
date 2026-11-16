@@ -26,7 +26,7 @@ import com.killer560.hub.compat.McBlocks;
  * <p>
  * Every wall target seen going {@code EMERALD_BLOCK -> BLUE_TERRACOTTA} this attempt (a real hit - the unlit
  * state is also blue terracotta, so only the transition counts) gets a green filled + outlined box. For the
- * rows that still have unhit targets, a small dot marks Noamm's Terminator aim spots (AutoI4.kt
+ * rows that still have unhit targets, a small dot marks the Terminator aim spots (AutoI4.kt
  * getTargetVector): x 67.5 (between columns x68/x66) and x 65.5 (between x66/x64), at the row's aim height
  * y = 131 - 2*row, on the wall's front face z 50. A dot is only drawn where it still covers an unhit
  * target, and the middle column only gets one dot when one already covers it.

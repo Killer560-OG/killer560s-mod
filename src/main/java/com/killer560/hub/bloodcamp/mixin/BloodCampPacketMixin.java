@@ -18,7 +18,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /** Read-only observation of three real incoming packets - see {@link BloodCampFeature}'s own class doc
  *  for the real mechanic these feed. Injected right AFTER the thread hand-off call, but before vanilla's
  *  own handler updates anything, so entity position reads inside {@link BloodCampFeature} still see the
- *  OLD (pre-packet) state, matching Noamm's own real reference (which reads the entity's current position
+ *  OLD (pre-packet) state own real reference (which reads the entity's current position
  *  and adds the packet's own delta on top, rather than reading an already-updated position). Never
  *  cancels anything.
  *  <p>

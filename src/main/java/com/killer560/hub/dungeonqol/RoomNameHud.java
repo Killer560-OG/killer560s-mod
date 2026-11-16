@@ -13,7 +13,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
-/** Current Room Name HUD (Devonian, featE-1108): the name of the dungeon room you stand in, from the map's room
+/** Current Room Name HUD (featE-1108): the name of the dungeon room you stand in, from the map's room
  *  identification (the sidebar's Room line when the map has none). Re-read twice a second, never per frame. */
 public final class RoomNameHud extends BasicHud {
 

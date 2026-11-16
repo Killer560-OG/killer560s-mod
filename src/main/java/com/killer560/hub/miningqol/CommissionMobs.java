@@ -37,7 +37,7 @@ import java.util.regex.Pattern;
  * server stops sending its name-tag stand at range (Hypixel tracks the stands nearer than the mobs; Starred Mob Hitboxes
  * keeps a starred mob the same way). A remembered mob is dropped when its commission no longer wants it, it dies or
  * unloads, or the world changes. No mob is matched by entity type alone: Goblins and Treasure Hoarders are player-model
- * NPCs like every other NPC, and SkyHanni's own mob detection ({@code MobFilter}) also names these mobs only through their
+ * NPCs like every other NPC, and the mob detection ({@code MobFilter}) also names these mobs only through their
  * stands, so no type rule here is unambiguous.
  *
  * <p>Style (Commission Mob Style): Outline, Fill, Fill + Outline (the shared {@code WorldRenderUtils} box passes), or Glow

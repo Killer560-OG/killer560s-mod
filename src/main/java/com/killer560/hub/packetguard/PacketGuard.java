@@ -16,7 +16,7 @@ import java.util.Set;
  * {@code Exception} and hands it to {@code ClientCommonPacketListenerImpl.onPacketError}: that logs "Failed to handle
  * packet", writes a disconnection report (which reads like a crash log and lists every mixin on the classes in the trace)
  * and drops the connection with "Network Protocol Error" - in a dungeon, a failed run (player report 2026-11-02:
- * 26.1.2 + NoammAddons + ViaFabric, once after about 8 hours, during a clear). Our handlers are meant to catch their own
+ * 26.1.2 + the reference + ViaFabric, once after about 8 hours, during a clear). Our handlers are meant to catch their own
  * throws; this catches the one that slips through, so a bug of ours costs that one packet instead of the run.
  *
  * <p>Only a throw whose THROW SITE is our code is kept: the first stack frame outside the JDK and common libraries must

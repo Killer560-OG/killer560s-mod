@@ -24,10 +24,10 @@ import java.util.Locale;
  * {@link ItemProtectFeature} (screens/keybinds/rendering) and out of the two mixins so the mixins stay
  * three-line delegates.
  * <p>
- * Ported from Devonian's {@code misc/inventory/PreventItem.kt} (the shared cancel funnel + its
+ * Ported from (the shared cancel funnel + its
  * {@code BadScreen} sell/salvage/trade detection), {@code SlotLocking.kt}, {@code ProtectItem.kt} and
- * {@code ProtectStarredItems.kt}, cross-checked against NoammAddons {@code general/ProtectItem.kt},
- * Skytils {@code features/impl/handlers/{SlotLocking,ItemFeatures}.kt} (branch {@code 1.x}) and SkyHanni
+ * {@code ProtectStarredItems.kt},
+ * The reference {@code features/impl/handlers/{SlotLocking,ItemFeatures}.kt} (branch {@code 1.x}) and the reference
  * {@code features/inventory/{ItemProtection,SlotLocking}.kt}. A protected ITEM is stopped by any action that would
  * actually lose it; with Lock In Place on it can't be clicked at all, which is what the removed Slot Lock did for a
  * slot (killer560, 2026-10-08).
@@ -84,7 +84,7 @@ public final class ItemProtect {
 
     /** The key this item is remembered by in the protected list: its UUID, or (with the fallback setting on)
      *  its Skyblock item id. Null when the item has neither - an item that can't be identified is never
-     *  added, matching Devonian's own behavior rather than silently protecting the wrong stack. */
+     *  added own behavior rather than silently protecting the wrong stack. */
     public static String protectKeyFor(ItemStack stack, ItemProtectConfig cfg) {
         String uuid = itemUuid(stack);
         if (uuid != null && !uuid.isBlank()) {
@@ -100,7 +100,7 @@ public final class ItemProtect {
     }
 
     /** Dungeon-starred item test. NBT first ({@code upgrade_level} / {@code dungeon_item_level}, exactly the
-     *  two keys Devonian's {@code ProtectStarredItems} reads), then the visible star characters as a fallback
+     *  two keys the {@code ProtectStarredItems} reads), then the visible star characters as a fallback
      *  for stacks whose extra attributes the client never received. */
     public static boolean isStarred(ItemStack stack) {
         CompoundTag tag = extraAttributes(stack);
@@ -210,7 +210,7 @@ public final class ItemProtect {
         return slot != null && inv != null && slot.container == inv;
     }
 
-    /** Screens where clicking one of your own items hands it away. Ported from Devonian's {@code BadScreen}
+    /** Screens where clicking one of your own items hands it away. Ported from the {@code BadScreen}
      *  (Salvage / Trade / Sell) plus the anvil and auction-creation menus named in this feature's brief. */
     public enum LossScreen {
         SALVAGE("salvaging"),
@@ -253,7 +253,7 @@ public final class ItemProtect {
         if (title.startsWith("You") && title.trim().matches("You\\s+\\w+")) {
             return LossScreen.TRADE;
         }
-        // Devonian's own sell-menu test: the hopper in slot 49 says what the menu does.
+        // The sell-menu test: the hopper in slot 49 says what the menu does.
         try {
             List<ItemStack> items = screen.getMenu().getItems();
             if (items.size() > 49) {

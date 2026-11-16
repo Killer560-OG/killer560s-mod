@@ -11,13 +11,13 @@ import java.util.regex.Pattern;
  * <p>
  * The formats come from two mods that parse this same menu, since Hypixel publishes none:
  * <ul>
- *   <li>SkyHanni {@code features/inventory/bazaar/BazaarOrderApi.kt} (beta branch, read 2026-10-07): the name
+ *   <li> (beta branch, read 2026-10-07): the name
  *       {@code §a§lBUY §fWheat} / {@code §6§lSELL ...}; lore {@code Order amount: 2,000x} / {@code Offer amount: 50x},
  *       {@code Filled: 26/50 (52%)} or {@code Filled: 1.9k/1.9k 100%!} (absent until something trades; large numbers
  *       are abbreviated), {@code You have 6 items to claim!}, {@code Price per unit: 2,082.3 coins} and, on a co-op,
  *       {@code By: [MVP+] hannibal2}. Menu titles {@code Your Bazaar Orders} / {@code Co-op Bazaar Orders}
  *       ({@code BazaarApi.kt}).</li>
- *   <li>Skyblocker {@code skyblock/bazaar/BazaarHelper.java} and {@code BazaarOrderTracker.java} (main, read
+ *   <li> and {@code BazaarOrderTracker.java} (main, read
  *       2026-10-07): the same amount and price lines, {@code Filled: \S+ \(?(\d+)%\)?!?}, a last line
  *       {@code Click to claim!} when there is something to claim, and the lines {@code Expired!} /
  *       {@code Expires in ...}.</li>

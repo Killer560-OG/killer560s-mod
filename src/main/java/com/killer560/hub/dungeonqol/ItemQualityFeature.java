@@ -9,7 +9,7 @@ import net.minecraft.world.item.ItemStack;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Item Quality tooltip (Athen, featE-1108): a dungeon drop carries {@code baseStatBoostPercentage} (0-50) and
+/** Item Quality tooltip (featE-1108): a dungeon drop carries {@code baseStatBoostPercentage} (0-50) and
  *  {@code item_tier} (the floor it dropped on, 0 = Entrance) in its custom data; the tooltip gets one last line,
  *  "Item Quality: 47/50 (Floor 7)". Only the drawn tooltip changes. */
 public final class ItemQualityFeature {

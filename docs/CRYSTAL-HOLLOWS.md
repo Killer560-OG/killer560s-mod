@@ -176,7 +176,7 @@ Two exact in-game lines, useful for chat matching
   **"Take this Metal Detector to scavenge the ground for lost items!"**
 - On completion: **"You found all of the items! Behold... the Jade Crystal!"**
 
-SkyHanni's chat filter gives the wrapping format for all Keeper lines (§7.4):
+Source C's chat filter gives the wrapping format for all Keeper lines (§7.4):
 `§e\[NPC\] §6Keeper of (?<keepertype>.*)§f: §r(?<message>.*)`.
 
 Chest loot table (<https://hypixelskyblock.minecraft.wiki/w/Metal_Detector>): Rough Gemstones 4/8/16/32/64x
@@ -251,7 +251,7 @@ Two more that the existing `ChStructure` enum already lists, and what the wiki s
   Golden Dragon Egg"*; *"It rarely spawns in the Mithril Deposits."* Contains the **Golden Dragon** NPC, who
   *"Sells the Golden Dragon Pet"* — a merchant, not a boss. *"Precise Location: Varies between lobbies"*.
   <https://hypixelskyblock.minecraft.wiki/w/Dragon's_Lair_(Crystal_Hollows)>
-  Both QUOI and Odin have a `GOLDEN_DRAGON` block signature with offset `(0, −3, 5)` for exactly this.
+  Both Source B and Source D have a `GOLDEN_DRAGON` block signature with offset `(0, −3, 5)` for exactly this.
 
 ### 2.4 Full special-structure list
 
@@ -301,8 +301,8 @@ Nucleus**, and no mod hardcodes one either — all five learn positions per lobb
 therefore sound, and the class docs in `src/main/java/com/killer560/hub/mining/chmap/ChStructure.java`
 already reason about this correctly.
 
-What the other mods add on top is not a *shape* but better ways to learn the *position*: Skyblocker's NPC
-chat triggers and Wishing Compass triangulation (§7.7) learn it without entering, and QUOI's chunk scanner
+What the other mods add on top is not a *shape* but better ways to learn the *position*: Source A's NPC
+chat triggers and Wishing Compass triangulation (§7.7) learn it without entering, and Source B's chunk scanner
 learns it from render distance. None of them knows a structure's extent — they all draw a point or an icon,
 not a border. **So the growing-AABB border is our own idea and has no prior art to check it against.**
 
@@ -329,9 +329,9 @@ The commonly cited community bounds are **X 202→823, Y 31→188, Z 202→823**
   centre written as `513, Y, 513` — dead centre either way.
 - The Nucleus's stated box `[465, 64, 465] → [561, 188, 561]` has its top at **Y 188**, matching the derived
   world ceiling.
-- **QUOI hardcodes exactly these X/Z bounds** and builds its whole minimap on them (§7.3):
+- **Source B hardcodes exactly these X/Z bounds** and builds its whole minimap on them (§7.3):
   `X_MIN = 202`, `X_MAX = 823`, `Z_MIN = 202`, `Z_MAX = 823`, `MAP_SIZE = 621`.
-- **Skyblocker hardcodes all six numbers in real source** (`CrystalsLocationsManager.checkInCrystals`):
+- **Source A hardcodes all six numbers in real source** (`CrystalsLocationsManager.checkInCrystals`):
 
 ```java
 protected static boolean checkInCrystals(BlockPos pos) {
@@ -342,13 +342,13 @@ protected static boolean checkInCrystals(BlockPos pos) {
 }
 ```
 
-That last one settles it. Two independent mods hardcode the same X/Z, Skyblocker hardcodes the Y too, and
+That last one settles it. Two independent mods hardcode the same X/Z, Source A hardcodes the Y too, and
 the numbers reproduce the wiki's stated `621 x 157 x 621` exactly. **Use `202/31/202 → 823/188/823`.** It is
-still not a wiki statement, so cite it as "confirmed by Skyblocker and QUOI, consistent with the wiki's
+still not a wiki statement, so cite it as "confirmed by Source A and Source B, consistent with the wiki's
 stated dimensions" rather than to the wiki.
 
-Note SkyHanni uses a *different*, looser box (`x,z ∈ 0..1024`, `y ∈ 65..190`) because it only draws warning
-walls and never needs a tight fit. Don't take SkyHanni's numbers as the world bounds.
+Note Source C uses a *different*, looser box (`x,z ∈ 0..1024`, `y ∈ 65..190`) because it only draws warning
+walls and never needs a tight fit. Don't take Source C's numbers as the world bounds.
 
 ### 3.3 Biome layout — quadrants
 
@@ -368,10 +368,10 @@ evidence that all agree:
   <https://hypixelskyblock.minecraft.wiki/w/Goblin_Holdout>
 - Wiki: Precursor Remnants gives **`797.5, 128.5, 708.5`** (the NPC Chunk) → X > 512, Z > 512.
   <https://hypixelskyblock.minecraft.wiki/w/Precursor_Remnants>
-- **SkyHanni** hardcodes signpost labels inside the Nucleus that name each quadrant by direction
+- **Source C** hardcodes signpost labels inside the Nucleus that name each quadrant by direction
   (`CrystalHollowsNamesInCore`, §7.3): `(550,116,550) → Precursor Remnants`, `(552,116,474) → Mithril
   Deposits`, `(477,116,476) → Jungle`, `(474,116,554) → Goblin Holdout`.
-- **QUOI**'s `CrystalHollowsQuarter` enum and **Odin**'s `WorldScanner$Quarter` enum both encode the same
+- **Source B**'s `CrystalHollowsQuarter` enum and **Source D**'s `WorldScanner$Quarter` enum both encode the same
   assignment.
 
 | Quadrant | X | Z | Confidence |
@@ -387,12 +387,12 @@ evidence that all agree:
 | | Split line | Magma floor | Nucleus |
 |---|---|---|---|
 | Wiki | — | **Y ≤ 64** | box `465,64,465 → 561,188,561` |
-| **Skyblocker** | **512 / 513**, hard AABBs | **Y 30…64** | AABB `462,63,461 → 564,181,565` |
-| SkyHanni | **513**, a hard plane | **Y < 65** | AABB `463,65,460 → 560,190,563` |
-| QUOI | fuzzy: `≤ 576` / `> 448`, i.e. a ±64 overlap band around 512 | **Y < 80** | n/a |
-| Odin | same fuzzy band as QUOI | **Y < 80** | `449..576` on both axes |
+| **Source A** | **512 / 513**, hard AABBs | **Y 30…64** | AABB `462,63,461 → 564,181,565` |
+| Source C | **513**, a hard plane | **Y < 65** | AABB `463,65,460 → 560,190,563` |
+| Source B | fuzzy: `≤ 576` / `> 448`, i.e. a ±64 overlap band around 512 | **Y < 80** | n/a |
+| Source D | same fuzzy band as Source B | **Y < 80** | `449..576` on both axes |
 
-Skyblocker's version is the most explicit — six named AABBs, from `WishingCompassSolver.java`:
+Source A's version is the most explicit — six named AABBs, from `WishingCompassSolver.java`:
 
 ```java
 private static final Map<Zone, AABB> ZONE_BOUNDING_BOXES = Map.of(
@@ -405,26 +405,26 @@ private static final Map<Zone, AABB> ZONE_BOUNDING_BOXES = Map.of(
 );
 ```
 
-Two things to notice. It uses `201/824` here while `checkInCrystals` uses `202/823` — **Skyblocker is
+Two things to notice. It uses `201/824` here while `checkInCrystals` uses `202/823` — **Source A is
 internally inconsistent by one block**, so don't assume either set is exact. And the four surface zones
 overlap by a block at 512/513, so a position exactly on the line matches two zones.
 
-Skyblocker also plants the same four quadrant labels SkyHanni does, at slightly different coordinates
+Source A also plants the same four quadrant labels Source C does, at slightly different coordinates
 (`NucleusWaypoints.java`): `(551,116,551) Precursor Remnants`, `(551,116,475) Mithril Deposits`,
-`(475,116,551) Goblin Holdout`, `(475,116,475) Jungle`, `(513,106,524) Nucleus`. Compare SkyHanni's
+`(475,116,551) Goblin Holdout`, `(475,116,475) Jungle`, `(513,106,524) Nucleus`. Compare Source C's
 `(550,116,550) / (552,116,474) / (474,116,554) / (477,116,476)` — same four corners, hand-measured
 independently, differing by a block or two. **The quadrant assignment is now confirmed four times over.**
 
-QUOI's comment makes the intent explicit: the overlapping band is *"used only to reject impossible structure
+Source B's comment makes the intent explicit: the overlapping band is *"used only to reject impossible structure
 matches, not as a hard partition."* That is the honest reading — **the biome boundary is cave terrain, not a
-plane**, and the ±64 band is an admission that nobody knows exactly where it is. SkyHanni's hard 513 split is
+plane**, and the ±64 band is an admission that nobody knows exactly where it is. Source C's hard 513 split is
 fine for drawing warning walls but would be wrong for classifying a position near the middle.
 
 **The reliable runtime signal is the sidebar, not arithmetic.** `IslandDetector.scoreboardArea()` already
 reads the sidebar area line, and `ChStructure.fromAreaName()` already matches structures off it. The sidebar
 names the biome you are in directly, so a mod never has to infer the biome from coordinates — it can *learn*
 the quadrant boundaries from where the sidebar changes, which would be genuinely correct per lobby rather
-than derived from another mod's guess. Use coordinates only as a rejection filter, the way QUOI does.
+than derived from another mod's guess. Use coordinates only as a rejection filter, the way Source B does.
 
 ### 3.4 Lobby age — the "day" number
 
@@ -439,8 +439,8 @@ things are called "day" and only one is useful:
 The only thing the approved wiki says about lobby age: **on Day 35 (the 36th day) a lobby force-starts
 shutting down regardless of player count**. <https://hypixelskyblock.minecraft.wiki/w/Crystal_Hollows>
 
-**Answered — and it is not parsed from any text.** QUOI reads it from the **vanilla client world time**.
-`src/main/kotlin/quoi/utils/WorldUtils.kt`, last line of the object:
+**Answered — and it is not parsed from any text.** Source B reads it from the **vanilla client world time**.
+`src/main/kotlin/srcb/utils/WorldUtils.kt`, last line of the object:
 
 ```kotlin
 val ClientLevel.day get() = this.dayTime / 24000
@@ -451,7 +451,7 @@ it starts near zero when the instance boots and advances monotonically, so `dayT
 per-lobby age in Minecraft days — exactly the "old lobby, crystals already taken" signal. Nothing is read
 from the scoreboard, tab list, chat, `/locraw` or an HTTP API.
 
-QUOI's own lobby swapper uses it — `src/main/kotlin/quoi/api/commands/QuoiCommand.kt`, `/quoi findlobby`:
+Source B's own lobby swapper uses it — `src/main/kotlin/api/commands/Command.kt`, `/findlobby`:
 
 ```kotlin
 fun isMet(): Boolean = when (criteria) {
@@ -462,18 +462,18 @@ fun isMet(): Boolean = when (criteria) {
 }
 ```
 
-driven by a warp cycle (`QuoiCommand.kt:45-49`) that alternates `/warp ch` and `/warp hub` on an 80-tick
+driven by a warp cycle (`Command.kt:45-49`) that alternates `/warp ch` and `/warp hub` on an 80-tick
 period until `isMet() && currentArea.isArea(island)`, and **cancels if the player moves**
 (`if (mc.player!!.isMoving) { modMessage("Cancelling, you moved!"); it.cancel() }`).
 
-**Do not confuse this with SkyBlock calendar time.** SkyHanni's `SkyBlockTime` computes the in-game date
+**Do not confuse this with SkyBlock calendar time.** Source C's `SkyBlockTime` computes the in-game date
 purely from wall-clock milliseconds (`SKYBLOCK_EPOCH_START_MILLIS = 1559829300000L`,
 `SKYBLOCK_DAY_MILLIS = 1200000L`, i.e. 20 real minutes per SkyBlock day, with `Early`/`Late` month prefixes).
-That value is identical in every lobby at the same instant and is useless as a filter. SkyHanni's
-`ServerTime` reads the same `ClientboundSetTimePacket` QUOI uses but only as a monotonic tick clock for
-timers — it never divides it into days. **Neither SkyHanni nor Odin has a lobby swapper or a day filter.**
+That value is identical in every lobby at the same instant and is useless as a filter. Source C's
+`ServerTime` reads the same `ClientboundSetTimePacket` Source B uses but only as a monotonic tick clock for
+timers — it never divides it into days. **Neither Source C nor Source D has a lobby swapper or a day filter.**
 
-The closest SkyHanni gets to lobby age is a countdown, not a count
+The closest Source C gets to lobby age is a countdown, not a count
 (`features/misc/ServerRestartTitle`, repo key `features.misc.serverrestart`):
 
 ```
@@ -491,7 +491,7 @@ From <https://hypixelskyblock.minecraft.wiki/w/Crystal_Hollows>, verbatim:
 > *"You can see the status of Gemstone Crystals in the tablist: a Crystal can either be 'Not Found', 'Not
 > Placed', or 'Placed'."*
 
-This is the one reliable, client-readable, wiki-confirmed per-crystal state signal, and **Skyblocker gives
+This is the one reliable, client-readable, wiki-confirmed per-crystal state signal, and **Source A gives
 the exact strings** (`WishingCompassSolver.java`, real source — it tests for the *negative* case):
 
 ```java
@@ -503,7 +503,7 @@ case MAGMA_FIELDS       -> displayNameStream.noneMatch(entry -> entry.equals("To
 ```
 
 So the line format is **`<Crystal>: ✖ Not Found`** under a `Crystals:` header entry, matched on the tab-list
-display name with **exact string equality** (no regex, no colour codes in the compared string). Skyblocker
+display name with **exact string equality** (no regex, no colour codes in the compared string). Source A
 also matches `entry.equals("Crystals:")`, `entry.startsWith("Active Effects:")` and
 `entry.startsWith("King's Scent")` in the same tab list.
 
@@ -533,30 +533,30 @@ here; capture them in game.
 
 The wiki never quotes the action-bar line. Two mods do, and **they agree**.
 
-**SkyHanni** (compiled string constant, RepoPattern `mining.crystalnucleus.metaldetector.treasure`):
+**Source C** (compiled string constant, RepoPattern `mining.crystalnucleus.metaldetector.treasure`):
 
 ```
 .*§3§lTREASURE: §b(?<distance>.*)m
 ```
 
-**Skyblocker** (real source, `MetalDetector.java`):
+**Source A** (real source, `MetalDetector.java`):
 
 ```java
 private static final Pattern TREASURE_PATTERN = Pattern.compile("(§3§lTREASURE: §b)(\\d+\\.?\\d?)m");
 ```
 
-Skyblocker's is the more informative of the two: `\d+\.?\d?` says the value is **an integer or a single
-decimal place** — so the readout is at most one decimal, confirming SkyHanni's `roundTo(1)`. Both read the
-**action bar / overlay message**, not chat; Skyblocker gates on `if (!overlay || ...) return`.
+Source A's is the more informative of the two: `\d+\.?\d?` says the value is **an integer or a single
+decimal place** — so the readout is at most one decimal, confirming Source C's `roundTo(1)`. Both read the
+**action bar / overlay message**, not chat; Source A gates on `if (!overlay || ...) return`.
 
-The success line, also confirmed twice. SkyHanni
+The success line, also confirmed twice. Source C
 (`mining.crystalnucleus.metaldetector.treasurefound`):
 
 ```
 §aYou found .*with your §r§cMetal Detector§r§a!
 ```
 
-Skyblocker matches the same event far more loosely, on the non-overlay chat message:
+Source A matches the same event far more loosely, on the non-overlay chat message:
 
 ```java
 if (text.getString().startsWith("You found")) { newTreasure = true; possibleBlocks = new ArrayList<>(); }
@@ -565,7 +565,7 @@ if (text.getString().startsWith("You found")) { newTreasure = true; possibleBloc
 ### 4.3 What the maths actually is — and it is NOT trilateration
 
 The obvious design is trilateration: treat each reading `(px, py, pz, d)` as a sphere and intersect three or
-more. That is a reasonable *fallback*, but **SkyHanni — the only mod in this set that implements a metal
+more. That is a reasonable *fallback*, but **Source C — the only mod in this set that implements a metal
 detector at all — does something completely different and much better**, and the approach is worth copying:
 
 > **Candidate elimination against a known list of chest spawn offsets, anchored on a block landmark.**
@@ -595,10 +595,10 @@ degrades badly when the readout is rounded, and gives you a point in empty space
 around. Candidate elimination gives an exact block position from one reading, and is immune to rounding
 because rounding is applied to both sides of the comparison.
 
-**What it costs:** it needs the chest-offset list, which SkyHanni fetches from its own online repo and does
-not bundle. We do not have that list from SkyHanni.
+**What it costs:** it needs the chest-offset list, which Source C fetches from its own online repo and does
+not bundle. We do not have that list from Source C.
 
-**Skyblocker solves the same problem differently, and better for us** (`MetalDetector.java`, real source).
+**Source A solves the same problem differently, and better for us** (`MetalDetector.java`, real source).
 Same family — candidate elimination — but with three changes that matter:
 
 1. **The chest offsets are in the source file**, 43 of them, as `Vec3i` relative to `minesCenter`. So the
@@ -613,7 +613,7 @@ private static final Map<String, Vec3i> keeperOffsets = Map.of(
 ```
 
    It scans `player.getBoundingBox().inflate(500d)` for named `ArmorStand`s, matches the name, and applies
-   the offset. **One Keeper is enough.** This is more robust than SkyHanni's QUARTZ_STAIRS+BARRIER block
+   the offset. **One Keeper is enough.** This is more robust than Source C's QUARTZ_STAIRS+BARRIER block
    search and does not depend on the block palette surviving a Hypixel rebuild — an NPC's nametag is far
    more stable than its floor.
 3. **There is a working fallback when the anchor is unknown** — a brute-force square at the player's own Y:
@@ -647,7 +647,7 @@ player's own Y at the reported distance, then narrows by intersection across rea
 That is a complete, working metal detector we could build without any borrowed data — at the cost of
 assuming the chest is at the player's Y level, which it does assume (`(int) playerPos.y`, no Y search).
 
-Two more Skyblocker details worth copying:
+Two more Source A details worth copying:
 
 - **Tolerance `0.25` blocks**, compared against the block's **lower corner**, not its centre.
 - **A reading is only consumed when the player is standing still**, gated on the distance *and* the position
@@ -667,7 +667,7 @@ if (distance == previousDistance && playerPos.equals(previousPlayerPos)) {
   you are taken to is one block above the chest"*), plus a guide line from the crosshair. If 2–8, white
   "Possible" waypoints. Above 8, nothing is drawn.
 
-**So the two implementations disagree on method, and Skyblocker's is the better model here** — the anchor is
+**So the two implementations disagree on method, and Source A's is the better model here** — the anchor is
 an NPC nametag rather than a block pattern, and there is a no-dataset fallback.
 
 **The trilateration fallback**, if neither candidate approach is wanted. For samples `i` against reference
@@ -678,26 +678,26 @@ an NPC nametag rather than a block pattern, and there is a no-dataset fallback.
     = d0² - di² + (xi² + yi² + zi²) - (x0² + y0² + z0²)
 ```
 
-With ≥ 4 samples this is over-determined; solve by least squares. Devonian's `MathUtils` has the primitives,
+With ≥ 4 samples this is over-determined; solve by least squares. Source F's `MathUtils` has the primitives,
 and its `BurrowGuesser` RANSAC pattern is the right way to reject a reading taken mid-jump or one tick stale.
 
 **Still unsettled:**
 
 1. **Is the distance 3D or horizontal?** The wiki does not say, and **the two mods imply different answers**.
-   SkyHanni compares against a full 3D `distanceToPlayer`. Skyblocker's slow path generates candidates only
+   Source C compares against a full 3D `distanceToPlayer`. Source A's slow path generates candidates only
    at the player's own Y (`(int) playerPos.y`) but then measures a full 3D `distanceTo` — which works only
    if the chest really is near your Y, or if the distance is effectively horizontal. Its fast path uses real
    3D offsets with `-22`-ish Y components, so *that* path is unambiguously 3D. The likeliest reading is that
-   **the value is 3D and Skyblocker's slow path is simply an approximation that works because you walk on
+   **the value is 3D and Source A's slow path is simply an approximation that works because you walk on
    the gold floor the chests are buried in** — but that is inference. Ten-second in-game check: stand
    directly above a known treasure and see whether the counter reads ~0 or reads the vertical offset.
-2. **Do the anchors still exist on MC 26.1.2?** Skyblocker's local jar is `6.4.1+1.21.11` and SkyHanni's is
+2. **Do the anchors still exist on MC 26.1.2?** Source A's local jar is `6.4.1+1.21.11` and Source C's is
    `7.22.0-mc1.21.11`. Both target 1.21.11, not 26.1.2. The Keeper nametags are very likely unchanged; the
    QUARTZ_STAIRS+BARRIER block pattern is the more fragile of the two. And the 43 chest offsets are only
    valid if Hypixel has not moved them.
 
 **SPECULATION, clearly labelled:** the beep pitch/frequency is almost certainly a function of the same
-distance value and carries no extra information, so it can be ignored. SkyHanni agrees implicitly — its
+distance value and carries no extra information, so it can be ignored. Source C agrees implicitly — its
 `MetalDetectorMute` feature just silences `block.note_block.harp` while the detector is held.
 
 ### 4.4 The adjacent tool: the Wishing Compass
@@ -726,7 +726,7 @@ useful for locating the five structures on a map.
 **A particle line is a ray, not a point.** Two compass uses from different positions give two rays whose
 intersection is the structure — the same idea as trilateration but with bearings instead of ranges.
 
-**Skyblocker implements exactly this** (`WishingCompassSolver.java`, real source), and it is the single most
+**Source A implements exactly this** (`WishingCompassSolver.java`, real source), and it is the single most
 useful reference for putting a structure on the map without walking into it. It intercepts
 **`HAPPY_VILLAGER` particle packets** from the server, averages 25 particle directions into a unit vector,
 does that twice from two positions at least 8 blocks apart, then intersects the two lines:
@@ -755,10 +755,10 @@ case MAGMA_FIELDS       -> KHAZAD_DUM;
 `Active Effects:` / `King's Scent`; the held item is checked for `"WISHING_COMPASS"`. The failure case is
 matched on the exact wiki-quoted string `"The Wishing Compass can't seem to locate anything!"`.
 
-**This maps one-to-one onto the wiki's table above**, which is a good cross-check: the wiki and Skyblocker
+**This maps one-to-one onto the wiki's table above**, which is a good cross-check: the wiki and Source A
 independently describe the same conditional targeting.
 
-> **There is a real bug on Skyblocker's master branch** — the intersection averages `close` with itself, so
+> **There is a real bug on Source A's master branch** — the intersection averages `close` with itself, so
 > the second reading is discarded:
 > ```java
 > Vec3 c1 = new Vec3(close.getX(), close.getY(), close.getZ());
@@ -769,7 +769,7 @@ independently describe the same conditional targeting.
 
 This is a **legit** technique — it reads particles the server already sent and an item the player already
 used — and it places a structure far more precisely than walking into it. It is the obvious legit-build
-counterpart to QUOI's cheat-build chunk scanner.
+counterpart to Source B's cheat-build chunk scanner.
 
 ---
 
@@ -864,9 +864,9 @@ as well.
 
 **The wiki gap is real** — the Commissions page has **no Interface section** (the Royal Pigeon page even
 links to a `#Interface` anchor that does not exist), describes no GUI layout, no scoreboard line, no tab-list
-entry, and quotes no completion chat message. **But Skyblocker fills it.**
+entry, and quotes no completion chat message. **But Source A fills it.**
 
-### 6.3 How to actually read commissions — from Skyblocker
+### 6.3 How to actually read commissions — from Source A
 
 **They are in the TAB LIST, not the scoreboard.** `CommissionLabels.tick()` runs every 20 ticks, walks
 `PlayerListManager.getPlayerList()`, finds the entry whose display name `startsWith("Commissions")`, then
@@ -899,11 +899,11 @@ So: **`<name>: <progress>`**, and a finished commission has progress exactly **`
 completion signal, and it is in the tab list, not in chat. This answers the "how does the macro know a
 commission is finished" question completely.
 
-Skyblocker matches a commission to a location with a plain `commission.contains(<location display name>)`,
+Source A matches a commission to a location with a plain `commission.contains(<location display name>)`,
 and flips colour on `commission.contains("Titanium")`. A `contains` match is what makes the
 Dwarven-vs-Hollows `Goblin Slayer` collision above a real problem.
 
-Two related Skyblocker pieces:
+Two related Source A pieces:
 
 - `CommissionHighlight` — a container solver keyed on the GUI title regex `^Commissions$`, greening any slot
   whose lore contains `COMPLETED`. So the menu title is literally `Commissions` and the lore marker is
@@ -985,14 +985,14 @@ Hollows and a site-scoped search all turn up nothing. The common `[Lv200] Boss C
 
 **And none of the five mods detects him either.** This was checked in all of them:
 
-- **Skyblocker** — the string `Corleone` appears in exactly two classes, and it is
+- **Source A** — the string `Corleone` appears in exactly two classes, and it is
   `CORLEONE("Corleone", Color.WHITE, null)` — a map marker with a **null linked chat message**. It can only
   be placed by the scoreboard area line saying "Corleone", a coordinate someone pasted in chat, a manual
-  `/skyblocker crystalWaypoints add <pos> Corleone`, or another player's client publishing it. No boss bar
+  `/srca crystalWaypoints add <pos> Corleone`, or another player's client publishing it. No boss bar
   parse, no entity scan, no health bar.
-- **QUOI and Odin** — they find `CORLEONE_DOCK` and `CORLEONE_HOLE`, his **spawn structures**, by block
+- **Source B and Source D** — they find `CORLEONE_DOCK` and `CORLEONE_HOLE`, his **spawn structures**, by block
   signature. Never the entity.
-- **SkyHanni** — nothing.
+- **Source C** — nothing.
 
 So "is Corleone alive in this lobby right now?" has **no documented text to match and no prior art**. The
 only route is entity detection — scanning loaded entities for his nametag — and the exact nametag string
@@ -1009,21 +1009,20 @@ Six mods were read. In one line each:
 
 | Mod | CH map | Structure detection | Metal detector | Commissions | Corleone |
 |---|---|---|---|---|---|
-| **Skyblocker** (real source) | yes, static image + 62px transform | **five mechanisms**, incl. compass triangulation and a WebSocket | **yes, two paths** | **yes, tab list** | no |
-| **QUOI** (real source) | yes, 1px/block, 621² | **cheat chunk scan**, block signatures | no | no | structures only |
-| **SkyHanni** (bytecode) | walls only | area strings only | **yes, repo dataset** | no | no |
-| **Odin** (bytecode) | no | same cheat chunk scan as QUOI | no | no | structures only |
-| **NoammAddons / Devonian** | no | none | no | no | no |
+| **Source A** (real source) | yes, static image + 62px transform | **five mechanisms**, incl. compass triangulation and a WebSocket | **yes, two paths** | **yes, tab list** | no |
+| **Source B** (real source) | yes, 1px/block, 621² | **cheat chunk scan**, block signatures | no | no | structures only |
+| **Source C** (bytecode) | walls only | area strings only | **yes, repo dataset** | no | no |
+| **Source D** (bytecode) | no | same cheat chunk scan as Source B | no | no | structures only |
+| **Source E / Source F** | no | none | no | no | no |
 
-**Skyblocker is the one to study for the legit feature; QUOI is the one to study for the cheat feature.**
+**Source A is the one to study for the legit feature; Source B is the one to study for the cheat feature.**
 
-### 7.1 NoammAddons — `C:\Users\Hunter\noammaddonsmod`
+### 7.1 Source E
 
 **No Crystal Hollows feature of any kind.** An exhaustive search of the tree (and its `build/` output) for
 every Crystal Hollows term turns up exactly one line:
 
-- `C:\Users\Hunter\noammaddonsmod\src\main\kotlin\com\github\noamm9\utils\location\WorldType.kt:7` —
-  `CrystalHollows("Crystal Hollows"),`, one enum constant in an area-name map. Nothing consumes it.
+- `WorldType.kt:7` — `CrystalHollows("Crystal Hollows"),`, one enum constant in an area-name map. Nothing consumes it.
 
 No metal detector, no map, no structure bounds, no nucleus-warp detection.
 
@@ -1044,7 +1043,7 @@ fun coordsToMap(vec: Vec3): Pair<Float, Float> {
 }
 ```
 
-### 7.2 Devonian — `C:\Users\Hunter\UsersHunterdevonian`
+### 7.2 Source F
 
 **No Crystal Hollows feature either.** The config `Categories.kt` has no MINING or CRYSTAL_HOLLOWS category
 at all. The only near-hits are a Garden powder regex and item gemstone *slots* for pricing — neither is CH.
@@ -1076,19 +1075,19 @@ world↔grid coordinate-space type pair with hardcoded corners (`cornerStart`, `
 / `toWorld()` inverses, and explicit in-bounds checks. That is the shape a `CrystalHollowsCoords` type should
 take.
 
-### 7.3 QUOI — `C:\Users\Hunter\Downloads\quoi-1.1.0.zip` (real Kotlin source)
+### 7.3 Source B — the local build (real Kotlin source)
 
 **This is the cheat Crystal Hollows map, and the answer to "how does it detect a structure it is not
 standing in" is: it scans loaded chunks for hardcoded vertical block-column signatures.** No entity names, no
-scoreboard, no network. Files (paths relative to the extracted zip root `quoi-1.1.0/`):
+scoreboard, no network. Files (paths relative to the source root):
 
-- `src/main/kotlin/quoi/module/impl/mining/CrystalHollowsMap.kt` (246 lines)
-- `src/main/kotlin/quoi/module/impl/mining/CrystalHollowsScanner.kt` (175 lines)
-- `src/main/kotlin/quoi/module/impl/mining/enums/Structure.kt` (519 lines — the signature table)
-- `src/main/kotlin/quoi/module/impl/mining/enums/CrystalHollowsQuarter.kt`
-- `src/main/kotlin/quoi/module/impl/mining/enums/StructureType.kt`
-- `src/main/kotlin/quoi/utils/WorldUtils.kt` (`worldToMap`)
-- `src/main/resources/assets/quoi/crystalhollowsmap.png` — **2613 × 2613 px**
+- `src/main/kotlin/srcb/module/impl/mining/CrystalHollowsMap.kt` (246 lines)
+- `src/main/kotlin/srcb/module/impl/mining/CrystalHollowsScanner.kt` (175 lines)
+- `src/main/kotlin/srcb/module/impl/mining/enums/Structure.kt` (519 lines — the signature table)
+- `src/main/kotlin/srcb/module/impl/mining/enums/CrystalHollowsQuarter.kt`
+- `src/main/kotlin/srcb/module/impl/mining/enums/StructureType.kt`
+- `src/main/kotlin/srcb/utils/WorldUtils.kt` (`worldToMap`)
+- `src/main/resources/assets/srcb/crystalhollowsmap.png` — **2613 × 2613 px**
 
 **Map model** (`CrystalHollowsMap.kt:63-74, 80-82`), verbatim:
 
@@ -1127,7 +1126,7 @@ enum class CrystalHollowsQuarter(val predicate: (BlockPos) -> Boolean) {
 
 Note the deliberate ±64 overlap around 512 — see §3.3.
 
-**The scanner** (`CrystalHollowsScanner.kt`), credited in a header comment to GumTuneClient's
+**The scanner** (`CrystalHollowsScanner.kt`), credited in a header comment to Source G's
 `WorldScanner.java`. On `WorldEvent.Chunk.Load`, off-thread on `Dispatchers.IO`:
 
 ```kotlin
@@ -1159,7 +1158,7 @@ rejection that makes the rest affordable.
 
 **The key property, and the reason this is the cheat map:** it works on **any chunk the client has loaded**,
 including ones the player merely rendered past. It does not require standing in the structure — but it does
-require the server to have sent the chunk, so it is bounded by render distance. QUOI draws which chunks have
+require the server to have sent the chunk, so it is bounded by render distance. Source B draws which chunks have
 been scanned on the HUD map (greedy-meshed rectangles, `rebuildMeshedChunks()`) precisely because coverage is
 partial.
 
@@ -1192,15 +1191,15 @@ structures (`GOBLIN_HALL`, `GOBLIN_RING`, `GOBLIN_HOLE_CAMP`, `GRUNT_BRIDGE`, `G
 `ClientboundPlayerInfoUpdatePacket`; sub-area from `ClientboundSetPlayerTeamPacket` prefix+suffix matching
 `^ ([⏣ф]) .*`. **Same signal `IslandDetector` already uses here.**
 
-**QUOI has no metal detector and no nucleus-warp detection.** A grep for `metal|nucleus|treasure|keeper of`
+**Source B has no metal detector and no nucleus-warp detection.** A grep for `metal|nucleus|treasure|keeper of`
 across its Kotlin returns only an unrelated `"Treasure Talisman"` in `Dungeon.kt:524`.
 
-### 7.4 SkyHanni 7.22.0 — `C:\Users\Hunter\Downloads\SkyHanni-7.22.0-mc1.21.11.jar`
+### 7.4 Source C — the local build
 
 Compiled, Fabric-intermediary. **Everything below is reconstructed from `javap -p -c` bytecode except the
 quoted string and numeric constants, which are exact (read from the constant pool).**
 
-Relevant classes, all under `at/hannibal2/skyhanni/`:
+Relevant classes, all under `at/srcc/srcc/`:
 `features/mining/crystalhollows/{CrystalHollowsWalls, CrystalHollowsNamesInCore, NucleusBarriersBox,
 MetalDetectorSolver, MetalDetectorMute, MetalDetectorAllToolsAlert, HighHeatSound, CrystalNucleusApi,
 CrystalNucleusTracker, CrystalNucleusProfitPer}`, `features/chat/CrystalNucleusChatFilter`,
@@ -1292,7 +1291,7 @@ metalDetectorDistancePattern.matchMatcher(event.actionBar) {
     val base = baseCoordinates ?: return
 
     predictedChestLocations.clear()
-    for (chest in chestLocations) {                    // from the SkyHanni repo
+    for (chest in chestLocations) {                    // from the Source C repo
         val possible = base + chest.negated()          // base - chest
         if (possible == ignoreLocation) { ignoreLocation = null; return }
         if (LocationUtils.distanceToPlayer(possible.add(0, 1, 0)).roundTo(1) == distance) {
@@ -1372,10 +1371,10 @@ the **Crystal Hollows Pass** prompt only — `§cYou do not have an active Cryst
 `Buy a §2Crystal Hollows Pass §efrom §5Gwendolyn`, and rewriting messages into clickable `/warp ch` and
 `/warp mines`. A jar-wide grep finds no `warp crystal` and no nucleus-warp tracking.
 
-### 7.5 Odin client 0.2.3 — `C:\Users\Hunter\Downloads\odin-client-0.2.3-r1+26.1.jar`
+### 7.5 Source D — the local build
 
 Compiled, Mojang-mapped; reconstructed from bytecode. Only CH content is
-`foo/starred/odinclient/features/impl/cheats/WorldScanner` — *"Scans and highlights structures in Crystal
+`foo/srcd/features/impl/cheats/WorldScanner` — *"Scans and highlights structures in Crystal
 Hollows"*. **No metal detector, no map, no nucleus feature.**
 
 `WorldScanner$Quarter.test`:
@@ -1390,24 +1389,24 @@ MAGMA     -> y < 80
 ANY       -> true
 ```
 
-Identical to QUOI's plus a `NUCLEUS` entry — **QUOI is a descendant of this** (QUOI's `Location.kt` header
-credits OdinFabric). Same block-signature scanner technique, chunk-load driven, `y 0 until 171`. Its structure
-list adds `KEY_GUARDIAN_TOWER`, `XALX`, `PETE` and `ODAWA` over QUOI's, and agrees on the hand-measured
+Identical to Source B's plus a `NUCLEUS` entry — **Source B is a descendant of this** (Source B's `Location.kt` header
+credits Source D's upstream). Same block-signature scanner technique, chunk-load driven, `y 0 until 171`. Its structure
+list adds `KEY_GUARDIAN_TOWER`, `XALX`, `PETE` and `ODAWA` over Source B's, and agrees on the hand-measured
 offsets `CITY (24,0,−17)`, `TEMPLE (−45,47,−18)`, `GOLDEN_DRAGON (0,−3,5)` exactly.
 
 Worm-fishing corner, reconstructed: `y > 63 && ((x >= 564 && z >= 513) || (x >= 513 && z >= 564))`.
 
-### 7.6 Skyblocker — real source, and the closest thing to what we want
+### 7.6 Source A — real source, and the closest thing to what we want
 
-Read from `raw.githubusercontent.com/SkyblockerMod/Skyblocker/master/...` and cross-checked against the local
-jar `C:\Users\Hunter\Downloads\skyblocker-6.4.1+1.21.11.jar`. Everything is in package
-`de.hysky.skyblocker.skyblock.dwarven`. **This is the most directly relevant reference of the five** — it is
+Read from public source and cross-checked against the local
+build. Everything is in package
+`srca.skyblock.dwarven`. **This is the most directly relevant reference of the five** — it is
 a legit-build Fabric mod with a Crystal Hollows map, structure waypoints, a metal detector and commission
 reading, all of which we want.
 
 Key files: `CrystalsHudWidget.java`, `CrystalsLocationsManager.java`, `MiningLocationLabel.java`,
 `WishingCompassSolver.java`, `NucleusWaypoints.java`, `MetalDetector.java`, `CommissionLabels.java`,
-`CrystalsChestHighlighter.java`, plus `utils/ws/SkyblockerWebSocket.java` and
+`CrystalsChestHighlighter.java`, plus `utils/ws/WebSocket.java` and
 `skyblock/tabhud/widget/CommsWidget.java`.
 
 **Map.** World→pixel, real source:
@@ -1422,7 +1421,7 @@ protected static Vector2ic transformLocation(double x, double z) {
 }
 ```
 
-Asset `assets/skyblocker/textures/gui/crystals_map.png`, measured **621 × 621 px**, blitted into a 62×62
+Asset `assets/srca/textures/gui/crystals_map.png`, measured **621 × 621 px**, blitted into a 62×62
 area (`blit(..., 0, 0, 0, 0, 62, 62, 62, 62)`); widget size `62 * mining.crystalsHud.mapScaling`. **Note the
 off-by-one**: the clamp upper bound is 62 but valid indices in a 62-pixel image are 0..61. Don't copy that.
 
@@ -1435,7 +1434,7 @@ private static final List<String> SMALL_LOCATIONS =
 ```
 
 **The biomes are not modelled in the HUD at all** — the map image is a static pre-rendered picture and the
-zone AABBs live in the compass solver (§3.3). That is a design worth noting: Skyblocker draws art, not
+zone AABBs live in the compass solver (§3.3). That is a design worth noting: Source A draws art, not
 computed borders.
 
 **Structure detection — five independent mechanisms**, and this is the part to study:
@@ -1481,16 +1480,16 @@ static final Pattern TEXT_CWORDS_PATTERN = Pattern.compile(
 
 4. **Wishing Compass particle triangulation** — see §4.4.
 
-5. **Cross-player sharing over a WebSocket.** `utils/ws/SkyblockerWebSocket.java`:
+5. **Cross-player sharing over a WebSocket.** `utils/ws/WebSocket.java`:
    `private static final String WS_URL = "wss://ws.hysky.de";`, authenticated via
-   `de.hysky.skyblocker.utils.ApiAuthentication`. Services: `CRYSTAL_WAYPOINTS`, `DUNGEON_SECRETS`,
+   `srca.utils.ApiAuthentication`. Services: `CRYSTAL_WAYPOINTS`, `DUNGEON_SECRETS`,
    `EGG_WAYPOINTS`. Payload is `{"name": <enum constant>, "coordinates": <BlockPos>}`; inbound handles a
    single `RESPONSE` and an `INITIAL_MESSAGE` backlog. **Lobbies are keyed by a predicted close timestamp**
    — see below. Fairy Grotto is opt-out-able (`mining.crystalsWaypoints.shareFairyGrotto`); everything else
    is shared unconditionally. *This is directly comparable to our own relay, and the sharding key is the
    interesting part.*
 
-**Lobby day — and where `26 days` comes from.** Skyblocker uses the day count only to key the WebSocket
+**Lobby day — and where `26 days` comes from.** Source A uses the day count only to key the WebSocket
 lobby, by predicting when the lobby will close. In 6.4.1 (bytecode):
 
 ```
@@ -1512,13 +1511,13 @@ if (dayCount >= 0 && dayCount < MAX_LOBBY_LIFETIME) {
 }
 ```
 
-> **Note the conflict with the wiki.** The wiki says a lobby force-shuts-down on **day 35**; Skyblocker's
+> **Note the conflict with the wiki.** The wiki says a lobby force-shuts-down on **day 35**; Source A's
 > code comment says *"Crystal Hollows lobbies close after 26 Minecraft days"* and its range check is
 > `dayCount < 26`. One of the two is out of date. **Unresolved** — and it matters for the Lobby Swapper's
 > sensible filter range.
 
 Note also **`Timelines.OVERWORLD_DAY.getPeriodCount()` is the 26.x-native way to read the day**, which is
-better for us than QUOI's `dayTime / 24000` since we are on 26.1.2.
+better for us than Source B's `dayTime / 24000` since we are on 26.1.2.
 
 **Metal detector, commissions, Corleone** — see §4.3, §6.3 and §6.5 respectively.
 
@@ -1530,7 +1529,7 @@ better for us than QUOI's `dayTime / 24000` since we are on 26.1.2.
 
 ### 7.7 The two techniques, side by side
 
-**The cheat one.** QUOI ← Odin ← GumTuneClient all use the same approach, and it is the only one that finds
+**The cheat one.** Source B ← Source D ← Source G all use the same approach, and it is the only one that finds
 a structure the player has never been near:
 
 > A **vertical block-column fingerprint**, scanned per loaded chunk off the main thread, with `null`
@@ -1541,7 +1540,7 @@ No entity nametags, no scoreboard, no chat, no network sharing. It works because
 prefab schematic in every lobby — only its position changes. **That also means it is detectable in principle
 as a chunk-scan pattern, and it is unambiguously a cheat-build feature.**
 
-**The legit one.** Skyblocker never scans a block for a structure. It layers four weaker signals that are
+**The legit one.** Source A never scans a block for a structure. It layers four weaker signals that are
 each individually legitimate, and lets them reinforce each other:
 
 > 1. the sidebar area name, recorded at the player's own position;
@@ -1560,15 +1559,15 @@ in the place. Adding (2) and (3) would make the legit map genuinely useful witho
 
 Three different situations here, and they are not equivalent:
 
-- **NoammAddons** is CC0 — no restriction.
-- **QUOI** is real source in a zip the user downloaded; **Skyblocker** is public source on GitHub. Both are
+- **Source E** is CC0 — no restriction.
+- **Source B** is real source in a zip the user downloaded; **Source A** is public source on GitHub. Both are
   readable, but both carry a licence that has not been checked in this pass.
-- **SkyHanni** and **Odin** were read as **decompiled/disassembled bytecode**. That is a weaker basis in
+- **Source C** and **Source D** were read as **decompiled/disassembled bytecode**. That is a weaker basis in
   every sense: the reconstruction may be wrong (see the confidence note in §8), and reading bytecode is not
   the same as being offered source.
 
-Reading any of them for *approach* is one thing. Transcribing a class, or lifting a dataset — Skyblocker's
-43 chest offsets and its Keeper offsets, or SkyHanni's repo chest list — is another, and neither should
+Reading any of them for *approach* is one thing. Transcribing a class, or lifting a dataset — Source A's
+43 chest offsets and its Keeper offsets, or Source C's repo chest list — is another, and neither should
 happen without checking the specific project's licence first. **`THIRD-PARTY-NOTICES.md` in this repo is
 where that would have to be recorded.**
 
@@ -1606,35 +1605,35 @@ differs per lobby. **The one factual error found is the Nucleus constant — see
    it. Fix it and the map shifts by ~(−16.5, 0, +44.5) — including any waypoints he has already saved. Fix,
    leave, or migrate saved waypoints?
 2. **Which metal-detector approach?** Three real options, in increasing order of borrowed data (§4.3):
-   (a) **Skyblocker's slow path** — brute-force every block at the player's Y at the reported distance, then
+   (a) **Source A's slow path** — brute-force every block at the player's Y at the reported distance, then
    intersect across readings. Needs **no dataset at all**, works today, costs a few extra readings.
-   (b) **Skyblocker's fast path** — anchor on a Keeper armour-stand nametag, then test 43 known chest
-   offsets. Near-instant, but the 43 offsets are Skyblocker's data (licence question, §7.8).
+   (b) **Source A's fast path** — anchor on a Keeper armour-stand nametag, then test 43 known chest
+   offsets. Near-instant, but the 43 offsets are Source A's data (licence question, §7.8).
    (c) Build our own offset list by logging finds over a few runs, then use (b)'s method with our own data.
    Recommendation as a fact rather than a preference: **(a) is the only one that is certainly available to
    us, and it degrades into (b) automatically if we ever collect the offsets.** His call.
-3. **Do the anchors survive on MC 26.1.2?** Both jars target 1.21.11. Skyblocker's Keeper-nametag anchor is
-   the more robust; SkyHanni's QUARTZ_STAIRS+BARRIER block pattern is the fragile one. And any borrowed
+3. **Do the anchors survive on MC 26.1.2?** Both jars target 1.21.11. Source A's Keeper-nametag anchor is
+   the more robust; Source C's QUARTZ_STAIRS+BARRIER block pattern is the fragile one. And any borrowed
    chest offsets are only valid if Hypixel has not moved them. One in-game check settles all three.
-4. **Is the distance 3D or horizontal?** The two mods imply different things (§4.3) — SkyHanni measures 3D,
-   Skyblocker's slow path generates candidates only at the player's own Y. Likeliest answer is 3D, but it is
+4. **Is the distance 3D or horizontal?** The two mods imply different things (§4.3) — Source C measures 3D,
+   Source A's slow path generates candidates only at the player's own Y. Likeliest answer is 3D, but it is
    an inference. Ten-second check: stand directly above a known treasure and see whether the counter reads
    ~0 or reads the vertical offset.
 5. **What is Boss Corleone's exact nametag?** No approved source has it — not the wiki, and none of the five
-   mods read one (Skyblocker has a map marker with no trigger; QUOI and Odin find his structures by block
+   mods read one (Source A has a map marker with no trigger; Source B and Source D find his structures by block
    signature, never the entity). Without it there is no
    "is he alive right now" detection at all, and `[Lv200] Boss Corleone` is a guess. One screenshot settles
    it. Note the fallback the mods imply: find **Corleone Hideout / Corleone Lakefront** by structure and
    park there, which matches the wiki's own statement that the player must be moving near his spawn point.
-6. **Commission text — ANSWERED.** Skyblocker reads commissions from the **tab list** as
+6. **Commission text — ANSWERED.** Source A reads commissions from the **tab list** as
    `<name>: <progress>`, with a finished one reading progress `DONE`; the GUI title is `Commissions` and its
    lore marker is `COMPLETED`; the chat line is
    `^([\w' ]+) Commission Complete! Visit the King to claim your rewards!$`. See §6.3. The only thing left
    is confirming those still hold on 26.1.2. Left in the list so it is clear it was asked and settled.
 7. **Lobby "day" — ANSWERED on the mechanism, one number still open.** It is the vanilla world day count:
-   `dayTime / 24000` (QUOI), or `Timelines.OVERWORLD_DAY.getPeriodCount()` on 26.x (Skyblocker) — the
+   `dayTime / 24000` (Source B), or `Timelines.OVERWORLD_DAY.getPeriodCount()` on 26.x (Source A) — the
    per-lobby age, not the SkyBlock calendar date, and not parsed from any text. See §3.4 and §7.6.
-   **Still open:** the wiki says a lobby force-closes on **day 35**, Skyblocker's source comment says
+   **Still open:** the wiki says a lobby force-closes on **day 35**, Source A's source comment says
    **26 days**. One of the two is stale, and it sets the sensible range for the filter. Which is right?
 8. **Royal Pigeon detection.** Item-presence is not a sound proxy for the capability, because trading the
    Royal Pigeon to Queen Mismyla for her Abiphone contact *upgrades* the player while removing the item.
@@ -1647,17 +1646,17 @@ differs per lobby. **The one factual error found is the Nucleus constant — see
    mods reference one. Either the wiki is incomplete or he is thinking of something else. If a route is
    built around it, it needs confirming.
 10. **How hard a quadrant boundary does he want?** Which quadrant is which is now settled four times over
-    (§3.3), but the mods disagree on where the line is: Skyblocker and SkyHanni use hard planes at 512/513,
-    QUOI and Odin use an overlapping ±64 band and treat it only as a rejection filter. And Skyblocker draws
+    (§3.3), but the mods disagree on where the line is: Source A and Source C use hard planes at 512/513,
+    Source B and Source D use an overlapping ±64 band and treat it only as a rejection filter. And Source A draws
     no computed biome border at all — it ships a pre-rendered map image instead. Hard rectangles, a fuzzy
     band, a map image, or no drawn biome boundary (letting the sidebar name it, as the current code does)?
 11. **World bounds — effectively settled, confirm the intent.** `202/31/202 → 823/188/823` is hardcoded in
-    Skyblocker's `checkInCrystals` and QUOI's map, and reproduces the wiki's stated `621 x 157 x 621`. Fine
-    to hardcode, citing the mods rather than the wiki? (Skyblocker itself is inconsistent by one block —
-    its zone AABBs use 201/824 — and SkyHanni uses a looser 0..1024, so "confirmed" means two sources, not
+    Source A's `checkInCrystals` and Source B's map, and reproduces the wiki's stated `621 x 157 x 621`. Fine
+    to hardcode, citing the mods rather than the wiki? (Source A itself is inconsistent by one block —
+    its zone AABBs use 201/824 — and Source C uses a looser 0..1024, so "confirmed" means two sources, not
     unanimity.)
 12. **Does anything actually "catch" you in the Goblin Queen's Den?** The wiki describes no such mechanic,
-    but **SkyHanni's chat filter says otherwise**: it matches `§c[GUARD]` messages and the exit line
+    but **Source C's chat filter says otherwise**: it matches `§c[GUARD]` messages and the exit line
     *"Whew! That was a close one, better get out of here..."* (§7.4). So there **is** a guard mechanic the
     wiki does not document. What actually happens when a guard catches you — teleport out, lose King's
     Scent, damage? Needs describing before a route assumes there is no fail state.
@@ -1667,7 +1666,7 @@ differs per lobby. **The one factual error found is the Nucleus constant — see
 
 ### A note on confidence
 
-Two independent passes were made over the SkyHanni bytecode and they **disagreed on a few of the colour-code
+Two independent passes were made over the Source C bytecode and they **disagreed on a few of the colour-code
 glyphs and on which RepoPattern key held which regex** in `CrystalNucleusChatFilter` (§7.4) — e.g. one pass
 read `§5§l?{64}` where the other read `§5§l❉{64}`, and the `crystal.collected.id` / `crystal.collected.count`
 key names were swapped between them. The *shapes* of the patterns agreed in both passes; the key names and
@@ -1675,6 +1674,6 @@ the exact special characters did not. **Treat every §-code string in this docum
 something to paste into a regex.** Capture the real line in game before writing a matcher against it.
 
 Nothing in this document has been tested against a running game. It is a reading of the wiki and of six
-other mods: Skyblocker and QUOI as real source (the two that matter), NoammAddons and Devonian as real
-source (both turned out to have no Crystal Hollows code at all), and SkyHanni and Odin from disassembled
+other mods: Source A and Source B as real source (the two that matter), Source E and Source F as real
+source (both turned out to have no Crystal Hollows code at all), and Source C and Source D from disassembled
 bytecode.

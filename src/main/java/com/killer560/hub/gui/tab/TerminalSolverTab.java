@@ -27,7 +27,7 @@ import com.killer560.hub.compat.McCompat;
  *  Reset Colors button. Everything is legit-build behavior, so every header here is the normal orange
  *  {@link SectionHeaders} one, not the cheat red.
  *  <p>
- *  Terminal QoL (2026-09-16) - five small terminal-adjacent features ported from Devonian, see
+ *  Terminal QoL (2026-09-16) - five small terminal-adjacent features, see
  *  {@link com.killer560.hub.terminals.TerminalQolFeature}. They live under this tab because they are all
  *  terminal-scoped, but none of them touches the solver: every one works with the solver toggle off.
  *  Legit-build behavior too (Melody Keys sends one click per keypress, the same class as the mod's existing
@@ -70,7 +70,7 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
         TerminalQolConfig cfg = TerminalQolConfig.getInstance();
         // Escape clears the binding, same convention DoorHelpersTab already uses. -1 here means
         // "unbound", which for this feature is a real, useful setting: nothing at all can drop an item while a
-        // terminal is open (Devonian's own default for TerminalDropKey is GLFW_KEY_UNKNOWN too).
+        // terminal is open (the default for TerminalDropKey is GLFW_KEY_UNKNOWN too).
         cfg.setDropKeyCode(keyCode == com.killer560.hub.util.Keys.ESCAPE ? -1 : keyCode);
         capturingDropKey = false;
         cfg.save();
@@ -333,7 +333,7 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
             y += 22;
         }
 
-        // Terminal Sounds (Odin) and Terminal Click Path (Athen), legit: see terminals/TerminalExtras.
+        // Terminal Sounds and Terminal Click Path, legit: see terminals/TerminalExtras.
         widgets.add(onOffButton("Terminal Sounds", cfg::isTerminalSoundsRaw, cfg::setTerminalSounds, cfg::save,
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 24;

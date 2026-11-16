@@ -30,7 +30,7 @@ import java.util.regex.Pattern;
 
 /**
  * Lobby Tracker (legit, both builds): remembers the mining lobbies you have been in, by the server id the tab list
- * shows ("Server: mini12AB"), and on joining one you have seen before says when and how often (Athen's Lobby Marker).
+ * shows ("Server: mini12AB"), and on joining one you have seen before says when and how often (the Lobby Marker).
  * A small HUD shows this lobby's id, your visits and the world's day counter (its tick count / 24000, which is the
  * world's own clock, not a number Hypixel publishes). History is kept in {@code killer560smod-mining-lobbies.json}
  * (500 lobbies at most, left out of profiles as history). Reads only; never sends anything.

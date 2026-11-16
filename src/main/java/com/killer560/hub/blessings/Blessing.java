@@ -5,16 +5,16 @@ import java.util.regex.Pattern;
 /**
  * The five dungeon blessings, their tab-footer patterns and their display colors.
  * <ul>
- * <li>Names + the fact that there are exactly five: NoammAddons
- * {@code utils/dungeons/enums/Blessing.kt} (POWER/LIFE/WISDOM/STONE/TIME) and Devonian
+ * <li>Names + the fact that there are exactly five: the reference
+ * {@code utils/dungeons/enums/Blessing.kt} (POWER/LIFE/WISDOM/STONE/TIME) and the reference
  * {@code features/dungeons/BlessingsDisplay.kt} (Power/Time/Wisdom/Stone/Life).</li>
- * <li>Line format: NoammAddons' per-blessing regex {@code "Blessing of Power (X{0,3}(IX|IV|V?I{0,3}))"} and
- * Devonian's generic per-footer-line regex {@code "^Blessing of (\\w+) ([IVX]+)$"}. This mod uses the generic
- * Roman-numeral group for every blessing (Noamm hardcodes {@code (V)} for TIME, which silently stops matching if
+ * <li>Line format: the per-blessing regex {@code "Blessing of Power (X{0,3}(IX|IV|V?I{0,3}))"} and
+ * The generic per-footer-line regex {@code "^Blessing of (\\w+) ([IVX]+)$"}. This mod uses the generic
+ * Roman-numeral group for every blessing (the reference hardcodes {@code (V)} for TIME, which silently stops matching if
  * Hypixel ever raises Time's cap) - the same text, just a wider numeral group.</li>
- * <li>Display order and default colors: Devonian's {@code format()} - Power &4 (dark red), Time &6 (gold),
- * Wisdom &b (aqua), Stone &7 (gray), Life &2 (dark green). NoammAddons' {@code BlessingDisplay.kt} uses the same
- * idea with Time dark purple and Life red; Devonian's set was kept because it matches the in-game footer colors.</li>
+ * <li>Display order and default colors: the {@code format} - Power &4 (dark red), Time &6 (gold),
+ * Wisdom &b (aqua), Stone &7 (gray), Life &2 (dark green). uses the same
+ * idea with Time dark purple and Life red; the set was kept because it matches the in-game footer colors.</li>
  * </ul>
  * <b>Not included:</b> no stat table. Neither source (nor anything else cited in this repo) maps a blessing level
  * to the stats it grants, so this feature shows LEVELS ONLY and never a derived stat value.
@@ -49,7 +49,7 @@ public enum Blessing {
         return pattern;
     }
 
-    /** Roman numeral -> int, same conversion as NoammAddons' {@code NumbersUtils.romanToDecimal}. Returns 0 for
+    /** Roman numeral -> int, same conversion. Returns 0 for
      *  anything that isn't a well-formed numeral, so a garbled footer line can never lower a real level. */
     public static int parseRoman(String roman) {
         if (roman == null || roman.isEmpty()) {
@@ -75,7 +75,7 @@ public enum Blessing {
         return total;
     }
 
-    /** 1 -> "I" ... - the optional "Roman Numerals" HUD style (Devonian's {@code SETTING_ROMAN} /
+    /** 1 -> "I"... - the optional "Roman Numerals" HUD style (the {@code SETTING_ROMAN} /
      *  {@code StringUtils.formatRoman}). Falls back to the plain number above 3999 / at 0. */
     public static String toRoman(int value) {
         if (value <= 0 || value > 3999) {

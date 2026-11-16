@@ -229,7 +229,7 @@ public final class SbProfile {
 
     /**
      * The profile whose dungeon stats speak for this player: the SELECTED one (Hypixel marks it per player, and it is
-     * what Odin's and Devonian's Party Finder tools read), unless it has no Catacombs data at all - then the profile
+     * what the Party Finder tools read), unless it has no Catacombs data at all - then the profile
      * with the most Catacombs XP. Real answers where that matters (SkyBlockPV backend, 2026-10-07): a player with no
      * profile marked selected, and a selected bingo/ironman side profile beside a main with every run on it. Null
      * only for an empty list. One rule for every reader (Party Finder stats, Auto Kick's populate).

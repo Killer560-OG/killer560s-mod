@@ -37,7 +37,7 @@ public final class TickTimersConfig {
     private static final Path OLD_F7SPOTS_PATH =
             ModPaths.config("killer560smod-f7spots.json");
 
-    /** Storm's purple pad, matching the mod's existing P2 pad box (QUOI {@code AutoLeap.kt} via FastLeapFeature) -
+    /** Storm's purple pad, matching the mod's existing P2 pad box (via FastLeapFeature) -
      *  same default F7 Spots' {@code CrushTimer} shipped before the 2026-09-21 move. */
     public static final int DEFAULT_PAD_COLOR = 0xFFAA00AA;
 
@@ -49,16 +49,16 @@ public final class TickTimersConfig {
     private boolean showPrefix = true;
     private boolean necronTimer = true;
     private boolean goldorTimer = true;
-    // Odin TickTimers.kt's own "Start timer" setting (default false): shows Goldor's "Start:" countdown after Storm
-    // dies (104 ticks before SkyBlock 0.27.2, 17 since - NoammAddons 1.2.9). Off = the Goldor line only shows the repeating "Tick:" timer, like Odin.
+    // 's own "Start timer" setting (default false): shows Goldor's "Start:" countdown after Storm
+    // dies (104 ticks before SkyBlock 0.27.2, 17 since - the reference 1.2.9). Off = the Goldor line only shows the repeating "Tick:" timer.
     private boolean goldorStartTimer = false;
     // Storm's one line (2026-11-02, StormLine): lightning, then the purple pad, then the yellow pad. Replaces "stormTimer"
     // (Lightning / PY / Storm counter) and "padCycleTimer" (Pad); an old file without this key is ON if either was.
     private boolean stormLine = true;
-    // Devonian GoldorFrenzyTimer's "showTotal" (2026-09-20 merge): replaces the repeating "Tick:" countdown
+    // The reference GoldorFrenzyTimer's "showTotal" (2026-09-20 merge): replaces the repeating "Tick:" countdown
     // with how long P3 has been running since Goldor's arrival line, once the Goldor Frenzy tab folded in here.
     private boolean goldorShowTotal = false;
-    // NoammAddons 1.2.9 floor7/TickTimers.kt "Maxor Start" (default off there too): 83 ticks from Maxor's opening
+    // The reference 1.2.9 floor7/TickTimers.kt "Maxor Start" (default off there too): 83 ticks from Maxor's opening
     // line. The 2026-09-20 clear "Death Tick" (clearDeathTick/deathTickStopsAtBoss) was removed 2026-10-06 - see
     // TickTimersFeature's class doc; old files keep the two keys, which are no longer read.
     private boolean maxorStartTimer = false;

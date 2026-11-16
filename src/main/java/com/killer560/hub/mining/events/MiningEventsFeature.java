@@ -20,12 +20,12 @@ import java.util.regex.Pattern;
 
 /**
  * Mining Events (legit, both builds): a title and sound when a Dwarven Mines or Crystal Hollows event is about to start,
- * and a timer HUD of the events running (RSM's MiningEvent alerts and Gourmand timer, for every event). Read from chat
+ * and a timer HUD of the events running (the MiningEvent alerts and Gourmand timer, for every event). Read from chat
  * only, so nothing depends on a version-specific boss-bar API:
  * <ul>
- *   <li>"⚑ The 2x Powder event starts in 20 seconds!" - RSM's pattern; the alert;</li>
- *   <li>"        2X POWDER STARTED!" / "... ENDED!" - SkyHanni's centered lines; the timer starts and stops, with
- *       SkyHanni's length for each event as the bound.</li>
+ *   <li>"⚑ The 2x Powder event starts in 20 seconds!" - the pattern; the alert;</li>
+ *   <li>" 2X POWDER STARTED!" / "... ENDED!" - the centered lines; the timer starts and stops, with
+ *       the length for each event as the bound.</li>
  * </ul>
  * Each pattern is anchored at the start of the line and a player's chat line always starts with a rank or a name, so
  * another player cannot set it off. Never clicks or sends anything. Off by default.

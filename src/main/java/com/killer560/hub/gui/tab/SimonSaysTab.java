@@ -14,8 +14,8 @@ import java.util.List;
 import com.killer560.hub.compat.McCompat;
 
 /** Simon Says solver + automation settings - see {@link com.killer560.hub.simonsays.SimonSaysFeature}'s
- *  class doc for the real device layout/detection logic this is built on (ported from Odin/QUOI/
- *  NoammAddons, confirmed against this exact Minecraft version). The cheat-build rows (Trigger Bot, Auto
+ *  class doc for the real device layout/detection logic this is built on (/
+ *  the reference, confirmed against this exact Minecraft version). The cheat-build rows (Trigger Bot, Auto
  *  Start, Auto Solve) moved to their own red section, {@link AutoSimonSaysTab}, on 2026-10-04 (killer560:
  *  "Move all the cheat stuff from Simon Says into its own red Simon Says portion"); the history below is
  *  theirs. Re-laid-out (2026-09-21, killer560's own explicit request) into one

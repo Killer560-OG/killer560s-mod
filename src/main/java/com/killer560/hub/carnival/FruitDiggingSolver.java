@@ -5,7 +5,7 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * Picks the next Fruit Digging tile (the approach SkyHanni's Fruit Digging solver takes, written fresh here): every
+ * Picks the next Fruit Digging tile (the approach the Fruit Digging solver takes, written fresh here): every
  * unknown tile gets a probability for each content by sampling whole boards that fit every clue seen so far, and the
  * tile with the best expected points, less the risk of wasting the dig on a bomb or rum (and of a bomb destroying the
  * fruit around it), plus a little for the clues digging it would give, is recommended, with the shovel mode to use.

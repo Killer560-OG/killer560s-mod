@@ -22,7 +22,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Fossil Solver (legit, both builds; the idea and the fossil shapes are Skyblocker's FossilSolver, the solver is this
+ * Fossil Solver (legit, both builds; the idea and the fossil shapes are the FossilSolver, the solver is this
  * mod's): in the Glacite Fossil Excavator, every placement of the eight fossils that agrees with the tiles already dug
  * (white panes are fossil, brown dirt is still unknown, anything else is empty) and with the "Fossil Excavation Progress"
  * percentage is counted, and each unknown tile gets the share of those placements that cover it. The best tiles get a

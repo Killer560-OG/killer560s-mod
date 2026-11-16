@@ -10,7 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted Trajectories settings - see {@link TrajectoriesFeature}'s class doc for the real
- *  QUOI-ported projectile simulation this is built on. Ships disabled by default, same as every other
+ *  projectile simulation this is built on. Ships disabled by default, same as every other
  *  new feature in this mod. */
 public final class TrajectoriesConfig {
 

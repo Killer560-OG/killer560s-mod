@@ -31,7 +31,7 @@ import java.util.regex.Pattern;
  * it are drawn as a small slot grid inside the item's tooltip, so you do not have to open its menu to see them. Shown
  * on hover, or only while a key is held (setting). Visual only, on both builds.
  * <p>
- * Data shape (read from Skyblocker's open source behavior and the wiki, checked against the item ids): the item's
+ * Data shape (open source behavior and the wiki, checked against the item ids): the item's
  * custom data holds one string entry per configured slot, {@code personal_compact_<n>} or {@code personal_deletor_<n>},
  * whose value is the SkyBlock id of the item in slot n; a deletor also has {@code PERSONAL_DELETOR_ACTIVE}. Sizes by
  * tier (rows x columns): 4000 1x1, 5000 1x3, 6000 1x7, 7000 2x6 (the wiki lists 12 slots for the 7000).

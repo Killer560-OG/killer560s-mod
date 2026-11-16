@@ -27,7 +27,7 @@ import com.killer560.hub.gui.ThemeAccent;
 
 /**
  * Legit, read-only Floor 7 Melody terminal progress tracker - killer560 (2026-09-21): "I really want
- * everything to tie into my mod", building on the new Cross-Mod Bridge's Odin adapter, which was left
+ * everything to tie into my mod", building on the new Cross-Mod Bridge's the reference adapter, which was left
  * receive-only because nothing in this mod produced our own Melody state (see {@code OdinAdapter}'s class
  * doc before this feature existed). This is the producer: it detects the real Melody terminal by its own
  * container title (same regex {@link TerminalType#MELODY} matches, just read here instead of solved) and
@@ -41,15 +41,15 @@ import com.killer560.hub.gui.ThemeAccent;
  * <ul>
  * <li>{@link MelodyIntel} (bridge package), under our own real name - the same store Odin-sourced teammate
  * progress already lands in, so the Team Melody HUD below can read one place for every source.</li>
- * <li>{@code OdinAdapter#produceOutbound} polls {@link #selfSnapshot()} and sends it to Odin's own socket, in
- * Odin's own wire format, only while that bridge is on, connected, and we are in the Melody window - see its
+ * <li>{@code OdinAdapter#produceOutbound} polls {@link #selfSnapshot} and sends it to the socket, in
+ * The wire format, only while that bridge is on, connected, and we are in the Melody window - see its
  * own class doc for the gating.</li>
  * <li>{@code PartyDataFeature#selfFactSnapshot()} polls the same snapshot and queues it as a new
  * {@code dg.v1.melody} fact over our own relay, gated by {@link MelodyHudConfig#isShareProgress()} on top of
  * the relay's existing share/rate/dedupe machinery - see that class's own doc.</li>
  * </ul>
  * <b>Team Melody HUD</b> ({@link #HUD}) shows every teammate {@link MelodyIntel} currently has progress for
- * (Odin users, our own relay's users, or - for a teammate running this same build - both), live, only during
+ * (the reference users, our own relay's users, or - for a teammate running this same build - both), live, only during
  * F7/M7 Phase 3 ({@link Floor7Tracker#inPhase}), Amber-themed like the rest of the mod. The row cache is
  * rebuilt once per client tick (not per rendered frame - HUD elements can render hundreds of times a second)
  * so {@link TeamMelodyHudElement#render} never allocates.
@@ -205,7 +205,7 @@ public final class MelodyTrackerFeature {
         if (client.player == null) return;
         lastSentDone = done;
         int pct = Math.round(done * 100f / rows);
-        // No trailing ")": NoammAddons' MelodyDisplay ignores progress lines ending in ")" (1.2.9, PR #419).
+        // No trailing ")": the MelodyDisplay ignores progress lines ending in ")" (1.2.9, PR #419).
         com.killer560.hub.util.OutgoingChat.command("pc Melody " + done + "/" + rows + " - " + pct + "%");
     }
 
@@ -274,7 +274,7 @@ public final class MelodyTrackerFeature {
         String name = "";
         String label = "";
         int percent = -1;
-        /** A teammate on this mod or Odin: their board (target, moving column, button row) is drawn, not a bar. */
+        /** A teammate on this mod or their board (target, moving column, button row) is drawn, not a bar. */
         boolean board;
         int clay = -1;
         int target = -1;
@@ -282,7 +282,7 @@ public final class MelodyTrackerFeature {
     }
 
     /** Client tick only: refreshes {@link #ROWS}/{@link #rowCount} from {@link MelodyIntel}, which is itself
-     *  fed by Odin, our relay, and {@link #applySelf} above - this method re-derives nothing, it only reads
+     *  fed by the reference, our relay, and {@link #applySelf} above - this method re-derives nothing, it only reads
      *  and formats. A row's label string is rebuilt only when its name or percent actually changed, so a
      *  teammate who isn't moving costs one string compare per tick, not one allocation. */
     private static void rebuildRows() {

@@ -2,7 +2,7 @@ package com.killer560.hub.mining.events;
 
 import java.util.Locale;
 
-/** The Dwarven Mines and Crystal Hollows mining events: names and lengths as SkyHanni's {@code MiningEventType} has them. */
+/** The Dwarven Mines and Crystal Hollows mining events: names and lengths them. */
 public enum MiningEvent {
     DOUBLE_POWDER("2x Powder", "2X POWDER", 15 * 60),
     GOBLIN_RAID("Goblin Raid", "GOBLIN RAID", 5 * 60),

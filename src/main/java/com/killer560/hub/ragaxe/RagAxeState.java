@@ -20,11 +20,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * The one Ragnarock cast detector and the three timers it drives. Detection is Odin's
+ * The one Ragnarock cast detector and the three timers it drives. Detection is the
  * ({@code features/impl/skyblock/Ragnarock.kt}): a wolf <i>death</i> sound at pitch exactly
- * {@value #CAST_PITCH} while holding a {@code RAGNAROCK_AXE}. NoammAddons' copy
- * ({@code features/impl/dungeon/Ragnarock.kt}, local a local NoammAddons checkout) is the same check with
- * the pitch comparison inverted, which is a bug there - Odin's sense is used.
+ * {@value #CAST_PITCH} while holding a {@code RAGNAROCK_AXE}. The copy
+ * ({@code features/impl/dungeon/Ragnarock.kt}, local a local the reference checkout) is the same check with
+ * the pitch comparison inverted, which is a bug there - the sense is used.
  * <p>
  * Ability numbers, all from hypixelskyblock.minecraft.wiki/w/Ragnarock ("RIGHT CLICK - Mana Cost: 500 -
  * Cooldown: 20s - Begin a channel. After not taking damage for 3s, gain 1.5x this weapon's Strength for 10s"):
@@ -34,7 +34,7 @@ import java.util.regex.Pattern;
  * <li>{@link #BUFF_MS} 10000 - the strength buff, starting when the channel completes.
  * <li>Cooldown 20 s from the cast, configurable ({@link RagAxeConfig#getCooldownSeconds()}) because the client
  * cannot see a player's ability-cooldown reduction: Hypixel sends no cooldown value to the client, and nothing
- * in Odin/NoammAddons/Skytils/SkyHanni reads one, so the timer ASSUMES the base 20 s unless the slider is
+ * in other implementations reads one, so the timer ASSUMES the base 20 s unless the slider is
  * moved. Mana cost is not tracked at all for the same reason (a failed cast for lack of mana simply never
  * produces the cast sound, so no timer starts).
  * </ul>
@@ -49,7 +49,7 @@ public final class RagAxeState {
 
     static final long CHANNEL_MS = 3_000L;
     static final long BUFF_MS = 10_000L;
-    /** Odin: the ability's own wolf-death sound pitch. */
+    /** The ability's own wolf-death sound pitch. */
     private static final float CAST_PITCH = 1.4920635f;
     private static final Pattern CANCEL =
             Pattern.compile("Ragnarock was cancelled due to (?:being hit|taking damage)!");
@@ -163,7 +163,7 @@ public final class RagAxeState {
         return cooldownEndMs > 0 && left > 0 ? left : 0L;
     }
 
-    // ------------------------------------------------------------------ item helpers (Odin ItemUtils)
+    // ------------------------------------------------------------------ item helpers (the reference ItemUtils)
 
     private static boolean isWolfDeath(Identifier id) {
         for (WolfSoundVariant variant : SoundEvents.WOLF_SOUNDS.values()) {
@@ -181,7 +181,7 @@ public final class RagAxeState {
         return tag.getStringOr("id", null);
     }
 
-    /** Odin: the buff is 1.5x the axe's own "Strength: +N" lore line. */
+    /** The buff is 1.5x the axe's own "Strength: +N" lore line. */
     private static int loreStrength(ItemStack stack) {
         ItemLore lore = stack.get(DataComponents.LORE);
         if (lore == null) return 0;

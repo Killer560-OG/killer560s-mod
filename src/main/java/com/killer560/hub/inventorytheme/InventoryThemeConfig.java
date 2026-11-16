@@ -16,7 +16,7 @@ import java.nio.file.Path;
 /** Persisted "Custom Inventory Overlay" settings (killer560's item 5.8: "Custom inventory overlay in
  *  the mod's theme") - re-skins the vanilla chest/inventory GUI (background, per-slot backdrops, hover
  *  highlight, title text) to match the mod's own Amber look instead of Minecraft's stone texture, the
- *  same kind of thing SkyHanni/Odin already do. Follows the same per-key {@link ConfigJson} load/save
+ *  same kind of thing other implementations already do. Follows the same per-key {@link ConfigJson} load/save
  *  shape every neighboring {@code XyzConfig} in this mod uses, so a single malformed/missing key never
  *  resets the whole file. OFF by default per the New-tab rule - killer560 hasn't confirmed this live. */
 public final class InventoryThemeConfig {

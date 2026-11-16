@@ -17,10 +17,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Dungeon teammates (name, class, dead) from the tab list - QUOI {@code Dungeon.dungeonTeammates} equivalent. Uses the
- * same NoammAddons tab regex as {@link com.killer560.hub.dungeonalerts.ClassColors} ("[lvl] [rank] Name ... (Class
+ * Dungeon teammates (name, class, dead) from the tab list - the reference {@code Dungeon.dungeonTeammates} equivalent. Uses the
+ * same the reference tab regex as {@link com.killer560.hub.dungeonalerts.ClassColors} ("[lvl] [rank] Name... (Class
  * XL)"); a "(DEAD)" entry keeps the previously known class and marks the player dead, so class/name leaps skip
- * them like QUOI's {@code !it.isDead} filter. Polled every 10 client ticks while in a dungeon; cleared on world change.
+ * them filter. Polled every 10 client ticks while in a dungeon; cleared on world change.
  */
 public final class Teammates {
 
@@ -30,7 +30,7 @@ public final class Teammates {
     }
 
     private static final Map<String, Teammate> TEAMMATES = new LinkedHashMap<>();
-    /** Class level per name (for QUOI's mage cooldown multiplier); kept across a "(DEAD)" entry. */
+    /** Class level per name (for the mage cooldown multiplier); kept across a "(DEAD)" entry. */
     private static final Map<String, Integer> LEVELS = new LinkedHashMap<>();
     private static int tickCounter = 0;
 
@@ -81,7 +81,7 @@ public final class Teammates {
         tickCounter = 0;
     }
 
-    /** QUOI {@code Dungeon.getMageCooldownMultiplier()}: 1.0 unless you're a Mage, else
+    /** The reference {@code Dungeon.getMageCooldownMultiplier}: 1.0 unless you're a Mage, else
      *  {@code 1 - 0.25 - floor(level / 2) / 100 * (only mage ? 2 : 1)}. Unknown class/level = the non-mage 1.0. */
     public static double mageCooldownMultiplier() {
         String self = selfName();
@@ -167,7 +167,7 @@ public final class Teammates {
         return null;
     }
 
-    /** QUOI {@code dungeonTeammatesNoSelf.firstOrNull { !it.isDead && it.clazz == clazz }}, with the mod-wide
+    /** The reference {@code dungeonTeammatesNoSelf.firstOrNull { !it.isDead && it.clazz == clazz }}, with the mod-wide
      *  {@link ClassOverrides} applied to each teammate's class - so "leap to the berserk" goes to whoever killer560
      *  has marked as doing berserk's terminal, not necessarily a real berserk. {@link #mageCooldownMultiplier()}
      *  deliberately stays on the REAL tab-list class: the leap cooldown is a game mechanic, not a role. */

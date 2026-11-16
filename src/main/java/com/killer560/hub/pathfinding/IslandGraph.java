@@ -15,11 +15,11 @@ import java.util.Map;
 import java.util.TreeMap;
 
 /**
- * One island's navigation graph, in SkyHanni's island-graph JSON format.
+ * One island's navigation graph, in the island-graph JSON format.
  * <p>
- * Data: SkyHanni-REPO {@code constants/island_graphs/<ISLAND>.json} (https://github.com/hannibal002/SkyHanni-REPO,
- * MIT licensed; hand-recorded by the SkyHanni team with their in-game Graph Editor). Format, as read by SkyHanni's own
- * {@code data/model/graph/Graph.kt} (LGPL-2.1, https://github.com/hannibal002/SkyHanni):
+ * Data: the public {@code constants/island_graphs/<ISLAND>.json} (https://github.com/hannibal002/SkyHanni-REPO,
+ * MIT licensed; hand-recorded with an in-game Graph Editor). Format, as the
+ * {@code Graph} model (LGPL-2.1):
  * <pre>
  * { "&lt;node id&gt;": { "Position": "x:y:z",           // feet block of a standing spot
  *                   "Name": "Fairy Soul",             // optional
@@ -146,7 +146,7 @@ public final class IslandGraph {
             for (Map.Entry<Integer, Double> e : nb.entrySet()) {
                 Node target = graph.byId.get(e.getKey());
                 if (target == null) {
-                    continue; // dangling reference - SkyHanni errors here, we just skip the edge
+                    continue; // dangling reference - the reference errors here, we just skip the edge
                 }
                 out[k] = target.index;
                 w[k] = e.getValue();
@@ -207,7 +207,7 @@ public final class IslandGraph {
         return out;
     }
 
-    /** Every distinct navigable name on the island (sorted), for tab completion. "no_area" is SkyHanni's reserved
+    /** Every distinct navigable name on the island (sorted), for tab completion. "no_area" is the reserved
      *  "belongs to no area" marker and never a destination. */
     public List<String> destinationNames() {
         TreeMap<String, String> names = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);

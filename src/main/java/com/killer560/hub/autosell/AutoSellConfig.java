@@ -32,7 +32,7 @@ public final class AutoSellConfig {
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-autosell.json");
 
-    /** killer560, "add an auto sell feature": no QUOI source to port a real screen title from (see
+    /** killer560, "add an auto sell feature": no the reference source to port a real screen title from (see
      *  {@code AutoSellFeature}'s class doc) - this is deliberately loose (matches anything with "sell" in the
      *  title) rather than a guessed exact string, and is the one thing worth tuning per-server if a screen
      *  Auto Sell should run in doesn't happen to say "sell" in its title. */

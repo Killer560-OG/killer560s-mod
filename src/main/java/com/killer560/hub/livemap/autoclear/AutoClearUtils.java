@@ -13,8 +13,8 @@ import net.minecraft.world.phys.Vec3;
 import java.util.Map;
 
 /**
- * Port of QUOI's {@code AutoClearUtils} pieces InteractiveMap uses: {@code canPath}, {@code getLockedDoor},
- * {@code pathToDoor}, {@code pathToRoom} (tile goals with QUOI's room/core overrides). {@code pathToRoom} type 1
+ * Port of the {@code AutoClearUtils} pieces InteractiveMap uses: {@code canPath}, {@code getLockedDoor},
+ * {@code pathToDoor}, {@code pathToRoom} (tile goals with the room/core overrides). {@code pathToRoom} type 1
  * (Auto Routes start ring) has no route data here - Auto Routes is out of scope - so it falls back to the tile goal.
  */
 public final class AutoClearUtils {
@@ -78,7 +78,7 @@ public final class AutoClearUtils {
     }
 
     /**
-     * QUOI {@code canPath}: on ground, not in a maze or boulder room, never inside a trap room. Maze and Boulder refuse by
+     * The reference {@code canPath}: on ground, not in a maze or boulder room, never inside a trap room. Maze and Boulder refuse by
      * room NAME while the puzzle is being done, and stop refusing once it is done: cleared on the map, finished or failed
      * on the tab list, or a {@link #permitLeave} for it (the puzzle that took him in there has ended) - without that the
      * Teleport Maze's end pad stranded Dungeon Autopilot. A trap room always refuses: no ability works in one.
@@ -116,7 +116,7 @@ public final class AutoClearUtils {
         if (name.contains("Maze") || name.contains("Boulder")) {
             return false;
         }
-        // No by-NAME trap rule after isTrap: QUOI's "Trap in the name, back half refuses" outlived the rule above, and
+        // No by-NAME trap rule after isTrap: the "Trap in the name, back half refuses" outlived the rule above, and
         // the only room it still caught was Arrow Trap - a NORMAL room - so the map did nothing while he stood in its
         // half (killer560, 2026-10-13: "interactive map does not work if i am in arrow trap").
         return true;
@@ -163,7 +163,7 @@ public final class AutoClearUtils {
         return tab == '✔' || tab == '✖';
     }
 
-    /** QUOI {@code getLockedDoor}: nearest locked wither/blood door by room distance (locked doors passable). */
+    /** The reference {@code getLockedDoor}: nearest locked wither/blood door by room distance (locked doors passable). */
     public static int getLockedDoor(DungeonLayout layout) {
         int room = layout.currentRoom();
         if (room < 0) {
@@ -220,7 +220,7 @@ public final class AutoClearUtils {
         return best;
     }
 
-    /** QUOI {@code pathToDoor}. @return false when pathing couldn't start. */
+    /** The reference {@code pathToDoor}. @return false when pathing couldn't start. */
     public static boolean pathToDoor(DungeonLayout layout, int door, boolean faceOnArrival) {
         if (!canPath(layout, true)) {
             return false;
@@ -374,7 +374,7 @@ public final class AutoClearUtils {
     }
 
     /**
-     * QUOI {@code pathToRoom}. Type 0: the room's override spot (by name, or by tile core) when the rotation is known,
+     * The reference {@code pathToRoom}. Type 0: the room's override spot (by name, or by tile core) when the rotation is known,
      * else the etherwarpable block nearest the tile center. Type 1 (route start ring) falls back to type 0.
      */
     public static boolean pathToRoom(DungeonLayout layout, int room, int tileIdx, int type) {

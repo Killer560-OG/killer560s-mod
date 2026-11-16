@@ -29,7 +29,7 @@ import java.util.Set;
  * A small standalone practice arena for the real "Creeper Beams" dungeon puzzle, playable inside the room sim.
  *
  * <p><b>The lantern positions are the real bundled data, not invented.</b> {@code puzzlesolvers/BeamsSolverFeature}
- * loads {@code assets/killer560smod/puzzles/creeper-beams-solutions.json} - Odin's own bundled candidate list of
+ * loads {@code assets/killer560smod/puzzles/creeper-beams-solutions.json} - the bundled candidate list of
  * real Sea Lantern position PAIRS from the real room, copied verbatim - and this class loads the exact same
  * resource the exact same way, then places a real Sea Lantern at each of those real relative positions around
  * {@code origin}. Nothing about where the lanterns sit is generated. (The bundled list contains a couple of
@@ -280,7 +280,7 @@ public final class SimCreeperPuzzle {
 
     /**
      * Hypixel's own two pitches for an elder guardian hurt sound at a shot lantern. Not invented here and not
-     * reverse-engineered for this - {@code AutoBeams.onSound} already carries them as QUOI's exact values:
+     * reverse-engineered for this - {@code AutoBeams.onSound} already carries them exact values:
      * {@code 1.3968254f} is "first lantern of a pair registered", {@code 2.0f} is "pair completed".
      */
     private static final float FIRST_HIT_PITCH = 1.3968254f;

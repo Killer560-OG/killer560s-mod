@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Server-tick source for {@code ServerTickClock} - Odin counts one server tick per non-zero-id
+/** Server-tick source for {@code ServerTickClock} - the reference counts one server tick per non-zero-id
  *  {@code ClientboundPingPacket} (ConnectionMixin.channelRead0). Here the hook sits right after
  *  {@code handlePing}'s {@code ensureRunningOnSameThread} (javap-verified on 26.1.2:
  *  {@code ClientCommonPacketListenerImpl.handlePing} calls it first, then sends the pong), so it runs on the client

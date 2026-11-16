@@ -30,7 +30,7 @@ public class DungeonTab extends FolderTab {
                 new MilestoneTab(),
                 new DungeonItemHighlighterTab(),
                 new DungeonQueueTab(),
-                // Creation Cooldown (to-do Doc 2026-11-01): SkyHanni's 30 s instance creation timer.
+                // Creation Cooldown (to-do Doc 2026-11-01): the 30 s instance creation timer.
                 new CreationCooldownTab(),
                 // Insta Clear Warning (to-do Doc 2026-11-01): a blood rush room cleared without its key.
                 new InstaClearWarningTab(),

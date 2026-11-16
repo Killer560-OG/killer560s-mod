@@ -47,7 +47,7 @@ import java.util.Random;
 public final class HoverTerminalFeature {
 
     /** Melody only - the same 250ms same-row guard {@code TerminalSolverFeature}'s own Melody auto-click
-     *  uses (ported from NoammAddons' {@code lastClickedSlot} + cooldown pair), since a real column match
+     *  uses (+ cooldown pair), since a real column match
      *  stays true for several consecutive frames before the indicator moves on. */
     private static final long MELODY_SAME_ROW_GUARD_MS = 250;
 

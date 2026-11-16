@@ -4474,7 +4474,7 @@ public final class Ap3Executor {
     // "add a crystal node. It should work for getting crystals with spring boots. Itll hold crouch once it hits that node
     // till it has enough height to get the crystal then release crouch." Spring Boots charge while he crouches: Hypixel
     // plays a note per charge level and the jump goes off when the crouch is let go. The height those notes add up to is
-    // the Spring Boots HUD's count (dungeonalerts.SpringBootsOverlay, Odin's table), so the node crouches - nothing else
+    // the Spring Boots HUD's count (dungeonalerts.SpringBootsOverlay, the table), so the node crouches - nothing else
     // pressed, the walk ended - until that count reaches the height it needs, then lets go: the next tick's input has no
     // sneak. The height is the node's own (/ap3 add crystal 30), else what puts his body (1.8 tall) at the nearest end
     // crystal above the node, else the full charge (the count stops growing).

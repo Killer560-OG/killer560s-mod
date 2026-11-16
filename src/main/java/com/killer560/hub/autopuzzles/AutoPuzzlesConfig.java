@@ -23,13 +23,13 @@ public final class AutoPuzzlesConfig {
 
     public static final int MAX_DELAY_MS = 2000;
     public static final int DELAY_STEP_MS = 50;
-    // QUOI PuzzleSolvers bow setting: slider("Shoot cooldown", 500L, 250L, 1000L, 50L).
+    // The reference PuzzleSolvers bow setting: slider("Shoot cooldown", 500L, 250L, 1000L, 50L).
     // Miss cooldown removed (killer560, 2026-09-27: "For auto puzzles remove the miss cooldown.") - every shot is
     // now paced by the Shoot cooldown alone, hit or miss (see AutoBeams/AutoBlaze/AutoIcePath).
     public static final int SHOOT_CD_MIN = 250;
     public static final int SHOOT_CD_MAX = 1000;
     public static final int COOLDOWN_STEP_MS = 50;
-    // QUOI IceFillSolver: slider("Delay", 2, 1, 10, 1, unit = "t").
+    // The reference IceFillSolver: slider("Delay", 2, 1, 10, 1, unit = "t").
     public static final int ICE_FILL_DELAY_MIN = 1;
     public static final int ICE_FILL_DELAY_MAX = 10;
 
@@ -47,7 +47,7 @@ public final class AutoPuzzlesConfig {
     // to 0 once (weirdosDelayMigrated); one set to anything else keeps it.
     static final int OLD_WEIRDOS_DELAY_DEFAULT = 250;
     private int weirdosDelayMs = 0;
-    // QUOI's ThreeWeirdos auto also right-clicks the 3 "CLICK" NPC stands so they say their lines.
+    // The ThreeWeirdos auto also right-clicks the 3 "CLICK" NPC stands so they say their lines.
     private boolean weirdosTalkToNpcs = false;
 
     private boolean autoBlazeEnabled = false;
@@ -57,7 +57,7 @@ public final class AutoPuzzlesConfig {
      *  and stays the default; MELEE etherwarps to a spot in reach of each lantern and left-clicks it. */
     private BeamsMode autoBeamsMode = BeamsMode.SHOOT;
     private int shootCooldownMs = 500;
-    // QUOI Repositionable (etherwarp to a standing spot) - one opt-in toggle for every auto that uses it.
+    // The reference Repositionable (etherwarp to a standing spot) - one opt-in toggle for every auto that uses it.
     private boolean etherwarpReposition = false;
 
     private boolean autoBoulderEnabled = false;

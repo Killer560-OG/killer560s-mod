@@ -25,10 +25,10 @@ import java.nio.file.Path;
  * {@code *Raw()} getters are what the settings tab draws with, so the menu always shows what is really
  * turned on.
  * <p>
- * 2026-09-20: expanded with every hide QUOI 1.1.0/1.1.1 has that this pack didn't (see
- * {@code wave/research-pack.md} section 1) - grouped the same way QUOI groups them (Render Optimizer / Name
+ * 2026-09-20: expanded with every hide the reference 1.1.0/1.1.1 has that this pack didn't (see
+ * {@code wave/research-pack.md} section 1) - grouped the same way the reference groups them (Render Optimizer / Name
  * Tags / Player Display -> Hide / Tweaks / Item Animations / Chat Replacements / Splits / 1.1.1's Hide
- * Players), nothing added beyond QUOI's own set per killer560's "dont go beyond what they have".
+ * Players), nothing added beyond the set per killer560's "dont go beyond what they have".
  */
 public final class ObjectHiderConfig {
 
@@ -83,7 +83,7 @@ public final class ObjectHiderConfig {
 
     private boolean cancelVanillaNametags = false;
 
-    // --- QUOI Player Display -> Hide (also surfaced as "Stat Bars", see item 3) ---------------------
+    // --- the reference Player Display -> Hide (also surfaced as "Stat Bars", see item 3) ---------------------
     private boolean hideHealthBar = false;
     private boolean hideAbsorptionHearts = false;
     private boolean hideMountHealthBar = false;
@@ -96,14 +96,14 @@ public final class ObjectHiderConfig {
     private boolean noEatAnimation = false;
     private boolean noShortbowSwing = false;
 
-    // --- QUOI Chat Replacements: moved to Chat Hider (chattidy/ChatTidyConfig) on 2026-10-08, which migrates the old
+    // --- the reference Chat Replacements: moved to Chat Hider (chattidy/ChatTidyConfig) on 2026-10-08, which migrates the old
     // keys out of this file the first time it loads. --------------------------------------------------
 
-    // QUOI's Splits "Hide Not Started" is deliberately absent: our Split Timers HUD already never draws a
+    // The Splits "Hide Not Started" is deliberately absent: our Split Timers HUD already never draws a
     // split it has not reached (SplitTimersFeature.displayRows() only emits rows with timeMs() != 0), so the
     // switch would have been a setting that does nothing (2026-09-20).
 
-    // --- QUOI 1.1.1 "Hide Players" ---------------------------------------------------------------------
+    // --- the reference 1.1.1 "Hide Players" ---------------------------------------------------------------------
     private boolean hidePlayers = false;
     private int hidePlayersDistance = 0;
     private boolean hidePlayersDungeonOnly = false;
@@ -473,7 +473,7 @@ public final class ObjectHiderConfig {
 
     public void setNoShortbowSwing(boolean v) { noShortbowSwing = v; }
 
-    // --- QUOI 1.1.1 Hide Players -------------------------------------------------------------------------
+    // --- the reference 1.1.1 Hide Players -------------------------------------------------------------------------
 
     public boolean isHidePlayers() { return objectHiderEnabled && hidePlayers && SkyblockGate.allows(); }
 

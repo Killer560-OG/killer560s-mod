@@ -42,9 +42,9 @@ import com.killer560.hub.compat.McRender;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Blood Camp - killer560's request: "use noamm's blood mob tracer thing it already has, then add a
+ * Blood Camp - killer560's request: "use another mod's blood mob tracer thing it already has, then add a
  * triggerbot option so if i am looking at the right hitbox as the timer expires then it will left click
- * on the mob." Real mechanic and every constant below ported directly from Noamm's own confirmed,
+ * on the mob." Real mechanic and every constant below own confirmed,
  * compiling {@code BloodCamp.kt} (cloned reference, 2026-09-14) - the Blood Room "Blood Camp" mechanic,
  * present on every floor and skipped once the boss fight starts: a real {@code Zombie} wearing a real specific player-head skin is the Watcher, and real
  * {@code ArmorStand} entities wearing one of a real fixed set of player-head skins are the blood mobs,
@@ -52,11 +52,11 @@ import com.killer560.hub.compat.McCompat;
  * in {@link #WATCHER_SKULL_TEXTURES}/{@link #MOB_SKULL_TEXTURES} are copied verbatim from that source).
  * <p>
  * A blood mob doesn't respawn as a new entity - the SAME entity periodically repositions, tracked via
- * real {@code ClientboundMoveEntityPacket} deltas and extrapolated forward (matching Noamm's own real
+ * real {@code ClientboundMoveEntityPacket} deltas and extrapolated forward (matching the real
  * math) to predict where it's about to settle ({@code endVector}) before it visibly arrives there, and a
- * real countdown (also Noamm's own real formula) estimates when it'll be vulnerable again.
+ * real countdown (also the real formula) estimates when it'll be vulnerable again.
  * <p>
- * Extras killer560 asked for beyond Noamm's own real feature: a Trigger Bot (real left-click once the
+ * Extras killer560 asked for beyond the real feature: a Trigger Bot (real left-click once the
  * countdown expires AND the player's real crosshair is on that exact spot - see {@link #aimedAt} for why
  * "on that spot" is ray-traced here rather than read off {@code Minecraft#hitResult}), a Kill Popup for the
  * Watcher's own move schedule ({@link BloodCampMoveTimer}), a Trigger Offset of -10..10 ticks from the kill
@@ -72,7 +72,7 @@ public final class BloodCampFeature {
 
     static final Logger LOGGER = ModLog.get("killer560smod-bloodcamp");
 
-    // Real base64 skull "textures" property values, copied verbatim from Noamm's own confirmed source -
+    // Real base64 skull "textures" property values own confirmed source -
     // not re-derived or guessed. Two of the real mob skulls have no attached player profile at all (a
     // bare MineSkin upload), so matching on the exact texture STRING (not a profile UUID) is the only way
     // to catch every real one of them.
@@ -210,7 +210,7 @@ public final class BloodCampFeature {
     }
 
     private static boolean isActive() {
-        // Every floor's Blood Room, never the boss fight - NoammAddons' own gate. This used to be F7/M7 only,
+        // Every floor's Blood Room, never the boss fight - the gate. This used to be F7/M7 only,
         // which is why it worked in F7 and silently did nothing everywhere else. The tracking also runs for Dungeon
         // ESP's Blood Mobs (it highlights the mobs found here), even with Blood Camp itself off.
         // The field read first: outside a dungeon (most frames) no config is consulted (fps-auto-1015).
@@ -222,7 +222,7 @@ public final class BloodCampFeature {
     // Real packet hooks - called from BloodCampPacketMixin
 
     /** Detects the real Watcher (a real {@code Zombie} wearing one of the real watcher skull textures) -
-     *  ported from Noamm's own real {@code ClientboundSetEquipmentPacket} check. */
+     *  own real {@code ClientboundSetEquipmentPacket} check. */
     public static void onSetEquipment(ClientboundSetEquipmentPacket packet, Level level) {
         if (!isActive()) {
             return;
@@ -250,7 +250,7 @@ public final class BloodCampFeature {
         }
     }
 
-    /** Real movement-based extrapolation, ported directly from Noamm's own real math - see this class's
+    /** Real movement-based extrapolation own real math - see this class's
      *  own doc comment. */
     public static void onMoveEntity(ClientboundMoveEntityPacket packet, Level level) {
         if (!isActive()) {
@@ -269,7 +269,7 @@ public final class BloodCampFeature {
             return;
         }
 
-        // NoammAddons' model, exactly (killer560, 2026-10-07: "nearly identical to noamm's in look and function").
+        // The model, exactly (killer560, 2026-10-07: "nearly identical to another mod's in look and function").
         // Its sum is Short / 4096 in Kotlin - INTEGER division - so a blood mob's sub-block step adds nothing and the
         // sample is the stand's position BEFORE this packet moves it (this hook runs ahead of the vanilla handler).
         // The trip therefore starts at the skull's spot in the wall, not one step out of it; this used to add the
@@ -278,7 +278,7 @@ public final class BloodCampFeature {
         long[] step = McPackets.moveEntityDelta(packet, entity);
         // A packet that carries a position but no horizontal movement is not a move. 26.3's zero-step packets (one two
         // ticks after a stand spawns, one after it stops) opened or restarted a trip: the countdown began 12 ticks off and
-        // a stopped stand lost its predicted spot (UI suite 392 and 552, 2026-11-01). NoammAddons likewise reads only a
+        // a stopped stand lost its predicted spot (UI suite 392 and 552, 2026-11-01). The reference likewise reads only a
         // packet with a horizontal move (hasHorizontalMove), so a vertical-only step is skipped too.
         if (step[0] == 0L && step[2] == 0L) {
             return;
@@ -303,7 +303,7 @@ public final class BloodCampFeature {
      * position instead when a step is too large for a relative move (1.8 servers, Hypixel's, past 4 blocks - exactly what
      * a stalled trip catching up looks like) and as a periodic sync, so a trip whose first movement came that way was never
      * tracked: no box, no line, no countdown. Now the absolute position is the same step, measured from where the client
-     * has the stand, and goes through the same model as a move packet (Noamm's integer step included).
+     * has the stand, and goes through the same model as a move packet (the integer step included).
      */
     public static void onAbsoluteMove(int entityId, Vec3 target, Level level, String kind) {
         if (target == null || !isActive()) {
@@ -334,7 +334,7 @@ public final class BloodCampFeature {
      * Whether a stand that just moved sideways is a blood mob's skull on its way: a player head, in the Watcher's reach
      * ({@link #tripStandInReach}), and either one of {@link #MOB_SKULL_TEXTURES} or - owner's camp 2026-11-02 run 3
      * (bloodcamp-owner-run3-1102.log: "it missed a mob being spawned box") - a skin that list does not have, leaving one of
-     * the room's display cases. That log had 8 such case stands (#479421-#479428, 7 skins Noamm's list lacks) on exactly
+     * the room's display cases. That log had 8 such case stands (#479421-#479428, 7 skins the list lacks) on exactly
      * the blood mobs' case grid (x and z on a block's center, y N+0.75: 71.75 / 75.75 / 79.75) and two mobs that landed
      * with no trip (#481789 or #481791 at tick ~1986 with one trip due, #482331 at 2579 with none). A trip in progress
      * keeps going whatever its skin. Returns "" for a known skin, " (unknown skin)" for a case skull, null for no trip.
@@ -400,7 +400,7 @@ public final class BloodCampFeature {
      * Owner's F7 camp, 2026-11-02 (bloodcamp-owner-run2-1102.log): a mob (player #334645, tick 1714) landed on the room's
      * landing spot with no trip ever tracked for it, 6 ticks after another trip (stand #327332, from the far x -164.5
      * wall) had started; his 2026-11-02 morning run shows the same (player #15481 at tick 1765, one tick after stand #6577
-     * left its wall). The gate here used to be 20 blocks from the Watcher only - NoammAddons' and Odin's number - but the
+     * left its wall). The gate here used to be 20 blocks from the Watcher only - the number - but the
      * Watcher flies to the display case of the mob he picks (hypixelskyblock.minecraft.wiki "The Watcher"), and the room's
      * cases sit on walls 24 blocks apart (x -164.5 and -140.5 in that log) and 4 to 12 blocks above the floor, so a skull
      * leaving one wall while he is at the other is 24+ blocks from him and its whole trip (box, line, countdown, the
@@ -444,7 +444,7 @@ public final class BloodCampFeature {
     private static void standMoved(Minecraft client, ArmorStand entity, Vec3 packetVec, Vec3 exact, String kind) {
         long nowTick = client.level != null ? client.level.getGameTime() : 0L;
         // firstSpawns is the Watcher's, not this mob's: his first wave settles 40 ticks slower and that state ends
-        // on his "Let's see how you can handle this." line (Odin clears its own flag on exactly that line). This
+        // on his "Let's see how you can handle this." line (the reference clears its own flag on exactly that line). This
         // used to clear after the FIRST tracked mob, so every other mob of the first wave counted down 2s early.
         boolean firstSpawn = BloodCampMoveTimer.isFirstSpawns();
         BloodMobState data = bloodMobs.get(entity);
@@ -546,7 +546,7 @@ public final class BloodCampFeature {
      * {@code if (!(this instanceof Player))} (javap 26.2 and 26.3) - because a player's health comes from its own data.
      * So a killed player-model blood mob stayed {@code isAlive()} on the client until Hypixel removed it, and Mob Ticks
      * counted it alive all that time (233 ticks for that camp). Event 3 is what Hypixel sends for a dungeon mob's death
-     * (the Mimic: Skyblocker's DungeonScore and Noamm's ScoreCalculation both read it), so the blood mob is dead from that
+     * (the Mimic: the DungeonScore and the ScoreCalculation both read it), so the blood mob is dead from that
      * packet on. Cleared with the level; pruned as the entities leave it.
      */
     private static final Set<Integer> DEAD_IDS = new java.util.HashSet<>();
@@ -2724,7 +2724,7 @@ public final class BloodCampFeature {
                 || entity instanceof net.minecraft.world.entity.boss.wither.WitherBoss;
     }
 
-    /** Real countdown formula, ported directly from Noamm's own real math (see this class's own doc
+    /** Real countdown formula own real math (see this class's own doc
      *  comment) - real ticks remaining until this specific blood mob has settled and become vulnerable
      *  again. */
     static double remainingTicks(BloodMobState data, long nowTick) {
@@ -2770,7 +2770,7 @@ public final class BloodCampFeature {
         return com.killer560.hub.util.PingTracker.automationMsLagFree() / 50.0;
     }
 
-    // Rendering - real box/line/timer overlay, ported from Noamm's own real render layout
+    // Rendering - real box/line/timer overlay own real render layout
 
     private static void onWorldRender(LevelRenderContext context) {
         BloodCampConfig cfg = BloodCampConfig.getInstance();
@@ -2784,7 +2784,7 @@ public final class BloodCampFeature {
         if (client.player == null || client.level == null) {
             return;
         }
-        // The look of NoammAddons' Blood Camp helper (killer560, 2026-10-07: "nearly identical to noamm's in look and
+        // The look of the Blood Camp helper (killer560, 2026-10-07: "nearly identical to another mod's in look and
         // function - I don't quite like how ours looks"), reimplemented: per mob, a 1x1x1 OUTLINE box (2.5 px, no
         // fill) from 1.5 to 2.5 above the predicted landing spot, magenta, turning green once your ping exceeds the
         // time left; a cyan 2 px line from the stand's INTERPOLATED position + 2 (the skull in the wall, every frame,
@@ -2830,12 +2830,12 @@ public final class BloodCampFeature {
         // lastFrameText() derives them from these rows, with the same timerText on the same ticks-left value.
     }
 
-    /** Noamm's box color (255, 0, 255), and its invert once the mob is due within your ping. */
+    /** The box color (255, 0, 255), and its invert once the mob is due within your ping. */
     static final int BOX_COLOR = 0xFFFF00FF;
     static final int BOX_COLOR_KILLABLE = 0xFF00FF00;
-    /** Noamm's line color, {@code Color.CYAN}. */
+    /** The line color, {@code Color.CYAN}. */
     static final int LINE_COLOR = 0xFF00FFFF;
-    /** Noamm's {@code renderBoxBounds} default line width. */
+    /** The {@code renderBoxBounds} default line width. */
     static final float BOX_LINE_WIDTH = 2.5f;
 
     /** What the last frame drew, one row per mob: line start xyz (NaN with Spawn Line off), line end xyz, box
@@ -2854,7 +2854,7 @@ public final class BloodCampFeature {
         return out;
     }
 
-    /** "Kill now": your ping in ms is more than the time left (Noamm's color flip). With no ping known, at zero. */
+    /** "Kill now": your ping in ms is more than the time left (the color flip). With no ping known, at zero. */
     static boolean killable(double remainingTicks, int pingMs) {
         return pingMs > remainingTicks * 50.0;
     }
@@ -2868,7 +2868,7 @@ public final class BloodCampFeature {
         return com.killer560.hub.util.PingTracker.automationMs();
     }
 
-    /** Noamm's label: the seconds left WITHOUT the +0.8-tick fudge the countdown carries, rounded half-up to one
+    /** The label: the seconds left WITHOUT the +0.8-tick fudge the countdown carries, rounded half-up to one
      *  decimal, no unit ("1.9", "-0.3"). */
     static String timerText(double remainingTicks) {
         double seconds = (remainingTicks - 0.8) / 20.0;
@@ -2904,7 +2904,7 @@ public final class BloodCampFeature {
         Minecraft client = Minecraft.getInstance();
         Font font = client.font;
         Vec3 cam = McRender.cameraPos(context);
-        // Noamm draws at scale 2 x 0.025; Timer Text Scale (default 2.0) is that multiplier.
+        // The reference draws at scale 2 x 0.025; Timer Text Scale (default 2.0) is that multiplier.
         float scale = 0.025f * BloodCampConfig.getInstance().getTimerTextScale();
 
         PoseStack poseStack = context.poseStack();
@@ -2916,7 +2916,7 @@ public final class BloodCampFeature {
 
         float width = McRender.textWidth(font, text);
         // Centered across, hanging DOWN from the anchor (y 0 is the top of the glyphs), with a shadow and no
-        // background plate, through walls - as Noamm's renderString draws it.
+        // background plate, through walls - renderString draws it.
         // Timer Text Color (killer560, 2026-10-18), white by default as it always was.
         int color = BloodCampConfig.getInstance().getTimerTextColor();
         lastTimerTextColor = color;

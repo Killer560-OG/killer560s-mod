@@ -34,16 +34,16 @@ import static com.killer560.hub.scoreboard.ScoreboardData.nextAfter;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Custom Scoreboard - a port of SkyHanni's Custom Scoreboard ({@code features/gui/customscoreboard/}), which SkyHanni
+ * Custom Scoreboard - a port of the Custom Scoreboard ({@code features/gui/customscoreboard/}), which the reference
  * deprecated in 2026 in favor of the standalone "SkyBlock Custom Scoreboard" mod (meowdding/CustomScoreboard). Hides
  * the vanilla sidebar ({@code CustomScoreboardGuiMixin}) and draws a rebuilt one from the parsed sidebar, tab list,
  * action bar and {@link ScoreboardExtraData}: an ordered, toggleable list of {@link ScoreboardEntry} lines, with
  * {@link ScoreboardEvent}s inside the Events line. Sidebar lines no pattern recognizes are shown unmodified by the
- * "Unknown Lines" entry (SkyHanni's UnknownLinesHandler), so nothing silently disappears.
+ * "Unknown Lines" entry (the UnknownLinesHandler), so nothing silently disappears.
  * <p>
  * The full board is only active on Skyblock / p3sim ({@link SkyblockGate#isOnSkyblock()}). Elsewhere the vanilla
  * sidebar is always left alone; "Outside Skyblock: Minimal Board" only adds a small extra board next to it. Rebuilt
- * every 5 ticks (SkyHanni rebuilds every 250ms), but a rebuild that reads the same keeps the old list, so the frames
+ * every 5 ticks (the reference rebuilds every 250ms), but a rebuild that reads the same keeps the old list, so the frames
  * re-measure nothing ({@link #publish}). Drawn through its own Fabric HUD layer like {@code InventoryHudFeature};
  * {@link Element#render} is the HUD-editor preview only. Since 2026-10-15 the board is anchored to a screen edge (the
  * right one by default, vertically centered, like the vanilla sidebar) and can never be drawn or dragged off screen -
@@ -253,7 +253,7 @@ public final class CustomScoreboardFeature {
             return;
         }
         long now = System.currentTimeMillis();
-        // "Cache Scoreboard on Island Switch" (SkyHanni): keep the last board while the new island's sidebar and
+        // "Cache Scoreboard on Island Switch": keep the last board while the new island's sidebar and
         // tab list are still loading, instead of shaking through half-empty states.
         if (cfg.isCacheOnIslandSwitch() && !currentIsMinimal && !current.isEmpty()
                 && now - worldChangedAtMs < ISLAND_SWITCH_CACHE_MS && !ScoreboardData.islandKnown()) {
@@ -297,7 +297,7 @@ public final class CustomScoreboardFeature {
         if (cfg.isUseCustomTitle() && cfg.isUseCustomTitleOutsideSkyblock()) {
             title = ScoreboardEntry.TITLE.lines(cfg);
         } else {
-            // SkyHanni ScoreboardElementTitle: outside SkyBlock the server's own title unless "Custom Title Outside SkyBlock".
+            // The reference ScoreboardElementTitle: outside SkyBlock the server's own title unless "Custom Title Outside SkyBlock".
             net.minecraft.world.scores.Objective objective = ScoreboardData.sidebarObjective(client);
             String text = objective == null ? "" : ScoreboardData.formatted(objective.getDisplayName(), false);
             title = text.isEmpty() ? List.of() : List.of(new ScoreboardLine(text, cfg.getTitleAlignment()));
@@ -318,7 +318,7 @@ public final class CustomScoreboardFeature {
     }
 
     /**
-     * SkyHanni's "Unknown Lines warning", made a debug notice (2026-10-07): every unknown line is written to the log
+     * The "Unknown Lines warning", made a debug notice (2026-10-07): every unknown line is written to the log
      * ONCE per shape (its digits folded, so a line carrying a changing number is one line, not one per value), and the
      * chat note - also once per shape, rate limited, Hypixel only - comes only with Unknown Line Warning on, which is
      * off by default. Normal play never prints it.
@@ -394,7 +394,7 @@ public final class CustomScoreboardFeature {
         return allPatterns;
     }
 
-    /** SkyHanni's {@code UnknownLinesHandler.handleUnknownLines}, minus its error reporting. */
+    /** The {@code UnknownLinesHandler.handleUnknownLines}, minus its error reporting. */
     private static List<String> computeUnknownLines() {
         List<String> sidebar = ScoreboardData.sidebar();
         // A pure function of the sidebar, which reads the same on most rebuilds: skip the ~100 patterns per line (twice)
@@ -643,7 +643,7 @@ public final class CustomScoreboardFeature {
     // to go off the right side of the screen." The board is stored as an ANCHOR (CustomScoreboardConfig.anchorSide,
     // edgeGap, centerOffsetY), not an absolute x: x is worked out from the edge it is anchored to every time the screen,
     // the scale or the board's own width changes, so a longer line grows the board AWAY from its edge, and a GUI scale or
-    // window change keeps it against the edge. Then it is clamped wholly on screen. Before this, SkyHanni's snap wrote an
+    // window change keeps it against the edge. Then it is clamped wholly on screen. Before this, the snap wrote an
     // absolute x into HudConfig and the first drag in Edit HUD switched the snap off for good, leaving that x behind:
     // a wider board, or a smaller window, then hung off the right edge.
 
@@ -872,7 +872,7 @@ public final class CustomScoreboardFeature {
         }
         if (b > 0) {
             drawRoundedBorder(g, x, y, w, h, radius, b, cfg, now, 1f);
-            // "Border Softness": SkyHanni's outline blur, approximated with fading 1px rings outside the border.
+            // "Border Softness": the outline blur, approximated with fading 1px rings outside the border.
             int soft = cfg.getBorderSoftness();
             for (int i = 1; i <= soft; i++) {
                 float fade = (1f - i / (float) (soft + 1)) * 0.6f;

@@ -10,14 +10,14 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 /**
- * Draws the Health and Mana Bars in the Sleek and Bold styles (killer560, 2026-10-12: "Look at how skyblocker does theirs
+ * Draws the Health and Mana Bars in the Sleek and Bold styles (killer560, 2026-10-12: "Look at how another mod does theirs
  * with how they actually look custom and try to make your own type of style of it"), and keeps their animation.
  * <p>
- * Skyblocker's fancy bars (read, not copied) are two nine-slice sprites, a 7-pixel back and a 5-pixel fill tinted per
+ * The fancy bars (read, not copied) are two nine-slice sprites, a 7-pixel back and a 5-pixel fill tinted per
  * stat, a 9-pixel icon sprite at the left, the number drawn outlined just above the bar, the overflow (absorption,
  * overflow mana) as a second tinted fill over the first, and no easing. Ours draws everything from colored quads (so
  * there is no texture to upload and it scales to any length and thickness the editor gives it), uses the real item for
- * the icon, and adds what Skyblocker does not have: easing, a damage "ghost" and the mod's orange rim on Bold.
+ * the icon, and adds what the reference does not have: easing, a damage "ghost" and the mod's orange rim on Bold.
  * <p>
  * Everything happens inside the element's box: the icon takes a square at its left, a Beside number takes room at its
  * right, and the track is what is left, so the HUD editor box, the Predefined layout and an edge drag all measure the

@@ -27,11 +27,11 @@ import net.minecraft.world.phys.Vec3;
 import java.util.Locale;
 
 /**
- * Wishing Compass Solver (legit, both builds; Skyblocker's WishingCompassSolver, rewritten): in the Crystal Hollows, a
+ * Wishing Compass Solver (legit, both builds; the WishingCompassSolver, rewritten): in the Crystal Hollows, a
  * Wishing Compass shoots a trail of happy-villager particles toward the structure it points at. The first 25 trail
  * particles of a use give a direction from where you stood; a second use at least 8 blocks away gives another, and where
  * the two lines pass within 5 blocks of each other is the target: a box and label there (Show Waypoint) and its
- * coordinates in chat, named after the zone you used it in. Unlike Skyblocker, it never cancels a use. It reads the
+ * coordinates in chat, named after the zone you used it in. Unlike the reference, it never cancels a use. It reads the
  * particles the server sends and your own right-click; it sends nothing. Off by default.
  */
 public final class WishingCompassSolver {
@@ -229,7 +229,7 @@ public final class WishingCompassSolver {
         return p1.add(p2).scale(0.5);
     }
 
-    /** What the compass points at from a zone (Skyblocker's zone boxes; the Nucleus is the middle). */
+    /** What the compass points at from a zone (the zone boxes; the Nucleus is the middle). */
     static String zoneTarget(Vec3 p) {
         if (p.y < 64) {
             return "Khazad-dûm (Magma Fields)";

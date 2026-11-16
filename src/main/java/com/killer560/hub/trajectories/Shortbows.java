@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
  */
 public final class Shortbows {
 
-    /** Yaw between neighboring arrows of a multi-arrow shot, in degrees - QUOI's Terminator side arrows (AutoBlaze
+    /** Yaw between neighboring arrows of a multi-arrow shot, in degrees - the Terminator side arrows (AutoBlaze
      *  shoots them at {@code yaw +- 5}), the same pitch as the center one. */
     public static final float SPREAD_DEGREES = 5f;
 

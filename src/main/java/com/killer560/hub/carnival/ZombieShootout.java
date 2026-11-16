@@ -39,16 +39,16 @@ import java.util.Optional;
 import java.util.Set;
 
 /**
- * Zombie Shootout Helper (SkyHanni's Zombie Shootout and Skyblocker's helper): while you play Zombie Shootout, each
+ * Zombie Shootout Helper (the Zombie Shootout and the helper): while you play Zombie Shootout, each
  * zombie is outlined in its armor's color with a timer over it counting down its lifetime, the best target (a lit
  * Redstone Lamp first, then the zombie worth the most, soonest gone) gets its own box, a lit lamp is boxed with a line to
  * it, and a HUD shows the best target, the lamp's time left and the zombies up. Display only: it never shoots
  * (the cheat build's Zombie Shootout Triggerbot and Auto Zombie Shootout do, and share this class's target pick).
  *
  * <p>Points and lifetimes are the wiki's (Leather 30/7 s, Iron 50/6 s, Gold 80/5 s, Diamond 120/4 s, a baby Leather
- * zombie twice the points; a lamp 100 and 1.2x points for 6 s). SkyHanni's lifetimes are a second longer each;
- * unverified in game which is current, as is whether the tier is on the helmet (SkyHanni) or the chestplate
- * (Skyblocker) - both are read. Lamps are Skyblocker's twelve spots plus any lamp near you when the game starts.
+ * zombie twice the points; a lamp 100 and 1.2x points for 6 s). The lifetimes are a second longer each;
+ * unverified in game which is current, as is whether the tier is on the helmet or the chestplate
+ *  - both are read. Lamps are the twelve spots plus any lamp near you when the game starts.
  */
 public final class ZombieShootout {
 
@@ -120,7 +120,7 @@ public final class ZombieShootout {
         }
     }
 
-    /** Skyblocker's lamp spots. */
+    /** The lamp spots. */
     private static final BlockPos[] KNOWN_LAMPS = {
             new BlockPos(-96, 76, 61), new BlockPos(-99, 77, 62), new BlockPos(-102, 75, 62),
             new BlockPos(-106, 77, 61), new BlockPos(-109, 75, 60), new BlockPos(-112, 76, 58),

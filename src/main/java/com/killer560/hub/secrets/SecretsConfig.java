@@ -24,8 +24,8 @@ public final class SecretsConfig {
     private boolean masterEnabled = false;
     private boolean leversEnabled = false;
     private boolean buttonsEnabled = false;
-    // false = "Flat" (quoi's real "Expanded" mode - a wider but still thin, face-hugging shape, ported
-    // 1:1 from quoi's own hardcoded per-face shapes). true = "Full Box" (the entire 1x1x1 cube).
+    // false = "Flat" (another mod's real "Expanded" mode - a wider but still thin, face-hugging shape, ported
+    // 1:1 from another mod's own hardcoded per-face shapes). true = "Full Box" (the entire 1x1x1 cube).
     private boolean buttonsFullBox = false;
     /** Custom button hitbox (killer560, 2026-09-21): each axis 0 = vanilla button size, 100 = a full block along it. */
     public enum Shape { FLAT, FULL, CUSTOM }
@@ -48,7 +48,7 @@ public final class SecretsConfig {
     // Per killer560's explicit request (2026-09-09): Levers and Buttons specifically (not Chests/
     // Essence) can be restricted further to ONLY the F7/M7 boss phase - see DungeonState's own doc for
     // why (avoids interfering with precision puzzle levers elsewhere in the dungeon, the same real edge
-    // case NoammAddons' own per-floor lever blacklist exists for).
+    // case the per-floor lever blacklist exists for).
     private boolean bossOnly = false;
 
     private SecretsConfig() {

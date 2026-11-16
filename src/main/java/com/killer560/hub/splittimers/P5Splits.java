@@ -10,12 +10,11 @@ import java.util.Locale;
  * {@link SplitTimersFeature.SplitTimersHudElement} in a column to the right of the normal split rows (or below
  * them). Timing sources mirror the reference mods:
  * <ul>
- * <li>Dragon line = spawn -&gt; kill, i.e. Odin's "X was alive for Ns" ({@code WitherDragonsEnum.setAlive/setDead},
- * https://github.com/odtheking/Odin/blob/main/src/main/kotlin/com/odtheking/odin/features/impl/boss/WitherDragonsEnum.kt).
+ * <li>Dragon line = spawn -&gt; kill, i.e. The "X was alive for Ns" ({@code WitherDragonsEnum.setAlive/setDead}).
  * A dragon still alive shows a live, gray time.
- * <li>Relic spawn = Necron's "All this, for nothing..." -&gt; first relic head equipped on an armor stand (Odin
+ * <li>Relic spawn = Necron's "All this, for nothing..." -&gt; first relic head equipped on an armor stand (the reference
  * {@code KingRelics.kt} "relic spawned in").
- * <li>Relic placed = same P5 start -&gt; placement (Odin "relic placed in" for yours; NoammAddons
+ * <li>Relic placed = same P5 start -&gt; placement (the reference "relic placed in" for yours; the reference
  * {@code M7Relics.kt} armor-stand-at-cauldron check for the whole party).
  * </ul>
  * Cleared on every new run start / world change together with the normal splits.

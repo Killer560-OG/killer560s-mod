@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** "I Hate Diorite" settings - see {@link com.killer560.hub.diorite.DioriteGlassFeature}'s class doc for
- *  the real Noamm-ported Storm-pillar glass swap this is built on, and why no legit variant exists. */
+ *  the real Storm-pillar glass swap this is built on, and why no legit variant exists. */
 public class DioriteGlassTab extends BaseTab {
 
     public DioriteGlassTab() {

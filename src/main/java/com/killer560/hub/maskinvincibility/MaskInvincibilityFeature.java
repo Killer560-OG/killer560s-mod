@@ -24,15 +24,14 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
- * Mask/pet invincibility-proc timers - killer560's "mask invulnerability cooldown timers from
- * Noamm/odin" request. Real chat trigger lines and real default durations ported directly from Odin's
- * own confirmed {@code InvincibilityTimer.kt}:
+ * Mask/pet invincibility-proc timers - killer560's "mask invulnerability cooldown timers" request.
+ * Real chat trigger lines and real default durations (confirmed against the real mechanic):
  * <ul>
  *   <li>Spirit Mask: "Second Wind Activated! Your Spirit Mask saved your life!" - 3s active, 30s cooldown</li>
  *   <li>Bonzo's Mask: "Your [.] Bonzo's Mask saved your life!" - 3s active, 180s cooldown</li>
  *   <li>Phoenix Pet: "Your Phoenix Pet saved you from certain death!" - 4s active, 60s cooldown</li>
  * </ul>
- * <b>Simplification vs. Odin:</b> Odin reads Bonzo's Mask's REAL remaining cooldown straight from the
+ * <b>Simplification:</b> the reference reads Bonzo's Mask's REAL remaining cooldown straight from the
  * item's own tooltip lore ("Cooldown: Ns") after each proc, since Hypixel actually varies it slightly.
  * This codebase has no established pattern yet for reading item tooltip lore off an equipped item, so
  * this uses the fixed 180s default instead - close, but correct that once lore-reading exists elsewhere
@@ -81,7 +80,7 @@ public final class MaskInvincibilityFeature {
     private static final Map<Type, ItemStack> iconCache = new EnumMap<>(Type.class);
     /** Stand-in icons (catalog skin or plain head), kept so render does not rebuild a stack every frame. */
     private static final Map<Type, ItemStack> fallbackIcon = new EnumMap<>(Type.class);
-    /** The Phoenix pet's head skin (texture 66b1b59b..., NEU PHOENIX;7), as a textures property value. */
+    /** The Phoenix pet's head skin (texture 66b1b59b..., the reference PHOENIX;7), as a textures property value. */
     private static final String PHOENIX_SKIN = "eyJ0ZXh0dXJlcyI6eyJTS0lOIjp7InVybCI6Imh0dHA6Ly90ZXh0dXJlcy5taW5lY3JhZnQubmV0L3RleHR1"
             + "cmUvNjZiMWI1OWJjODkwYzljOTc1Mjc3ODdkZGUyMDYwMGM4Yjg2ZjZiOTkxMmQ1MWE2YmZjZGIwZTRjMmFhM2M5NyJ9fX0=";
     private static final Type[] TYPES = Type.values();
@@ -100,7 +99,7 @@ public final class MaskInvincibilityFeature {
             activeRemaining.put(t, 0);
             cooldownRemaining.put(t, 0);
         }
-        // ChatObserver, not Fabric CHAT/GAME: Odin/NoammAddons/Skyblocker can cancel a server line via
+        // ChatObserver, not Fabric CHAT/GAME: other implementations can cancel a server line via
         // ALLOW_GAME and re-add their own copy straight to ChatComponent, which Fabric listeners never see.
         // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which
         // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
@@ -270,7 +269,7 @@ public final class MaskInvincibilityFeature {
             }
         }
         // The Phoenix is a pet, so it is never in the inventory and Hypixel's item catalog has no pets
-        // (killer560 2026-11-04: "the phoenix texture is missing"). Its head skin is fixed: NEU's PHOENIX;7.
+        // (killer560 2026-11-04: "the phoenix texture is missing"). Its head skin is fixed: the PHOENIX;7.
         if (t == Type.PHOENIX) {
             fallback = com.killer560.hub.profileviewer.item.LegacyItems.skull(PHOENIX_SKIN, null);
             fallbackIcon.put(t, fallback);

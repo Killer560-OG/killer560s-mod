@@ -35,10 +35,10 @@ import com.killer560.hub.gui.ThemeAccent;
  * set of HUD ids - {@code ragnarock_timer} and {@code ragnarock_m7_alert} are deliberately kept so existing HUD
  * editor positions survive the move).
  * <p>
- * Sources: Odin {@code features/impl/skyblock/Ragnarock.kt} (detection, cancel alert, 1.5x strength),
- * NoammAddons {@code features/impl/dungeon/Ragnarock.kt} (M7 "rag" overlay + its 7-note pling arpeggio, local
- * copy a local NoammAddons checkout), hypixelskyblock.minecraft.wiki/w/Ragnarock (3 s channel, 10 s buff,
- * 20 s cooldown, 500 mana). Skytils and SkyHanni have no Ragnarock feature to port from.
+ * Sources: (detection, cancel alert, 1.5x strength),
+ *  (M7 "rag" overlay + its 7-note pling arpeggio, local
+ * copy a local the reference checkout), hypixelskyblock.minecraft.wiki/w/Ragnarock (3 s channel, 10 s buff,
+ * 20 s cooldown, 500 mana). Other implementations have no Ragnarock feature to port from.
  * <p>
  * Everything ships OFF. Purely informational: no clicking, no aiming, nothing sent to the server except the
  * optional party-chat strength line the user turns on themselves.
@@ -47,10 +47,10 @@ public final class RagAxeFeature {
 
     static final Logger LOGGER = ModLog.get("killer560smod-ragaxe");
 
-    /** NoammAddons' exact delays/pitches for the M7 rag cue (vol 0.25). */
+    /** The exact delays/pitches for the M7 rag cue (vol 0.25). */
     private static final long[] CUE_DELAYS_MS = {0L, 120L, 240L, 400L, 520L, 640L, 780L};
     private static final float[] CUE_PITCHES = {1.22f, 1.13f, 1.29f, 1.60f, 1.60f, 1.72f, 1.89f};
-    /** NoammAddons shows its "rag" text for 40 ticks. */
+    /** The reference shows its "rag" text for 40 ticks. */
     private static final int PROMPT_TICKS = 40;
 
     private static int promptTicks = 0;
@@ -127,7 +127,7 @@ public final class RagAxeFeature {
         }
     }
 
-    /** Odin's {@code alert()}: title, 0/20/5 ticks, NOTE_BLOCK_PLING vol 1 pitch 1. */
+    /** The {@code alert}: title, 0/20/5 ticks, NOTE_BLOCK_PLING vol 1 pitch 1. */
     static void alert(String title) {
         showTitle(title, "", 0, 20, 5);
         playSound(SoundEvents.NOTE_BLOCK_PLING.value(), 1f, 1f);
@@ -231,7 +231,7 @@ public final class RagAxeFeature {
         }
     };
 
-    /** NoammAddons' centered "rag" text, now driven by every prompt rather than just the Wither King line. */
+    /** The centered "rag" text, now driven by every prompt rather than just the Wither King line. */
     public static final HudElement PROMPT_HUD = new HudElement() {
         @Override
         public String id() { return "ragnarock_m7_alert"; }
@@ -245,7 +245,7 @@ public final class RagAxeFeature {
         @Override
         public int defaultY() {
             int h = Minecraft.getInstance().getWindow().getGuiScaledHeight();
-            // Noamm's 0.444h is the same row Room Alerts defaults to; one text line lower so the two centered
+            // The 0.444h is the same row Room Alerts defaults to; one text line lower so the two centered
             // alerts don't stack when both fire (or in the HUD editor).
             return (int) (h / 2f - h * 0.056f) + 12;
         }

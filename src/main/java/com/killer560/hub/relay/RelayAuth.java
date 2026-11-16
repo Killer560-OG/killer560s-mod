@@ -24,13 +24,13 @@ import java.util.concurrent.CompletableFuture;
 /**
  * Proving to the relay who you are, without a password, an API key or a Hypixel key.
  * <p>
- * Minecraft hands every logged-in client an RSA key pair (the one that signs chat) plus Mojang's own signature
+ * Minecraft hands every logged-in client an the reference key pair (the one that signs chat) plus Mojang's own signature
  * over its public key. The relay checks Mojang's signature against Mojang's published certificate keys, then
  * checks that we can sign a challenge it just made up with the matching private key - which together prove we
  * own that account right now. The relay then stamps the sender name on every message itself, so nobody can
  * speak as anyone else. See {@code killer560s-mod-relay/README.md} and {@code src/mojang.ts}.
  * <p>
- * Same approach NoammAddons uses for {@code ws.noamm.org} ({@code utils/network/ApiAuth.kt}).
+ * Same approach the reference uses for {@code ws.noamm.org} ({@code utils/network/ApiAuth.kt}).
  * <p>
  * <b>Everything that leaves the client here:</b> the account UUID, the IGN, the Mojang-issued public key with
  * Mojang's signature and its expiry, and a signature over the relay's own random challenge. No access token, no

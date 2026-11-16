@@ -25,19 +25,19 @@ import java.util.Set;
  * on all four sides, so rooms, corridors and gaps were all the same size and nothing ever touched anything. Only the
  * interactive map had the real layout, so that painter was pulled out here and the HUD now calls it too.
  * <p>
- * Geometry is NoammAddons' {@code MapRenderer.renderRooms}/{@code drawRoomConnector}: a room is 16 units, the gap
+ * Geometry is the {@code MapRenderer.renderRooms}/{@code drawRoomConnector}: a room is 16 units, the gap
  * between two rooms is 4 units, and a connector starts at exactly {@code +roomSize} so it is flush with both rooms
  * (nothing is ever inset). The whole 11x11 grid is therefore {@link #MAP_UNITS} units square. Everything here works
  * in those units and is placed by an (origin, units-per-pixel) pair, so the same code draws a 116px HUD map and a
  * zoomed full-screen one.
  * <p>
- * Room types come from the real map's own bytes: NoammAddons {@code RoomType.kt}/{@code DoorType.kt} decode Hypixel's
+ * Room types come from the real map's own bytes: /{@code DoorType.kt} decode Hypixel's
  * {@code MapColor} ids (63/85 normal, 30 entrance, 66 puzzle, 62 trap, 74 miniboss, 82 fairy, 18 blood, 119 wither
- * door). The default COLORS they are drawn in are NoammAddons' {@code MapConfig.kt} ones since 2026-10-19 (killer560:
+ * door). The default COLORS they are drawn in are ones since 2026-10-19 (killer560:
  * "ours should essentially match that style"), Blood excepted - see {@link MapThemes#REAL}; a Custom scheme recolors
  * any of them.
- * A plain door takes the color of its most interesting neighboring room (NoammAddons {@code DoorTile.getColor},
- * Devonian {@code doorColor}) - that is why corridors on the real map are the same brown as the rooms they join.
+ * A plain door takes the color of its most interesting neighboring room (
+ * The reference {@code doorColor}) - that is why corridors on the real map are the same brown as the rooms they join.
  */
 public final class MapPainter {
 
@@ -53,7 +53,7 @@ public final class MapPainter {
      * here), so the box changed shape and the rooms shrank every time a far room came into view. The scale now
      * comes from the floor alone and is fixed from the moment the run starts.
      *
-     * <p>Where the numbers come from. {@link DungeonMapScanner#calibrate}'s per-floor start corners (NoammAddons'
+     * <p>Where the numbers come from. {@link DungeonMapScanner#calibrate}'s per-floor start corners (the
      * {@code MapUtils}) put the Entrance at 4x4 (corner 22,22), Floor 1 at 4 across by 5 down (22,11), and Floors
      * 2-3 at 5x5 (11,11); everything above that is the 16px-room map, i.e. a 6-wide grid. {@code FloorSizeLog}'s
      * fully-revealed samples from his own runs agree (E 4x4, F1 4x5, F2/F3 5x5, F4 6x5, F5-F7 and M7 6x6) and
@@ -360,7 +360,7 @@ public final class MapPainter {
         return standing >= 0 && java.util.Arrays.stream(group.tiles).anyMatch(t -> t == standing);
     }
 
-    /** Map state of a whole room: the most progressed of its tiles, the way NoammAddons merges a {@code UniqueRoom}.
+    /** Map state of a whole room: the most progressed of its tiles, the way the reference merges a {@code UniqueRoom}.
      *  {@code STATE_UNDISCOVERED} means "do not draw this room". */
     static int visibleState(LiveMapFeature.RoomGroup group) {
         // The sim has no map item for the scanner to read, so a failed sim puzzle could never turn its room
@@ -433,7 +433,7 @@ public final class MapPainter {
     /**
      * Where a room's text goes, in map units: {@code {centreX, centreZ, boxW, boxH}} for a room made of these room tiles
      * (grid indices, even cells). A room that fills its bounding rectangle (1x1, 1xN, 2x2) is labeled on the rectangle;
-     * any other shape - the L - on its longest straight run of tiles, a row before a column (QUOI's
+     * any other shape - the L - on its longest straight run of tiles, a row before a column (the
      * {@code textPlacement}: the L's horizontal pair). Drawing only: nothing here feeds the room's logic.
      * <p>killer560, 2026-10-19 (23:15:17): Predictive Rooms labeled the L room Chambers on the center of its 2x2
      * bounding box, the empty corner, so "Chambers 0/5" sat half outside the room and was sized for a 2x2 room.
@@ -529,8 +529,8 @@ public final class MapPainter {
 
     /**
      * The gray a room or door the map item shows as unopened is drawn in (the "?" rooms, and the door into one): the
-     * Unopened color, as NoammAddons' {@code RoomTile.getColor}/{@code DoorTile.getColor} draw it (65, 65, 65, not
-     * darkened), then Darken Unexplored, whose default 0 leaves it exactly NoammAddons' gray (killer560, 2026-10-19).
+     * Unopened color {@code RoomTile.getColor}/{@code DoorTile.getColor} draw it (65, 65, 65, not
+     * darkened), then Darken Unexplored, whose default 0 leaves it exactly the gray (killer560, 2026-10-19).
      */
     public static int unopenedFill(LiveMapConfig cfg) {
         return multiply(cfg.getColorUnopened(), 1f - cfg.getDarkenUnopened());
@@ -538,7 +538,7 @@ public final class MapPainter {
 
     /**
      * A room (or door) drawn in its own color although he has not opened it yet - every such room on Funny Map, and the
-     * Blood Room behind its blood door. NoammAddons' cheater map draws these {@code color.darker().darker()}
+     * Blood Room behind its blood door. The cheater map draws these {@code color.darker.darker}
      * ({@code MapRenderer.renderRooms}); Darken Unexplored darkens further from there, 0 by default.
      */
     static int unexploredFill(int argb, LiveMapConfig cfg) {
@@ -579,7 +579,7 @@ public final class MapPainter {
         return (argb & 0xFF000000) | (r << 16) | (g << 8) | b;
     }
 
-    /** QUOI {@code base.mix(roomInCol.withAlpha(255), roomInCol.alpha)}. */
+    /** The reference {@code base.mix(roomInCol.withAlpha(255), roomInCol.alpha)}. */
     static int mix(int base, int overlay) {
         float t = ((overlay >>> 24) & 0xFF) / 255f;
         int r = Math.round(((base >> 16) & 0xFF) * (1 - t) + ((overlay >> 16) & 0xFF) * t);
@@ -589,7 +589,7 @@ public final class MapPainter {
     }
 
     /** Database type where the room is identified, else the dungeon map item's own room byte
-     *  (NoammAddons {@code RoomType.fromMapColor}). */
+     * . */
     static String roomType(LiveMapFeature.RoomGroup group) {
         if (!identityRevealed(group)) {
             return "UNKNOWN"; // legit map: unopened means unopened, type included
@@ -683,8 +683,8 @@ public final class MapPainter {
         };
     }
 
-    /** Devonian {@code RoomTypes.prio} - which neighbor a plain door borrows its color from. Fairy sits BELOW
-     *  normal because NoammAddons' {@code DoorTile.getColor} explicitly prefers a non-fairy neighbor. */
+    /** The reference {@code RoomTypes.prio} - which neighbor a plain door borrows its color from. Fairy sits BELOW
+     *  normal because the {@code DoorTile.getColor} explicitly prefers a non-fairy neighbor. */
     public static int typePriority(String type) {
         return switch (type) {
             case "BLOOD" -> 0;
@@ -726,7 +726,7 @@ public final class MapPainter {
         return unopenedBloodRoom(group) || (identityRevealed(group) && "BLOOD".equals(roomType(group)));
     }
 
-    /** Room fill before the current-room/hover tweaks. NoammAddons {@code RoomTile.getColor}: an unopened room is
+    /** Room fill before the current-room/hover tweaks. The reference {@code RoomTile.getColor}: an unopened room is
      *  gray whatever its real type is, because that is all the map itself knows about it. */
     static int roomColor(LiveMapFeature.RoomGroup group, LiveMapConfig cfg) {
         int state = visibleState(group);
@@ -766,9 +766,9 @@ public final class MapPainter {
         // before, so a cleared mimic room reads "red-tinted brown with its checkmark".
         // Both builds: a room is red once the mimic is known to be there. The cheat build knows it in advance (the
         // trapped chest scan); the legit build only once HE has killed it there (onMimicKillTick), killer560 2026-10-13.
-        // The default tint is 20% red over the room's own color - NoammAddons' mimic room highlight exactly: its
+        // The default tint is 20% red over the room's own color - the mimic room highlight exactly: its
         // MapRenderer draws ColorUtils.lerp(roomColour, colorMimic, 0.2) with colorMimic (255, 0, 0) (javap of
-        // NoammAddons 1.2.7, 2026-10-05). 0x33 = 51/255 = 0.2. The cheat build's Mimic Room Color recolors it; its
+        // The reference 1.2.7, 2026-10-05). 0x33 = 51/255 = 0.2. The cheat build's Mimic Room Color recolors it; its
         // alpha is how strongly it is blended.
         if (hasLiveMimic(group)) {
             color = mix(color, cfg.getMimicColor());
@@ -819,7 +819,7 @@ public final class MapPainter {
      * Every client tick in a dungeon (from {@code LiveMapFeature.tick}), BOTH builds: the mimic dying near him latches
      * its room. killer560's coordinator, 2026-10-13: on the legit map too, "a room where HE killed the mimic turns red
      * and stays red for the rest of the run (no advance warning - only after his own kill)". The signal is the one
-     * Auto Routes' {@code AwaitEvents} and the score calculator use for the mimic kill - a baby zombie dying (Odin
+     * Auto Routes' {@code AwaitEvents} and the score calculator use for the mimic kill - a baby zombie dying (the reference
      * Mimic.kt) - here within {@link #MIMIC_KILL_RANGE} of him; never a chest scan, which stays cheat-only.
      */
     static void onMimicKillTick(Minecraft client) {
@@ -1099,7 +1099,7 @@ public final class MapPainter {
         boolean oddX = gx % 2 == 1;
         boolean oddZ = gz % 2 == 1;
         if (oddX && oddZ) {
-            return centreOfSquare(gid, gx, gz); // an L-room's inner corner is not part of the room (QUOI lCorners)
+            return centreOfSquare(gid, gx, gz); // an L-room's inner corner is not part of the room (the reference lCorners)
         }
         if (!oddX && !oddZ) {
             return true;
@@ -1199,7 +1199,7 @@ public final class MapPainter {
     public static final int ROOM_PITCH_UNITS = ROOM_UNITS + GAP_UNITS;
 
     /**
-     * NoammAddons {@code drawRoomConnector}: the stub starts at exactly {@code +roomSize} so it is flush with the
+     * The reference {@code drawRoomConnector}: the stub starts at exactly {@code +roomSize} so it is flush with the
      *  rooms on both sides, is the 4-unit gap long, and 6 units wide across the doorway. */
     static void drawDoors(GuiGraphicsExtractor graphics, DungeonLayout layout, LiveMapConfig cfg,
                           float ox, float oy, float ppu, int hoveredDoor) {
@@ -1250,7 +1250,7 @@ public final class MapPainter {
             }
             int mapByte = hideUnrevealed() ? DungeonMapScanner.doorColorAt(idx) : 0;
             if (!fairyDoor && mapByte == 85) {
-                // The map item's own gray: a door into a room nobody has opened yet. Hypixel draws it gray (NoammAddons
+                // The map item's own gray: a door into a room nobody has opened yet. Hypixel draws it gray (the reference
                 // DoorTile: "Unopened Door"), not in the color of the opened room it leads from; it used to be drawn as
                 // that room's color darkened, so it read as an opened corridor.
                 color = unopenedFill(cfg);
@@ -1375,7 +1375,7 @@ public final class MapPainter {
             "...##...",
     };
 
-    /** Label (and mark) color by room state: NoammAddons' {@code MapRenderer.renderText} (lines 177-182) - green
+    /** Label (and mark) color by room state: the {@code MapRenderer.renderText} (lines 177-182) - green
      *  85,255,85, cleared white, failed pure red 255,0,0 (ours was 255,85,85 until 2026-10-19), anything else 170 gray. */
     static int stateColor(int state) {
         return switch (state) {
@@ -1435,10 +1435,10 @@ public final class MapPainter {
     }
 
     /**
-     * Room text size per map unit at Font Scale 1, and the smallest it is ever shrunk to: NoammAddons' "Map Text Scale"
+     * Room text size per map unit at Font Scale 1, and the smallest it is ever shrunk to: the "Map Text Scale"
      * default 1 and its "Limit Room Name Size" floor 0.39 ({@code MapConfig.kt} line 30, {@code MapRenderer.kt} line 199).
      * The text is as big as it can be up to that, and shrinks only to fit the room. Until 2026-10-19 this was 0.4 and 0.3
-     * (QUOI's), which kept every name well under the room's width.
+     * , which kept every name well under the room's width.
      */
     public static final float LABEL_SCALE = 1f;
     public static final float LABEL_MIN_SCALE = 0.39f;
@@ -1495,7 +1495,7 @@ public final class MapPainter {
             List<String> lines;
             if (style >= 3 && bloodLabelled(group)) {
                 // killer560, 2026-10-19: the Blood Room is labeled "Blood" in both styles, known by its blood door even
-                // before it is opened or identified (QUOI's renderName writes no name on it; he wants one).
+                // before it is opened or identified (the renderName writes no name on it; he wants one).
                 lines = new ArrayList<>(List.of("Blood"));
             } else if (entry == null || !identityRevealed(group)) {
                 continue; // unidentified (or, on the legit map, still-unopened) rooms only get a checkmark
@@ -1570,7 +1570,7 @@ public final class MapPainter {
             return lines;
         }
         if (hideSpecialNames && (type.equals("ENTRANCE") || type.equals("FAIRY") || type.equals("BLOOD"))) {
-            return lines; // QUOI renderName: no names on Entrance, Fairy or Blood.
+            return lines; // The reference renderName: no names on Entrance, Fairy or Blood.
         }
         java.util.Collections.addAll(lines, nameLines);
         if (style == 4 && secrets > 0) {
@@ -1748,7 +1748,7 @@ public final class MapPainter {
         return lastClassRing;
     }
 
-    /** A player head's size in map units at Player Marker Size 1 (NoammAddons' 12). */
+    /** A player head's size in map units at Player Marker Size 1 (the 12). */
     static final int HEAD_UNITS = 12;
 
     /** His own marker's fill. Unchanged green; what keeps it off a green room is the contrast outline below. */
@@ -1783,7 +1783,7 @@ public final class MapPainter {
 
         net.minecraft.world.entity.player.PlayerSkin skin = cfg.isPlayerHeads() ? MapHeads.skinFor(mp) : null;
         if (skin != null) {
-            // NoammAddons' head is 12 map pixels with a 1px black frame (MapRenderer.drawPlayerHead, lines 289-290),
+            // The head is 12 map pixels with a 1px black frame (MapRenderer.drawPlayerHead, lines 289-290),
             // half again the arrow's 8: the face has to be big enough to tell who it is.
             size = Math.max(5, Math.round(HEAD_UNITS * cfg.getIconScale() * markerScale));
             // killer560, 2026-10-15: "have recolor by class ... also have a faint outline around their player head on
@@ -1799,7 +1799,7 @@ public final class MapPainter {
         }
 
         if (showName) {
-            // NoammAddons' "Player Name Scale" 0.5, under the marker (MapConfig.kt line 33, MapRenderer.kt line 300).
+            // The "Player Name Scale" 0.5, under the marker (MapConfig.kt line 33, MapRenderer.kt line 300).
             float nameScale = 0.5f * cfg.getIconScale();
             graphics.pose().pushMatrix();
             graphics.pose().translate(x, y + size / 2f + 2);

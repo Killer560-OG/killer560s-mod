@@ -57,7 +57,7 @@ public final class Ap3Feature {
     private static final Logger LOGGER = ModLog.get("killer560smod-ap3");
     private static final String CHAT = "AP3";
     /** Hypixel's own line, the same regex {@code Floor7Tracker.Stage} parses (kept private there), with the optional
-     *  trailing suffix so a line annotated by another mod (Odin's terminal splits) still matches.
+     *  trailing suffix so a line annotated by another mod (the terminal splits) still matches.
      *
      *  <p>The name group is {@code [A-Za-z0-9_]{1,16}}, not {@code .{1,16}}. An anchored {@code .{1,16}} is still
      *  forgeable - {@code [VIP] Bob:} is ten characters, so a stranger typing "activated a terminal! (1/7)" in any

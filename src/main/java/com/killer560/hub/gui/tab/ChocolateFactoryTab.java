@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-/** Chocolate Factory - the legit, SkyHanni-style helper ({@link com.killer560.hub.chocolatefactory.ChocolateFactoryHelper}).
+/** Chocolate Factory - the legit, helper ({@link com.killer560.hub.chocolatefactory.ChocolateFactoryHelper}).
  *  Its own tab under Helpers (killer560, 2026-10-11); the cheat Auto Chocolate Factory keeps its red tab at the bottom. */
 public class ChocolateFactoryTab extends BaseTab {
 

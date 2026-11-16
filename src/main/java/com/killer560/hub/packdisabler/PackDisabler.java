@@ -23,7 +23,7 @@ import org.slf4j.Logger;
  * <p>
  * <b>Hypixel's pack itself is left alone.</b> Hypixel's SkyBlock 0.26 announcement says the pack is force-enabled and
  * SkyBlock cannot be joined without loading it, so declining it is not an option, and reporting it loaded when it was
- * not (what Noamm's PackDisabler does: it answers ACCEPTED + SUCCESSFULLY_LOADED and cancels the push) is a lie this mod
+ * not (what the PackDisabler does: it answers ACCEPTED + SUCCESSFULLY_LOADED and cancels the push) is a lie this mod
  * will not tell. So the server's pack push goes through vanilla untouched, the pack really loads, the status vanilla
  * sends is true - and this feature changes only which MODEL each SkyBlock item is drawn with, at the moment the client
  * picks it ({@code ItemModelResolver.appendItemLayers}). Hypixel's announcement explicitly supports community packs
@@ -34,7 +34,7 @@ import org.slf4j.Logger;
  * Only a model in Hypixel's own {@code hypixel_skyblock} namespace on a stack with a SkyBlock id is ever replaced, so
  * nothing changes off SkyBlock. If Noamm's PackDisabler is installed it does this job its own way and this one stands
  * back (one chat line per session says so). The dynamic models below (katanas, attuned daggers, Fungi Cutter, Carnival
- * Shovel, quiver arrows) follow Noamm's PackDisabler (github.com/Noamm9/PackDisabler, CC0-1.0), adapted.
+ * Shovel, quiver arrows) follow a CC0-1.0 pack disabler, adapted.
  */
 public final class PackDisabler {
 
@@ -61,7 +61,7 @@ public final class PackDisabler {
 
     public static boolean noammInstalled() { return DetectedMods.isPackDisablerActive(); }
 
-    /** The setting is on, Noamm's mod is not doing the job, and "Skyblock Only" allows it. */
+    /** The setting is on, the mod is not doing the job, and "Skyblock Only" allows it. */
     public static boolean isActive() {
         return PackDisablerConfig.getInstance().isEnabled() && !noammInstalled() && SkyblockGate.allows()
                 && ItemLooks.isLoaded();
@@ -159,7 +159,7 @@ public final class PackDisabler {
         }
     }
 
-    // ---- items whose Hypixel model changes with their state (adapted from Noamm's PackDisabler, CC0-1.0) ----------
+    // ---- items whose Hypixel model changes with their state (PackDisabler, CC0-1.0) ----------
 
     private static Identifier dynamicModel(String id, ItemStack stack, CompoundTag tag, Identifier current) {
         switch (id) {

@@ -11,8 +11,7 @@ import java.util.Locale;
 /**
  * Shared M7 Phase 5 state for the Wither Dragons / King Relics features.
  * <ul>
- * <li>P5 detection = Odin {@code DungeonUtils.getF7Phase() == M7Phases.P5}: floor 7 + in boss + player y &lt;= 45
- * (https://github.com/odtheking/Odin/blob/main/src/main/kotlin/com/odtheking/odin/utils/skyblock/dungeon/DungeonUtils.kt).
+ * <li>P5 detection = the reference {@code DungeonUtils.getF7Phase == M7Phases.P5}: floor 7 + in boss + player y &lt;= 45.
  * "In boss" reuses {@link DungeonState#isBossPhaseActive()} (Maxor's line / {@code /killer560 sim}); as a
  * fallback for a late join (Maxor's line never seen) F7/M7 + x,z &gt;= 0 also counts - the dungeon room grid is
  * entirely at negative x/z (origin -185,-185), the boss arena at positive. On p3sim.net the y &lt;= 45 check

@@ -36,7 +36,7 @@ import com.killer560.hub.compat.McCompat;
  * Layout follows killer560's own order (2026-09-16): "Two options at the top. First a toggle for Auto Routes as a
  * whole, second legit or obvious", then the start-node-only option "in the main settings", then recording, the
  * node list for the room you're standing in with delete buttons, colors ("per node type ... or one uniform
- * color"), QUOI-style render style/thickness/height, and one keybind row per command. The "Open Routes Folder" /
+ * color"), render style/thickness/height, and one keybind row per command. The "Open Routes Folder" /
  * "Reload Routes" pair is his later "implement a button to open the routes folder so that way it's very easy for
  * you to share your routes config" - the folder holds the one JSON file all routes live in.
  * <p>
@@ -68,7 +68,7 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
 
     private static final int GAP = 6;
 
-    /** QUOI's slider ranges, which killer560 asked to match ("Thickness and height sliders like QUOI's"). */
+    /** The slider ranges, which killer560 asked to match ("Thickness and height sliders like the"). */
     private static final double MIN_THICKNESS = 1.0;
     private static final double MAX_THICKNESS = 8.0;
     private static final double MIN_HEIGHT = 0.1;
@@ -316,7 +316,7 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
     private void buildRenderSection(List<AbstractWidget> w, AutoRoutesConfig cfg, int x, int[] y, int width, int half) {
         header(w, x, y, width, "Render Style");
         int right = Math.max(1, width - half - GAP);
-        // Cycles Box / Filled Box / Cylinder (QUOI's three) - whatever the config enum declares, in its order.
+        // Cycles Box / Filled Box / Cylinder (the three) - whatever the config enum declares, in its order.
         w.add(SettingsButtonWidget.cycleEnum(() -> styleText(cfg), cfg::getRenderStyle, cfg::setRenderStyle, cfg::save).bounds(x, y[0], half, 20).build());
         // AP3's "Show Node Numbers": the number over each node is the one /ar delete and /ar remove take.
         toggleCell(w, x + half + GAP, y[0], right, "Show Node Numbers", cfg::isShowNodeNumbers, cfg::setShowNodeNumbers, null);

@@ -19,7 +19,7 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /** Held Item Transform hooks on the first-person hand renderer - see {@link HeldItemConfig}. Hook points
- *  ported from NoammAddons' 26.1.2 {@code MixinItemInHandRenderer} (Animations feature), verified against
+ *  26.1.2 {@code MixinItemInHandRenderer} (Animations feature), verified against
  *  the 26.1.2 merged jar with javap:
  *  <ul>
  *  <li>{@code renderArmWithItem(AbstractClientPlayer, float, float, InteractionHand, float attack, ItemStack,

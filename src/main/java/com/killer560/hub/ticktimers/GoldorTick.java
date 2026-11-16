@@ -27,7 +27,7 @@ import java.util.Map;
  *       server's own time corrections), so a missed callback cannot move it and lag cannot run it ahead;</li>
  *   <li>it starts at Goldor's line + {@link #FIRST_HIT} ticks, and the FIRST hit seen after it snaps the phase at once
  *       (see below). <b>2026-11-03 (killer560: "i will enter and it procs a mask at like 1s instead of at 0").</b> The
- *       line + 60 start (Odin's and NoammAddons') left the line 18 ticks late on his real run (26.3 log, jar fa0bb087b):
+ *       line + 60 start left the line 18 ticks late on his real run (26.3 log, jar fa0bb087b):
  *       the mod re-locked "-18 ticks off the old phase" at the first confirmed pair of hits, 27 s in, and his mask had
  *       popped at about 1.0 s on the old line each time before that. So the line now starts 18 ticks earlier, and one
  *       hit of his own health (or a mask proc) at least {@link #MIN_FIRST_HIT} ticks after the line is enough to snap
@@ -40,11 +40,11 @@ import java.util.Map;
  * The line reads 0 at the hit's tick and 59 ticks (2.95 s) the tick after.
  * <p>
  * <b>2026-11-04 (killer560: "the timers are still going off wrong for tick timers ... i mainly notice it during goldor").</b>
- * On Hypixel (a trusted per-tick clock: one tick per ping, as Odin and NoammAddons count) the period is exact in clock
+ * On Hypixel (a trusted per-tick clock: one tick per ping count) the period is exact in clock
  * ticks, so once the phase is locked an observed hit has nothing to correct: the 8-tick snap above (sized for the testkit's
  * GrimAC server, whose clock wobbles) instead let every stray hit near the prediction walk the phase. His 2026-11-03 log
  * (23:55:05-11) shows it: Spirit Mask, Phoenix and Bonzo procs exactly 3 s apart, the first locked the phase, and the third
- * read 16 ticks off it. Odin and NoammAddons never resync at all. So, while trusted: a hit within {@link #TRUSTED_FIT}
+ * read 16 ticks off it. Other implementations never resync at all. So, while trusted: a hit within {@link #TRUSTED_FIT}
  * ticks confirms and moves nothing, a hit outside it moves nothing by itself (two players hurt at once included), and only
  * hits a whole number of periods apart within {@link #TRUSTED_PAIR} ticks re-lock: a pair if one of them is a mask proc or
  * a multi-player hit, three in a row if they are all your own health. Untrusted (no per-tick pings) keeps the old rules.
@@ -55,7 +55,7 @@ import java.util.Map;
  * <p>
  * <b>2026-11-05 (masktimer-1105, killer560: "one proc went to 0 back to 3 down to about 2.8 before proccing the other
  * procced at .6 or so left").</b> With the clock on Hypixel's real ticks (goldor2-1104) his mask procs land on Goldor's line
- * + 60 k, Odin's and NoammAddons' rule: 2026-11-05 at line+360 and +479 (360.0 and 480.0 ticks of wall time), and the 11-04
+ * + 60 k, the rule: 2026-11-05 at line+360 and +479 (360.0 and 480.0 ticks of wall time), and the 11-04
  * 20:54 run at 299.3, 420.3, 600.4, 1260.2 and 2040.4 wall ticks after the line. The line+42 start (read off the old,
  * 13%-fast clock) and the first-hit snap put the 11-05 line on a health drop at line+71 that was not Goldor's (health drops
  * there came at +11, +71, +149, +160, +192, +238), 11 ticks off: his Spirit Mask then popped with 0.55 s left, and after a
@@ -77,7 +77,7 @@ public final class GoldorTick {
     static final int DEBOUNCE = 5;
     /** A hit this close to the prediction, once the phase is locked, moves nothing (observation noise). */
     static final int NOISE = 1;
-    /** Ticks from Goldor's line to his first hit: a full period (Odin, NoammAddons, his 2026-11-04/05 procs; see above). */
+    /** Ticks from Goldor's line to his first hit: a full period (his 2026-11-04/05 procs; see above). */
     static final int FIRST_HIT = PERIOD;
     /** Before the phase has been locked, a hit sooner than this after the line is not Goldor's first (fall damage, a mob). */
     static final int MIN_FIRST_HIT = 20;

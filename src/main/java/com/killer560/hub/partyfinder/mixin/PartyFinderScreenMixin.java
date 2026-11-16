@@ -14,12 +14,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
 
-/** Party Finder Overlay hooks (Devonian uses RenderSlotEvent / PostRenderSlotsEvent for these):
+/** Party Finder Overlay hooks (the reference uses RenderSlotEvent / PostRenderSlotsEvent for these):
  *  <ul>
  *  <li>highlight fill - in {@code extractSlot} right before the item is drawn (same {@code Slot.isFake} point as
  *  {@code ItemRaritySlotMixin}), so the head renders on top;
  *  <li>member count - at the end of {@code extractSlot}, above the item;
- *  <li>tooltip rewrite - on the list returned by {@code getTooltipFromContainerItem} (Devonian rewrites the item's
+ *  <li>tooltip rewrite - on the list returned by {@code getTooltipFromContainerItem} (the reference rewrites the item's
  *  lore instead; editing the returned tooltip leaves the real item untouched).
  *  </ul>
  *  All {@code require = 0}: a mismatch after an MC update only disables the overlay. */

@@ -35,7 +35,7 @@ rendering); the mod menu is [LESSONS-MENU.md](LESSONS-MENU.md).
   Waypoints - did until 2026-10-04). SAVED positions are baseline units drawn at `saved * factor`, so a draw site that reads
   `HudConfig.getPosition` directly instead of `resolvePosition`, or saves a drag without `HudElementRegistry.toSaved`, lands
   in the wrong place on any monitor but 2560x1440 / GUI 3.
-- **Never write a SCREEN position into HudConfig.** The Custom Scoreboard's SkyHanni snap stored its screen x there, read
+- **Never write a SCREEN position into HudConfig.** The Custom Scoreboard's the reference snap stored its screen x there, read
   back `x * factor` on the next frame, took the mismatch for an Edit HUD drag and switched the snap off for good, so the
   board sat at `x * 0.8` (228 px in from the right edge on 1366x768; testkit 1661/1667). An element that must hug an edge
   keeps its own anchor and serves it from `layoutPosition()` (`HudElement.keepOnScreen` / `storeEditorPosition` also make

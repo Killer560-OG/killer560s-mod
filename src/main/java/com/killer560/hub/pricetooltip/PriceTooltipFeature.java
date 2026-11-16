@@ -23,7 +23,7 @@ import java.util.Locale;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Price Tooltip (killer560, 2026-10-15): appends Skyblocker-style price lines to a Skyblock item's tooltip -
+ * Price Tooltip (killer560, 2026-10-15): appends price lines to a Skyblock item's tooltip -
  * "NPC Sell Price", "Bazaar Buy/Sell", "Lowest BIN Price", "3 Day Avg. Price", "Est. Item Value" (with a breakdown
  * while Shift is held), "Obtained" and "Museum (Combat): Donated". Yellow labels, aqua values, a red date.
  *

@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /** Held Item Transform "Swing Speed" - scales the local player's arm-swing duration (vanilla: 6 ticks,
  *  shortened by Haste / lengthened by Mining Fatigue, computed in {@code LivingEntity.getCurrentSwingDuration()}).
- *  Same hook NoammAddons' 26.1.2 {@code MixinLivingEntity} uses. Only drives the client-side
+ *  Same hook the 26.1.2 {@code MixinLivingEntity} uses. Only drives the client-side
  *  {@code swingTime}/{@code getAttackAnim} animation for our own player - the swing packet is sent by
  *  {@code swing()} regardless, so this is visual only. Applied on top of vanilla's value, so Haste still counts.
  *  26.3 renamed the method {@code getModifiedSwingDuration(SwingAnimation)} (the base is now the held item's swing

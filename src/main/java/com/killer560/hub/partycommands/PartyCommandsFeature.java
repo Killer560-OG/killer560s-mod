@@ -30,10 +30,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Odin's party commands plus its informational "!" replies, in one feature: someone types "!warp" or "!coords" in a
- * chat you allow, and your client runs the party command or answers. Ported from OdinLegacy's
- * {@code src/main/kotlin/me/odinmain/features/impl/skyblock/ChatCommands.kt} (github.com/odtheking/OdinLegacy) -
- * behavior, trigger words and reply shapes, not its code. {@link CommandChatListener} is the one chat intake.
+ * The party commands plus its informational "!" replies, in one feature: someone types "!warp" or "!coords" in a
+ * chat you allow, and your client runs the party command or answers. Behavior,
+ * trigger words and reply shapes follow the common chat-command set. {@link CommandChatListener} is the one chat intake.
  * <p>
  * <b>One list, chosen chats, 2026-10-08</b> (see {@link PartyCommandsConfig}'s class doc for his words): the old
  * "destructive" switch, "Confirm Invites", the joke command and the separate informational list are gone. What is left:
@@ -42,7 +41,7 @@ import java.util.regex.Pattern;
  *     A reply goes back into the chat it was asked in.</li>
  * <li><b>The teammate gate</b> - the one rule killer560 asked to keep (2026-09-21): a {@link Kind#PARTY} command (it
  *     changes the party or the run) only runs for someone actually in his party or his current dungeon run, whatever
- *     chat it came from ({@link #isTeammate}). The single exception is Odin's own: a DM'd {@code !invite} invites the
+ *     chat it came from ({@link #isTeammate}). The single exception is the own: a DM'd {@code !invite} invites the
  *     person who sent it, who by definition is not on the team yet - but only when that person is on his friends list
  *     ({@link #isFriend}). Every other command, info replies included, answers only a teammate or a friend.</li>
  * <li><b>No reply delay</b> (killer560, 2026-11-12): every reply and every party command goes out from the next client
@@ -63,7 +62,7 @@ public final class PartyCommandsFeature {
     private static final Pattern NAME_PATTERN = Pattern.compile("^[A-Za-z0-9_]{1,16}$");
     /** Dungeon tab list entry, same regex as {@code leapmenu.PartyTracker} / {@code fastleap.Teammates}. */
     private static final Pattern TAB_REGEX = Pattern.compile("^\\[\\d+] (?:\\[[^]]+] )*([A-Za-z0-9_]{1,16}) .*\\((\\w+)(?: (\\w+))?\\)$");
-    /** "!f1".."!f7", "!m1".."!m7", "!t1".."!t5" - Odin's instance-queue triggers. */
+    /** "!f1".."!f7", "!m1".."!m7", "!t1".."!t5" - the instance-queue triggers. */
     private static final Pattern FLOOR_PATTERN = Pattern.compile("^([fmt])([1-7])$");
     private static final Pattern END_OF_RUN = Pattern.compile("^ *> EXTRA STATS < *$");
     /** A "!" line's body is short; anything longer is not a command and is never split or parsed. */
@@ -125,7 +124,7 @@ public final class PartyCommandsFeature {
             if (inv.find()) acceptFormerMember(inv.group(1));
         }
         if (!DOWNTIME.isEmpty() && END_OF_RUN.matcher(plain).matches()) {
-            // Odin: runIn(30) after EXTRA STATS, and only YOUR OWN reason is announced in party chat.
+            // RunIn(30) after EXTRA STATS, and only YOUR OWN reason is announced in party chat.
             schedule(1_500L, PartyCommandsFeature::announceDowntime);
         }
     }
@@ -162,7 +161,7 @@ public final class PartyCommandsFeature {
         Command command = commandFor(word);
         if (command == null || !cfg.isOn(command)) return false;
         // THE gate (killer560, 2026-09-21: "the one thing to keep"): anything that changes the party or the run only
-        // for someone actually on the team, from whichever chat. A DM'd !invite invites the sender, Odin's one
+        // for someone actually on the team, from whichever chat. A DM'd !invite invites the sender, the one
         // exception, since inviting them is how they would become a teammate.
         // Security audit 2026-10-24: a DM'd !invite only for someone on his Hypixel friends list, and no command at all
         // (info replies included: !coords, !location, !time and !holding say where he is and his time zone) for
@@ -229,7 +228,7 @@ public final class PartyCommandsFeature {
         return null;
     }
 
-    /** Commands Hypixel only lets the party leader run - Odin gates these on {@code PartyUtils.isLeader()}. */
+    /** Commands Hypixel only lets the party leader run - the reference gates these on {@code PartyUtils.isLeader}. */
     static boolean needsLeader(Command command) {
         return switch (command) {
             case WARP, WARP_TRANSFER, ALL_INVITE, TRANSFER, KICK, KICK_OFFLINE, REINVITE, DEMOTE, PROMOTE, QUEUE_INSTANCE -> true;
@@ -244,7 +243,7 @@ public final class PartyCommandsFeature {
             case WARP -> execute(sender, "p warp", "warped the party");
             case WARP_TRANSFER -> {
                 execute(sender, "p warp", "warped the party");
-                // Odin: runIn(12) ticks, then transfer to the person who asked; guarded like !reinv.
+                // RunIn(12) ticks, then transfer to the person who asked; guarded like !reinv.
                 schedule(700L, "warp-transfer", () -> isTeammate(sender), () -> {
                     toServer("p transfer " + sender);
                     log(sender, "took the party (warp + transfer)");
@@ -273,7 +272,7 @@ public final class PartyCommandsFeature {
             case DEMOTE -> execute(sender, "p demote " + sender, "demoted themself");
             case PROMOTE -> execute(sender, "p promote " + sender, "promoted themself");
             case INVITE -> {
-                // Party/guild/all/Mod Chat: invites the named player. A DM: invites whoever sent it (Odin).
+                // Party/guild/all/Mod Chat: invites the named player. A DM: invites whoever sent it.
                 String target = channel == Channel.PRIVATE ? sender : arg;
                 if (validName(target)) {
                     execute(sender, "p invite " + target, "invited " + target);
@@ -286,7 +285,7 @@ public final class PartyCommandsFeature {
             }
             case DOWNTIME -> {
                 downtime(sender, body);
-                // Odin: "!dt" also skips the pending Auto Requeue for this run.
+                // "!dt" also skips the pending Auto Requeue for this run.
                 DungeonQueueFeature.skipRequeueForThisRun();
             }
             case UN_DOWNTIME -> unDowntime(sender);
@@ -345,7 +344,7 @@ public final class PartyCommandsFeature {
         return false;
     }
 
-    /** Odin's {@code findPartyMember}: exact name first, then a unique prefix match, else null. */
+    /** The {@code findPartyMember}: exact name first, then a unique prefix match, else null. */
     private static String matchMember(String arg) {
         if (!validName(arg)) return null;
         String lower = arg.toLowerCase(Locale.US);
@@ -368,7 +367,7 @@ public final class PartyCommandsFeature {
     private static String firstNonNull(String a, String b) { return a != null ? a : b; }
 
 
-    // ------------------------------------------------------------------ downtime (Odin's !dt)
+    // ------------------------------------------------------------------ downtime (the !dt)
 
     private static void downtime(String sender, String body) {
         String trimmed = body.trim();
@@ -406,7 +405,7 @@ public final class PartyCommandsFeature {
             }
             all.append(e.getKey()).append(": ").append(e.getValue());
         }
-        // Odin announces only your OWN downtime in party chat; everyone else's is a local reminder.
+        // The reference announces only your OWN downtime in party chat; everyone else's is a local reminder.
         if (self != null && DOWNTIME.containsKey(self)) {
             chatLine("pc Downtime needed: " + DOWNTIME.get(self));
         }
@@ -447,7 +446,7 @@ public final class PartyCommandsFeature {
     }
 
 
-    /** Odin's {@code /od <floor>}: "f7" -> catacombs_floor_seven, "m7" -> master_catacombs_floor_seven,
+    /** The {@code /od <floor>}: "f7" -> catacombs_floor_seven, "m7" -> master_catacombs_floor_seven,
      *  "t5" -> kuudra_infernal. Returns null for a tier that doesn't exist (there is no T6/T7). */
     static String instanceFor(String word) {
         Matcher m = FLOOR_PATTERN.matcher(word);

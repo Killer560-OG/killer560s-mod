@@ -18,14 +18,14 @@ import java.util.regex.Pattern;
  * open it there is a long cooldown till you can answer then a shorter one after that for a total of 3 answers").
  *
  * <p>Driven only by Oruo's own chat lines, matched whole (equals, or an anchored pattern with a real name group), so it
- * reads the same on Hypixel and in the sim and no player's chat can move it. The timings are NoammAddons' and Odin's
- * (NoammAddons {@code features/impl/dungeon/solvers/puzzles/QuizSolver.kt}: {@code answerTime = currentTime + 220} on
+ * reads the same on Hypixel and in the sim and no player's chat can move it. The timings are the
+ * ({@code answerTime = currentTime + 220} on
  * "I am Oruo the Omniscient...", {@code + 100} on "2 questions left..." and on "One more question!", counted in server
- * ticks; Odin/QUOI {@code QuizSolver.kt} {@code START_DURATION = 220}, {@code QUESTION_DURATION = 100}). His own Hypixel
+ * ticks; {@code QUESTION_DURATION = 100}). His own Hypixel
  * logs (276 Quiz runs, 26.1.2 (Dungeons), July-October 2026) agree: the first question answered 11 s after the intro in
  * the most runs and never sooner than 10 s, each later one 5 s after its line and never sooner than 4 s.
  *
- * <p>The ticks are counted with {@link ServerTickClock} (one per server ping, as NoammAddons counts them), so a server
+ * <p>The ticks are counted with {@link ServerTickClock} (one per server ping counts them), so a server
  * that lags holds the answer back by exactly as long as the server does.
  */
 public final class QuizState {

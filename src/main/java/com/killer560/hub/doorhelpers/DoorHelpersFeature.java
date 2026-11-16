@@ -12,7 +12,7 @@ import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
 /**
- * Auto Door Opener (cheat build only; QUOI {@code AutoDoorOpener.kt}) - owns the shared gating (QUOI
+ * Auto Door Opener (cheat build only;) - owns the shared gating (the reference
  * {@code Island.Dungeon(inClear = true)} + {@code Dungeon.isDead}) and drives {@link DoorScanner} while the
  * feature is on.
  * <p>
@@ -80,7 +80,7 @@ public final class DoorHelpersFeature {
         return LiveMapFeature.isInBoss() ? "in boss" : null;
     }
 
-    /** QUOI {@code Dungeon.isDead}: the tab list shows you as DEAD, or hotbar slot 1 is the ghost "Haunt" item. */
+    /** The reference {@code Dungeon.isDead}: the tab list shows you as DEAD, or hotbar slot 1 is the ghost "Haunt" item. */
     public static boolean isDead(Minecraft client) {
         if (client.player == null) {
             return true;

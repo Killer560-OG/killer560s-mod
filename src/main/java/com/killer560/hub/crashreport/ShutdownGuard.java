@@ -13,7 +13,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Another mod's non-daemon thread (crashguard-1110: SecretRoutes' HttpClient.send with no timeout) keeps the JVM alive
+ * Another mod's non-daemon thread (crashguard-1110: the HttpClient.send with no timeout) keeps the JVM alive
  * after Minecraft closed, so vanilla's ClientShutdownWatchdog (15 s after post-main) writes a "Client shutdown from
  * post-main" crash report on every close. {@link #arm} runs from a mixin at the start of the watchdog: a daemon thread
  * looks at the threads 11 s later and, only if non-daemon threads other than the main one still hold the JVM, logs one

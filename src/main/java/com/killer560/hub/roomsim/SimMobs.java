@@ -150,7 +150,7 @@ public final class SimMobs {
                 });
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("SimMobs.tick", SimMobs::tick));
         // No sim mob dies to the world: starred mobs on a floor's sky-lit edge burned in the daylight ("onFire, by nothing")
-        // within 3 s of GO, and whole key rooms cleared with nobody there (doc-adm-sim-1101). isInvulnerableTo's
+        // within 3 s of GO, and whole key rooms cleared with nobody there (doc-sim-1101). isInvulnerableTo's
         // environmental() did not stop it; refusing the damage outright does.
         net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents.ALLOW_DAMAGE.register((entity, source, amount) -> {
             if (SPAWNED.contains(entity.getUUID()) && environmental(source)) {
@@ -800,7 +800,7 @@ public final class SimMobs {
 
     /**
      * Gives a sim bat secret the MAX health a Hypixel secret bat carries (Skyblock health, 100 on the lower floors),
-     * which is what the client's own secret-bat test reads ({@code AwaitEvents.isSecretBat}, QUOI's 100/200/400/800):
+     * which is what the client's own secret-bat test reads ({@code AwaitEvents.isSecretBat}, the 100/200/400/800):
      * with vanilla's 6, or the 1 this used to set, nothing on the client could tell a sim bat secret from any bat. The
      * CURRENT health is left as it is, so a bat still dies to the same hit as before.
      */
@@ -845,7 +845,7 @@ public final class SimMobs {
      * A floor's secret bat, spawned when he comes near it ({@link SimSecretItems}), on the server thread.
      *
      * <p>Hypixel's secret bat appears when a player comes near its spot, and that APPEARANCE is the client signal
-     * Auto Routes' {@code await} counts (a bat with Skyblock health first seen within 10 blocks, QUOI's rule) - so a
+     * Auto Routes' {@code await} counts (a bat with Skyblock health first seen within 10 blocks, the rule) - so a
      * sim bat spawned with the floor, minutes before the route got there, was never counted (2026-10-09, "in sim
      * the await does not detect bats"). Its death is the secret, counted for its room.
      */
@@ -992,7 +992,7 @@ public final class SimMobs {
                 // Missing is dead only when it STAYS missing from a ticking section (MISSING_TICKS checks in a row, ten seconds) or the
                 // server saw it die (AFTER_DEATH): a mob whose chunk was unloading read as missing for a moment while the
                 // section still said ticking, and whole rooms - key rooms among them - "cleared" with nobody near
-                // (doc-adm-sim-1101: Mossy cleared 3 s after GO while the test stood at another door; its key never dropped).
+                // (doc-sim-1101: Mossy cleared 3 s after GO while the test stood at another door; its key never dropped).
                 int missing = entity == null && ticking ? MISSING.merge(id, 1, Integer::sum) : 0;
                 if (entity != null || !ticking) {
                     MISSING.remove(id);
@@ -1220,7 +1220,7 @@ public final class SimMobs {
          * A sleeping Fel stays invisible. {@code LivingEntity.updateInvisibilityStatus} (javap 26.2 and 26.3) sets
          * {@code setInvisible(hasEffect(INVISIBILITY))} whenever the effects are re-read - with none, visible - so a plain
          * {@code setInvisible(true)} lasted one tick, the sleeper showed, and Auto Clear shot at a Fel nothing could hurt
-         * (doc-adm-sim-1101, Banners on 26.2: "12 bats from here and none touched it").
+         * (doc-sim-1101, Banners on 26.2: "12 bats from here and none touched it").
          */
         @Override
         protected void updateInvisibilityStatus() {

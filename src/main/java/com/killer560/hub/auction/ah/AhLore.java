@@ -7,9 +7,9 @@ import java.util.regex.Pattern;
 
 /**
  * Reads the auction lines Hypixel appends to an item's lore in its AH menus (plain text, color codes stripped).
- * Line shapes from SkyHanni (2026-10-07): {@code AuctionsHighlighter} "§7Buy it now: §6<coins> coins",
+ * Line shapes from the reference (2026-10-07): {@code AuctionsHighlighter} "§7Buy it now: §6<coins> coins",
  * "§7(?:Starting bid|Top bid): §6<coins> coins", "§7Status: §aSold!" / "§7Status: §cExpired!";
- * {@code AuctionHouseCopyUnderbidPrice} "(?:Buy it now|Starting bid|Top bid): <coins> coins"; Skyblocker
+ * {@code AuctionHouseCopyUnderbidPrice} "(?:Buy it now|Starting bid|Top bid): <coins> coins"; the reference
  * {@code AuctionViewScreen} "Can buy in: ..." (a new BIN's grace period). "Seller:", "Ends in:" and "Bids:" are read
  * only to show them and are optional: a listing without them still shows its price. Every quantifier is bounded.
  */

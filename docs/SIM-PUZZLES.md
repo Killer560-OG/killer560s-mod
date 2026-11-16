@@ -196,13 +196,13 @@ Part of the sim docs: [SIM.md](SIM.md).
 - **The label stand is a MARKER.** A plain invisible stand keeps its 0.5 x 1.975 hitbox and caught his arrows. `setMarker`
   is private; the flag goes through `ArmorStand.DATA_CLIENT_FLAGS` / `CLIENT_FLAG_MARKER` (public, same in 26.1.2 and 26.2),
   and `onSyncedDataUpdated` refreshes the box on that key.
-  Odin's offsets (`inflate(0.5, 1.0, 0.5).move(0, -1, 0)` for the box, `boundingBox.getCenter().y - 1.0` for the aim) from
+  the offsets (`inflate(0.5, 1.0, 0.5).move(0, -1, 0)` for the box, `boundingBox.getCenter.y - 1.0` for the aim) from
   a marker at `bbHeight + 0.1` land on the blaze's middle. That stand height is the one dial (stand geometry cannot be
   captured); `attachLabel`'s doc says so. `SimMobs`' star tags are still full stands.
 - **Heights.** Higher Blaze (y 65..133) and Lower Blaze (15..83) are the same shaft 50 blocks apart: floor at 69 / 19, air
   from 70 / 20 to a polished-andesite ceiling at 130 / 80, iron bars up the middle (Higher's 71..129). Both start on the
   shaft floor from the room's own band (`SimBlazePuzzle.bindAt` uses `RoomLibrary.Room.minY/maxY`, never a hardcoded 66 or 120; searching down from the
-  top found the landing at capture y 118) and spread up to 5 apart, relative 71..116 in Higher - the band QUOI's
+  top found the landing at capture y 118) and spread up to 5 apart, relative 71..116 in Higher - the band the
   `HIGHER_SPOTS` (85..118) shoot into.
 - **Blaze life.** A `SimBlazeEntity` whose chunk unloads saves as "minecraft:blaze" and PEACEFUL discards it, leaving labels;
   `SimBlazePuzzle.putBackMissing` restores it with its HP once missing 20 ticks from a section that
@@ -210,7 +210,7 @@ Part of the sim docs: [SIM.md](SIM.md).
   world): dead only once SEEN dying (`isDeadOrDying`, kept in `SEEN_DEAD`). A fail drops every label, and `despawnCurrent`
   snapshots the labels it removes. Per-kill attribution is logged ("blaze N of 10 died (due: k) ... killed by shot #S").
 - **The sim's Terminator**: right click always shoots; Salvation is the left-click ability. Side arrows at 5 degrees
-  (QUOI's number, not measured on Hypixel). `TerminatorArrow.shouldBeSaved()` is false, and a plain DISALLOWED-pickup
+  (the number, not measured on Hypixel). `TerminatorArrow.shouldBeSaved` is false, and a plain DISALLOWED-pickup
   arrow an older jar saved is refused and discarded by the damage hook (two saved arrows had killed chain blazes, 2 of 15
   runs).
 
@@ -244,7 +244,7 @@ Part of the sim docs: [SIM.md](SIM.md).
   relative `(15,69,17)` (center interior x 12..18, z 14..20, walls at 11/19 and 13/21); a click from outside that box is
   refused with FAIL (registered before `SimMimic`). Stepping off the end pad `(15,69,14)` and back on sends him to the
   Interactive Map's entry spot (`AutoClearUtils` `(15,68,-2)`), falling back into the doorway if not standable.
-- **The solver read the wrong landing pad** (same pad layout on Hypixel, so the same fault there). QUOI's landing box
+- **The solver read the wrong landing pad** (same pad layout on Hypixel, so the same fault there). The landing box
   x-0.5 .. x+2.5 took in the pad two blocks over in +x/+z, and the room has eleven such pairs across a wall
   ((4,12)/(4,14), (10,20)/(10,22), ...). The box is the landing's own block, a quarter block either way. **And it lost the
   exit pad**: the 32-block XZ candidate ray followed his LOOK pitch (66-75 degrees down on landing), stopping 8-13 blocks
@@ -278,7 +278,7 @@ Part of the sim docs: [SIM.md](SIM.md).
   #1 at +160, open at +220. After a correct answer: "NAME answered Question #N correctly!", the lock line ("2 questions
   left..." / "One more question!") 40 ticks later, its question 40 after that, open 100 after the lock line. Last:
   "NAME answered the final question correctly!", then "I bestow upon you all the power of a hundred years!" 20 ticks
-  later. Locks from NoammAddons `QuizSolver.kt` (`+ 220` / `+ 100`) and Odin/QUOI (`START_DURATION = 220`,
+  later. Locks from (`+ 220` / `+ 100`) and other implementations (`START_DURATION = 220`,
   `QUESTION_DURATION = 100`); gaps from his `26.1.2 (Dungeons)` logs, 276 runs (2 s between Oruo's lines in 256 of 278,
   Question #1 8 s after the intro in 210 of 274, answers 11 s after the intro and never under 10, 5 s after a lock line and
   never under 4). An early press is refused silently. After the last answer: talking gets "You have already shown your
@@ -289,7 +289,7 @@ Part of the sim docs: [SIM.md](SIM.md).
   tick + 1. The question block: blank, centered "Question #N", the centered question, blank, `    §6 ⓐ §a<answer>` x3,
   blank; answer holograms are replaced each question.
 - **Quiz: walking in starts it** (killer560, 2026-10-18). His logs: of 293 intros, the 47 where he walked in came 0 s (29)
-  or 1 s (18) after SecretRoutes' "Entered Dungeon Room: Trivia-Room"; NoammAddons and Odin only read Oruo's lines. The
+  or 1 s (18) after the "Entered Dungeon Room: Trivia-Room"; other implementations only read Oruo's lines. The
   sim's trigger is a player's feet stepping into the one-tile footprint (relative 0..30 through the bind's anchor) at
   START_SERVER_TICK while Oruo is idle; after a wrong answer it takes leaving and coming back. Talking to Oruo does nothing
   until the last answer, and there is no CLICK stand. **[QuizLog]** (`puzzlesolvers/QuizLog`, always on, INFO, so dev/cheat

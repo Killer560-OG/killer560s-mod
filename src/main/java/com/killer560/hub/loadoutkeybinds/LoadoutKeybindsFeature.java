@@ -12,7 +12,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Real "Loadout" GUI keybind navigation, ported from Odin's own {@code LoadoutKeybinds.kt}. The real
+ * Real "Loadout" GUI keybind navigation. The real
  * Skyblock Loadout screen (accessed via the wardrobe/equipment menu) shows a real "(N/M) Loadout" title
  * and up to 12 real loadout slots per page at fixed real slot indices; this lets number-row keys (and
  * left/right arrows for paging) click them directly instead of needing the mouse, using the exact real

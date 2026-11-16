@@ -14,14 +14,14 @@ import com.killer560.hub.util.ModLog;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Auto Water Board - port of QUOI {@code WaterBoardSolver.kt}'s {@code auto} on top of {@link WaterSolverFeature}'s
- * lever timings. Standing on the lever floor (y == 59), the soonest remaining click (QUOI {@code solutionList} order:
+ * Auto Water Board - port of 's {@code auto} on top of {@link WaterSolverFeature}'s
+ * lever timings. Standing on the lever floor (y == 59), the soonest remaining click (the reference {@code solutionList} order:
  * all 0s clicks first by lever, then by time) is flipped with a no-rotate interact as soon as it is due: the water
  * lever when the water hasn't been opened yet (or its time is up), any other lever when
  * {@code openedWaterTick + time*20 - tick <= 0}. The click is counted by the solver's own {@code useItemOn} hook, which
  * advances to the next one.
  * <p>
- * Positioning: with "Etherwarp Reposition" on it warps to QUOI's lever spot (relative 15,58,z with z = lever z for
+ * Positioning: with "Etherwarp Reposition" on it warps to the lever spot (relative 15,58,z with z = lever z for
  * z 20/15, 9 for z 10/5) before each click and to the chest spot (15,58,22) when done; with it off it clicks from
  * wherever you stand as long as the lever is within reach (distance squared &lt;= 30). Safety additions: a timed (non-zero)
  * click never fires before the water lever was opened, and if a click isn't counted by the solver the auto stops for
@@ -221,7 +221,7 @@ final class AutoWater {
         boolean reposition = cfg.isEtherwarpReposition();
         if (next == null) {
             if (WaterSolverFeature.getCountedClicks() > 0) {
-                // QUOI chest(): all clicks done - warp to the chest spot and let go of sneak.
+                // The reference chest: all clicks done - warp to the chest spot and let go of sneak.
                 BlockPos chestSpot = PuzzleCoords.real(15, 58, 22, cr);
                 // A warp onto the chest spot that cannot start (no line onto it) used to return here every tick for
                 // good - the auto sat on the lever floor saying nothing. The chest step gets him into reach itself.
@@ -349,7 +349,7 @@ final class AutoWater {
         }
         if (reposition && !inReach(player.getEyePosition(), next.pos())) {
             // Only warp when the lever is NOT already in reach from where he stands - and then onto a spot from
-            // which it IS. QUOI's spot (15,58,z) is the board's center line, five blocks from every side lever:
+            // which it IS. The spot (15,58,z) is the board's center line, five blocks from every side lever:
             // eye-to-box 4.52-4.54, past the 4.5 measured on Hypixel (2026-10-04 93-solve: "4.516 vs 4.5", the
             // lever at z 10 never clicked and nothing was logged). See leverSpot.
             BlockPos follow = soonAfter(next);
@@ -378,7 +378,7 @@ final class AutoWater {
         return false;
     }
 
-    /** The lever spot's z for QUOI's own spot (15, 58, z): the lever's own z for 20/15, 9 for 10/5. */
+    /** The lever spot's z for the spot (15, 58, z): the lever's own z for 20/15, 9 for 10/5. */
     private static int quoiZ(int relativeZ) {
         return switch (relativeZ) {
             case 20, 15 -> relativeZ;
@@ -426,7 +426,7 @@ final class AutoWater {
 
     /**
      * Where to stand for a lever: the standable block on the lever floor (relative y 58, standing on it) nearest
-     * QUOI's own spot {@code (15, 58, quoiZ)} whose STANDING eye is within {@link #SPOT_REACH} of the lever's box
+     * The spot {@code (15, 58, quoiZ)} whose STANDING eye is within {@link #SPOT_REACH} of the lever's box
      * and onto which an etherwarp can aim. Read off the world, so it is the same answer on Hypixel and in the sim.
      */
     private static BlockPos leverSpot(Minecraft client, int[] cr, BlockPos lever, int quoiZ, BlockPos follow) {

@@ -25,15 +25,15 @@ import java.util.regex.Pattern;
 /**
  * Class Colors - teammates colored by dungeon class, using this mod's shared {@link DungeonClass} colors.
  * <ul>
- * <li>Class detection: NoammAddons (26.1.2 upstream) {@code utils/dungeons/DungeonListener.kt}'s tab-list regex
+ * <li>Class detection: the reference (26.1.2 upstream) {@code utils/dungeons/DungeonListener.kt}'s tab-list regex
  * {@code ^\[\d+] (?:\[[^]]+] )*([A-Za-z0-9_]{1,16}) .*\((\w+)(?: (\w+))?\)$} on each listed entry's unformatted
- * display name; "DEAD" keeps the previously known class (same as Noamm).
- * <li>Nametags: Noamm {@code features/impl/dungeon/TeammateESP.kt} "Show Teammate Name" - "§e[C§e] " + class
+ * display name; "DEAD" keeps the previously known class.
+ * <li>Nametags: "Show Teammate Name" - "§e[C§e] " + class
  * color + name, drawn see-through at entity y + bbHeight + 0.7 + distance * 0.015, scale max(distance * 0.12, 1),
  * for every teammate except yourself. The vanilla nametag of a teammate drawn this way is hidden
  * ({@link #replacesVanillaNametag}, DungeonAlertsNametagMixin).
  * <li>Tab list: the teammate's name inside their tab entry is recolored (DungeonAlertsTabOverlayMixin -&gt;
- * {@link #recolorTabName}). This half is this mod's own; Noamm's ClassColors only defines the colors.
+ * {@link #recolorTabName}). This half is this mod's own; the ClassColors only defines the colors.
  * </ul>
  */
 public final class ClassColors {

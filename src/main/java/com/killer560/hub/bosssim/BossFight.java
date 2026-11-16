@@ -41,7 +41,7 @@ import java.util.Random;
  * thread, one server tick at a time.
  *
  * <p>Every line is Hypixel's own text and comes at Hypixel's pace (server ticks from the phase's first line), as
- * recorded by the reference mod ADM (undonecoffee/adm) and the mod's own trackers. What the players DO is simplified to
+ * recorded in reference recordings and the mod's own trackers. What the players DO is simplified to
  * what one player can do alone - the parts the mod's features read are kept exact:
  * <ul>
  * <li><b>P1 Maxor</b>: the two Energy Crystals appear on their towers; walking within 1 block picks it up (a click from reach does too), using it at a pylon
@@ -77,18 +77,18 @@ public final class BossFight {
         }
     }
 
-    /** ADM's measured pillars and pads (P2Storm.kt), the same squares the mod's Diorite Glass covers. */
+    /** Measured pillars and pads (P2Storm.kt), the same squares the mod's Diorite Glass covers. */
     static final List<Pillar> PILLARS = List.of(
             new Pillar("Purple", 97, 62, 175, new int[]{111, 91}, "minecraft:purple_wool"),
             new Pillar("Yellow", 43, 62, 175, new int[]{29, 91}, "minecraft:yellow_wool"),
             new Pillar("Green", 43, 38, 175, new int[]{29, 9}, "minecraft:lime_wool"),
             new Pillar("Red", 97, 38, 181, null, "minecraft:red_wool"));
-    /** A pillar's top layer (ADM: a crushed pillar hangs at 183-189, the floor cycle draws one up to 189). */
+    /** A pillar's top layer (measured: a crushed pillar hangs at 183-189, the floor cycle draws one up to 189). */
     static final int PILLAR_TOP = 189;
 
     /**
      * Holes opened by each boss's death, as {x1, z1, x2, z2} at that phase's floor. P2's is the drop under the Red pillar
-     * (Hypixel's red pad, 100.5 169 40.5), P3's the core's floor (ADM: x 39-69, z 99-129 under the core).
+     * (Hypixel's red pad, 100.5 169 40.5), P3's is the core's floor (measured: x 39-69, z 99-129 under the core).
      */
     static final int[] P1_HOLE = {66, 56, 80, 70};
     static final int[] P2_HOLE = {98, 38, 102, 42};
@@ -110,7 +110,7 @@ public final class BossFight {
     static final int[] P4_SHAFT = {51, 73, 57, 79};
 
     /**
-     * Necron's side platforms (ADM P4Necron.kt PLATFORMS and p4-necron.json's extents): centre x, z, then x1, x2, z1, z2.
+     * Necron's side platforms (P4Necron PLATFORMS and p4-necron.json's extents): centre x, z, then x1, x2, z1, z2.
      * The south one, where everyone lands, is never broken.
      */
     static final int[][] NECRON_PLATFORMS = {{54, 42, 39, 69, 32, 52}, {28, 50, 14, 42, 36, 64}, {80, 50, 66, 94, 36, 64},
@@ -122,7 +122,7 @@ public final class BossFight {
     /** The five dragons' statues (WitherDragon.java): x, statue top y, z - and the color the mod names them by. */
     static final int[][] DRAGON_STATUES = {{27, 8, 59}, {85, 8, 56}, {27, 8, 94}, {84, 8, 94}, {56, 8, 125}};
 
-    // ---- timings (server ticks), Hypixel's as ADM measured them ---------------------------------------------------
+    // ---- timings (server ticks), Hypixel's, as measured ---------------------------------------------------
 
     private static final int STORM_AFTER = 62;
     private static final int STORM_SON = 42;
@@ -142,10 +142,10 @@ public final class BossFight {
     private static final Vec3 MAXOR_AT = new Vec3(73.0, 226.0, 53.0);
     private static final Vec3[] CRYSTAL_TOPS = {new Vec3(64.5, 238.375, 50.5), new Vec3(82.5, 238.375, 50.5)};
     private static final Vec3[] PYLONS = {new Vec3(52.5, 224.375, 41.5), new Vec3(94.5, 224.375, 41.5)};
-    /** A P2 start from the menu: Hypixel's Purple pad spot (ADM Spots.kt). */
+    /** A P2 start from the menu: Hypixel's Purple pad spot (Spots). */
     private static final Vec3 P2_SPAWN = new Vec3(114.5, BossArena.P2_FLOOR + 2, 94.5);
     private static final Vec3 NECRON_AT = new Vec3(54.0, 66.0, 76.0);
-    /** A P4 start from the menu: where the core's floor drops everyone (ADM Spots.kt P4, 54.5 64 108.5). */
+    /** A P4 start from the menu: where the core's floor drops everyone (Spots P4, 54.5 64 108.5). */
     private static final Vec3 P4_SPAWN = new Vec3(54.5, BossArena.P4_FLOOR + 1, 108.5);
     private static final Vec3 P5_SPAWN = new Vec3(54.5, BossArena.P5_FLOOR + 1, 76.5);
 
@@ -579,7 +579,7 @@ public final class BossFight {
     }
 
     //
-    // Facts from ADM's measurements of Hypixel after the 2026-10-05/06 boss update (Phases.kt): Maxor and the crystals
+    // Facts from measurements of Hypixel after the 2026-10-05/06 boss update (Phases.kt): Maxor and the crystals
     // appear at t 5, the crystals' stands at 28, the pylons open at 80 (the two blocks under the beam go), the beacon is in
     // at 120. Maxor holds still until 84, then flies at the closest player (+1 y) at min(0.9, 0.24 + 0.02 d) and stops
     // within 3. A laser hit needs both crystals in for 28 ticks (the "charging" line), the beacon, and Maxor at y >= 225
@@ -1054,7 +1054,7 @@ public final class BossFight {
     }
 
     //
-    // ADM's facts (P2Storm.kt, post-update): Storm appears at (103, 188, 53) and flies his opening route at 0.4 a tick,
+    // Measured facts (post-update): Storm appears at (103, 188, 53) and flies his opening route at 0.4 a tick,
     // (73, 183, 83) -> (43, 183, 53) -> (73, 183, 23) -> (103, 183, 53), parks at (102.375, 183, 52.375), and leaves 99
     // ticks after his lightning line (548) to chase the closest player 3 above his feet at min(0.9, 0.2 + 0.023 d), holding
     // within 3. Pads are read on the t % 20 == 19 checks: a pad on a resting pillar queues 5 steps, one every 4 ticks; at
@@ -1436,7 +1436,7 @@ public final class BossFight {
     }
 
     //
-    // ADM's facts (GoldorPhase.kt): Goldor walks a closed loop round the four sections, S1 corner (99.55, 119, 40) ->
+    // Measured facts (GoldorPhase.kt): Goldor walks a closed loop round the four sections, S1 corner (99.55, 119, 40) ->
     // (99.55, 119, 131.7) -> (8.4, 118.5, 131.7) -> (8.4, 118, 40) and back, starting at (80, 119, 40) (s 344.7, 19.5
     // before the S1 corner) at 0.048 a tick for 194 ticks, then 0.06; he never waits for a gate. When a section's door
     // opens while he is still in that section's stretch, 48-59 ticks later he sprints (0.6) to the next corner. Once the
@@ -1794,7 +1794,7 @@ public final class BossFight {
     }
 
     //
-    // ADM's facts (P4Necron.kt, the post-update script measured on 176 F7 runs): Necron's lines at 0/42/84/126, a taunt
+    // Measured facts (P4Necron.kt, the post-update script measured on 176 F7 runs): Necron's lines at 0/42/84/126, a taunt
     // at 188, "ARGH!" at 270, "Let's make some space!" at 332; the fight runs on its own clock, not on damage. He holds at
     // mid (54, 66, 76), sidesteps at 80-86 (0.25 a tick, 45-75 degrees off south), holds 3, flies at the closest player (+2)
     // at 0.49 until 98, is teleported back to mid; holds facing the platform he will break from 175, flies again at 0.63
@@ -1910,7 +1910,7 @@ public final class BossFight {
     }
 
     /**
-     * Necron's bar: his fight runs on its own clock (ADM: it "does not wait for damage"), but each drop now waits for his
+     * Necron's bar: his fight runs on its own clock (measured: it "does not wait for damage"), but each drop now waits for his
      * hit in that part (simitems-1105, killer560 2026-11-05: "necron took a bunch of damage withotu me hitting him"),
      * and one hit is the whole drop. His death throes empty it on their clock.
      */
@@ -2204,7 +2204,7 @@ public final class BossFight {
 
     /**
      * A boss: a plain wither with no AI (blue armor on while its health is at or under half), its name on a stand 3.6875
-     * above it, and each line's stand 4.09 above it for 41 ticks (Goldor's 61), as ADM measured Hypixel's.
+     * above it, and each line's stand 4.09 above it for 41 ticks (Goldor's 61), as Hypixel's were measured.
      */
     static final class BossMob {
         final String name;

@@ -13,11 +13,11 @@ import org.joml.Vector3fc;
 
 
 /**
- * Draws the Egglocator's guess on both builds, as SkyHanni's drawGuessLocations does: a filled waypoint on the egg's block,
+ * Draws the Egglocator's guess on both builds drawGuessLocations does: a filled waypoint on the egg's block,
  * seen through blocks, a "Guess" label, and a green line from the crosshair to the block's center (killer560, 2026-10-19:
  * "tracer lines should be drawn to my crosshair always").
  * <p>
- * The crosshair point is the camera plus 2 blocks along its forward vector, SkyHanni's exactPlayerCrosshairLocation; the
+ * The crosshair point is the camera plus 2 blocks along its forward vector, the exactPlayerCrosshairLocation; the
  * camera is this frame's interpolated one, so the line does not judder between ticks the way the player's tick look did.
  * <p>
  * Far eggs (killer560: "should even if the egg is out of render distance"): the line shader applies fog
@@ -31,7 +31,7 @@ final class LocatorGuessRenderer {
     /** Fraction of the render distance (blocks) inside which nothing is fogged; past it the marker is pulled in. */
     private static final double FOG_SAFE = 0.6;
     private static final double MIN_SAFE = 24.0;
-    /** Crosshair point: this far along the camera's forward vector (SkyHanni: 2). */
+    /** Crosshair point: this far along the camera's forward vector (2). */
     private static final double CROSSHAIR = 2.0;
 
     private LocatorGuessRenderer() {
@@ -109,7 +109,7 @@ final class LocatorGuessRenderer {
         }
     }
 
-    /** Holder idiom: built on {@link #register()}, both builds. The guess is shown through walls, as SkyHanni does. */
+    /** Holder idiom: built on {@link #register}, both builds. The guess is shown through walls. */
     private static final class Types {
         static final RenderType LINES = com.killer560.hub.util.EspTypes.LINES_THRU;
 

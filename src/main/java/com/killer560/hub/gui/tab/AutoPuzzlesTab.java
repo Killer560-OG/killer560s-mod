@@ -71,7 +71,7 @@ public class AutoPuzzlesTab extends BaseTab {
             y += ROW_STEP;
         }
 
-        // ---- bow puzzles (QUOI shared "Bow settings") ----
+        // ---- bow puzzles (the reference shared "Bow settings") ----
         y = header(widgets, contentX, y, contentWidth, "Bow Puzzles");
         y = toggle(widgets, contentX, y, contentWidth, "Auto Blaze", cfg.isAutoBlazeEnabled(),
                 () -> cfg.setAutoBlazeEnabled(!cfg.isAutoBlazeEnabled()), cfg, requestRebuild);

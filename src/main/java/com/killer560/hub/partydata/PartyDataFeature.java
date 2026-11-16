@@ -28,7 +28,7 @@ import java.util.Map;
 /**
  * Shares dungeon facts THIS client already worked out with the rest of the party over
  * {@code killer560s-mod-relay}, and folds in what a party mate's copy of this mod sends back - the same kind
- * of data Devonian ({@code RoomSecrets[cur/total, roomId]}, {@code SecretTracker[name, n]}) and NoammAddons
+ * of data the reference ({@code RoomSecrets[cur/total, roomId]}, {@code SecretTracker[name, n]}) and the reference
  * (rooms/doors discovered, mimic/prince/bat/M7 dragon events) already share over their own party sockets,
  * now shared over ours. Wire format: {@code killer560s-mod-relay/PROTOCOL.md}'s {@code dg.v1.*} keys, built
  * and parsed by {@link PartyDataProtocol}.
@@ -157,7 +157,7 @@ public final class PartyDataFeature {
     /**
      * Every SELF fact this feature publishes, as of right now - the single source of truth for "what do we
      * know ourselves", shared by the relay publisher below and by the Cross-Mod Bridge
-     * ({@code com.killer560.hub.bridge}), which translates the same list into Devonian's own
+     * ({@code com.killer560.hub.bridge}), which translates the same list into the
      * format instead of re-deriving any of it. Pure read, no side effects, no dedupe - callers keep their own
      * "already sent" state. Client thread only ({@link DungeonLayout#current()}).
      * <p>

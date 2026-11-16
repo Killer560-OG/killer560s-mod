@@ -36,7 +36,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * long it has left, the Treasure Chest Highlight box (legit: depth-tested; Through Walls is cheat-only), its HUD timer and
  * the Treasure Chest Alert.
  *
- * <p>Facts (killer560s-mod-logs/powder-grind-1103.md: SkyHanni PowderTracker, Skyblocker CrystalsChestHighlighter, the
+ * <p>Facts (killer560s-mod-logs/powder-grind-1103.md: the reference PowderTracker, the reference CrystalsChestHighlighter, the
  * wiki's Treasure Chest page): the server sends "You uncovered a treasure chest!" and puts a {@code minecraft:chest} next to
  * the mined block; the chest lasts one minute; no despawn line exists. HIS OWN DIGS are the key evidence (chestmiss-1113):
  * in his 11-10 log 355 of the 357 chests the bot opened sat within 2 blocks (338 within 1, Chebyshev) of a block he had sent a
@@ -53,7 +53,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public final class TreasureChests {
 
     public static final String TIMER_ID = "mining_treasure_chest";
-    /** One minute of server time (wiki; SkyHanni's 60 s clock). */
+    /** One minute of server time (wiki; the 60 s clock). */
     static final long LIFETIME_TICKS = 1200L;
     private static final long GRACE_TICKS = 100L;
     /** How far apart (server ticks) the uncovered line and the chest block may arrive. */

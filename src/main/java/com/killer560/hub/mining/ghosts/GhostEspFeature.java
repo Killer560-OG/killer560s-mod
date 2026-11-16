@@ -16,7 +16,7 @@ import java.util.List;
 
 /**
  * Ghost ESP (CHEAT BUILD ONLY, not automation): outlines the Dwarven Mines' Ghosts - the invisible creepers of The
- * Mist - through walls (OdinClient's Ghosts reveal). Draws boxes only; never attacks, clicks or moves. Cheat-only
+ * Mist - through walls (a Ghosts reveal). Draws boxes only; never attacks, clicks or moves. Cheat-only
  * because it shows mobs the game hides.
  */
 public final class GhostEspFeature {

@@ -22,13 +22,13 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Spring Boots Overlay - ported from Odin {@code features/impl/skyblock/SpringBoots.kt} (NoammAddons'
+ * Spring Boots Overlay - (the
  * {@code features/impl/visual/SpringBoots.kt} uses the identical pitch/height tables). While sneaking with
  * SPRING_BOOTS on, Hypixel plays {@code NOTE_BLOCK_PLING} charge notes: pitch 0.6984127 counts as a "low"
  * (max 2), any of the 7 high pitches adds a "high"; height = {@code HEIGHTS[lows + highs]}. A
  * {@code FIREWORK_ROCKET_LAUNCH} at pitch 0.0952381 or 1.6984127 resets. Each tick, not crouching or no Spring
  * Boots resets. HUD: "Height: " + value colored §c &lt;= 13.5, §e &lt;= 22.5, §6 &lt;= 33, §a &lt;= 43.5, else §b.
- * Optional red wireframe box at the player's position + height (Odin's render).
+ * Optional red wireframe box at the player's position + height (the render).
  */
 public final class SpringBootsOverlay {
 
@@ -44,7 +44,7 @@ public final class SpringBootsOverlay {
     };
 
     /** The pitch of Hypixel's charge note number {@code n} (0 first): two lows, then the highs in order, repeating
-     *  (Odin's table counts any high once each, so a long charge repeats them). For the sim's Spring Boots. */
+     *  (the table counts any high once each, so a long charge repeats them). For the sim's Spring Boots. */
     public static float notePitch(int n) {
         return n < 2 ? LOW_PITCH : HIGH_PITCHES[(n - 2) % HIGH_PITCHES.length];
     }

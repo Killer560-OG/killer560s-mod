@@ -22,7 +22,7 @@ import java.util.concurrent.Executors;
  * Etherwarping for the auto fairy soul modes. CHEAT BUILD ONLY.
  * <p>
  * Everything here is the Interactive Map's own machinery, reused rather than rewritten:
- * {@code livemap/autoclear/TeleportUtils} (QUOI's voxel traversal, {@code etherwarpable}, {@code getEtherwarpDirection},
+ * {@code livemap/autoclear/TeleportUtils} (the voxel traversal, {@code etherwarpable}, {@code getEtherwarpDirection},
  * {@code nearestEtherwarpable} - the same etherwarp raycast the Etherwarp Overlay draws with),
  * {@code livemap/autoclear/EtherwarpPathfinder} (multi-threaded A* over etherwarp raycasts + path smoothing) and
  * {@code livemap/autoclear/ClearExecutor} (item swap, forced sneak, the rotated use-item packet, one hop per tick,

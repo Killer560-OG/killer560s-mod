@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Reads the Egglocator's particle trail from the level-particles packet, at the point SkyHanni's MixinClientPacketListener
+ * Reads the Egglocator's particle trail from the level-particles packet, at the point the MixinClientPacketListener
  * reads it: just after {@code PacketUtils.ensureRunningOnSameThread}. At HEAD (as this was until 2026-10-19) the handler runs
  * twice per packet - first on the Netty thread, where ensureRunningOnSameThread re-queues the packet and throws, then again
  * on the render thread - so every trail point arrived twice, half of them on a thread racing the render thread's list.

@@ -38,7 +38,7 @@ the auto runs the same there). The rooms themselves are in [SIM-PUZZLES.md](SIM-
   Spirit Sceptre, Superboom/breaker pick); the etherwarp resolver and the Terminator already read the real rotation.
 - Every refusal in the autos is an INFO line, once per change of reason (`[AutoIcePath] ...`, `[AutoPuzzles] Blaze: ...`,
   `[AutoPuzzles] Beams: ...`, `[AutoIceFill]`, `Water: waiting - ...`), and each reposition logs its warp and held item.
-  `AutoReposition` aims with `AutoPuzzleUtil.etherwarpAim` (TeleportUtils' verified face-center aim, QUOI's as fallback).
+  `AutoReposition` aims with `AutoPuzzleUtil.etherwarpAim` (TeleportUtils' verified face-center aim, the as fallback).
 - **Test aids.** `SimPuzzles.isComplete(name)`: one solved signal per puzzle, by key (`icepath`) or live-map name
   (`Ice Path`; a blaze room name is true only when the armed arena is that room). `SimPuzzles.isRoomComplete(roomName)`:
   per ROOM (`isWeirdosComplete`/`isQuizComplete` tell the shared `SimQuizPuzzle` apart; Boulder's is the path opening).
@@ -72,10 +72,10 @@ the auto runs the same there). The rooms themselves are in [SIM-PUZZLES.md](SIM-
 
 ## Auto Blaze
 
-- **Spots** (Hypixel too). A QUOI spot was judged from `spot.getY() + 1.62`, inside the block he stands ON; the real eye
+- **Spots** (Hypixel too). A the reference spot was judged from `spot.getY + 1.62`, inside the block he stands ON; the real eye
   is the sneaking 1.27 over its top. His own spot is skipped. With no listed spot clear it searches the room's standable
   blocks (24 around, 14 below to 24 above the blaze, nearest first, 12 a tick, never below Higher Blaze's top level) - the
-  fifth blaze of Lower Blaze floats a block over the shaft floor, under QUOI's lowest spot. A spot no single warp reaches
+  fifth blaze of Lower Blaze floats a block over the shaft floor, under the lowest spot. A spot no single warp reaches
   is reached by two warps through a searched block that sees it, and only then, once per spot, handed to the Interactive
   Map planner (asked every tick it failed 1,100 times a minute). Four shots from one spot that kill nothing give it up for
   that blaze (196 shots from one spot on Mod Only Test; requiring a clean shot from the vanilla arrow origin, eye - 0.1,
@@ -83,7 +83,7 @@ the auto runs the same there). The rooms themselves are in [SIM-PUZZLES.md](SIM-
 - **Out-of-order kills** (Hypixel too). The arrow wait was `distance / 2.5` ticks, far shorter than a steep climb (28.8
   blocks at pitch -84), so a second shot flew through the first kill into the next blaze; the wait became the arrow's
   simulated flight to closest approach plus four ticks (later replaced by `AutoBlaze.VolleyWatch`, see
-  [LESSONS-AUTOMATION-PUZZLES.md](LESSONS-AUTOMATION-PUZZLES.md)). Side arrows are followed until they land (QUOI stopped them past the
+  [LESSONS-AUTOMATION-PUZZLES.md](LESSONS-AUTOMATION-PUZZLES.md)). Side arrows are followed until they land (the reference stopped them past the
   target). One arrow kills and arrows pass through a dying blaze, so a target touch is not safe: 31 of 160 and 52 of 206
   kills were by a side arrow; every arrow (center and both sides) is traced to where it lands with the target treated as
   absent and must miss every other blaze, the center one reaching the target first.
@@ -91,7 +91,7 @@ the auto runs the same there). The rooms themselves are in [SIM-PUZZLES.md](SIM-
 
 ## Auto Creeper Beams
 
-- Shots aimed with `etherwarpDirection` (a SNEAKING eye at QUOI's face-edge points) missed once he stood up. Shots aim from
+- Shots aimed with `etherwarpDirection` (a SNEAKING eye at the face-edge points) missed once he stood up. Shots aim from
   the real eye at the lantern's center or a face center inset 0.05, each checked with a collider ray. "On the platform" is
   within half a block, not `==` (a landing is 0.05 high and settles a tick later). A platform spot it cannot warp onto is
   skipped next time; the lantern under the creeper's feet is not checked for the creeper; with no clear spot it shoots and
@@ -122,8 +122,8 @@ the auto runs the same there). The rooms themselves are in [SIM-PUZZLES.md](SIM-
 
 ## Auto Water
 
-- **QUOI's spots are out of reach**: standing on (15,58,z), every side lever (x 10 or 20) is 4.52-4.54 eye-to-box. The auto
-  warps only when the lever is not in reach, onto the standable lever-floor block nearest QUOI's spot whose standing eye is
+- **the spots are out of reach**: standing on (15,58,z), every side lever (x 10 or 20) is 4.52-4.54 eye-to-box. The auto
+  warps only when the lever is not in reach, onto the standable lever-floor block nearest the spot whose standing eye is
   within 4.3 of the lever and which an etherwarp can aim at (read off the world, so Hypixel too).
 
 ## Auto Teleport Maze
@@ -135,7 +135,7 @@ the auto runs the same there). The rooms themselves are in [SIM-PUZZLES.md](SIM-
   the ground, no movement keys for 10 ticks, start pad within 24 blocks on foot - once per visit. 60 teleports without the
   end stop it.
 - **The pick is `autopuzzles/MazeRoute`**: the exit pad when named and here; a way to its chamber over links seen this visit
-  (breadth first); QUOI's exploring order; else a known way to the nearest chamber with an untried pad ("the diagonal
+  (breadth first); the exploring order; else a known way to the nearest chamber with an untried pad ("the diagonal
   again" is gone). `tools/mazecheck/route.sh` plays it offline: with a correct solver both picks reach the center every
   time (mean 6.7 teleports, max 13). Testkit `93-solve-teleportmaze-budget` (30 s, `ExitWatch`: the exit pad must stay a
   candidate after every teleport).

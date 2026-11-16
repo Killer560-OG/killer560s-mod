@@ -36,14 +36,14 @@ public final class AhPriceCopier {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-ahflip");
     public static final String CREATE_BIN_TITLE = "Create BIN Auction";
-    /** Slot of the item being listed (SkyHanni and Skyblocker read the same one). */
+    /** Slot of the item being listed (other implementations read the same one). */
     public static final int ITEM_SLOT = 13;
     /** How long a price you listed at is preferred over the lowest BIN. */
     public static final long OWN_PRICE_MS = 6 * 60 * 60_000L;
 
     /** "BIN Auction started for Wither Boots!" - his Dungeons logs, 2026-10. Anchored; a player's line has "name: " first. */
     public static final Pattern STARTED_LINE = Pattern.compile("^BIN Auction started for (.{1,80})!$");
-    /** A menu lore line naming the price (SkyHanni's tested shapes: "Buy it now: 1,000,000,000 coins"). */
+    /** A menu lore line naming the price (the tested shapes: "Buy it now: 1,000,000,000 coins"). */
     static final Pattern PRICE_LORE = Pattern.compile("^(?:Buy it now|Item price|Price): ([\\d,]{1,15}) coins?$");
 
     /** key -> {price per unit, when}. */

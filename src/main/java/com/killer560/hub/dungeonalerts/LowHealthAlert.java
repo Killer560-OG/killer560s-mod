@@ -17,10 +17,10 @@ import java.util.Set;
 import java.util.regex.Matcher;
 
 /**
- * Teammate Low Health Alert - SkyHanni's {@code features/dungeon/LowHealthAlert.kt}: the dungeon sidebar lists every
+ * Teammate Low Health Alert -: the dungeon sidebar lists every
  * teammate as {@code [H] Name 1,234❤}, and Hypixel colors the number red when that teammate is low. A title
  * ("Name is low", the health under it) and a sound when a teammate's number turns red, optionally only while you are
- * playing Healer (SkyHanni's default). The sidebar line is matched whole with {@link ScoreboardPattern#TEAMMATES}
+ * playing Healer (the default). The sidebar line is matched whole with {@link ScoreboardPattern#TEAMMATES}
  * (bounded name group); the health is shown as text, never parsed. Fires once each time a teammate goes red, again
  * only after that teammate has left red. The tier above red (yellow, "getting low", a higher sound) alerts too, with
  * Alert At Yellow Health on (default); the sidebar is read the tick after Hypixel's team update arrives (and once a second) (alerts also fire for red after yellow). Gated on the switch, a dungeon and (optionally) Healer.

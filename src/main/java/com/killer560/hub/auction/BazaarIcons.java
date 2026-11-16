@@ -185,7 +185,7 @@ public final class BazaarIcons {
     /** Is {@code model} (an item_model id) defined by a loaded resource pack? Its definition lives at
      *  {@code assets/<ns>/items/<path>.json}. A pack disabler means Hypixel's pack never loads, so skip the lookup. */
     static boolean packModelLoaded(String model) {
-        // Either pack disabler (Noamm's mod, or ours switched on) means the old look is wanted, not Hypixel's model.
+        // Either pack disabler (the mod, or ours switched on) means the old look is wanted, not Hypixel's model.
         if (model == null || DetectedMods.isPackDisablerActive() || PackDisabler.isActive()) {
             return false;
         }

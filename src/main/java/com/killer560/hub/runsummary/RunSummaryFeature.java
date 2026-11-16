@@ -41,7 +41,7 @@ import java.util.regex.Pattern;
  * live estimate the Score HUD shows, sampled every tick and kept as it stood when the run ended (that
  * method returns null once you are out of the dungeon, which is after the summary is assembled).
  * {@code totalSecrets} is taken from that same {@link ScoreCalculator.Result} instead of recomputing
- * Odin's secret-count formula.</li>
+ * The secret-count formula.</li>
  * <li><b>Class and party size</b> are {@code leapmenu/PartyTracker.selfClass()} / {@code teammates()}.</li>
  * <li><b>End-of-run detection</b> is the pair the mod already keys on: Split Timers' own "☠ Defeated ... in ..."
  * Total line, and {@code dungeonqueue/DungeonQueueFeature}'s "&gt; EXTRA STATS &lt;" line. Hypixel's real

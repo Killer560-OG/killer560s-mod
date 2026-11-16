@@ -222,7 +222,7 @@ pitch, corner 5,5; room colors 30/18/66/74/82/62/63, unopened 85 with a 119 cent
 `filled_map` put in slot 9 if that slot is empty (never over his own item), one `ClientboundMapItemDataPacket` when the
 picture changed or a guest has not had it. Painted every 10 client ticks while guests are present and the run has
 started (Hypixel hands the map over at the start). Its calibration assumes the F5-F7 corner; E-F4 floors read 6x6
-as well in the sim, but a guest whose floor reads E-F4 would use NoammAddons' corner for that floor.
+as well in the sim, but a guest whose floor reads E-F4 would use the corner for that floor.
 
 Class text: the sim has one class (Mage, `SimClass`), so every tab row reading "Mage L" is right for a guest too; there is no per-player
 pick to read (1109-coopfloor-fake asserts the guest's row). The Ice Path fish is put back when ANY real player is within 24 blocks of its

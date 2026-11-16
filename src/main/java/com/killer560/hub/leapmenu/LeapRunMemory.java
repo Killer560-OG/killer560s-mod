@@ -85,7 +85,7 @@ public final class LeapRunMemory {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-leapmenu");
 
-    /** Odin SplitsManager.MORT_REGEX - the run's first line (Split Timers' RUN_START). */
+    /** The reference SplitsManager.MORT_REGEX - the run's first line (Split Timers' RUN_START). */
     private static final Pattern RUN_START = Pattern.compile(
             "^\\[NPC\\] Mort: (?:Here, I found this map when I first entered the dungeon\\.|Right-click the Orb for spells, and Left-click \\(or Drop\\) to use your Ultimate!)$");
     /** Ticks between Mort's line and reading the party: the tab list is re-read every 10 ticks. */

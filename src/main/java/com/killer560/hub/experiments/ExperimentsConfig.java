@@ -72,7 +72,7 @@ public final class ExperimentsConfig {
     private boolean enabled = false;
     private boolean superpairsEnabled = true;
     /** Superpairs Overview HUD (killer560, 2026-11-01: "show how many things are left for superpairs ... like
-     *  skyhanni's"): found rewards and powerups, undiscovered pairs and powerups, beside the board. ON by default. */
+     *  another mod's"): found rewards and powerups, undiscovered pairs and powerups, beside the board. ON by default. */
     private boolean superpairsHudEnabled = true;
     /** false (default) = pair every revealed match; true = skip the plain "Experience" reward tiles
      *  (always a dye-family item - see {@link ExperimentSolver#isValuablePair}) and pair everything

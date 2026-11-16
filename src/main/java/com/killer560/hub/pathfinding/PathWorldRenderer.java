@@ -15,7 +15,7 @@ import java.util.Locale;
 import com.killer560.hub.compat.McRender;
 
 /**
- * Draws the route in the world, SkyHanni-style ({@code data/navigation/PathRenderer.kt}): the path is subdivided with
+ * Draws the route in the world, ({@code data/navigation/PathRenderer.kt}): the path is subdivided with
  * a Catmull-Rom spline so it reads as a smooth line instead of a zig-zag between nodes, only the next stretch is drawn
  * brightly (the rest optionally as a dim line), and the target gets a box, a beam and a "name + distance" label.
  * <p>
@@ -137,7 +137,7 @@ public final class PathWorldRenderer {
         return lastSmoothed;
     }
 
-    /** Catmull-Rom subdivision, same smoothing SkyHanni's PathRenderer uses. */
+    /** Catmull-Rom subdivision, same smoothing the PathRenderer uses. */
     private static List<Vec3> subdivide(List<Vec3> points) {
         if (points.size() < 2) return points;
         List<Vec3> out = new ArrayList<>(points.size() * 4);

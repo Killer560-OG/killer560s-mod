@@ -20,15 +20,15 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * P3 Nav - F7/M7 Phase 3 (Goldor) navigation aids ported from NoammAddons, both default OFF
+ * P3 Nav - F7/M7 Phase 3 (Goldor) navigation aids, both default OFF
  * ({@link P3NavConfig}).
  * <ul>
- * <li><b>Gate Highlight</b> - NoammAddons {@code features/impl/floor7/GateHighlight.kt}. The three P3 section
+ * <li><b>Gate Highlight</b> -. The three P3 section
  * gates as a probe {@link BlockPos} + an {@link AABB}, drawn only while the gate is still standing. "Still
  * standing" is exactly the source's own test (its lines 30-32): the block at the probe position is still
  * {@code CRACKED_STONE_BRICKS} or {@code INFESTED_STONE_BRICKS} - once the gate is broken that block turns to
  * air and the box stops drawing by itself, with no chat line and no timer involved.</li>
- * <li><b>Terminal / Device ESP</b> - NoammAddons {@code features/impl/floor7/TerminalESP.kt}. Highlights the
+ * <li><b>Terminal / Device ESP</b> -. Highlights the
  * terminals of the section you are in, tagged by section from that source's own coordinate table (its lines
  * 34-39). This port deliberately does NOT copy the source's packet-listener bookkeeping
  * ({@code ClientboundSetEntityDataPacket} into a cached {@code MutableMap<ArmorStand, HitboxInfo>}): the same
@@ -40,7 +40,7 @@ import java.util.Map;
  * chat-count based and never per-terminal, so there is nothing there to reuse for "which box to stop
  * drawing").</li>
  * </ul>
- * Devices and levers are the half NoammAddons' TerminalESP does not cover; they are handled by the same scan,
+ * Devices and levers are the half the TerminalESP does not cover; they are handled by the same scan,
  * off the "Not Activated" hologram Hypixel puts over every un-flicked lever/device (the same stand
  * {@code leveraura/LeverAuraFeature} already keys its S2 section-lever logic off).
  * <p>
@@ -52,7 +52,7 @@ public final class P3NavFeature {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-p3nav");
 
-    /** NoammAddons {@code GateHighlight.kt} lines 22-26, coordinates verbatim. */
+    /**  lines 22-26, coordinates verbatim. */
     private record Gate(BlockPos probe, AABB box) {
     }
 
@@ -62,7 +62,7 @@ public final class P3NavFeature {
             3, new Gate(new BlockPos(5, 134, 49), new AABB(14, 114, 51, 1, 134, 49)));
 
     /**
-     * NoammAddons {@code TerminalESP.kt} lines 34-39, coordinates verbatim - index 0 is section 1. The source
+     *  lines 34-39, coordinates verbatim - index 0 is section 1. The source
      * matches a stand to a section with {@code entity.distanceToSqr(it) <= 1.5}; same radius here.
      */
     private static final List<List<Vec3>> TERMINALS = List.of(
@@ -125,7 +125,7 @@ public final class P3NavFeature {
     }
 
     /**
-     * NoammAddons gates its render on {@code LocationUtils.F7Phase != 3} (a chat-driven phase). This mod's
+     * The reference gates its render on {@code LocationUtils.F7Phase != 3} (a chat-driven phase). This mod's
      * equivalent is chat-driven too, with {@code getPhaseAt()} as the p3sim.net-friendly position fallback for
      * a run where Goldor's opening line never arrived.
      */
@@ -134,7 +134,7 @@ public final class P3NavFeature {
                 || Floor7Tracker.getPhaseAt() == Floor7Tracker.Phase.P3;
     }
 
-    /** NoammAddons {@code LocationUtils.P3Section}: 1-4, or 0 when it can't be resolved. */
+    /** The reference {@code LocationUtils.P3Section}: 1-4, or 0 when it can't be resolved. */
     private static int playerSection() {
         Floor7Tracker.Stage at = Floor7Tracker.getStageAt();
         if (at.number >= 1 && at.number <= 4) return at.number;
@@ -281,7 +281,7 @@ public final class P3NavFeature {
         return 0;
     }
 
-    /** NoammAddons' {@code Entity.renderBoundingBox}; these stands never move, so no interpolation is needed. */
+    /** The {@code Entity.renderBoundingBox}; these stands never move, so no interpolation is needed. */
     private static AABB boxOf(ArmorStand stand) {
         AABB box = stand.getBoundingBox();
         if (box.getXsize() > 0.05 && box.getYsize() > 0.05) return box;

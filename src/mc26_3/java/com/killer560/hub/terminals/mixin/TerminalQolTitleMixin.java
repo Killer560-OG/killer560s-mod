@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** Hide Completion, title half (Devonian {@code dungeons/f7/TerminalHideCompletion.kt}). Devonian cancels the
+/** Hide Completion, title half. The reference cancels the
  *  {@code ClientboundSetTitleTextPacket}/{@code ClientboundSetSubtitleTextPacket} on its own packet event;
  *  hooking {@code Hud.setTitle}/{@code Hud.setSubtitle} instead reaches the same thing one step later, on the
  *  client thread, without this mod needing a packet-level mixin at all - {@code ClientPacketListener}'s title

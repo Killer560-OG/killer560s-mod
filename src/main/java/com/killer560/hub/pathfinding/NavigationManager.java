@@ -11,7 +11,7 @@ import java.util.Locale;
 
 /**
  * The live navigation: holds one target, keeps a graph path to it, recalculates when the player leaves that path, and
- * reports arrival. Same shape as SkyHanni's {@code data/IslandGraphs.kt}: find the node closest to the player, run
+ * reports arrival. Same shape: find the node closest to the player, run
  * Dijkstra to the node closest to the goal, drop the first node when walking straight to the second one is shorter,
  * and re-path whenever the closest node changes while the player is no longer on the path.
  */
@@ -207,7 +207,7 @@ public final class NavigationManager {
         } else {
             int[] nodes = result.nodes();
             int from = 0;
-            // SkyHanni's shortcut: skip the first node when walking straight to the second one is shorter
+            // The shortcut: skip the first node when walking straight to the second one is shorter
             if (nodes.length >= 2) {
                 double viaFirst = pos.distanceTo(centre(graph.nodes[nodes[0]]))
                         + centre(graph.nodes[nodes[0]]).distanceTo(centre(graph.nodes[nodes[1]]));
@@ -275,7 +275,7 @@ public final class NavigationManager {
 
     /**
      * {@link #distanceSqToPath}, also counting the leg from the graph node the path was planned from to its first point
-     * (SkyHanni's shortcut drops that node, so a path planned at the foot of a climb starts at the top of it).
+     * (the shortcut drops that node, so a path planned at the foot of a climb starts at the top of it).
      */
     static double distanceSqToRoute(Vec3 pos) {
         double best = distanceSqToPath(pos);

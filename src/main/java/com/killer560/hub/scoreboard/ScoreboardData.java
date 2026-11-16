@@ -30,9 +30,9 @@ import java.util.regex.Pattern;
 /**
  * Raw Skyblock data the Custom Scoreboard is built from, refreshed on the client tick:
  * <ul>
- * <li>sidebar lines in legacy {@code §} form - same construction as SkyHanni's {@code ScoreboardData}
+ * <li>sidebar lines in legacy {@code §} form - same construction
  * ({@code team prefix + team suffix}, highest score first, duplicate color codes at the prefix/suffix seam removed)
- * and the same formatted-text conversion as SkyHanni's {@code formattedTextCompatLessResets()};</li>
+ * and the same formatted-text conversion;</li>
  * <li>the tab list in vanilla display order (unformatted + formatted) and its footer;</li>
  * <li>the latest action bar text (captured by {@code CustomScoreboardGuiMixin}).</li>
  * </ul>
@@ -171,7 +171,7 @@ public final class ScoreboardData {
         return false;
     }
 
-    /** SkyHanni's {@code ScoreboardData.formatLines}: strip color codes from the start of the suffix that the
+    /** The {@code ScoreboardData.formatLines}: strip color codes from the start of the suffix that the
      *  prefix already ended with, so e.g. {@code §8- §c§aApex Dra§agon} matches the dragon regex. */
     static String joinPrefixSuffix(String start, String end) {
         String lastColor = lastColorCode(start);
@@ -272,7 +272,7 @@ public final class ScoreboardData {
 
 
     /**
-     * Component to legacy {@code §} text, SkyHanni's {@code computeFormattedTextCompat(noExtraResets = true)}: each
+     * Component to legacy {@code §} text, the {@code computeFormattedTextCompat(noExtraResets = true)}: each
      * styled run is prefixed with its color + decoration codes, except a leading plain {@code §f}.
      */
     public static String formatted(Component component, boolean lessResets) {
@@ -386,7 +386,7 @@ public final class ScoreboardData {
         return false;
     }
 
-    // ---- list helpers (SkyHanni RegexUtils / CollectionUtils equivalents) ----
+    // ---- list helpers (the reference RegexUtils / CollectionUtils equivalents) ----
 
     public static boolean matches(Pattern pattern, String line) { return line != null && pattern.matcher(line).matches(); }
 
@@ -438,7 +438,7 @@ public final class ScoreboardData {
     }
 
     /**
-     * A tab widget (SkyHanni {@code TabWidget}): the header line (unindented, matching {@code header}) plus the
+     * A tab widget: the header line (unindented, matching {@code header}) plus the
      * indented lines under it. Returns indices into {@link #tabPlain()}/{@link #tabFormatted()}; empty if absent.
      */
     public static List<Integer> tabWidget(Pattern header) {

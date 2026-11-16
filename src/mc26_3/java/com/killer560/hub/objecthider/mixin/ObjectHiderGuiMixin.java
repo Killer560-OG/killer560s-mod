@@ -13,13 +13,13 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * QUOI {@code PlayerDisplay.kt} "Hide" dropdown (Health / Absorption / Mount health / Regeneration bounce /
- * Armor / Hunger), all six OFF by default - {@link ObjectHiderConfig}. QUOI's own hooks target an older
+ *  "Hide" dropdown (Health / Absorption / Mount health / Regeneration bounce /
+ * Armor / Hunger), all six OFF by default - {@link ObjectHiderConfig}. The hooks target an older
  * {@code Gui.renderHearts}/{@code renderArmor}/{@code renderFood}/{@code renderVehicleHealth} render pass
  * (mixins/GuiMixin.java:29-99); javap-verified against THIS 26.1.2 merged jar, {@code Hud} no longer renders
  * directly - it only EXTRACTS a render state ({@code extractHearts}/{@code extractArmor}/{@code extractFood}/
  * {@code extractVehicleHealth}, all still present, all still {@code private}), which a separate submission
- * pass turns into draw calls later. Canceling the extract call is equivalent to QUOI's render-cancel: nothing
+ * pass turns into draw calls later. Canceling the extract call is equivalent to the render-cancel: nothing
  * is added to the {@link GuiGraphicsExtractor} for that bar, so nothing is submitted or drawn - purely visual,
  * this never touches health/armor/food values or anything sent to the server.
  * <p>
@@ -27,9 +27,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * {@code extractPlayerHealth}, which also computes normal hearts, air and the heart-blink timer - canceling
  * it outright would be far too broad). javap-verified {@code extractPlayerHealth} calls
  * {@code Player.getAbsorptionAmount()} once and {@code Player.hasEffect(MobEffects.REGENERATION)} once, so
- * both are redirected instead - same technique QUOI itself uses for Absorption
+ * both are redirected instead - same technique the reference itself uses for Absorption
  * ({@code @Redirect Player.getAbsorptionAmount() -> 0.0F}, {@code mixins/GuiMixin.java:29-41}); the
- * Regeneration-bounce redirect is this port's equivalent of QUOI's {@code @ModifyExpressionValue} (this repo
+ * Regeneration-bounce redirect is this port's equivalent of the {@code @ModifyExpressionValue} (this repo
  * now uses the same {@code @ModifyExpressionValue}: since 2026-11-01 no mixin here takes a call with
  * {@code @Redirect}, which breaks other mods hooking the same call).
  *

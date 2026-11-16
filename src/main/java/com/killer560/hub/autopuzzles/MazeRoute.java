@@ -9,7 +9,7 @@ import java.util.Set;
  * Picks Auto Teleport Maze's next pad from what this visit has learned. No Minecraft in it, so it can be checked offline
  * against thousands of drawn mazes ({@code tools/mazecheck/RouteCheck.java}).
  *
- * <p><b>Why it exists (2026-10-06).</b> The old pick was QUOI's: the solver's best pad if unvisited, else an unvisited
+ * <p><b>Why it exists (2026-10-06).</b> The old pick was the solver's best pad if unvisited, else an unvisited
  * diagonal, else the farthest unvisited, and - once every pad in the chamber was used - the diagonal again. Every link
  * joins two chambers, so a pad not on the way forward sends him back along the maze, and "the diagonal again" from a pad
  * he came BACK through keeps walking back: 142-sim-autopilot2 saw it on two floors of three ("every pad in this chamber
@@ -19,7 +19,7 @@ import java.util.Set;
  *
  * <p><b>Now</b>, in order: the exit pad when the solver has narrowed it to one and it is in this chamber; else a way
  * there over links already taken (breadth first over chambers); else the solver's best pad or an unvisited one here
- * (diagonal first, then farthest - QUOI's exploring order); else a way over known links to the nearest chamber that still
+ * (diagonal first, then farthest - the exploring order); else a way over known links to the nearest chamber that still
  * has an unvisited pad. Each hop either uses a known link or tries a new pad, so it cannot go round for ever: at most 28
  * new pads, and known ways are shortest paths. The start pad and the end pad are never a step in a known way (the start
  * pad leads back out to where he began; the end pad is the goal).

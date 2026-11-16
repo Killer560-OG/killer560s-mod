@@ -13,16 +13,16 @@ import com.killer560.hub.compat.McRender;
 /**
  * Dungeon ESP box drawing. Depth-tested boxes use vanilla's own {@code RenderTypes.LINES_TRANSLUCENT} /
  * {@code debugFilledBox()} (same as {@code WorldRenderUtils}); through-walls boxes use copies of those two pipelines
- * with the depth/stencil state removed - exactly how NoammAddons' 26.1.2 {@code NoammRenderPipelines}
+ * with the depth/stencil state removed - exactly how the 26.1.2 through-walls pipeline set
  * ({@code lines_through_walls} / {@code filled_through_walls}) does it ({@code withDepthStencilState(Optional.empty())},
- * signature javap-verified on the 26.1.2 jar). Vertex layout is the same Odin-derived one {@code WorldRenderUtils} uses.
+ * signature javap-verified on the 26.1.2 jar). Vertex layout is the same one {@code WorldRenderUtils} uses.
  */
 final class EspRenderer {
 
     private EspRenderer() {
     }
 
-    /** Called from client init (like Noamm registering its pipelines at init) so the two pipelines are in
+    /** Called from client init (like the reference registering its pipelines at init) so the two pipelines are in
      *  {@code RenderPipelines}' static list before the renderer precompiles it. */
     static void init() { RenderType unused = com.killer560.hub.util.EspTypes.LINES_THRU; }
 

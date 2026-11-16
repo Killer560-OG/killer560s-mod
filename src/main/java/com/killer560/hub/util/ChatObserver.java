@@ -13,7 +13,7 @@ import java.util.function.Consumer;
  * Sees every chat line that actually lands in chat, once.
  * <p>
  * Real bug found and fixed (2026-09-14, real Hypixel F7 log): the displayed line "Killer560 completed a
- * device! (1/7) (14.436s | 14.436s)" - the suffix being Odin's "Terminal Splits" rewrite - was never seen
+ * device! (1/7) (14.436s | 14.436s)" - the suffix being the "Terminal Splits" rewrite - was never seen
  * by ANY of this mod's Fabric {@code ClientReceiveMessageEvents} CHAT/GAME listeners, while other lines
  * were. Another installed mod (Odin/NoammAddons/Skyblocker) cancels the original via {@code ALLOW_GAME}
  * (which also skips {@code MODIFY_GAME}/{@code GAME} for everyone else) and adds its own copy straight to
@@ -26,7 +26,7 @@ import java.util.function.Consumer;
  * real 26.1.2 jar). A normal line fires Fabric first, then reaches ChatComponent with the same text and is
  * dropped as a duplicate; a line another mod canceled-and-re-added only arrives via ChatComponent.
  * De-dup: identical stripped text (or one being a prefix of the other, which covers suffix rewrites like
- * Odin's splits or this mod's own Device Times annotation) within {@link #DEDUPE_WINDOW_MS}.
+ * The splits or this mod's own Device Times annotation) within {@link #DEDUPE_WINDOW_MS}.
  * <p>
  * Note: this mod's own client-side messages (e.g. "[Simon Says] Whole device solved...") also reach
  * subscribers through the ChatComponent path, unlike with Fabric events - subscribers must match on

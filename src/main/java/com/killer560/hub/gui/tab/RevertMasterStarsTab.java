@@ -8,7 +8,7 @@ import java.util.List;
 
 /** Revert Master Stars settings - see
  *  {@link com.killer560.hub.revertmasterstars.RevertMasterStarsFeature}'s class doc for the real
- *  QUOI-ported star-display revert this is built on. */
+ *  star-display revert this is built on. */
 public class RevertMasterStarsTab extends BaseTab {
 
     public RevertMasterStarsTab() {

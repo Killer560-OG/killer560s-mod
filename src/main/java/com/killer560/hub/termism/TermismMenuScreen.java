@@ -18,7 +18,7 @@ import com.killer560.hub.compat.McCompat;
  *  Melody its own dedicated button per killer560's follow-up "add melody [but] make it so the random
  *  button will never select melody" - Melody still has no real "correct slot" solving logic (see
  *  {@code TerminalSolverFeature}'s own doc on why it's the one type with no solver), but its real
- *  mechanic is a genuine timing puzzle (ported from Odin's own {@code MelodySim}, decompiled as
+ *  mechanic is a genuine timing puzzle (decompiled as
  *  reference) that IS practicable on its own terms - it's just excluded from {@link #PRACTICE_TYPES} so
  *  Random/New Puzzle can never land on it by chance. */
 public class TermismMenuScreen extends Screen implements com.killer560.hub.gui.MenuThemedScreen {

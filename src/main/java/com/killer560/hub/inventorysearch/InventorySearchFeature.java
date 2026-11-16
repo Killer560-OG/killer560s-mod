@@ -21,7 +21,7 @@ import net.minecraft.world.item.component.ItemLore;
 import java.util.Locale;
 
 /**
- * Real inventory item search + highlight, ported from Noamm's own {@code InventorySearch.kt} - "if I
+ * Real inventory item search + highlight - "if I
  * type something and do ctrl f it'll highlight items in my inventory that meet the description"
  * (killer560's own description). Works over any real {@link AbstractContainerScreen} (player inventory,
  * chests, storage, Auction House, Bazaar, anything with real slots) - Ctrl+F toggles typing a search
@@ -29,7 +29,7 @@ import java.util.Locale;
  * outline drawn over it. Purely a client-side visual aid - never touches, moves, or clicks any item.
  * <p>
  * The bar is also a calculator (killer560, 2026-10-11: "It should also be able to do math in that bar.
- * reference neu for how to do it"): a query that parses as a sum shows " = result" after it, in NEU's
+ * reference neu for how to do it"): a query that parses as a sum shows " = result" after it, in the
  * language - see {@link SearchCalculator}. A sum highlights nothing.
  * <p>
  * A match is a full fill of the slot in the highlight color, drawn behind the item (killer560, 2026-10-11:
@@ -73,7 +73,7 @@ public final class InventorySearchFeature {
     }
 
     /** @return the real live search query, shared with {@link com.killer560.hub.itembrowser.ItemBrowserFeature}
-     *  so typing once drives both the real-inventory highlight here and the NEU-style panel's own item
+     *  so typing once drives both the real-inventory highlight here and the panel's own item
      *  filter - killer560's own "have searching in that bar effectively search through the not enough
      *  items... then if I type something and do ctrl f it'll highlight items in my inventory" describes
      *  one shared query feeding both, not two separate search boxes. */
@@ -96,7 +96,7 @@ public final class InventorySearchFeature {
     }
 
     /** Ctrl+F/typing is shared between this feature's own real-inventory highlight and
-     *  {@link com.killer560.hub.itembrowser.ItemBrowserFeature}'s NEU-style panel filter - it should
+     *  {@link com.killer560.hub.itembrowser.ItemBrowserFeature}'s panel filter - it should
      *  work whenever EITHER one is turned on, not only when this specific feature's own toggle is,
      *  since killer560 described one shared search box driving both. */
     private static boolean anyConsumerEnabled() {

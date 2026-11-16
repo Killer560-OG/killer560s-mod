@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
  * "Select Dungeon Type" item carries the lore line "Currently Selected: Master Mode The Catacombs" (or "... The
  * Catacombs") and whose "Select Floor" item carries "Currently Selected: Floor IV". Both are found by item NAME, never
  * by slot, with color codes stripped. That reading becomes the queued floor only when Hypixel says
- * "Party Finder > Your party has been queued in the dungeon finder!" (the line Odin's PartyUtils matches). The menu is
+ * "Party Finder > Your party has been queued in the dungeon finder!" (the line the PartyUtils matches). The menu is
  * the server's own, and the chat line is anchored on both ends and starts with "Party Finder > ", which no player's
  * chat line can (a player line starts with a rank or a name, and a name has no spaces), so another player can forge
  * neither. Entrance has no Auto Kick times, so queuing it leaves no floor (nobody is judged).

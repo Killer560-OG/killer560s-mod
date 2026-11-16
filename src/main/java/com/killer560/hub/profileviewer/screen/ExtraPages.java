@@ -561,14 +561,14 @@ final class ExtraPages {
     private static final ItemStack[] NEU_MINING_ICONS = {new ItemStack(Items.DIAMOND_PICKAXE), new ItemStack(Items.PACKED_ICE),
             new ItemStack(Items.OAK_SAPLING)};
     private static final String[] NEU_MINING_VIEWS = {"HOTM", "Glacite", "Foraging"};
-    /** NEU's crystal colors (MiningPage.crystalToColor), in {@link #CRYSTALS}' order. */
+    /** The crystal colors (MiningPage.crystalToColor), in {@link #CRYSTALS}' order. */
     private static final int[] NEU_CRYSTAL_COLORS = {0xFF55FF55, 0xFFAA00AA, 0xFFFFFF55, 0xFF55FFFF, 0xFFFFAA00, 0xFFFF5555,
             0xFFFF55FF, 0xFFFFFFFF, 0xFF5555FF, 0xFFAA0000, 0xFF00AA00, 0xFF555555};
 
     /** NEU Classic's Mining page (MiningPage, on plain pv_bg): the HOTM bar at 23, 25 (110 wide), the powder table under it
      *  (headers 51, rows 71 and 81), the crystals in two columns from 20, 101 with the nucleus runs at that box's foot, the
-     *  forge anvil at 149, 20 (its slots on hover) and our perk list where NEU draws its tree (249..412 x 16..185). Glacite
-     *  and Foraging, which NEU has no page for, are two more pv_elements cells beside the HOTM one at 226, 18. */
+     *  forge anvil at 149, 20 (its slots on hover) and our perk list where the reference draws its tree (249..412 x 16..185). Glacite
+     *  and Foraging, which the reference has no page for, are two more pv_elements cells beside the HOTM one at 226, 18. */
     private void drawNeuMining(GuiGraphicsExtractor g, ProfileExtras ex, int mx, int my) {
         int l = s.panelX, t = s.panelY;
         s.subView = Math.max(0, Math.min(s.subView, 2));
@@ -606,7 +606,7 @@ final class ExtraPages {
             tx(g, shorten(m.powderAvailable()[i]), x + 50 + 50 * i, y + 44, colors[i]);
             tx(g, shorten(m.powderTotal()[i]), x + 50 + 50 * i, y + 54, colors[i]);
         }
-        // Crystals: NEU's rect 16, 97 (214 x 89) less 4 padding, two columns 101 wide 105 apart, filled down first.
+        // Crystals: the rect 16, 97 (214 x 89) less 4 padding, two columns 101 wide 105 apart, filled down first.
         int rows = (CRYSTALS.length + 1) / 2, runs = Integer.MAX_VALUE;
         for (int i = 0; i < CRYSTALS.length; i++) {
             ProfileExtras.Crystal c = m.crystals().get(CRYSTALS[i]);
@@ -620,7 +620,7 @@ final class ExtraPages {
         }
         tx(g, "Nucleus Runs Completed:", l + 20, t + 172, 0xFF5555FF);
         rightText(g, commas(runs), l + 226, t + 172, 0xFFFFFFFF);
-        // The forge: NEU's anvil at 149, 20, its slots in the tooltip.
+        // The forge: the anvil at 149, 20, its slots in the tooltip.
         int fx = l + 149, fy = t + 20;
         g.item(new ItemStack(Items.ANVIL), fx, fy);
         if (hover(mx, my, fx, fy, 16, 16)) {
@@ -1171,7 +1171,7 @@ final class ExtraPages {
         s.stat2(g, x, y, w, "Belt", anyDojo ? ExtraTables.threshold(tables.get("dojo_belts"), "belt", points) : "None");
     }
 
-    /** NEU's renderAlignedString: the label at x, the value flush right at x + w; when "label value" is w or wider, NEU
+    /** The renderAlignedString: the label at x, the value flush right at x + w; when "label value" is w or wider, the reference
      *  draws it as one line centered on x + w / 2 instead. */
     private void neuAligned(GuiGraphicsExtractor g, String label, int labelColor, String value, int x, int y, int w) {
         int lw = f().width(label), all = lw + f().width(" ") + f().width(value);
@@ -1456,7 +1456,7 @@ final class ExtraPages {
         s.hotspots.add(new ProfileViewerScreen.Hotspot(x, y, 12, 16, () -> s.pageScroll += step));
     }
 
-    /** A NEU museum category in NEU's order: every item the repo lists (the first donated copy, else a gray dye named for
+    /** A the reference museum category in the order: every item the repo lists (the first donated copy, else a gray dye named for
      *  it), or for Special Items every donated one. */
     private static List<ItemStack> neuMuseumStacks(String cat, MuseumView view, ExtraTables.MuseumTables tables) {
         if (cat.equals("special")) {

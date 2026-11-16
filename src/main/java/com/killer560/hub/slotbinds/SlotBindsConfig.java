@@ -11,7 +11,7 @@ import java.nio.file.Path;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-/** Persisted Slot Binds settings - see {@link SlotBindsFeature}'s class doc for the real Odin-ported
+/** Persisted Slot Binds settings - see {@link SlotBindsFeature}'s class doc for the real
  *  swap mechanic this is built on. Ships disabled by default, same as every other new feature in this
  *  mod. */
 public final class SlotBindsConfig {
@@ -118,7 +118,7 @@ public final class SlotBindsConfig {
 
     public void setOverlayColor(int argb) { this.overlayColor = argb; }
 
-    /** Real semantics ported from Odin: a bind links two slots symmetrically for swap purposes - either
+    /** Real semantics: a bind links two slots symmetrically for swap purposes - either
      *  end can be shift-clicked to swap with the other, matching {@link SlotBindsFeature}'s real lookup. */
     public void addBind(int slotA, int slotB) {
         // Clear both slots' existing pairs first (2026-09-15 persistence audit): binding A->B then A->C used

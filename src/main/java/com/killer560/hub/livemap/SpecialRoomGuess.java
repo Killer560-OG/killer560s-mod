@@ -12,7 +12,7 @@ import java.util.regex.Pattern;
  * Special Room Guess: an unopened room the held map shows is one tile across is split-colored with the special rooms
  * it can still be. killer560, 2026-10-15: "the map should determine if i dont have the cheater map on that this single
  * room is likley a puzzle or yellow room or trap and show like a split color even if i havent looked here before. I
- * believe noamm or devonian have this as an option for their map". Neither does - Odin's map has it ("isKnown1x1" with
+ * believe another mod or another mod have this as an option for their map". Neither does - the map has it ("isKnown1x1" with
  * a guess color per tile, split two or three ways); the rule here is written from that idea, not from its code.
  *
  * <p><b>One tile across:</b> on every side the tile is either the edge of the floor or an OPENED room the map does not

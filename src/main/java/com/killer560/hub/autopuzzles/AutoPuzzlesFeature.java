@@ -27,19 +27,19 @@ import com.killer560.hub.compat.McCompat;
  * visual solvers ({@link QuizSolverFeature}, {@link WeirdosSolverFeature}) - no detection of their own, so the
  * matching solver must be ON too.
  * <p>
- * Automation ported from QUOI ({@code puzzlesolvers/impl/Quiz.kt} + {@code ThreeWeirdos.kt} "Auto"; NoammAddons
+ * Automation ({@code puzzlesolvers/impl/Quiz.kt} + {@code ThreeWeirdos.kt} "Auto"; the reference
  * 26.1.2 has no auto for either):
  * <ul>
  *   <li>Quiz: once the correct option is known AND the answer holograms are up (an ArmorStand named with "ⓒ"
  *   within 20 blocks), no-rotate interact the correct option's block (the solver's option pos, the same pos
- *   QUOI clicks) when eye-to-center distance² &lt;= 36. QUOI re-clicks every 500ms; this clicks ONCE per
+ *   the reference clicks) when eye-to-center distance² &lt;= 36. The reference re-clicks every 500ms; this clicks ONCE per
  *   question, re-armed only by Oruo's "answered Question #" line / the solver clearing the answer.</li>
- *   <li>Three Weirdos ({@link AutoWeirdos}): once the solver has the correct chest and both wrong chests (QUOI's
+ *   <li>Three Weirdos ({@link AutoWeirdos}): once the solver has the correct chest and both wrong chests (the
  *   {@code wrongPositions.size == 2} gate - all 3 NPCs have spoken), open the chest. Once per room. Optional (default
- *   OFF) QUOI "talk to NPCs": talk to each "CLICK" stand within entity reach, one a tick, moving into reach of the
+ *   OFF) the reference "talk to NPCs": talk to each "CLICK" stand within entity reach, one a tick, moving into reach of the
  *   ones out of it.</li>
  * </ul>
- * The other puzzle autos (QUOI ports) live in their own classes and are ticked from here: {@link AutoBlaze},
+ * The other puzzle autos (the reference ports) live in their own classes and are ticked from here: {@link AutoBlaze},
  * {@link AutoBeams}, {@link AutoIcePath}, {@link AutoBoulder}, {@link AutoWater}, {@link AutoTicTacToe},
  * {@link AutoTeleportMaze}, {@link AutoIceFill} (shared: {@link AutoPuzzleUtil}, {@link AutoReposition}, {@link AutoGuard}).
  * <p>
@@ -54,10 +54,10 @@ public final class AutoPuzzlesFeature {
     private static final String QUIZ_ROOM = "Quiz";
     private static final String WEIRDOS_ROOM = "Three Weirdos";
 
-    // QUOI Quiz: player.eyePosition.distanceToSqr(answerPos.vec3) > 36 -> skip.
+    // The reference Quiz: player.eyePosition.distanceToSqr(answerPos.vec3) > 36 -> skip.
     /** Measured block reach, squared - was 36.0 (6.0 blocks) to the center. */
     private static final double QUIZ_REACH_SQ = AutoPuzzleUtil.BLOCK_REACH_SQ;
-    // QUOI Quiz: getEntities<ArmorStand>(20.0) { "ⓒ" in name }.
+    // The reference Quiz: getEntities<ArmorStand>(20.0) { "ⓒ" in name }.
     private static final double QUIZ_HOLOGRAM_RADIUS_SQ = 20.0 * 20.0;
 
     private static boolean quizActed = false;
@@ -160,7 +160,7 @@ public final class AutoPuzzlesFeature {
         // Emergency Cancel Key (killer560, 2026-11-01): every puzzle auto lets go (keys, camera, its run) and none acts
         // while the hold is on (macrostop/MacroStop).
         com.killer560.hub.macrostop.MacroStop.onEmergency(() -> emergencyReset = true);
-        // ChatObserver, same as QuizSolverFeature (whose reset this re-arm mirrors): Odin/NoammAddons/Skyblocker can
+        // ChatObserver, same as QuizSolverFeature (whose reset this re-arm mirrors): other implementations can
         // cancel a server line via ALLOW_GAME and re-add their own copy straight to ChatComponent, which Fabric
         // listeners never see - on Fabric CHAT/GAME the solver would reset but this would never re-arm. The trigger
         // is anchored to Oruo's "[STATUE] ..." server format, so this mod's own client messages can't match.
@@ -251,7 +251,7 @@ public final class AutoPuzzlesFeature {
         noteDispatch(inDungeon, inBoss, roomName);
         tickQuiz(client, QUIZ_ROOM.equals(roomName));
         AutoWeirdos.tick(client, WEIRDOS_ROOM.equals(roomName));
-        // QUOI puzzle autos (each gates on its own toggle + room name and never acts on pre-world solver data).
+        // The reference puzzle autos (each gates on its own toggle + room name and never acts on pre-world solver data).
         AutoBlaze.tick(client, roomName);
         AutoBeams.tick(client, roomName);
         AutoIcePath.tick(client, roomName);

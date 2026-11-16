@@ -15,15 +15,15 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * QUOI {@code ItemAnimations.kt} "No eat animation" and "No shortbow swing" (both OFF by default,
+ *  "No eat animation" and "No shortbow swing" (both OFF by default,
  * {@link ObjectHiderConfig}). This mod already ports "No re-equip reset" / "No swing animation" /
  * "No hand sway" onto this exact class in {@code helditem.mixin.HeldItemInHandRendererMixin}; these two are
  * the remaining {@code ItemAnimations.kt} entries that file doesn't cover, added here instead of touching
  * that (differently-owned) file - Mixin allows multiple {@code @Mixin(ItemInHandRenderer.class)} classes to
  * coexist as long as they don't inject the same instruction twice, which these don't.
  * <p>
- * "No eat animation" cancels {@code applyEatTransform} outright (QUOI: {@code ItemInHandRendererMixin.java:164}).
- * "No shortbow swing" is QUOI's swing suppression scoped specifically to the shortbow
+ * "No eat animation" cancels {@code applyEatTransform} outright ({@code ItemInHandRendererMixin.java:164}).
+ * "No shortbow swing" is the swing suppression scoped specifically to the shortbow
  * ({@code ItemAnimations.kt:35}); reached here the same way {@code HeldItemInHandRendererMixin.killer560smod$
  * heldItemNoSwing} already reaches the same argument - a single-parameter {@code @ModifyVariable} on
  * {@code renderArmWithItem}'s {@code attack} (swing-progress) float, {@code ordinal = 2} among that method's

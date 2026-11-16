@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Pattern;
 
 /**
- * Real Hypixel dungeon "Three Weirdos" puzzle solver, ported from Odin's own {@code WeirdosSolver.kt}.
+ * Real Hypixel dungeon "Three Weirdos" puzzle solver.
  * The 3 real NPCs each say one real line of dialogue that either definitively identifies which of their
  * chests has the reward (a fixed real "solution" line - ported verbatim) or definitively rules one out (a
  * fixed real "wrong" line); this listens for the real {@code [NPC] <name>: <message>} chat line, matches
@@ -92,13 +92,13 @@ public final class WeirdosSolverFeature {
     public static void register() {
         // Shared solver highlight pipelines must exist before the level renderer precompiles them.
         SolverEspRender.init();
-        // ChatObserver, not Fabric CHAT/GAME: Odin/NoammAddons/Skyblocker can cancel a server line via
+        // ChatObserver, not Fabric CHAT/GAME: other implementations can cancel a server line via
         // ALLOW_GAME and re-add their own copy straight to ChatComponent, which Fabric listeners never see.
         // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which
         // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
         ChatObserver.subscribe(WeirdosSolverFeature::onMessage);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("WeirdosSolverFeature", com.killer560.hub.util.FeatureBits.register("Weirdos Solver tick", () -> WeirdosSolverConfig.getInstance().isEnabledRaw()), client -> {
-            // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
+            // Boss check: the reference e42d3316 "reset when entering boss" (2026-09-14 port).
             boolean inBoss = LiveMapFeature.isInBoss();
             // The ROOM INSTANCE, like every other solver in this package.
             //

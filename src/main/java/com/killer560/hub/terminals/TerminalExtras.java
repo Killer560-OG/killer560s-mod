@@ -10,7 +10,7 @@ import net.minecraft.client.resources.sounds.SoundInstance;
 import net.minecraft.resources.Identifier;
 
 /**
- * Terminal Sounds (Odin) and Terminal Click Path (Athen's Terminal Click), both legit and both in Terminal QoL
+ * Terminal Sounds and Terminal Click Path (the Terminal Click), both legit and both in Terminal QoL
  * ({@link TerminalQolConfig}). One mouse-click hook ({@link #noteClick}, from the solver's container mixin) feeds both:
  * a correct click plays the chosen click sound, and every click is kept as a point of the path. The path shows for
  * {@link #SHOW_MS} after the terminal closes, drawn by a Fabric HUD layer that returns on its first line while nothing is

@@ -1545,7 +1545,7 @@ public final class SimBuilder {
                             if (t == 0) {
                                 // The door's middle column keeps Hypixel's roof as its top block: nothing goes above
                                 // the highest block it already holds over the opening. Every door scanner (Wither
-                                // Doors, Door Helpers, the map's world scan - QUOI's rule) finds a door cell by that
+                                // Doors, Door Helpers, the map's world scan - the rule) finds a door cell by that
                                 // top block being y 73/74/81/82; walled up to the room roofs it read 99-119 and the
                                 // sim had no wither or blood doors at all (testkit 538/678, 2026-10-12 to 11-01).
                                 // A column with nothing over its opening gets Hypixel's y 73 roof and stops there.

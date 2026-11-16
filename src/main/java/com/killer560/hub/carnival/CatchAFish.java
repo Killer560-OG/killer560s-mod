@@ -25,19 +25,19 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Catch a Fish Helper (Skyblocker's Catch a Fish helper, which makes the yellow fish glow): while you play Catch a Fish,
+ * Catch a Fish Helper (the Catch a Fish helper, which makes the yellow fish glow): while you play Catch a Fish,
  * outlines every fish in the pond - the 200-point Yellow Fish in their own color, the rest in another (Outlines, or
  * Yellow Only) - boxes the fish to go for (the nearest Yellow Fish, else the nearest fish) with a line to it, and a HUD
  * with your catch streak and score from the sidebar, the yellow fish up, whether your hook has a fish on it (hold Use to
  * reel it in) and how long the streak has left without a hook (3 seconds, the wiki's rule). Display only: it never casts
  * or reels (Auto Catch a Fish, cheat build, does, and shares this class's fish pick).
  *
- * <p>A fish is an armor stand wearing a player head within 30 blocks; a Yellow Fish is the head with Skyblocker's
+ * <p>A fish is an armor stand wearing a player head within 30 blocks; a Yellow Fish is the head with the
  * texture (unverified in game). Red and Blue fish have no known texture, so they share the second color.
  */
 public final class CatchAFish {
 
-    /** The skin hash in Skyblocker's CARNIVAL_YELLOW_FISH texture. */
+    /** The skin hash in the CARNIVAL_YELLOW_FISH texture. */
     static final String YELLOW_HASH = "360f4f99c78adddeab276ebdf6ab9a0fcffabd49f0b543e1981ac7bd3d55b18a";
     private static final double RANGE = 30;
     /** The wiki: the catch streak resets after 3 seconds without hooking a fish. */

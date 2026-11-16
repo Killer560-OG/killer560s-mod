@@ -12,15 +12,15 @@ import java.util.List;
 import com.killer560.hub.compat.McBlocks;
 
 /**
- * Local door scan for Door Helpers - a port of QUOI {@code odonscanning/ScanUtils.scanTile}'s door branch plus
+ * Local door scan for Door Helpers - a port of the reference {@code odonscanning/ScanUtils.scanTile}'s door branch plus
  * {@code tiles/OdonDoor.locked}, kept local because {@code livemap.LiveMapFeature} exposes no door accessor (and only
  * scans while one of its own consumers is enabled).
  * <ul>
  * <li>Grid: 11x11 cells at world {@code (-185 + gx*16, -185 + gz*16)}; door cells are the ones where exactly one of
- * gx/gz is odd (QUOI: not both even = room, not both odd = 2x2 center).
+ * gx/gz is odd (not both even = room, not both odd = 2x2 center).
  * <li>A door cell's roof (highest non-air block) is 73/74/81/82. Its type comes from the block at y 69 the first time
  * the cell is scanned: COAL_BLOCK = WITHER, RED_TERRACOTTA = BLOOD, INFESTED_CHISELED_STONE_BRICKS = ENTRANCE, else
- * NORMAL. Once a cell is classified it is never re-scanned (QUOI keeps {@code scannedDoors} until world change).
+ * NORMAL. Once a cell is classified it is never re-scanned (the reference keeps {@code scannedDoors} until world change).
  * <li>{@code locked}: WITHER/BLOOD and the block at (x, 69, z) is not an {@link AirBlock} - an opened door is air.
  * </ul>
  */
@@ -142,7 +142,7 @@ public final class DoorScanner {
         return Integer.MIN_VALUE;
     }
 
-    /** QUOI {@code OdonDoor.locked}, except that a door whose chunk is not loaded keeps its last real reading (see
+    /** The reference {@code OdonDoor.locked}, except that a door whose chunk is not loaded keeps its last real reading (see
      *  {@link #lastLocked}). */
     public static boolean isLocked(Minecraft client, Door door) {
         int gx = Math.floorDiv(door.x() - START, HALF_ROOM);
@@ -171,7 +171,7 @@ public final class DoorScanner {
         return client.level != null && !(client.level.getBlockState(door.basePos()).getBlock() instanceof AirBlock);
     }
 
-    /** QUOI {@code ScanUtils.scannedDoors.filter { it.locked }}. */
+    /** The reference {@code ScanUtils.scannedDoors.filter { it.locked }}. */
     public static List<Door> lockedDoors(Minecraft client) {
         List<Door> out = new ArrayList<>();
         for (int idx = 0; idx < cells.length; idx++) {

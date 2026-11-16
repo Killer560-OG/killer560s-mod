@@ -49,11 +49,11 @@ Part of the sim docs: [SIM.md](SIM.md).
 - **A secret bat appears within 10 blocks of his feet, and its death counts for the room.** 8 was a guess: his Doors
   route's BAT node, recorded on Hypixel where the bat appeared, stands 8.6 from it. 10 is Auto Routes' own bat-spawn window
   (`AwaitEvents.BAT_SPAWN_RANGE`), the widest a recorded node can rely on; still not measured on Hypixel. Reference mods
-  (shallow clones in killer560s-mod-logs/*-ref) state no spawn distance: Skyblocker matches a dead bat to its waypoint
-  within 16 blocks, Odin reads the death from the BAT_HURT/BAT_DEATH sound at volume 0.1 (vanilla's, so sim bats send it),
-  SkyHanni names it "Dungeon Secret Bat". Bats used to spawn with the floor unregistered, so their death counted nothing,
+  (shallow clones in killer560s-mod-logs/*-ref) state no spawn distance: the reference matches a dead bat to its waypoint
+  within 16 blocks, the reference reads the death from the BAT_HURT/BAT_DEATH sound at volume 0.1 (vanilla's, so sim bats send it),
+  the reference names it "Dungeon Secret Bat". Bats used to spawn with the floor unregistered, so their death counted nothing,
   `SimScore.batKilled` never reached the per-room count, and Auto Routes' await (which counts a secret bat's APPEARANCE
-  within 10 blocks, QUOI's rule) never saw one appear. The kill is read off the entity (dead or removed KILLED), not
+  within 10 blocks, the rule) never saw one appear. The kill is read off the entity (dead or removed KILLED), not
   `getEntity(uuid) == null`, which also fired for a bat in a non-ticking section. Testkit 643.
 - **Secret chests appear when he comes near, like bats** (his request). `SimSecrets.chests` registers each database chest
   with `SimSecretItems.registerChest` (a chest the capture already had on that spot is taken out) and sets it once he has
@@ -180,7 +180,7 @@ Testkit 1018-sim-prince-stairs / -withermancer / -sloth / -red-blue / -grass-rui
   the wood block he pointed at (only into air). Doors' four levers each stand on a log of one wood and open the door of
   that wood (testkit 1407). Deathmite and Doors added 2026-10-13. Testkit 647-650 flick each and require the whole door gone.
 - **Pair a lever with its gate through the secret ROUTE, not by distance.** Quantizr's DungeonRooms waypoints
-  (`secretlocations.json` in Skyblocker's test resources, killer560s-mod-logs/skyblocker-ref; GPL, read only) number each
+  (`secretlocations.json` in the test resources, killer560s-mod-logs/skyblocker-ref; GPL, read only) number each
   secret's steps: "5 - Lever" goes with "5 - Chest", and a "5 - Stonk"/"Superboom"/"Entrance" point usually sits IN the
   gate. `tools/lever_gates.py` fits the route to each capture by its chests (four turns and a shift) and ranks the
   capture's gate bodies (wood, bars, barriers; cobblestone, walls and fences each their own class) by that secret.
@@ -188,14 +188,14 @@ Testkit 1018-sim-prince-stairs / -withermancer / -sloth / -red-blue / -grass-rui
   (Overgrown's log wall, not the stonk bars; Mines' second lever, the oak wall, not the window; Long Hall's panel, not the
   bars nearest the chest). Name differences: Mithril Cave = Mines, Draw Bridge = Pirate, Sewer = Pipes, Rail Track = Rails,
   Redstone Skull = Redstone Crypt.
-- **RSM's waypoints find a lever or node a capture is missing.** `rsm-ref/.../assets/rsm/secrets.json` (killer560s-mod-logs)
+- **the waypoints find a lever or node a capture is missing.** `rsm-ref/.../assets/rsm/secrets.json` (killer560s-mod-logs)
   lists every secret per room, LEVER and REDSTONE_BLOCK included, center-relative (+16 = capture, +15 = database) in the
   canonical turn; turn it by the k that lands its chests, keys and levers on the capture's blocks (Cobble Wall Pillar k=1,
   Golden Oasis and Redstone Key k=0, Redstone Crypt k=2).
 - **A capture can be the table's room turned round.** Rules are capture-local and RoomLibrary prefers a local capture over
   the bundled one (Mod Only Test's Overgrown is the bundled one turned 180). `SimRoomLevers.fit` tries every turn the shape
   allows and keeps the one landing the lever on a lever and the most gate blocks in the box, turn 0 on a tie.
-- Layers and Purple Flags have no lever where route and RSM agree; the sim places one (Layers on the smooth stone the
+- Layers and Purple Flags have no lever where route and the reference agree; the sim places one (Layers on the smooth stone the
   data's y stands one above, Purple Flags hanging from the cobblestone over air). Layers' other lever was captured
   powered: armed levers are set off first, or the first click reads as nothing.
 - **Gates can be BARRIERS or lattices of WALL blocks.** Cobble Wall Pillar's gate has Hypixel's barriers three by four at
@@ -226,10 +226,10 @@ Testkit 1018-sim-prince-stairs / -withermancer / -sloth / -red-blue / -grass-rui
   `SimKeyRoom.armForTest(room)` (test aid only; nothing happens unarmed), judged on the server from the server player's
   positions: the room's first entry by a jump over 2.5 blocks in a tick insta clears it (cleared, mobs standing, key
   lost); a first entry on foot clears it at its last starred death, when its Wither Key drops there (`SimKeys.drop`).
-- **Redstone Key, what the client sees on Hypixel** (RSA, RSM, QUOI and Odin, read not copied): the key is a `player_head`
+- **Redstone Key, what the client sees on Hypixel** (read not copied): the key is a `player_head`
   with profile id `fed95410-aba1-39df-9b95-1d4f361eb66e`, and picking it up turns that head to air; the node is a
   `redstone_block`, and when the key goes in the block changes, an armor stand wearing the key appears with its block y two
-  below the node, and a piston sound plays (RSM counts the node's secret off `block.piston.contract`). The wiki: placing it
+  below the node, and a piston sound plays (the reference counts the node's secret off `block.piston.contract`). The wiki: placing it
   "rewards 1 secret"; since 0.18.4 it is not an item and anyone can place it once found. `SimRedstoneKey` sends all of that
   from the server: pickup is not a secret, placing is one (`SimScore.secretFound` at the node).
 - **One Redstone Key per room.** Redstone Key's database lists two spots (19,66,7 and 10,70,26); Hypixel spawns one, and
@@ -246,9 +246,9 @@ Testkit 1018-sim-prince-stairs / -withermancer / -sloth / -red-blue / -grass-rui
   shows the key in within 40 ticks (block changed, a key head on top, or a stand wearing the key). Auto Secret's last-node
   wait holds for a node the aura has due. `SimRedstoneKey.armForTest`/`foundForTest` put a key room's answers in any arena
   (testkit 96-ar-1016-key*).
-- **Open: what the node looks like after placing on Hypixel.** The sim (from RSA) turns the node to air with a stand
+- **Open: what the node looks like after placing on Hypixel.** The sim turns the node to air with a stand
   wearing the key; killer560 said on 2026-10-12 the key sits ON TOP of the block (the testkit server's model, and
-  Skyblocker files the secret at the block's `above()`). Every reader accepts both; a real capture would settle it.
+  the reference files the secret at the block's `above`). Every reader accepts both; a real capture would settle it.
 - Testkit 1415 (the key, a no-key node click first as control), 1018-sim-keyspot-one, 1018-sim-skull-golden-oasis /
   -redstone-crypt / -redstone-key, 1018-ar-keyspot-empty.
 

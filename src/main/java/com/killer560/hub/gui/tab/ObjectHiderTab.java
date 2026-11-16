@@ -20,11 +20,11 @@ import java.util.function.Consumer;
  *  world. Every switch defaults to OFF. The whole list scrolls (ModScreen owns scrolling), so it's laid out as
  *  one column of full-width rows under orange section headers.
  *  <p>
- *  2026-09-20: added every hide QUOI 1.1.0/1.1.1 has that this pack didn't yet (killer560: "reference quoi for
+ *  2026-09-20: added every hide the reference 1.1.0/1.1.1 has that this pack didn't yet (killer560: "reference another mod for
  *  what exactly to include ... dont go beyond what they have" - see {@code wave/research-pack.md} section 1),
- *  grouped under QUOI's own section names (Render Optimizer / Name Tags / Player Display: Hide / Tweaks /
+ *  grouped under the section names (Render Optimizer / Name Tags / Player Display: Hide / Tweaks /
  *  Item Animations / Chat Replacements / Splits / 1.1.1's Hide Players) so it stays obvious which switch maps
- *  to which QUOI feature. Everything below "World" is new; nothing above it changed except the Explosion
+ *  to which the reference feature. Everything below "World" is new; nothing above it changed except the Explosion
  *  Particles rename right above (killer560 already has this - {@code HugeExplosionParticle} - and just
  *  couldn't find it under that name). Entity/nametag/chat hides never change what's sent to the server, same
  *  as everything else in this pack - see each mixin's own class doc for the exact mechanism. */

@@ -101,7 +101,7 @@ public final class Ap3Config {
      * from the camera): three methods he can A/B on an alt, each reporting its server corrections in the dev line.
      */
     public enum AlignMethod {
-        /** RSA-style: the camera yaw only, sent yaw == camera always; discrete keys + sneak taps planned exhaustively
+        /** The camera yaw only, sent yaw == camera always; discrete keys + sneak taps planned exhaustively
          *  over a short horizon - as close as a keyboard gets (a few thousandths), nothing hidden. */
         KEYS_SNEAK("Keys + Sneak"),
         /** The two-tap planner steering the yaw the SERVER receives (the strafe lock) while the camera stays put -

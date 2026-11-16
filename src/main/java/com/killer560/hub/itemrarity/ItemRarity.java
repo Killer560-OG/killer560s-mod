@@ -1,9 +1,9 @@
 package com.killer560.hub.itemrarity;
 
 /** Hypixel Skyblock item rarities with their standard chat colors (RGB, no alpha). Order and colors match
- *  Skyblocker's {@code SkyblockItemRarity} (upstream master) and NoammAddons' {@code ItemRarity}
- *  (origin/26.1.2). {@code SUPREME} (the old name, still seen on some legacy/NEU data) is folded into
- *  {@link #ULTIMATE} the same way Skyblocker's {@code toNeuRarity()} maps ULTIMATE&lt;-&gt;SUPREME. */
+ *  the {@code SkyblockItemRarity} (upstream master) and the {@code ItemRarity}
+ *  (origin/26.1.2). {@code SUPREME} (the old name, still seen on some legacy/the reference data) is folded into
+ *  {@link #ULTIMATE} the same way the {@code toNeuRarity} maps ULTIMATE&lt;-&gt;SUPREME. */
 public enum ItemRarity {
     COMMON("COMMON", 0xFFFFFF),
     UNCOMMON("UNCOMMON", 0x55FF55),
@@ -56,7 +56,7 @@ public enum ItemRarity {
         return null;
     }
 
-    /** One tier up - the Tier Boost pet item, as Skyblocker's {@code PetInfo} handling does. */
+    /** One tier up - the Tier Boost pet item handling does. */
     public ItemRarity next() {
         return switch (this) {
             case COMMON -> UNCOMMON;

@@ -275,7 +275,7 @@ public final class AutoSoulRunner {
 
     /**
      * The soul stand is out of reach or out of sight from here: walk to a spot it is in both from. On Hypixel the stand
-     * sits up to 3.6 blocks from its graph node (NEU's soul list against SkyHanni's graph, Hub), often on a ledge, so
+     * sits up to 3.6 blocks from its graph node (the soul list against the graph, Hub), often on a ledge, so
      * "at the node" is not "at the soul" (killer560's 2026-11-01 picture: stopped 3.7 blocks from the stand's box).
      */
     private static void tickApproach(Minecraft client, LocalPlayer player, PathfindingConfig cfg, Vec3 soulCentre) {

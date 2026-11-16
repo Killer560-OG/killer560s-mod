@@ -12,7 +12,7 @@ import java.util.List;
 import com.killer560.hub.compat.McBlocks;
 
 /**
- * Local door-grid scan for Wither Doors, same QUOI-derived algorithm as
+ * Local door-grid scan for Wither Doors, same algorithm as
  * {@link com.killer560.hub.doorhelpers.DoorScanner} (11x11 grid, door cells are where exactly one of
  * gx/gz is odd, type read from the block at y=69 the first time a cell is seen). A second copy of that
  * scanner exists here - not a reuse of the one in {@code doorhelpers} - for two reasons: that class's

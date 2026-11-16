@@ -44,8 +44,8 @@ import java.util.regex.Pattern;
  * <p>
  * <b>Hide Damage Messages</b>: Hypixel's combat spam, two families (ability damage and incoming hits, one switch since
  * 2026-10-08: "Hide damage messages should hide ability and incoming hit lines no matter what"), from his own Dungeons
- * log (2026-09 to 2026-10-07, every shape listed in docs/FEATURES.md), SkyHanni 7.48.0 {@code DungeonChatFilter} and
- * Skyblocker 6.9.1's Implosion / Spirit Sceptre / Molten Wave filters. Server lines only ({@code SYSTEM_SERVER}), and
+ * log (2026-09 to 2026-10-07, every shape listed in docs/FEATURES.md), the reference 7.48.0 {@code DungeonChatFilter} and
+ * The reference 6.9.1's Implosion / Spirit Sceptre / Molten Wave filters. Server lines only ({@code SYSTEM_SERVER}), and
  * every pattern is anchored on the whole line with a name class that cannot hold {@code :} or {@code [}, so a player
  * typing the same text in any channel ({@code Party > [MVP+] Eve: Your Implosion hit ...}) is never hidden.
  */
@@ -70,7 +70,7 @@ public final class ChatTidy {
             // Maxor's Frenzy hit you for N damage. / The Arrow Trap hit you for N damage! / Storm's Giga Lightning
             // hit you for N true damage.
             Pattern.compile("^" + NAME + " hit you for " + NUM + " (?:true )?damage[.!]$"),
-            // SkyHanni's "<x> hit you with <y> for N damage!" (not in his logs).
+            // The "<x> hit you with <y> for N damage!" (not in his logs).
             Pattern.compile("^" + NAME + " hit you with " + NAME + " for " + NUM + " damage!$"),
             // The Stormy Fels struck you for N damage! / The Spirit Chicken's lightning struck you for N damage.
             Pattern.compile("^" + NAME + " struck you for " + NUM + " damage[.!]$"),

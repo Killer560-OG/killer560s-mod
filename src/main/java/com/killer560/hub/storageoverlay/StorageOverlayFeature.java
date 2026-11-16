@@ -32,11 +32,11 @@ import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-/** NoammAddons-style Storage Overlay, per killer560's explicit "really similar to noamm's" request
+/** Storage Overlay, per killer560's explicit "really similar to another mod's" request
  *  (2026-09-08): whenever an Ender Chest page or a Backpack is actually opened, its contents are
  *  logged (captured + persisted), and a 3-column grid of every known storage for the current
  *  account/SkyBlock profile is drawn alongside the real menu, updating live as you browse. Ender
- *  Chest and Backpack title patterns are ported directly from NoammAddons' own {@code StorageMenu.kt}
+ *  Chest and Backpack title patterns are
  *  (a real, already-working 26.1.2 mod local to this machine) rather than guessed. */
 public final class StorageOverlayFeature {
 
@@ -46,13 +46,13 @@ public final class StorageOverlayFeature {
     private static final int PANEL_WIDTH = SLOT_SIZE * 9 + 4;
     private static final int PADDING = 6;
 
-    /** Real Hypixel titles, ported from NoammAddons' {@code StorageMenu.kt} (confirmed working
+    /** Real Hypixel titles (confirmed working
      *  against a live 26.1.2 session, not guessed): "Ender Chest (3/9)" or "Ender Chest ✦ (3/9)",
      *  and "<Backpack Name> (Slot #5)" or "... ✦ (Slot #5)". */
     private static final Pattern ENDER_CHEST_TITLE = Pattern.compile("^Ender Chest (?:✦ )?\\(([1-9])/[1-9]\\)$");
     private static final Pattern BACKPACK_TITLE = Pattern.compile("^.+Backpack (?:✦ )?\\(Slot #([0-9]+)\\)$");
 
-    /** Real Wardrobe title, e.g. "(1/6) Armor Sets" - confirmed against NoammAddons' own (already-working
+    /** Real Wardrobe title, e.g. "(1/6) Armor Sets" - confirmed against the (already-working
      *  26.1.2) {@code WardrobeKeybinds.kt}, which matches this exact same pattern. Unlike Ender Chest/Backpack,
      *  the Wardrobe's own screen is deliberately NOT added to {@link #storageKeyForTitle}/{@link #shouldHideVanilla}
      *  - see {@link #captureWardrobeIfChanged} for why. */
@@ -60,7 +60,7 @@ public final class StorageOverlayFeature {
 
     /** Real slots of one Wardrobe page's 9 quick-swap armor-set icons (row 5 of its fixed 45-slot
      *  container - the page's set icons are always the last 9 of {@code menu.slots}' first 45, confirmed
-     *  against NoammAddons' {@code WardrobeKeybinds.kt}, which indexes exactly 36-44 the same way). */
+     *  against, which indexes exactly 36-44 the same way). */
     private static final int WARDROBE_SET_SLOT_START = 36;
     private static final int WARDROBE_SET_SLOT_COUNT = 9;
 
@@ -319,7 +319,7 @@ public final class StorageOverlayFeature {
         int containerSlotCount = Math.max(0, menu.slots.size() - 36);
         // Real slots 0-8 (row 1 of the container) are Hypixel's own menu chrome - a "Go Back" barrier,
         // a sort/convert arrow, and decorative navigation glass panes, never real storage contents.
-        // Ported directly from NoammAddons' own savePage (StorageOverlay.kt:154-155), which captures
+        // Ported directly from the savePage (StorageOverlay.kt:154-155), which captures
         // gui.slots.subList(9, end) for exactly this reason - per killer560's "I dont want that top
         // line shown" report (2026-09-08).
         StorageOverlayCache cache = StorageOverlayCache.getInstance();
@@ -407,11 +407,11 @@ public final class StorageOverlayFeature {
 
     /** Reads the "Storage" overview menu's own per-page icons (slots 9-17 = Ender Chest pages 1-9,
      *  27-44 = Backpacks 1-18 - ported from {@code StoragePage.overview}) and marks/unmarks each as
-     *  known-to-exist, per NoammAddons' own {@code saveOverview} and killer560's screenshots
+     *  known-to-exist and killer560's screenshots
      *  (2026-09-08) of the real tooltips: an owned-but-unopened page shows as a plain numbered purple
      *  pane (name doesn't matter, just non-empty), while a genuinely not-yet-purchased one shows a
      *  real "Locked Page" tooltip ("Unlock more Ender Chest pages in the community shop!"). Matching
-     *  by name instead of NoammAddons' own item-id marker list, since the purple "owned" panes here
+     *  by name own item-id marker list, since the purple "owned" panes here
      *  didn't match any of their known ids - only the confirmed "Locked Page" text is excluded, so
      *  killer560 gets a dummy/clickable entry for everything he actually owns. Never overwrites a
      *  page that already has real logged contents.
@@ -596,7 +596,7 @@ public final class StorageOverlayFeature {
                 List<String> keys = storageCache.knownKeysFor(prefix);
                 boolean complete = true;
                 // Ender Chest pages before Backpacks, then numerically within each - matches the natural
-                // reading order NoammAddons' own StoragePage.compareTo gives. Real bug found and fixed
+                // reading order the StoragePage.compareTo gives. Real bug found and fixed
                 // (2026-09-08), per killer560's screenshot showing "Backpack #14" before "Backpack #5":
                 // this used to be a plain string compare on the whole key, which sorts "backpack_14"
                 // before "backpack_2" lexicographically (and Backpacks before Ender Chest entirely, since
@@ -1365,7 +1365,7 @@ public final class StorageOverlayFeature {
         lastLabelBounds.clear();
         // Per killer560's "scroll on this page" request (2026-09-08): only draw (and only register as
         // clickable) panels that actually fall within the current scrolled viewport - matches
-        // NoammAddons' own viewTop/viewBottom skip in its drawPages, and keeps an off-screen panel from
+        // The viewTop/viewBottom skip in its drawPages, and keeps an off-screen panel from
         // being clickable through the scissor clip.
         int viewTop = (int) scrollOffset;
         int viewBottom = viewTop + viewportHeightLocal;
@@ -1392,7 +1392,7 @@ public final class StorageOverlayFeature {
             int panelY = p.y();
             int panelHeight = p.height();
 
-            // Known-to-exist-but-never-opened (from the overview screen) - matches NoammAddons' own
+            // Known-to-exist-but-never-opened (from the overview screen) - matches the
             // "Name - Click to load" placeholder for a page with no data yet. Its whole rect is the
             // click-to-open target (no separate item area exists yet to open into) - and, since that
             // means a double-click's own FIRST click would already open it before the second click ever
@@ -1425,7 +1425,7 @@ public final class StorageOverlayFeature {
 
             int rows = Math.max(1, (int) Math.ceil(contents.size() / 9.0));
             int gridY = panelY + font.lineHeight + 4;
-            // Per killer560's report (2026-09-08): draw the actual slot cells (matching NoammAddons'
+            // Per killer560's report (2026-09-08): draw the actual slot cells (matching the
             // own drawSlotGrid) so the item area reads as a real grid even for slots with nothing in
             // them right now, instead of just blank background.
             drawSlotCells(graphics, panelX + 2, gridY, rows, theme);
@@ -1479,7 +1479,7 @@ public final class StorageOverlayFeature {
     }
 
     /** Draws the 9-wide item-cell grid itself (dark cell background + thin dividing lines), ported
-     *  from NoammAddons' own {@code drawSlotGrid} - makes an empty/still-loading page read as a real
+     *  from the {@code drawSlotGrid} - makes an empty/still-loading page read as a real
      *  item grid instead of blank background. */
     private static void drawSlotCells(GuiGraphicsExtractor graphics, int x, int y, int rows, com.killer560.hub.gui.PanelColours theme) {
         int cellBg = theme.cellBg();
@@ -1499,7 +1499,7 @@ public final class StorageOverlayFeature {
 
     /** Called from {@link com.killer560.hub.storageoverlay.mixin.StorageOverlayContainerMixin}'s
      *  mouse-click hook. A click on a NON-active page's panel sends the real client command to open it
-     *  (ported from NoammAddons' own {@code StoragePage.open}). A click on the ACTIVE page's own panel
+     * . A click on the ACTIVE page's own panel
      *  is redirected to the real underlying container slot by index instead (see
      *  {@link #handleActivePanelClick}) - real bug found and fixed (2026-09-08), per killer560's report
      *  that he couldn't drag/move items between his (relocated) inventory and any open storage: the

@@ -107,7 +107,7 @@ public final class BazaarFlipFeature {
     /** "[Bazaar] Bought 16x Ender Pearl for 112.0 coins!" (his 2026-10-08 dump and 62 lines in his logs). */
     static final Pattern BOUGHT_LINE =
             Pattern.compile("^\\[Bazaar\\] Bought ([\\d,]{1,9})x (.{1,64}) for ([\\d,]{1,15}(?:\\.\\d{1,2})?) coins?!$");
-    /** Hypixel's title for the step some instant buys get after the amount (SkyHanni's repo patterns list it). */
+    /** Hypixel's title for the step some instant buys get after the amount (the repo patterns list it). */
     static final String CONFIRM_INSTANT_BUY = "Confirm Instant Buy";
     /** Custom Amount's lore: "Buy up to 71,680x." (his screenshot, 2026-10-16). */
     static final Pattern BUY_UP_TO = Pattern.compile("^Buy up to ([\\d,]{1,12})x\\.?$");

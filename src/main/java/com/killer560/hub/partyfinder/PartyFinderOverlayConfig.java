@@ -20,9 +20,9 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Persisted Party Finder Overlay settings ({@link PartyFinderOverlay}). The option set mirrors Devonian's
+ * Persisted Party Finder Overlay settings ({@link PartyFinderOverlay}). The option set mirrors the
  * {@code PartyFinderHighlight} / {@code PartyFinderCount} / {@code PartyFinderOverview} features; colors that
- * Devonian hard-codes are exposed here so the overlay can be customized. The overlay itself defaults OFF; the
+ * The reference hard-codes are exposed here so the overlay can be customized. The overlay itself defaults OFF; the
  * three parts default ON so switching the overlay on shows everything.
  */
 public final class PartyFinderOverlayConfig {
@@ -31,12 +31,12 @@ public final class PartyFinderOverlayConfig {
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-partyfinderoverlay.json");
 
-    /** Devonian: {@code Color.GREEN} / {@code Color.RED} / {@code -1}. */
+    /** {@code Color.GREEN} / {@code Color.RED} / {@code -1}. */
     public static final int DEFAULT_JOINABLE_COLOR = 0xFF00FF00;
     public static final int DEFAULT_BLOCKED_COLOR = 0xFFFF0000;
     public static final int DEFAULT_COUNT_COLOR = 0xFFFFFFFF;
 
-    /** Devonian "Overview PB": Both = S+ when it exists, otherwise S - and here, failing both, the floor's fastest
+    /** The reference "Overview PB": Both = S+ when it exists, otherwise S - and here, failing both, the floor's fastest
      *  clear at any score (gray, labeled "Any"), so a player with runs but no S is not shown as "NO PB". */
     public enum PbMode {
         BOTH("Both"), S("S"), S_PLUS("S+");
@@ -48,7 +48,7 @@ public final class PartyFinderOverlayConfig {
         }
     }
 
-    /** Devonian "Overview Compact", plus (2026-10-15) five more built-in styles. Every style but None and Custom is a
+    /** The reference "Overview Compact", plus (2026-10-15) five more built-in styles. Every style but None and Custom is a
      *  template in the same placeholder language Custom uses ({@link PartyFinderOverlay#PLACEHOLDERS}), which is also
      *  what "Load Built-in" copies into the Custom editor to start from. The enum names are what is saved. */
     public enum CompactMode {

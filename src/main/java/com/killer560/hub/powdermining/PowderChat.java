@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
  * ALLOW_CHAT and never here, and every pattern is matched whole besides):
  * <ul>
  *   <li>"You uncovered a treasure chest!" - {@link TreasureChests} and the Treasure Chest Alert.</li>
- *   <li>The loot block (Hypixel, 2026; SkyHanni PowderMiningChatFilter): a line of "▬", "  CHEST LOCKPICKED " (or "  LOOT
+ *   <li>The loot block (Hypixel, 2026; the reference PowderMiningChatFilter): a line of "▬", " CHEST LOCKPICKED " (or " LOOT
  *       CHEST COLLECTED "), "  REWARDS", one line per reward ("    Gemstone Powder x537", no " xN" means one), and the "▬"
  *       line again. Counted by the {@link PowderTracker}; with Chest Loot Compact on, the whole block is hidden and one line
  *       takes its place, with every reward on hover.</li>

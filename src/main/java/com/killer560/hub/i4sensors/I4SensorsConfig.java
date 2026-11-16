@@ -21,7 +21,7 @@ public final class I4SensorsConfig {
             ModPaths.config("killer560smod-i4sensors.json");
 
     // killer560 (2026-09-14): "Add a slider to adjust how fast it rotates" - 0-400ms, used in Rotate mode even
-    // with Predictions on (Noamm forces 170ms there; that override is gone).
+    // with Predictions on (the reference forces 170ms there; that override is gone).
     public static final int MAX_ROTATION_TIME_MS = 400;
     /** Prefire Lead slider range: how long before P3's expected start Auto i4 begins prefiring. */
     public static final int MAX_PREFIRE_LEAD_MS = 3000;
@@ -90,7 +90,7 @@ public final class I4SensorsConfig {
     // Same Rotate / No Rotate split as Simon Says (killer560's own request, 2026-09-14): Rotate turns the
     // real camera to each target before shooting; No Rotate aims server-side only for the shot.
     private boolean autoI4Rotate = true;
-    // Defaults ported from NoammAddons' AutoI4.kt ("Rotation Time" 170ms, "Predictions" on).
+    // Defaults ("Rotation Time" 170ms, "Predictions" on).
     private int autoI4RotationTimeMs = 170;
     // How long before P3's expected start (Goldor's line, 64 ticks = 3.2 s after Storm's death since SkyBlock 0.27.2,
     // TickTimersFeature.GOLDOR_START_TICKS; the default opens the window about 2.2 s after Storm's death) the

@@ -10,7 +10,7 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
 /**
- * An ordered list editor in the shape SkyHanni's config uses for its Custom Scoreboard (MoulConfig's
+ * An ordered list editor in the shape the config uses for its Custom Scoreboard (MoulConfig's
  * {@code GuiOptionEditorDraggableList}): every row can be dragged to a new place, each row has a trash can that takes it
  * off the list, and the list's owner offers an Add control for what is not on it. Built for the Custom Scoreboard
  * (killer560, 2026-10-07) but knows nothing about it - the rows come from a {@link Model}.

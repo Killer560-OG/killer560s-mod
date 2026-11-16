@@ -16,8 +16,8 @@ import java.nio.file.Path;
  * Saved on every GUI change, reloaded by {@code ProfileManager.reloadAllConfigs()}.
  * <p>
  * Expected-leap defaults are killer560's own numbers (2026-09-16: "For S2 it should be 4, S3 it should only be 3,
- * and S4 it should be 4 again"). He gave none for S1, so S1 defaults to NoammAddons' Simon Says entry (3); Core and
- * Relic default to NoammAddons' CORE_BOX / RELIC_BOX entries (4). A count of 0 turns that section off.
+ * and S4 it should be 4 again"). He gave none for S1, so S1 defaults to the Simon Says entry (3); Core and
+ * Relic default to the CORE_BOX / RELIC_BOX entries (4). A count of 0 turns that section off.
  */
 public final class LeapCounterConfig {
 
@@ -42,7 +42,7 @@ public final class LeapCounterConfig {
     private int countCore = 4;
     private int countRelic = 4;
 
-    /** How close (blocks) a teammate must land to you to count. Devonian's spots use 1-3 blocks; 3 is the loosest
+    /** How close (blocks) a teammate must land to you to count. The spots use 1-3 blocks; 3 is the loosest
      *  of its P3 entries and leaves room for a leaper being nudged off you on landing. */
     private float radius = 3f;
     /** Minimum distance (blocks) a teammate must have covered inside the last few ticks for the arrival to be a

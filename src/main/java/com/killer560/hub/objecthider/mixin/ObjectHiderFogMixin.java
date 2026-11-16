@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 /**
- * QUOI {@code RenderOptimiser.kt} "Disable fog" (OFF by default) - QUOI's own hook is a
+ *  "Disable fog" (OFF by default) - the hook is a
  * {@code @ModifyVariable} on {@code FogRenderer.getBuffer}, forcing {@code FogMode} to {@code NONE}
  * (mixins/FogRendererMixin.java:14-22); javap-verified {@code FogRenderer.getBuffer(FogMode)} still exists
  * unchanged in the 26.1.2 merged jar with the same two-constant enum ({@code NONE}, {@code WORLD}), so the

@@ -13,7 +13,7 @@ import java.util.function.Predicate;
 /**
  * Crystal Hollows structures the Structure Scanner knows, each by a vertical column of blocks that only it has (null =
  * any block), the part of the Hollows it can be in, and the offset from the column's bottom to the spot worth marking.
- * The column facts are the ones QUOI's {@code CrystalHollowsScanner} uses (a local reference copy; the facts only, not
+ * The column facts are the ones the {@code CrystalHollowsScanner} uses (a local reference copy; the facts only, not
  * its code), as are the quarter bounds.
  */
 public enum ChSignature {

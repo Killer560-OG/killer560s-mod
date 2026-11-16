@@ -7,7 +7,7 @@ import com.killer560.hub.util.ConfigJson;
 import java.nio.file.Path;
 
 /** Persisted Creeper Beams Solver settings - see {@link BeamsSolverFeature}'s class doc for the real
- *  Odin-ported lantern-pair database this is built on. Ships disabled by default, same as every other
+ *  lantern-pair database this is built on. Ships disabled by default, same as every other
  *  new feature in this mod. */
 public final class BeamsSolverConfig extends SolverConfigBase {
 

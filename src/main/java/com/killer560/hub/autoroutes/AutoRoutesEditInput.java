@@ -20,7 +20,7 @@ import com.killer560.hub.util.ModLog;
  * hook runs at the top of {@code MultiPlayerGameMode#useItemOn}; a non-PASS result that doesn't
  * {@code consumesAction()} (i.e. {@link InteractionResult#FAIL}) sends NO {@code ServerboundUseItemOnPacket}, and
  * {@code Minecraft#startUseItem} returns as soon as {@code useItemOn} yields a {@code Fail} - so neither the block
- * use nor the follow-up item use (nor the off-hand pass) happens. QUOI does the same job by watching outgoing
+ * use nor the follow-up item use (nor the off-hand pass) happens. The reference does the same job by watching outgoing
  * packets; hooking before the packet exists is the cleaner way to get "don't also use your item".
  * <p>
  * With the breaker held, every right click on a block is suppressed, consumed by the feature or not.

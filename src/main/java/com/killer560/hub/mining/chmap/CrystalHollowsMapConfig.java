@@ -66,7 +66,7 @@ public final class CrystalHollowsMapConfig {
     private boolean showStructureWaypoints = true;
 
     /** The map as a movable HUD element while in the Crystal Hollows (killer560, 2026-11-04: "it should be a hud
-     *  element like theirs", Skyblocker's and SkyHanni's), and the zone quadrants tinted on both views. */
+     *  element like theirs", the), and the zone quadrants tinted on both views. */
     private float hudNameSize = 1f;
     private boolean showZones = true;
     /** The structures' names beside their markers on the HUD too (killer560, 2026-11-04). */

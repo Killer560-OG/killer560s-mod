@@ -29,12 +29,12 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 /**
- * Port of QUOI's {@code ClearExecutor} (+ the one-swap-per-tick guard of {@code SwapManager} and
+ * Port of the {@code ClearExecutor} (+ the one-swap-per-tick guard of {@code SwapManager} and
  * {@code PlayerUtils.useItem(yaw, pitch)}): runs a list of {@link ClearNode}s.
  * <ul>
  * <li>Client tick start: send the queued rotated item use, tick the delays, then execute whichever node the predicted
  * position sits on (one hop per tick, positions predicted from the raycast, not waited on).
- * <li>While an etherwarp node is current or next, sneak is forced (QUOI {@code KeyEvent.Input} shift = true) through
+ * <li>While an etherwarp node is current or next, sneak is forced (the reference {@code KeyEvent.Input} shift = true) through
  * {@code livemap.mixin.LiveMapKeyboardInputMixin}.
  * <li>After the last node: wait for the server's position packet ({@code LiveMapPacketListenerMixin}), then ~8 more
  * ticks, then run the completion callback (e.g. "Face door on arrival").
@@ -294,7 +294,7 @@ public final class ClearExecutor {
         return item > 0 ? Math.min(60.0, item - 1.0) : 56.0;
     }
 
-    /** QUOI {@code etherPath}: search on a background thread, then run the smoothed path. */
+    /** The reference {@code etherPath}: search on a background thread, then run the smoothed path. */
     public static void etherPath(BlockPos to, Runnable complete) {
         goalExact = false;
         goalFastArrival = false;
@@ -506,7 +506,7 @@ public final class ClearExecutor {
             long start = System.currentTimeMillis();
             List<EtherwarpPathfinder.Node> path = null;
             try {
-                // Landings are planned at block top + 1.05, QUOI's figure for Hypixel - and the sim's server now
+                // Landings are planned at block top + 1.05, the figure for Hypixel - and the sim's server now
                 // lands an etherwarp there too (SimAbilities.ETHERWARP_LANDING_OFFSET), so there is one value.
                 if (gate != null) {
                     path = EtherwarpPathfinder.findDungeonPathThrough(from, to, tileIdx, cfg, hopRange, layout, exact,
@@ -1621,7 +1621,7 @@ public final class ClearExecutor {
         return true;
     }
 
-    /** Called from the keyboard-input mixin: QUOI forces shift while an etherwarp node is current or next. */
+    /** Called from the keyboard-input mixin: the reference forces shift while an etherwarp node is current or next. */
     public static boolean shouldForceSneak() {
         sneakMixinApplied = true;
         return forceSneakNow();
@@ -1776,7 +1776,7 @@ public final class ClearExecutor {
         return chargedChainWarps;
     }
 
-    /** QUOI's server-tick handler, on client ticks: after the position packet, wait ~8 ticks, then complete. */
+    /** The server-tick handler, on client ticks: after the position packet, wait ~8 ticks, then complete. */
     private static void onTickEnd(Minecraft client) {
         // Every warp of ours answered (checkLandings), or with none issued the old position-packet signal. The
         // 40-tick fallback stays for a server that sends nothing at all; checkLandings gives up on an unanswered
@@ -2484,7 +2484,7 @@ public final class ClearExecutor {
         return false;
     }
 
-    /** QUOI {@code SwapManager.swapById}: hotbar only, at most one swap per tick. */
+    /** The reference {@code SwapManager.swapById}: hotbar only, at most one swap per tick. */
     static boolean swapById(String[] ids) {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;

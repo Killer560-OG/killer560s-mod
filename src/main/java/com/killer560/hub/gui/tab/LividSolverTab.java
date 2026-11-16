@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Locale;
 
 /** Livid Solver settings - see {@link com.killer560.hub.boss.LividSolverFeature}'s class doc for the
- *  real Odin-ported wool/entity identification this is built on. */
+ *  real wool/entity identification this is built on. */
 public class LividSolverTab extends BaseTab {
 
     private static final com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver SOLVER =

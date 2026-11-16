@@ -17,7 +17,7 @@ import java.util.Set;
  * <p>
  * He is probably right, and this is the only way to settle it - three explanations for the aura's speed have
  * already died tonight (the action gate was not starving it, there were no wasted ticks, and its reach already
- * beats QUOI's), every one of them killed by a measurement rather than by an argument. So rather than reason
+ * beats the), every one of them killed by a measurement rather than by an argument. So rather than reason
  * about what vanilla does when the attack key is held, this counts it.
  * <p>
  * It measures, it does not act: nothing here sends a packet or changes what the game does. Vanilla's own

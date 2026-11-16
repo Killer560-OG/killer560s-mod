@@ -3,7 +3,7 @@ package com.killer560.hub.darkmode;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /**
- * Dark Mode (killer560, 2026-11-02: "implement noamm's dark mode"; idea from NoammAddons' DarkMode, CC0): ONE black fill
+ * Dark Mode (killer560, 2026-11-02: "implement another mod's dark mode"; idea from the DarkMode, CC0): ONE black fill
  * at Opacity % over the whole GUI area, drawn once at the very end of the GUI frame by {@code mixin/DarkModeGuiMixin}
  * (after the HUD, the open screen and its tooltips, toasts and the debug overlay). So the world, HUD, chat, inventory,
  * every container and menu (also the title screen, with no world loaded) and this mod's screens darken at one even

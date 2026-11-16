@@ -9,11 +9,11 @@ import java.util.List;
 import java.util.Set;
 
 /** A top-level tab that's really a small folder of other tabs, shown as a stack of collapsible
- *  accordion sections (Skyblocker-style: click a header to expand/collapse it inline) instead of each
+ *  accordion sections (click a header to expand/collapse it inline) instead of each
  *  sub-tab getting its own top-level sidebar slot. Multiple sections can be open at once - collapsing
  *  one doesn't affect the others. Redesigned (2026-09-07) from the earlier "mini sub-sidebar beside the
  *  content" layout as part of the black+orange GUI overhaul, per killer560's "similar to this one" (a
- *  screenshot of Skyblocker's own config, whose categories expand feature-by-feature this same way). */
+ *  screenshot of the config, whose categories expand feature-by-feature this same way). */
 public abstract class FolderTab extends BaseTab {
 
     private static final int HEADER_HEIGHT = 20;

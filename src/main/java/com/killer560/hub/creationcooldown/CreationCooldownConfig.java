@@ -7,7 +7,7 @@ import com.killer560.hub.util.ModPaths;
 import java.nio.file.Path;
 
 /**
- * Creation Cooldown settings ({@link CreationCooldownFeature}), the same options as SkyHanni's
+ * Creation Cooldown settings ({@link CreationCooldownFeature}), the same options
  * {@code CreationCooldownConfig}: the HUD (off), Show On All Islands (off), Only In Green Room (on), Chat When Over
  * (off), Block Instance Creation (off).
  */

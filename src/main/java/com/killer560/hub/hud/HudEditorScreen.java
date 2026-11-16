@@ -21,7 +21,7 @@ import java.util.Map;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * SkyHanni-style HUD position editor: every listed {@link HudElement} is drawn at its current
+ * HUD position editor: every listed {@link HudElement} is drawn at its current
  * position with a bounding box, click-and-drag anywhere on a box to move it, release to save.
  * Scrolling while holding a box (or just hovering one) resizes it.
  * <p>
@@ -64,7 +64,7 @@ import com.killer560.hub.compat.McCompat;
  * this screen: killer560, "the snapping stuff and all that ... blocks a lot of my screen". The screen keeps one hint
  * line, hidden while dragging, and Escape closes it.
  * <p>
- * Health and Mana Bars' Predefined layout (same day: "predefined spots or fully custom ... look at how Skyblocker has
+ * Health and Mana Bars' Predefined layout (same day: "predefined spots or fully custom... look at how the reference has
  * their snap-to-area kind of set up"): its readouts are placed by {@link StatLayout}, not by position. Dragging one shows
  * every area it can go to (the one under the cursor highlighted) and the others making room for it where it would land;
  * dropping it there moves it into that area at that place, Hidden included (the tray at the left). Dropped anywhere else

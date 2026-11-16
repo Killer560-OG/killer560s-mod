@@ -25,7 +25,7 @@ public class ItemsTab extends FolderTab {
                 new SlotTextTab(),
                 new CompactorPreviewTab(),
                 new AccessoryAdvisorTab(),
-                // Gyrokinetic Wand Overlay (to-do Doc 2026-11-01): Skyblocker's gyro ring.
+                // Gyrokinetic Wand Overlay (to-do Doc 2026-11-01): the gyro ring.
                 new GyroOverlayTab(),
                 new LoadoutKeybindsTab(),
                 new PetWheelTab(),
@@ -39,7 +39,7 @@ public class ItemsTab extends FolderTab {
                 new ItemBrowserTab(),
                 new AuctionHouseTab(),
                 new BazaarTab(),
-                // Bazaar Order Helper (killer560, 2026-11-02): SkyHanni's order colors in Manage Orders.
+                // Bazaar Order Helper (killer560, 2026-11-02): the order colors in Manage Orders.
                 new BazaarOrderHelperTab(),
                 new BazaarAdvisorTab(),
                 new AhFlipperTab(),

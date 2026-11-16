@@ -34,7 +34,7 @@ import java.util.zip.GZIPInputStream;
  * relic spots). An approximation: every station and device sits exactly where Hypixel's does, the rooms around them are
  * plain boxes.</li>
  * </ol>
- * Reference mod ADM (undonecoffee/adm) ships its own capture of the room; it is All-Rights-Reserved and is NOT used here -
+ * A published capture of the room exists of the room; it is All-Rights-Reserved and is NOT used here -
  * only facts about Hypixel's boss (coordinates, lines, timings) were read from it.
  *
  * <p>Blocks are written a slice per server tick (the {@link SimBuildQueue} job {@code ArenaJob}), so the integrated server keeps
@@ -44,7 +44,7 @@ public final class BossArena {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-bosssim");
 
-    /** The capture's box (the same box ADM measured the room in: x -8..143, z -8..159, y 0..255). */
+    /** The capture's box (the box the room was measured in: x -8..143, z -8..159, y 0..255). */
     public static final int X0 = -8, Y0 = 0, Z0 = -8, W = 152, H = 256, D = 168;
 
     /** P1's floor top block (Maxor), P2's (Storm), P3's ring (Goldor), P4's (Necron), P5's (the Wither King). */
@@ -318,7 +318,7 @@ public final class BossArena {
             for (int px : new int[]{52, 94}) {
                 box(out, px - 1, P1_FLOOR + 1, 40, px + 1, 223, 42, "minecraft:polished_andesite");
             }
-            // The strip the beam crosses (ADM: rows at y 224, z 70..76): where a lure stands to bring Maxor into the beam.
+            // The strip the beam crosses (measured: rows at y 224, z 70..76): where a lure stands to bring Maxor into the beam.
             box(out, 36, 224, 70, 110, 224, 76, "minecraft:light_gray_wool");
             // ---- P2, Storm (floor 168) -------------------------------------------------------------------------
             box(out, 20, P2_FLOOR, 5, 126, P2_FLOOR, 110, "minecraft:polished_andesite");
@@ -386,10 +386,10 @@ public final class BossArena {
             box(out, p.minX(), P2_FLOOR + 1, p.minZ(), p.minX() + 6, p.restBottom() - 1, p.minZ() + 6, "minecraft:air");
             pillar(out, p, p.restBottom(), BossFight.PILLAR_TOP, "minecraft:polished_diorite");
         }
-        // Maxor's beam: the two blocks the pylons' opening clears, black glass above (ADM: 73, 221-224, 73).
+        // Maxor's beam: the two blocks the pylons' opening clears, black glass above (measured: 73, 221-224, 73).
         box(out, 73, P1_FLOOR + 1, 73, 73, P1_FLOOR + 2, 73, "minecraft:polished_andesite");
         box(out, 73, P1_FLOOR + 3, 73, 73, P1_FLOOR + 4, 73, "minecraft:black_stained_glass");
-        // Necron's side platforms (one goes to lava each fight), at ADM's extents.
+        // Necron's side platforms (one goes to lava each fight), at the measured extents.
         for (int[] pl : BossFight.NECRON_PLATFORMS) {
             box(out, pl[2], P4_FLOOR, pl[4], pl[3], P4_FLOOR, pl[5], "minecraft:obsidian");
         }

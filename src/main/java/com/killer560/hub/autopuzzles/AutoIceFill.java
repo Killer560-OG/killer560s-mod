@@ -16,13 +16,13 @@ import java.util.List;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Auto Ice Fill - port of QUOI {@code IceFillSolver.kt}'s {@code auto}. QUOI automates it with Aspect of the
- * Void/End teleports: the solver path (QUOI uses the "easy" patterns, so this only runs with the solver's Optimized
- * Path OFF) gets QUOI's {@code stupidStairs} midpoints and {@code fillGaps} 1-block interpolation; while holding an
+ * Auto Ice Fill - port of 's {@code auto}. The reference automates it with Aspect of the
+ * Void/End teleports: the solver path (the reference uses the "easy" patterns, so this only runs with the solver's Optimized
+ * Path OFF) gets the {@code stupidStairs} midpoints and {@code fillGaps} 1-block interpolation; while holding an
  * AOTV/AOTE and standing exactly on a path point, after "Ice Fill Delay" ticks it right-clicks aimed from that point's
  * eye position at the next point, stepping one block at a time. Done when relative (15,71,26) becomes packed ice.
  * With "Etherwarp Reposition" on and the player outside y 69.5..72.5 it warps onto the first still-unfilled ice tile
- * like QUOI. Safety addition: requires an AOTV/AOTE in hand (QUOI also passed on non-Skyblock items) and positions are
+ * like the reference. Safety addition: requires an AOTV/AOTE in hand (the reference also passed on non-Skyblock items) and positions are
  * matched with a 1e-4 tolerance instead of exact double equality.
  *
  * <p>A BROKEN SECTION (2026-10-05): when a section's tiles go to air or his feet drop under the section he was on,
@@ -603,7 +603,7 @@ final class AutoIceFill {
                 + ". Leave and re-enter the room to try again."));
     }
 
-    /** QUOI fillGaps: insert 1-block interpolated points between consecutive path points. */
+    /** The reference fillGaps: insert 1-block interpolated points between consecutive path points. */
     private static List<Vec3> fillGaps(List<Vec3> points) {
         if (points.isEmpty()) {
             return points;
@@ -627,7 +627,7 @@ final class AutoIceFill {
     }
 
     /**
-     * QUOI stupidStairs: add a midpoint before the first point at y 71.1 and before the first at y 72.1.
+     * The reference stupidStairs: add a midpoint before the first point at y 71.1 and before the first at y 72.1.
      *
      * <p>Both heights carry the sim's floor shift. 71.1 and 72.1 are Hypixel heights for the two steps up out
      * of this room's basin, and the path these are matched against is built from the solver's own real

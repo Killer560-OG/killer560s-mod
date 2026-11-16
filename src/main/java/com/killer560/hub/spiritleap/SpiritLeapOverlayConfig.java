@@ -10,7 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted Custom Leap Menu settings - see {@link SpiritLeapOverlayFeature}'s class doc for the real
- *  Odin-ported overlay this is built on. Ships disabled by default, same as every other new feature in
+ *  overlay this is built on. Ships disabled by default, same as every other new feature in
  *  this mod. */
 public final class SpiritLeapOverlayConfig {
 

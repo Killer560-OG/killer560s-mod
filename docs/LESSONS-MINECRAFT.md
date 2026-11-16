@@ -37,7 +37,7 @@ API names that differ between 26.1.2 and 26.2 are in [COMPILING.md](COMPILING.md
   `isUsingItem()` in the main hand first. Shortbows (lore "Shortbow: Instantly shoots!") are `BowItem`s too; test them first.
 - A `@Inject` at HEAD of a `ClientPacketListener.handleX` runs TWICE per packet: first on the Netty thread, where
   `PacketUtils.ensureRunningOnSameThread` re-queues the packet and throws, then on the render thread (javap, 26.1.2 and 26.2).
-  The Egglocator trail recorded every particle twice, half off-thread (2026-10-19). Inject `AFTER` that invoke, as SkyHanni does.
+  The Egglocator trail recorded every particle twice, half off-thread (2026-10-19). Inject `AFTER` that invoke.
 - **A client sees an entity's server position only in bursts, and `InterpolationHandler.position()` is not it between them.** It
   returns the DRAWN position once the lerp steps run out (javap 26.1.2), and a vanilla bat flaps on the client in between, so
   BatLog's first sim run summed those steps and read 0.53-0.84 b/t for a bat flying 1.02, and "curved" for straight shots
@@ -142,7 +142,7 @@ API names that differ between 26.1.2 and 26.2 are in [COMPILING.md](COMPILING.md
   replace is refused; other savers with the same pattern (RunHistoryStore, BestFriendsStore, GraphRepository...) still drop it.
 - `ServerTickClock.now()` counts ticks since client LAUNCH, so `now() % N` has no relation to any server cycle. Tick
   Timers' clear "Death Tick" was `20 - now() % 20` and so never lined up with anything; removed 2026-10-06. A phase needs
-  a server anchor (NoammAddons used `ClientboundSetTimePacket.gameTime`).
+  a server anchor (the reference used `ClientboundSetTimePacket.gameTime`).
 - `ServerTickClock`'s subscribers cannot measure a lag spike: a real stall drops the ping rate under 15/s,
   the clock flips to client-tick fallback, and what it fires is the client's own ticks. Anything measuring
   server stalls subscribes to `subscribeRawPing` instead (as `util/ServerLag` does).

@@ -23,7 +23,7 @@ import java.nio.file.Path;
  * for the TPS math. The Lag Threshold slider that used to gate the old lag line is gone with it (nothing
  * left to threshold-gate).
  *
- * <p><b>Skyblock gate:</b> deliberately NOT applied here. Devonian gates its own {@code LagDisplay} on
+ * <p><b>Skyblock gate:</b> deliberately NOT applied here. The reference gates its own {@code LagDisplay} on
  * {@code Location.stateInSkyblock}, but ping / TPS / FPS / CPS are plain client and network readouts that
  * are just as useful on p3sim, on a test server or in a lobby, and none of them reads or reacts to anything
  * Skyblock-specific. The drawn element is still covered by {@code HudInGameRenderer}'s own

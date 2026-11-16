@@ -141,7 +141,7 @@ public final class RoomCaptureRotation {
         if (cached != null) return cached;
         Verdict v = derive(room);
         // Not cached until the room database is loaded: without it there are no secrets and no shapes to vote
-        // with, and a verdict made from the roof alone called Market, Fairy and Mage uncertain in Ashfall
+        // with, and a verdict made from the roof alone called Market, Fairy and Mage uncertain in the reference
         // (2026-10-04), where nothing had loaded the database yet.
         if (com.killer560.hub.roomdatabase.RoomDatabase.isReady()) {
             CACHE.put(room.name, v);
@@ -497,7 +497,7 @@ public final class RoomCaptureRotation {
      * The highest y at which any of the four corner columns holds the MARKER.
      *
      * <p>This used to be the highest y holding anything other than air, on the reasoning that that is the roof.
-     * It stopped being true when captures got taller: an Ashfall preset has terrain and structure above the
+     * It stopped being true when captures got taller: an the reference preset has terrain and structure above the
      * rooms, so "the highest non-air block in a corner column" can be a hundred blocks above the roof with no
      * marker anywhere near it. Redstone Warrior was exactly that - a corner column occupied at y114 and the
      * marker down at the real roof. Taking the HIGHEST marker still prefers the roof over decoration lower down.

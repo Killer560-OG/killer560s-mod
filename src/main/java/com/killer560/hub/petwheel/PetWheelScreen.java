@@ -34,7 +34,7 @@ import com.killer560.hub.util.KeyUtil;
  * opening the real {@code /pets} menu for a right-clicked slot).
  * <p>
  * Rendering is deliberately simple: each slice is a themed square tile (icon + name) placed on a ring by
- * angle, hit-tested by the same atan2 sector math NoammAddons' own {@code PetMenu} wheel uses - not a filled
+ * angle, hit-tested by the same atan2 sector math the {@code PetMenu} wheel uses - not a filled
  * pie/annulus wedge. This codebase has no polygon/arc-fill primitive anywhere yet (checked
  * {@code SpiritLeapOverlayFeature} and {@code LeapOrderScreen}, this mod's two closest "replace a menu with a
  * custom shape" precedents - both draw only rectangles). The divider lines below ARE new (killer560, 2026-09-27:
@@ -168,7 +168,7 @@ public class PetWheelScreen extends Screen implements MenuThemedScreen {
         return new Layout(width / 2f, height / 2f - 6f, radius, radius * 0.35f, count);
     }
 
-    /** Same sector math as NoammAddons' own pet wheel: no outer bound (direction, not distance, decides the
+    /** Same sector math own pet wheel: no outer bound (direction, not distance, decides the
      *  slice - a radial menu shouldn't need pixel-perfect aim), only the dead-zone in the middle is excluded. */
     private Integer hoveredIndex(double mouseX, double mouseY, Layout layoutData) {
         if (layoutData.count() == 0) return null;

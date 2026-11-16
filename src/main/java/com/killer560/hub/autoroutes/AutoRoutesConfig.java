@@ -30,7 +30,7 @@ public final class AutoRoutesConfig {
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-autoroutes-settings.json");
 
-    /** Node marker styles (QUOI: Box / Filled box / Cylinder). */
+    /** Node marker styles (Box / Filled box / Cylinder). */
     public enum RenderStyle {
         BOX, FILLED, CYLINDER;
 
@@ -152,7 +152,7 @@ public final class AutoRoutesConfig {
             com.killer560.hub.dungeonextras.DungeonExtrasConfig.BreakerStyle.FILLED_OUTLINE;
     private float thickness = 4f;
     private float height = 0.1f;
-    /** Ticks between a rotation settling and the click that follows it (QUOI "Interact delay"). */
+    /** Ticks between a rotation settling and the click that follows it (the reference "Interact delay"). */
     private int interactDelayTicks = 2;
     /** Further than this from the recorded path and playback gives up (lag defense, see the spec). */
     private double maxDriftDistance = 2.5;
@@ -183,7 +183,7 @@ public final class AutoRoutesConfig {
         }
     }
 
-    /** QUOI's per-action colors, plus killer560's "superboom nodes red, bat nodes bat-coloured" (await = the
+    /** The per-action colors, plus killer560's "superboom nodes red, bat nodes bat-coloured" (await = the
      *  bat-secret wait, so it gets a bat brown). */
     public static int defaultNodeColor(RouteNode.Type type) {
         return switch (type) {

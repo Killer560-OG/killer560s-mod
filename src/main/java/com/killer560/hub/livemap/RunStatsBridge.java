@@ -17,7 +17,7 @@ import java.util.Set;
  * attribution needs lives on package-private members of {@link LiveMapFeature}, {@link DungeonMapScanner}
  * and {@link InteractiveMapFeature}, so the accessor has to sit in this package.
  *
- * <p>This is the same mechanism NoammAddons uses for its "{@code [NA] Player: 4-7 Rooms | 3 Secrets}" end-of-run
+ * <p>This is the same mechanism the reference uses for its "{@code [NA] Player: 4-7 Rooms | 3 Secrets}" end-of-run
  * lines ({@code utils/dungeons/map/handlers/ClearInfoUpdater.checkSplits} + {@code map/core/RoomTile.state}
  * observer): when a room on the dungeon map item flips from open (undiscovered / discovered / unopened) to done
  * (white check = CLEARED, green = GREEN), whoever is standing in that room at that moment is credited with the
@@ -110,7 +110,7 @@ public final class RunStatsBridge {
         return out;
     }
 
-    /** NoammAddons skips fairy and entrance rooms - nobody "clears" those. */
+    /** The reference skips fairy and entrance rooms - nobody "clears" those. */
     private static boolean isUncountedRoom(LiveMapFeature.RoomGroup group) {
         RoomEntry entry = group.entry;
         if (entry == null || entry.type == null) {

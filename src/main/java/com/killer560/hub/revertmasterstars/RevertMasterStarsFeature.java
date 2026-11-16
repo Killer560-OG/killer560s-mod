@@ -9,7 +9,7 @@ import java.util.Optional;
 
 /**
  * Reverts Hypixel's real Master Star item-name display back to the old all-red-stars look, ported from
- * QUOI's own {@code RevertMasterStars.kt}. Real mechanic: Hypixel changed Master Star items' real
+ * The {@code RevertMasterStars.kt}. Real mechanic: Hypixel changed Master Star items' real
  * display name from "some stars red, rest white" to a single numbered pip character (➊-➎) appended
  * after the real "✪✪✪✪✪" star sequence; this finds that real pattern and recolors exactly as many
  * leading stars red as the pip number says, removing the pip character itself - a purely cosmetic

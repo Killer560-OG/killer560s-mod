@@ -23,10 +23,10 @@ import static com.killer560.hub.scoreboard.ScoreboardLine.formatStringNum;
 import static com.killer560.hub.scoreboard.ScoreboardLine.isZero;
 
 /**
- * The reorderable Custom Scoreboard lines - SkyHanni's {@code ScoreboardConfigElement} + {@code elements/ScoreboardElement*}.
- * Default order and default-on set follow SkyHanni's {@code defaultOptions} (SB Level and Chunked Stats are off by
- * default like SkyHanni). Mayor, Cookie Buff, Maxwell Power/Tuning and Quiver read {@link ScoreboardExtraData}.
- * {@link #showIsland()} is SkyHanni's island filter (skipped while the island is unknown, e.g. on
+ * The reorderable Custom Scoreboard lines - the {@code ScoreboardConfigElement} + {@code elements/ScoreboardElement*}.
+ * Default order and default-on set follow the {@code defaultOptions} (SB Level and Chunked Stats are off by
+ * default). Mayor, Cookie Buff, Maxwell Power/Tuning and Quiver read {@link ScoreboardExtraData}.
+ * {@link #showIsland} is the island filter (skipped while the island is unknown, e.g. on
  * p3sim); {@link #showWhen()} only applies with "Hide Irrelevant Lines" on.
  */
 public enum ScoreboardEntry {
@@ -225,7 +225,7 @@ public enum ScoreboardEntry {
         @Override
         List<ScoreboardLine> lines(CustomScoreboardConfig cfg) {
             if (!cfg.isShowUnclaimedBits()) return number(cfg, "Bits", "bits", ChunkedStat.BITS.raw(), "§b");
-            // SkyHanni CustomScoreboardUtils.getBitsLine with "Show unclaimed bits".
+            // The reference CustomScoreboardUtils.getBitsLine with "Show unclaimed bits".
             String raw = ChunkedStat.BITS.raw();
             long available = ScoreboardExtraData.bitsAvailable();
             String bits = raw == null ? "0" : formatStringNum(raw.trim());
@@ -569,7 +569,7 @@ public enum ScoreboardEntry {
                     }
                 }
             }
-            // SkyHanni ScoreboardElementMayor.addJerryMayor: Mayor Jerry's Perkpocalypse mayor (read from /calendar).
+            // The reference ScoreboardElementMayor.addJerryMayor: Mayor Jerry's Perkpocalypse mayor (read from /calendar).
             String jerryMayor = cfg.isShowJerryMayor() && "Jerry".equals(mayor.name()) ? ScoreboardExtraData.jerryMayor() : null;
             if (jerryMayor != null) {
                 String jerryTime = cfg.isShowMayorTime() ? " §7(§6" + ScoreboardLine.formatDuration(
@@ -760,7 +760,7 @@ public enum ScoreboardEntry {
     private static final Pattern VISITING_AMOUNT = Pattern.compile("(?:§.)*(\\d+)(?:§.)*/(\\d+)");
     private static final Pattern COLOR_CODE = Pattern.compile("§[0-9a-fA-F]");
 
-    /** SkyHanni's {@code SkyBlockTime.formatted(timeFormat24h = true)} applied to the sidebar's "10:40pm" line. */
+    /** The {@code SkyBlockTime.formatted(timeFormat24h = true)} applied to the sidebar's "10:40pm" line. */
     static String to24h(String line) {
         if (line == null) return null;
         Matcher m = TIME_12H.matcher(line);
@@ -777,7 +777,7 @@ public enum ScoreboardEntry {
     private static final long SKYBLOCK_DAY_MS = 20L * 60 * 1000;
 
     /**
-     * SkyHanni's {@code SkyBlockTime.now().formatted(exactMinutes = true)}: the sidebar only moves in 10-minute steps, so
+     * The {@code SkyBlockTime.now.formatted(exactMinutes = true)}: the sidebar only moves in 10-minute steps, so
      * the time is computed from the SkyBlock epoch and swapped into the sidebar line (keeping its weather symbol).
      */
     static String exactTime(String line, boolean h24, long nowMs) {
@@ -828,7 +828,7 @@ public enum ScoreboardEntry {
         return d == null ? -1L : Math.max(0L, Math.round(d));
     }
 
-    /** SkyHanni's {@code HypixelData.getMaxPlayersForCurrentServer} with the SkyHanni-REPO {@code IslandType.json} caps. */
+    /** The {@code HypixelData.getMaxPlayersForCurrentServer} with the public {@code IslandType.json} caps. */
     static int maxIslandPlayers() {
         String visiting = firstMatches(ScoreboardPattern.VISITING, sidebar());
         if (visiting != null) {
@@ -857,7 +857,7 @@ public enum ScoreboardEntry {
         };
     }
 
-    /** SkyHanni {@code ElectionApi.mayorNameWithColorCode}. */
+    /** The reference {@code ElectionApi.mayorNameWithColorCode}. */
     static String candidateName(String name) { return candidateColor(name) + name; }
 
     private static String candidateColor(String name) {

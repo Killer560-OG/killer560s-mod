@@ -9,7 +9,7 @@ import java.util.List;
 /**
  * Optional highlight for the Energy Crystals that are really in the world during F7/M7 Phase 1.
  * <p>
- * NoammAddons' {@code MaxorsCrystals.kt} has NO highlight and NO crystal coordinates, so nothing here is drawn
+ *  has NO highlight and NO crystal coordinates, so nothing here is drawn
  * from a hardcoded position: every box is the bounding box of a live {@code END_CRYSTAL} entity. Depth-tested
  * through the repo's shared {@link WorldRenderUtils} (the same renderer {@code f7spots/F7SpotsRenderer} and
  * {@code thorn}'s stun spots use) - informational marker, not an ESP, and the repo's through-walls pipelines are

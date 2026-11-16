@@ -42,12 +42,12 @@ import com.killer560.hub.compat.McCompat;
 
 /**
  * Game data the Custom Scoreboard needs beyond the sidebar/tab list, cached and persisted to
- * {@code config/killer560/interface/customscoreboard/killer560smod-customscoreboard/data.json} so it survives restarts (SkyHanni keeps these in its
+ * {@code config/killer560/interface/customscoreboard/killer560smod-customscoreboard/data.json} so it survives restarts (the reference keeps these in its
  * profile storage; one global cache here):
  * <ul>
- * <li><b>Mayor / Minister</b> - Hypixel's keyless {@code /v2/resources/skyblock/election} (SkyHanni's
+ * <li><b>Mayor / Minister</b> - Hypixel's keyless {@code /v2/resources/skyblock/election} (the
  * {@code ElectionApi.hypixelElectionApiStatic}), refetched every 10 minutes while the Mayor line is on;</li>
- * <li><b>Cookie Buff</b> - {@code EffectsAPI} (SkyBlockAPI) / {@code BitsApi} (SkyHanni): the tab footer's "Cookie Buff"
+ * <li><b>Cookie Buff</b> - {@code EffectsAPI} (SkyBlockAPI) / {@code BitsApi}: the tab footer's "Cookie Buff"
  * block, the Active Effects tab widget, the SkyBlock Menu's Booster Cookie item and the "You consumed a Booster
  * Cookie!" chat line;</li>
  * <li><b>Maxwell power, Magical Power and tunings</b> - {@code MaxwellApi}: the "Your Bags" menu's Accessory Bag item,
@@ -64,7 +64,7 @@ public final class ScoreboardExtraData {
     private static final Path DATA_PATH = CustomScoreboardConfig.DATA_DIR.resolve("data.json");
     private static final URI ELECTION_URI = ModNet.uri("hypixel", "https://api.hypixel.net/v2/resources/skyblock/election");
 
-    // ---- SkyBlock calendar (SkyHanni SkyBlockTime) ----
+    // ---- SkyBlock calendar (the reference SkyBlockTime) ----
     private static final long SKYBLOCK_EPOCH_MS = 1559829300000L;
     private static final long SKYBLOCK_YEAR_MS = 124L * 60 * 60 * 1000;
     private static final long SKYBLOCK_MONTH_MS = SKYBLOCK_YEAR_MS / 12;
@@ -199,7 +199,7 @@ public final class ScoreboardExtraData {
         }
     }
 
-    // ---- bits available / powder totals (SkyHanni BitsApi.updateBits / HotmApi.PowderType.setAmount) ----
+    // ---- bits available / powder totals (the reference BitsApi.updateBits / HotmApi.PowderType.setAmount) ----
 
     /** Bits gained on the sidebar come out of "Bits Available" (claimed from the cookie buff). */
     private static void trackBits() {
@@ -293,7 +293,7 @@ public final class ScoreboardExtraData {
         return -1;
     }
 
-    // ---- Perkpocalypse mayor (SkyHanni ElectionApi.jerryExtraMayor) ----
+    // ---- Perkpocalypse mayor (the reference ElectionApi.jerryExtraMayor) ----
 
     /** Calendar's "Mayor Jerry" item: the first Perkpocalypse perk (2 lines under the header) names the extra mayor. */
     private static void readCalendar(List<Slot> slots) {
@@ -325,7 +325,7 @@ public final class ScoreboardExtraData {
         }
     }
 
-    /** SkyHanni {@code ElectionCandidate.getMayorFromPerk} for the mayors Perkpocalypse can pick. */
+    /** The reference {@code ElectionCandidate.getMayorFromPerk} for the mayors Perkpocalypse can pick. */
     static String mayorFromPerk(String perk) {
         return switch (perk) {
             case "SLASHED Pricing", "Slayer XP Buff", "Pathfinder" -> "Aatrox";

@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Creation Cooldown ({@link com.killer560.hub.creationcooldown.CreationCooldownFeature}): the HUD and Block Instance
- *  Creation are two features with a switch each (SkyHanni's two feature toggles), so the card is ON while either is. */
+ *  Creation are two features with a switch each (the two feature toggles), so the card is ON while either is. */
 public class CreationCooldownTab extends BaseTab {
 
     public CreationCooldownTab() {

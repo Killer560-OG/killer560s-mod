@@ -22,7 +22,7 @@ import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
- * Real Skyblock item browser panel, referencing the classic Not Enough Updates (NEU) 1.8.9 mod's own
+ * Real Skyblock item browser panel, referencing the classic Not Enough Updates 1.8.9 mod's own
  * real item panel per killer560's own description ("I essentially want neu's search feature... best
  * reference for you"). Draws a persistent, searchable grid of every real Skyblock item on the side of
  * any real {@link AbstractContainerScreen}, sharing the exact same search query as
@@ -50,7 +50,7 @@ import java.util.stream.Collectors;
  * <p>
  * 2026-10-11 (killer560): the panel has no search box of its own any more - "Do not move my search bar above the
  * menu the search bar should stay in the bottom middle of my screen like normal" - it filters by Inventory Search's
- * bar at the bottom middle. Hovering an item shows its real tooltip (NEU repo lore, {@link NeuItemData}); the panel is
+ * bar at the bottom middle. Hovering an item shows its real tooltip (the reference repo lore, {@link NeuItemData}); the panel is
  * drawn inside the container's own render pass ({@code ItemBrowserRenderMixin}, {@code ItemBrowserRecipeBookRenderMixin})
  * so its tooltip is set before the frame's deferred tooltip pass, the way the Storage Overlay does it. Every minion's
  * tiers collapse into one cell that opens a tier picker ({@link ItemCraftView#openTiers}). Sorting defaults to value
@@ -531,11 +531,11 @@ public final class ItemBrowserFeature {
         }
     }
 
-    /** The item's tooltip: its real lore from the NEU item repo once that has arrived (killer560, 2026-10-11:
+    /** The item's tooltip: its real lore from the reference item repo once that has arrived (killer560, 2026-10-11:
      *  "make it so hovering something there shows its tooltip"), else what Hypixel's catalog has (name, tier,
      *  category, description, NPC sell price). Ends with the value and a hint line. Public for the craft view. */
     public static List<Component> buildTooltipLines(SkyblockItemEntry entry) {
-        // Asked every frame the mouse rests on a cell. The answer only changes with the entry, whether its NEU lore has
+        // Asked every frame the mouse rests on a cell. The answer only changes with the entry, whether its the reference lore has
         // arrived, its price, or whether the tier picker is open, so the last one built is kept (a wrapped description
         // and the Component list were rebuilt per frame). Callers only read the list.
         List<SkyblockItemEntry> tiers = minionTiers(entry);

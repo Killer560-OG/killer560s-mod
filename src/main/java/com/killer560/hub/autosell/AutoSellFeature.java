@@ -26,7 +26,7 @@ import com.killer560.hub.compat.McCompat;
 /**
  * Auto Sell (killer560: "add an auto sell feature you can refrence quoi for it").
  * <p>
- * <b>What QUOI actually has</b> - read in full before anything here was written, at
+ * <b>What the reference actually has</b> - read in full before anything here was written, at
  * {@code quoi-1.1.0/src/main/kotlin/quoi/module/impl/**} (every {@code .kt} file under {@code dungeon/},
  * {@code mining/}, {@code misc/}, {@code player/} and {@code render/}): <b>there is no auto-sell module in that
  * source at all.</b> A {@code grep -ri sell} across the whole tree turns up exactly two incidental hits, neither
@@ -34,7 +34,7 @@ import com.killer560.hub.compat.McCompat;
  * happens to mention "Stops movement in sell guis + terminals" (Inventory Walk is a movement-in-containers
  * feature, not a seller), and {@code misc/ChatReplacements.kt}, which rewrites the NPC broadcast chat line
  * "Selling multiple items for a limited time!" (a chat-spam filter, not a click automation). So this feature is
- * NOT a port of anything QUOI does - there is nothing there to port. It follows this mod's OWN established
+ * NOT a port of anything the reference does - there is nothing there to port. It follows this mod's OWN established
  * screen-clicking shape instead ({@code croesus/AutoCroesusFeature}: an explicit start, one state machine tick,
  * one real {@code ContainerInput} click per tick through {@link ActionGate}, stop on any unexpected screen).
  * <p>
@@ -324,7 +324,7 @@ public final class AutoSellFeature {
      * A screen Auto Sell sells in: its title matches the sell pattern ("Trades" and anything with "sell"/"trade"), or
      * - with Any NPC Sell Menu on (killer560, 2026-11-01: "it should sell in any npc menu that you can sell into not just
      * the trades menu") - it is a Hypixel NPC shop, told by the hopper in slot 49 whose lore says "Click items in your
-     * inventory to sell" or ends "Click to buyback" (Item Protection's sell-menu test, from Devonian).
+     * inventory to sell" or ends "Click to buyback" (Item Protection's sell-menu test, from the reference).
      */
     static boolean isSellScreen(AbstractContainerScreen<?> screen, AutoSellConfig cfg) {
         if (compileOrDefault(cfg.getScreenTitlePattern()).matcher(titleOf(screen)).matches()) {

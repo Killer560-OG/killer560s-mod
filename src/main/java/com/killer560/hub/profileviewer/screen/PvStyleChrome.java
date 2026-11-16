@@ -13,7 +13,7 @@ import net.minecraft.resources.Identifier;
  * {@code textures/gui/sprites/pv/} are NotEnoughUpdates' (LGPL-3.0: pv_bg, pv_elements, pv_dung, pv_dropdown),
  * SkyBlockPv's (non-code CC BY 4.0: its default, darkmode and neu theme sprites) and Olympus' (MIT: the dark button);
  * THIRD-PARTY-NOTICES.md credits them. Layout numbers are theirs:
- * NEU GuiProfileViewer.java:279-282 (431 x 202, centered), :690-708 (28 px tabs from guiLeft at guiTop - 28, the
+ * :279-282 (431 x 202, centered),:690-708 (28 px tabs from guiLeft at guiTop - 28, the
  * pressed one 32 tall over the panel, the item at +6,+9), :331-357 (100 x 20 dropdowns 3 px under the panel);
  * SkyBlockPv BaseWindowedPvScreen.kt:85-86 (height 65% of the screen, 16:9), :138 + :309-329 (20 x 31 tabs from
  * x + 20 at y - 22, 2 px apart, drawn over the panel), :505 (the profile dropdown under the panel's left corner),
@@ -56,7 +56,7 @@ final class PvStyleChrome {
         };
     }
 
-    /** NEU's page overlays (pv_basic.png, pv_dung.png), drawn over pv_bg at the panel's corner (GuiProfileViewer's
+    /** The page overlays (pv_basic.png, pv_dung.png), drawn over pv_bg at the panel's corner (GuiProfileViewer's
      *  per-page {@code Minecraft.getTextureManager().bindTexture(pv_*)} at guiLeft, guiTop). */
     static final Identifier NEU_BASIC = id("neu/pv_basic");
     static final Identifier NEU_DUNG = id("neu/pv_dung");
@@ -65,7 +65,7 @@ final class PvStyleChrome {
             NEU_PET_SEL = id("neu/pet_sel"), NEU_PETS = id("neu/pv_pets"),
             NEU_COLS = id("neu/pv_cols"), NEU_CRIMSON = id("neu/pv_crimson"),
             NEU_MUSEUM = id("neu/pv_museum"), NEU_BESTIARY = id("neu/pv_bestiary"), NEU_RIFT = id("neu/pv_rift"), NEU_GARDEN = id("neu/pv_garden");
-    /** NEU's boxes, {x, y, w, h} from the panel corner, measured off the two textures' painted areas. */
+    /** The boxes, {x, y, w, h} from the panel corner, measured off the two textures' painted areas. */
     static final int[] NEU_BASIC_MODEL = {23, 44, 81, 108}, NEU_BASIC_STATS = {128, 49, 89, 95}, NEU_BASIC_SKILLS = {232, 15, 181, 172};
     static final int[] NEU_DUNG_LEVEL = {16, 16, 124, 55}, NEU_DUNG_STATS = {16, 76, 124, 57}, NEU_DUNG_CLASS = {16, 138, 124, 48},
             NEU_DUNG_FLOORS = {154, 16, 124, 170}, NEU_DUNG_CLASSES = {292, 16, 124, 170};
@@ -130,7 +130,7 @@ final class PvStyleChrome {
 
     static int tabW(Style s) { return s == Style.NEU ? 28 : 20; }
 
-    /** The tab sprite's height; NEU's pressed tab is one taller. */
+    /** The tab sprite's height; the pressed tab is one taller. */
     static int tabH(Style s) { return 31; }
 
     /** How far above the panel's top the tabs start. */

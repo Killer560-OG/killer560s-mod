@@ -27,8 +27,8 @@ import java.util.regex.Pattern;
 
 /**
  * Hoppity's Hunt egg calculator - the legit half of the egg request (killer560, 2026-10-19: "make the chocolate factory
- * also do egg calculations"). Read-only: it never clicks, never sends anything. It works out, the way SkyHanni's
- * Hoppity egg timers and Skyblocker's egg finder do (both read for behavior only, see {@link HoppityCalendar}):
+ * also do egg calculations"). Read-only: it never clicks, never sends anything. It works out, the way the
+ * Hoppity egg timers and the egg finder do (both read for behavior only, see {@link HoppityCalendar}):
  * <ul>
  * <li>for each meal (Breakfast/Brunch, Lunch/Dejeuner, Dinner/Supper) whether its live egg is still to find, found,
  * or unknown (you logged in after it spawned and no chat line has said), and when the next one spawns;</li>
@@ -106,7 +106,7 @@ public final class HoppityEggs {
             }
         });
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(HoppityEggs::tickLocator);
-        // The use itself, as SkyHanni's ItemClickEvent: a tap shorter than a tick is down and up again between two client
+        // The use itself ItemClickEvent: a tap shorter than a tick is down and up again between two client
         // ticks, so the key-state edge in tickLocator alone missed it, and the trail that followed was ignored.
         net.fabricmc.fabric.api.event.player.UseItemCallback.EVENT.register((player, level, hand) -> {
             if (level.isClientSide() && player == Minecraft.getInstance().player) {
@@ -218,7 +218,7 @@ public final class HoppityEggs {
             return;
         }
         if (NONE_NEARBY.matcher(plain).matches()) {
-            // The Egglocator's "none left" answer: Skyblocker reads it as every live egg collected, and so do we.
+            // The Egglocator's "none left" answer: the reference reads it as every live egg collected, and so do we.
             java.util.Arrays.fill(status, Status.FOUND);
             java.util.Arrays.fill(eggStatus, Status.FOUND);
             LocatorTrail.clearGuess("none nearby");
@@ -301,7 +301,7 @@ public final class HoppityEggs {
         return stack != null && !stack.isEmpty() && stack.getHoverName().getString().contains("Egglocator");
     }
 
-    /** A use of {@code stack}: when it is the Egglocator and off cooldown (SkyHanni: 5 s since the last), a trail begins. */
+    /** A use of {@code stack}: when it is the Egglocator and off cooldown (5 s since the last), a trail begins. */
     private static void locatorClicked(net.minecraft.world.item.ItemStack stack) {
         long now = System.currentTimeMillis();
         if (!on() || !isLocator(stack) || !SkyblockGate.allows() || now < locatorUsedMs + LOCATOR_COOLDOWN_MS) {

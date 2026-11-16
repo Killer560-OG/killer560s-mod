@@ -31,7 +31,7 @@ import java.util.regex.Pattern;
  * a circle area of affect option to show a circle and if you are in it then you get its affect. also add a hud timer").
  *
  * <p>A placed lantern (Dwarven, Mithril, Titanium, Glacite, Will-o'-wisp: 30 blocks, 5 minutes, mining speed and fortune)
- * shows Hypixel's own label armor stand named {@code "<Name> <seconds>s"} (the shape SkyHanni's Deployable patterns read,
+ * shows Hypixel's own label armor stand named {@code "<Name> <seconds>s"} (the shape the Deployable patterns read,
  * e.g. "Umberella 298s"; facts only, no code taken). That one stand is the whole signature: its position is the center
  * every range check measures from, and its counting name is the timer. Power orbs, the Umberella and Black Holes carry the
  * same label, so "Other Deployables" adds them for free; flares carry no label (only a skull), and are not covered.
@@ -65,7 +65,7 @@ public final class MiningDeployables {
         final String color;
         public final int radius;
         public final boolean lantern;
-        /** Buffs the whole Glacite Mineshaft (SkyHanni's fullShaft; the Mineshaft is wider than entity render range). */
+        /** Buffs the whole Glacite Mineshaft (the fullShaft; the Mineshaft is wider than entity render range). */
         final boolean wholeMineshaft;
 
         Kind(String label, String color, int radius, boolean lantern, boolean wholeMineshaft) {

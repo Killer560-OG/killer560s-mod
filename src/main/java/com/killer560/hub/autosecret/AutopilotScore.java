@@ -4,7 +4,7 @@ import com.killer560.hub.scorecalc.ScoreCalculator;
 
 /**
  * Dungeon Autopilot's score model - pure, no Minecraft state, so the testkit can drive it with made-up floors. It is
- * the mod's own score formula ({@link ScoreCalculator}, Odin/NoammAddons/Skytils) turned into "what is one more of this
+ * the mod's own score formula ({@link ScoreCalculator}, other implementations) turned into "what is one more of this
  * worth":
  * <ul>
  *   <li><b>A room</b> (a clear, or a puzzle's room): 60 room score + 80 skill spread over every room, so
@@ -26,7 +26,7 @@ public final class AutopilotScore {
 
     /** Secrets past the formula's bare minimum, for the run's unknowns (a mimic the calculator missed, a late death). */
     public static final int SECRET_MARGIN = 1;
-    /** Skill points an unfinished puzzle costs (Odin's puzzle penalty). */
+    /** Skill points an unfinished puzzle costs (the puzzle penalty). */
     public static final double PUZZLE_POINTS = 10.0;
     /** Party: what a secret past the S+ need is still worth, as a share of a needed one. */
     public static final double PARTY_SPARE_SECRET_WEIGHT = 0.25;

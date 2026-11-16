@@ -46,7 +46,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * The /pv screen. Layout follows NEU's old GuiProfileViewer (fixed panel, page tabs along the top, profile
+ * The /pv screen. Layout follows the old GuiProfileViewer (fixed panel, page tabs along the top, profile
  * picker in the corner) in this mod's black + orange chrome (same colors as {@code ModScreen} /
  * {@code StorageSearchScreen}). Drawn immediate-mode: each frame registers its clickable regions, and
  * {@link #mouseClicked} hit-tests the last frame's list. The only real widget is the 3D skin preview.
@@ -665,7 +665,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
 
     /** NEU blurs the world behind its translucent panel; SkyBlockPV dims it with vanilla's gradient, and blurs too only
-     *  in its NEU theme (BaseWindowedPvScreen.kt:546-552, "background_blur"). Default keeps the vanilla menu background. */
+     *  in its the reference theme (BaseWindowedPvScreen.kt:546-552, "background_blur"). Default keeps the vanilla menu background. */
     @Override
     public void extractBackground(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         switch (pvStyle) {
@@ -708,7 +708,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                 drawIconTabs(g, mouseX, mouseY, true);
             }
             PvStyleChrome.frame(g, pvStyle, panelX, panelY, panelW, panelH);
-            Identifier over = !neuPage() ? null : switch (page) { // NEU's Mining page has none: plain pv_bg
+            Identifier over = !neuPage() ? null : switch (page) { // The Mining page has none: plain pv_bg
                 case PAGE_BASIC -> PvStyleChrome.NEU_BASIC;
                 case PAGE_DUNGEONS -> PvStyleChrome.NEU_DUNG;
                 case PAGE_INVENTORIES -> PvStyleChrome.NEU_INVS;
@@ -798,7 +798,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             nameX = panelX + 16 + this.font.width("Profile Viewer");
             tx(g, "·", nameX - 4, panelY + 8, DIM);
         }
-        if (!neuPage() || page == PAGE_BASIC) { // NEU draws the name on its Basic page only
+        if (!neuPage() || page == PAGE_BASIC) { // The reference draws the name on its Basic page only
             tx(g, displayName == null ? "" : displayName, nameX + 4, panelY + 8, VALUE);
         }
 
@@ -808,7 +808,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         String refresh = "⟳ Refresh";
         int bh, rx, ry, rw, px, py, pw, sx, sy, sw;
         if (pvStyle == ProfileViewerConfig.Style.NEU) {
-            // NEU: 100 x 20 dropdowns 3 px under the panel, 106 apart (GuiProfileViewer.java:331-357).
+            // 100 x 20 dropdowns 3 px under the panel, 106 apart (GuiProfileViewer.java:331-357).
             bh = 20;
             px = panelX; py = panelY + panelH + 3; pw = 100;
             sx = 5; sy = 5; sw = this.font.width(styleLabel) + 10; // the Style button is top left in every style (killer560, 2026-11-09)
@@ -892,7 +892,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     }
 
     /** NEU's and SkyBlockPV's page tabs, one row of item icons on the panel's top edge, the page name on hover.
-     *  {@code unpressed} draws the tabs not selected (NEU: before the panel), else the selected one, the icons and
+     *  {@code unpressed} draws the tabs not selected (before the panel), else the selected one, the icons and
      *  hotspots, and SkyBlockPV's page name under the panel. */
     private void drawIconTabs(GuiGraphicsExtractor g, int mx, int my, boolean unpressed) {
         int w = PvStyleChrome.tabW(pvStyle);
@@ -1344,7 +1344,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         int rh = neu ? nsk[3] : contentH;
         box(g, rx, contentY, rw, contentH);
 
-        // Skills: 6 rows, then Slayers: 2 rows; rows close up (21 -> 17) to fit NEU's 202 px panel.
+        // Skills: 6 rows, then Slayers: 2 rows; rows close up (21 -> 17) to fit the 202 px panel.
         int rowH = Math.max(17, Math.min(21, (rh - 31) / 8));
         int sy = (neu ? panelY + nsk[1] : contentY) + 5;
         if (p.skillXp == null) {
@@ -1415,7 +1415,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         tx(g, total, rx + rw - 6 - this.font.width(total), sy, VALUE);
     }
 
-    /** Icon + "Name Level" + progress bar, NEU style. Hover shows XP numbers. */
+    /** Icon + "Name Level" + progress bar, the reference style. Hover shows XP numbers. */
     void bar(GuiGraphicsExtractor g, int x, int y, int w, ItemStack icon, String name, LevelTables.Level lvl,
                      int mx, int my, long totalXp) {
         bar(g, x, y, w, icon, name, lvl, mx, my, totalXp, null);
@@ -1654,7 +1654,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                 invPage = 0;
                 invScroll = 0;
             };
-            if (neu) { // NEU's selector: pv_elements cells, 3 a row, the item numbered (InventoriesPage)
+            if (neu) { // The selector: pv_elements cells, 3 a row, the item numbered (InventoriesPage)
                 int ix = panelX + 19 + 34 * (i % 3), iy = panelY + 26 + 34 * (i / 3), o = i == invView ? 1 : 0;
                 g.blitSprite(RenderPipelines.GUI_TEXTURED, o == 1 ? PvStyleChrome.NEU_INV_TAB_ON : PvStyleChrome.NEU_INV_TAB, ix - 2, iy - 2, 20, 20);
                 g.item(INV_ICONS[i], ix + o, iy + o);
@@ -1677,7 +1677,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             }
         }
 
-        // NEU: everything right of pv_invs' second line (x 221) is the selected inventory's.
+        // Everything right of pv_invs' second line (x 221) is the selected inventory's.
         // SkyBlockPV: the views float on the window, no boxes.
         int rx = neu ? panelX + 222 : sbpv ? contentX : contentX + navW + 6;
         int rw = neu ? PvStyleChrome.NEU_W - 226 : sbpv ? contentW : contentW - navW - 6;
@@ -1798,7 +1798,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         }
     }
 
-    /** NEU's Inventory view on pv_invs: armor and equipment in its 2 x 4 box (InventoriesPage: armor at 173, 67 - 18i,
+    /** The Inventory view on pv_invs: armor and equipment in its 2 x 4 box (InventoriesPage: armor at 173, 67 - 18i,
      *  equipment at 192, 13 + 18i; its weapon, rod and tool boxes stay empty, we have no "best item" pick), and the
      *  inventory in a vanilla chest panel centered on 320, 101 with the hotbar as its fourth row. */
     private void drawNeuInventory(GuiGraphicsExtractor g, SbProfile.Inventories inv, int mx, int my) {
@@ -1990,7 +1990,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         slotItem(g, x, y, stack, mx, my);
     }
 
-    /** The item of an 18 px slot at x, y, without the cell (NEU's page textures paint their own). */
+    /** The item of an 18 px slot at x, y, without the cell (the page textures paint their own). */
     void slotItem(GuiGraphicsExtractor g, int x, int y, ItemStack stack, int mx, int my) {
         if (!stack.isEmpty()) {
             rarity(g, stack, x + 1, y + 1);

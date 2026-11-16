@@ -10,7 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Persisted Chocolate Factory helper settings (the legit, SkyHanni-style one) - see {@link ChocolateFactoryHelper}.
+/** Persisted Chocolate Factory helper settings (the legit, one) - see {@link ChocolateFactoryHelper}.
  *  The master switch ships off, like every new feature; its parts default on so turning it on shows everything. */
 public final class ChocolateFactoryConfig {
 

@@ -63,7 +63,7 @@ import com.killer560.hub.gui.ThemeAccent;
  *   <li><b>Solver</b> - per killer560's explicit correction (2026-09-06): this must never click
  *   anything. It only calls {@link ExperimentSolver#observe} (the same tested game-state tracking the
  *   bot itself relies on) and highlights the correct slot(s) on screen - the exact same idea as
- *   SkyHanni's own "Next Click Helper." A human using only this mode is doing 100% manual clicking; the
+ *   the "Next Click Helper." A human using only this mode is doing 100% manual clicking; the
  *   mod just tells them where to click.</li>
  * </ul>
  */
@@ -156,7 +156,7 @@ public final class ExperimentsFeature {
      *  keyed by slot - per killer560's "show everything as the default item texture... instead of the
      *  glass pane for that box." A known-but-currently-recovered tile (flipped back to its covering
      *  glass pane, the normal memory-game behavior) still needs SOMETHING to render, since the real
-     *  vanilla item render only ever shows what's ACTUALLY in the slot right now. Mirrors SkyHanni's own
+     *  vanilla item render only ever shows what's ACTUALLY in the slot right now. Mirrors the
      *  {@code superpairsSlotMap: MutableMap<Int, SafeItemStack>}. Slot keys are a small fixed range
      *  (9-44) that just get overwritten round after round, so this never grows unbounded. */
     private static final Map<Integer, ItemStack> superpairsIconCache = new HashMap<>();
@@ -530,7 +530,7 @@ public final class ExperimentsFeature {
                     highlightSlot(graphics, menu, entry.getKey(), left, top, HIGHLIGHT_KNOWN_SINGLE_COLOR, entry.getValue());
                 }
                 // Per killer560's request: always show SOMETHING once the board is visible, the same way
-                // SkyHanni's own Next Click Helper does, instead of going blank whenever nothing at all
+                // The Next Click Helper does, instead of going blank whenever nothing at all
                 // is known yet (right at the very start of a board) - suggests the next exploration
                 // click instead. No name to show for this one - its contents are genuinely unknown.
                 // Per killer560's follow-up (2026-09-08): "remove the green box that always outlines the
@@ -933,7 +933,7 @@ public final class ExperimentsFeature {
                 // exact same tested game state so the highlight overlay (renderHighlights) is accurate,
                 // but NEVER click anything - per killer560's explicit "that mode shouldn't click at all
                 // inside of the exp table. It should only highlight the correct blocks the exact same way
-                // skyhanni does." Observation still runs while the automation is on-but-unarmed even with
+                // another mod does." Observation still runs while the automation is on-but-unarmed even with
                 // the solver's highlights switched off, exactly as it did before the 2026-09-30 split -
                 // only the DRAWING is what the solver toggle now controls.
                 SOLVER.observe(cells, cfg.isSuperpairsValuableOnly(), now);
@@ -1158,7 +1158,7 @@ public final class ExperimentsFeature {
             return SOLVER.currentChainLength() >= cap;
         }
         // MAX_CLICKS: only stop once real "Chain of N:"/"Series of N:" lore was actually found -
-        // no manual fallback number, per killer560's explicit "I want skyhanni's format of auto
+        // no manual fallback number, per killer560's explicit "I want another mod's format of auto
         // detection not manual choice." If it's never found, this strategy just never backs out.
         return roundsAtOrOverMaxClicksThreshold(mode);
     }
@@ -1167,7 +1167,7 @@ public final class ExperimentsFeature {
      *  {@link ExperimentStopStrategy} - Solver Only's max-clicks chat notification (see
      *  {@link #maybeNotifyMaxClicksReached}) always uses this specific detection regardless of the
      *  configured stop strategy, since Solver Only doesn't expose or use that setting at all (it's an
-     *  Autonomous-only concept - see {@code ExperimentsTab}). Threshold mirrors SkyHanni's own
+     *  Autonomous-only concept - see {@code ExperimentsTab}). Threshold mirrors the
      *  comparison exactly (SuperpairsClicksAlert.kt): Chronomatron checks round > roundsNeeded,
      *  Ultrasequencer checks round > roundsNeeded - 1 (a documented Hypixel bug makes Ultrasequencer
      *  need one fewer round) - both rewritten here as >= so they compose with currentChainLength()
@@ -1206,7 +1206,7 @@ public final class ExperimentsFeature {
         }
         if (mode == ExperimentSolver.Mode.SUPERPAIRS) {
             // 2026-09-15 roadmap: Superpairs has a real click budget of its own - the board's slot-4
-            // "Remaining Clicks: N" item (SkyHanni SuperpairDataDisplay.kt). Only fires once a positive
+            // "Remaining Clicks: N" item. Only fires once a positive
             // count was seen on THIS board first, so a stale/ended board can't trigger it on open.
             if (superpairsMaxRemainingClicksSeen > 0 && superpairsLastRemainingClicks == 0) {
                 notifySuperpairsClicksUsedUp();
@@ -1357,7 +1357,7 @@ public final class ExperimentsFeature {
      *  sequence: this used to also enforce a hard 50ms lockout after EVERY click attempt (not just
      *  confirmed-correct ones), which ended up blocking a genuinely correct SECOND click whenever it
      *  landed within that window - indistinguishable, from a pure timer's perspective, from a
-     *  duplicate/misclick. Removed entirely per killer560's own suggestion to check how SkyHanni does
+     *  duplicate/misclick. Removed entirely per killer560's own suggestion to check how the reference does
      *  this: its real (decompiled) ExperimentsAddonsHelper.handleChronomatronClick/
      *  handleUltrasequencerClick uses no timing gate anywhere - purely comparing each click against
      *  {@code expected[userProgress.size()]}, so a genuine duplicate naturally fails to match once the
@@ -1371,7 +1371,7 @@ public final class ExperimentsFeature {
      *  sends {@code ContainerInput.PICKUP} and (since these panes are real items) actually picks the
      *  note up into his cursor. The autonomous auto-clicker never had this problem, since
      *  {@link #clickSlot} has always sent {@code ContainerInput.CLONE} (pick-block) instead - a no-op
-     *  for real item movement in survival, matching SkyHanni's own {@code makePickblock()} exactly. A
+     *  for real item movement in survival exactly. A
      *  correct click here now gets the same treatment: canceled and redirected through
      *  {@code clickSlot} instead of being let through as-is, so it registers with Hypixel exactly like
      *  before but never actually picks anything up.
@@ -1525,7 +1525,7 @@ public final class ExperimentsFeature {
     /**
      * Once the configured max chain length is reached, autonomous mode backs out instead of
      * continuing to grind: looks for an item whose lore says to claim rewards (same real text
-     * SkyHanni's own claim-detection uses - "Click to claim rewards!") and clicks it if present,
+     * The claim-detection uses - "Click to claim rewards!") and clicks it if present,
      * otherwise presses escape (via the screen's own onClose(), exactly what the Escape key does -
      * verified via javap that this is what actually notifies the server the container closed,
      * unlike just blanking the screen). Paced the same fixed 1s as menu navigation.
@@ -1591,7 +1591,7 @@ public final class ExperimentsFeature {
                 superpairsViewFor = null;
                 // If the board jumped straight to its reward screen on the last click, the "0" may
                 // never have been rendered for a tick - treat "last seen <= 1, then the reward screen"
-                // as the clicks being used up (reward-screen title per SkyHanni's repo pattern).
+                // as the clicks being used up (reward-screen title repo pattern).
                 ExperimentsConfig cfg = ExperimentsConfig.getInstance();
                 // Its own setting, not a sub-setting of the solver: it fires in both halves, so after the
                 // 2026-09-30 split it asks for either half rather than for the solver specifically.

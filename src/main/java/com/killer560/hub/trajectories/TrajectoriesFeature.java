@@ -24,7 +24,7 @@ import java.util.List;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Real bow-arrow / Ender Pearl trajectory prediction, ported from QUOI's own {@code Trajectories.kt}
+ * Real bow-arrow / Ender Pearl trajectory prediction
  * (simplified: no impact-face "plane" render, no in-flight entity-blocks-the-shot check, and the bow
  * charge isn't partial-tick-interpolated - all cosmetic refinements, not correctness). Real mechanic:
  * simulates the exact real vanilla projectile physics (drag 0.99/tick both axes, gravity -0.05/tick for
@@ -105,7 +105,7 @@ public final class TrajectoriesFeature {
         if (heldShortbow) {
             // killer560 (2026-10-15): a shortbow fires the moment it is clicked, always at full power, so its path shows
             // the whole time it is held - no draw. A Terminator's three arrows each get their own arc, the side ones at
-            // the same pitch and +-5 degrees of yaw. Its arrows leave from the eye (QUOI's arrowOrigin), the rest from
+            // the same pitch and +-5 degrees of yaw. Its arrows leave from the eye (the arrowOrigin), the rest from
             // the vanilla bow's hand offset.
             if (!cfg.isShowShortbows()) return;
             boolean terminator = heldTerminator;

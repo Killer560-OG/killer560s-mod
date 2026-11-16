@@ -10,7 +10,7 @@ import static com.killer560.hub.scoreboard.ScoreboardLine.formatStringNum;
 import static com.killer560.hub.scoreboard.ScoreboardLine.isZero;
 
 /**
- * The stats grouped by the "Chunked Stats" line - SkyHanni's {@code ChunkedStatsLine} / SkyBlock Custom Scoreboard's
+ * The stats grouped by the "Chunked Stats" line - the {@code ChunkedStatsLine} / SkyBlock Custom Scoreboard's
  * {@code ChunkedStat}. Each stat is only shown where its own line would be ({@link ScoreboardEntry#visible}) and, with
  * "Hide Empty Lines", only when non-zero. Also holds the raw value readers shared with the matching
  * {@link ScoreboardEntry} lines.

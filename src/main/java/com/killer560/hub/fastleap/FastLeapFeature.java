@@ -26,13 +26,13 @@ import java.util.regex.Pattern;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Fast Leap + Auto Leap - a faithful Java port of QUOI's {@code module/impl/floor7/AutoLeap.kt} (the I4 leap lives in
+ * Fast Leap + Auto Leap - a faithful Java port of (the I4 leap lives in
  * {@link I4LeapFeature}). Every leap has an enable switch, an "Auto" child and a target:
  * <ul>
  * <li><b>Fast leap</b>: left-clicking while holding a Spirit Leap / Infinileap (in a dungeon, no screen open) is
  * canceled and leaps to the target for where you are ({@link #attemptFastLeap()}), falling back to the P3 stage leap.
  * Rate-limited by "Fast leap click delay".</li>
- * <li><b>Auto</b>: QUOI's triggers - door opened (outside boss), your own Energy Crystal pickup line (P1), Storm's lightning line
+ * <li><b>Auto</b>: the triggers - door opened (outside boss), your own Energy Crystal pickup line (P1), Storm's lightning line
  * (predev), 1st/2nd Storm crush (pads), teammate reaching the PY healer spot, Storm's death line, P3 section complete
  * (or gate blown), Necron's "impressive trick" line (middle), 2nd Necron ARGH (P4), picking up a relic (P5).</li>
  * <li><b>Target</b>: each leap's own pick, a class (first alive teammate of that class, Leap Order's class picks
@@ -157,7 +157,7 @@ public final class FastLeapFeature {
         if (player == null || !cfg.isEnabled() || !DungeonState.isInDungeon()) {
             return;
         }
-        // QUOI TickEvent.End relic trigger (based on NoammAddons M7Relics)
+        // The reference TickEvent.End relic trigger (M7Relics)
         if (cfg.isLeapAuto(LeapGroup.RELIC) && !pickedUpRelic && isInRelic()) {
             ItemStack relic = player.getInventory().getItem(8);
             if (!relic.isEmpty() && ChatObserver.strip(relic.getHoverName().getString()).contains("Relic")) {
@@ -166,7 +166,7 @@ public final class FastLeapFeature {
                 leapToConfigured(LeapTarget.RELIC);
             }
         }
-        // QUOI PacketEvent.ReceivedPost PY healer trigger (based on NoammAddons LeapCounter): a teammate reaches the
+        // The reference PacketEvent.ReceivedPost PY healer trigger (LeapCounter): a teammate reaches the
         // healer PY spot while you're waiting there after the first Storm crush. Checked per tick from entity positions
         // (including a pending interpolation target) instead of raw movement packets.
         if (Floor7Tracker.inF7Boss() && Floor7Tracker.inPhase(Phase.P2) && cfg.isLeapAuto(LeapGroup.PY_HEALER)
@@ -210,7 +210,7 @@ public final class FastLeapFeature {
         PosmsgTargets.onChat(unformatted);
         Floor7Tracker.onChat(unformatted);
 
-        // QUOI Dungeon: door opener / blood open tracking
+        // The reference Dungeon: door opener / blood open tracking
         if (DungeonState.isInDungeon()) {
             Matcher door = DOOR_OPEN_REGEX.matcher(unformatted);
             if (door.matches()) {
@@ -273,7 +273,7 @@ public final class FastLeapFeature {
         }
     }
 
-    /** QUOI {@code on<DungeonEvent.DoorOpen>}. */
+    /** The reference {@code on<DungeonEvent.DoorOpen>}. */
     private static void onDoorOpen(String opener) {
         FastLeapConfig cfg = FastLeapConfig.getInstance();
         if (!cfg.isEnabled() || !cfg.isLeapAuto(LeapGroup.DOOR) || Floor7Tracker.inBoss()) {
@@ -291,7 +291,7 @@ public final class FastLeapFeature {
 
     // Left click (called from FastLeapMouseHandlerMixin for a left-button press with no screen open)
 
-    /** QUOI {@code on<MouseEvent.Click>}. @return true to cancel the click. */
+    /** The reference {@code on<MouseEvent.Click>}. @return true to cancel the click. */
     public static boolean onLeftClick() {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
@@ -408,7 +408,7 @@ public final class FastLeapFeature {
 
     // Targets
 
-    /** QUOI {@code leapToConfigured(name, clazz)} + Posmsg mode. @return whether a leap was requested. */
+    /** The reference {@code leapToConfigured(name, clazz)} + Posmsg mode. @return whether a leap was requested. */
     static boolean leapToConfigured(LeapTarget target) {
         FastLeapConfig cfg = FastLeapConfig.getInstance();
         String name = cfg.getTargetName(target);
@@ -509,7 +509,7 @@ public final class FastLeapFeature {
         return lastUsedClassTarget;
     }
 
-    // Positions (QUOI isInX helpers)
+    // Positions (the reference isInX helpers)
 
     private static boolean isIn(AABB box) {
         LocalPlayer player = Minecraft.getInstance().player;

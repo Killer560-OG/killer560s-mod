@@ -34,8 +34,7 @@ import java.util.regex.Pattern;
  * "One completed run" is Hypixel's own real chat cue, not a guess: breaking the Crystal Nucleus posts a
  * loot block starting with a line containing {@code CRYSTAL NUCLEUS LOOT BUNDLE} and ending with a long row
  * of {@code ▬} characters, with one 4-space-indented "item xN" line per reward in between. Verified against
- * the public SkyHanni mod's real, working detector (github.com/hannibal002/SkyHanni, beta branch,
- * {@code features/mining/crystalhollows/CrystalNucleusApi.kt} - {@code startPattern =
+ * a real, working detector ({@code startPattern =
  * " \s*§r§5§lCRYSTAL NUCLEUS LOOT BUNDLE.*"}, {@code endPattern = "§3§l▬{64}"}), the same kind of
  * "confirmed against a real, working detector rather than guessed" sourcing {@code IslandDetector} and
  * {@code experiments.ExperimentsProfitTracker} already use for their own patterns. Matched here on
@@ -44,13 +43,13 @@ import java.util.regex.Pattern;
  * low false-positive rate ("CRYSTAL NUCLEUS LOOT BUNDLE" / a run of 20+ {@code ▬}) while not depending on
  * exact color-code placement.
  * <p>
- * <b>Per-item pricing is best-effort</b>: SkyHanni's own {@code ItemUtils.readItemAmount} line format was
+ * <b>Per-item pricing is best-effort</b>: the {@code ItemUtils.readItemAmount} line format was
  * not available to copy, so the "itemName xN" / "N x itemName" line is parsed with the same two-shape
  * regex {@code experiments.ExperimentsProfitTracker} already uses for its own reward lines. A line that
  * doesn't parse, or an item this mod can't price (see {@link MiningItemPricer}), is skipped rather than
  * guessed - so {@link #getRunsCompleted()} (driven purely by the exact loot-block boundary) is exact, while
  * {@link #getTotalValueCoins()} is a lower bound. Mithril/Gemstone Powder lines are excluded on purpose,
- * same as SkyHanni: powder has no stable per-unit sale value on its own.
+ * same: powder has no stable per-unit sale value on its own.
  */
 public final class NucleusRunProfitTracker {
 

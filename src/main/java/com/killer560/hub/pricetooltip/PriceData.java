@@ -39,11 +39,11 @@ import java.util.concurrent.atomic.AtomicLong;
  *       {@code museum_data.category} / {@code armor_set_donation_xp}, {@code upgrade_costs} (essence and items per
  *       star) and {@code gemstone_slots[].costs} (slot unlocks). Refetched every 12 hours.</li>
  *   <li>Hypixel {@code /v2/skyblock/bazaar} ({@code hypixel}): {@code quick_status.buyPrice/sellPrice}.</li>
- *   <li>Skyblocker's public price API ({@code hysky}): {@code /api/auctions/lowestbins} and
- *       {@code /api/auctions/lowestbins/average?days=1|3}, flat {@code id -> coins} maps in Skyblocker's id format
+ *   <li>the public price API ({@code hysky}): {@code /api/auctions/lowestbins} and
+ *       {@code /api/auctions/lowestbins/average?days=1|3}, flat {@code id -> coins} maps in the id format
  *       ({@code LVL_1_LEGENDARY_GOLDEN_DRAGON}, {@code MUSIC_RUNE_3}, {@code SHINY_HYPERION}). moulberry.codes, the
  *       other well-known source, answered 525 on 2026-10-15.</li>
- *   <li>Coflnet's NEU-format list ({@code coflnet}, already used by the Profile Viewer) only as the lowest-BIN
+ *   <li>Coflnet's item-repo-format list ({@code coflnet}, already used by the Profile Viewer) only as the lowest-BIN
  *       fallback when hysky fails; its pet keys ({@code TYPE;4}) are rewritten to the hysky form.</li>
  * </ul>
  * Prices refresh every {@link PriceTooltipConfig#getRefreshMinutes()} minutes, and only while the feature is on and a
@@ -368,7 +368,7 @@ public final class PriceData {
         return List.copyOf(out);
     }
 
-    /** NEU ids (Coflnet) to the hysky form for the keys that differ: {@code GOLDEN_DRAGON;4} -> {@code LVL_1_LEGENDARY_GOLDEN_DRAGON}. */
+    /** The reference ids (Coflnet) to the hysky form for the keys that differ: {@code GOLDEN_DRAGON;4} -> {@code LVL_1_LEGENDARY_GOLDEN_DRAGON}. */
     static Map<String, Double> fromNeu(Map<String, Double> neu) {
         if (neu.isEmpty()) return neu;
         String[] tiers = {"COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC"};

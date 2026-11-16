@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** The pack's particle cancel point, same target Devonian's {@code ParticleEngineMixin} uses.
+/** The pack's particle cancel point, same target the {@code ParticleEngineMixin} uses.
  *  javap-verified against the 26.1.2 merged jar: {@code ParticleEngine.add(Particle)} is the single funnel -
  *  {@code createParticle(...)} builds the particle via {@code makeParticle} and then calls {@code add} on it,
  *  and {@code ClientLevel.addParticle} goes through {@code createParticle} - so both server-sent

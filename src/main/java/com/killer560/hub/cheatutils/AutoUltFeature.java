@@ -17,16 +17,16 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Auto Ult - uses the class Ultimate on specific F7/M7 boss lines, ported from NoammAddons 26.1.2
+ * Auto Ult - uses the class Ultimate on specific F7/M7 boss lines 26.1.2
  * {@code dungeon/Abilities.kt} (CHEAT block) + {@code PlayerUtils.useDungeonClassAbility(ult = true)}:
  * <ul>
- * <li>Triggers (exact plain-text match, floor 7, Healer/Tank only - Noamm's {@code ultMessages}):
+ * <li>Triggers (exact plain-text match, floor 7, Healer/Tank only - the {@code ultMessages}):
  * "⚠ Maxor is enraged! ⚠" and "[BOSS] Goldor: You have done it, you destroyed the factory…".
- * (Noamm's F5 Livid / F6 Sadan triggers are out of scope - F7/M7 boss only per task.)
+ * (the F5 Livid / F6 Sadan triggers are out of scope - F7/M7 boss only per task.)
  * <li>Action: {@code ServerboundPlayerActionPacket(DROP_ITEM, BlockPos.ZERO, Direction.DOWN)} - the Drop (Q)
- * key. Confirmed against Hypixel's own text: "... is ready to use! Press DROP to activate it!" (QUOI
- * ChatReplacements) and Mort "Left-click (or Drop) to use your Ultimate!" (Odin/QUOI SplitsManager).
- * <li>Own class: tab list, Odin {@code DungeonUtils.tablistRegex} ({@code [lvl] name ... (Class L)}), or a
+ * key. Confirmed against Hypixel's own text: "... is ready to use! Press DROP to activate it!" (the reference
+ * ChatReplacements) and Mort "Left-click (or Drop) to use your Ultimate!" (other implementations SplitsManager).
+ * <li>Own class: tab list, the reference {@code DungeonUtils.tablistRegex} ({@code [lvl] name... (Class L)}), or a
  * manual override. Each trigger fires at most once per world.
  * </ul>
  */
@@ -243,7 +243,7 @@ public final class AutoUltFeature {
         pendingUltTicksLeft = ULT_GATE_BUDGET_TICKS;
     }
 
-    /** The first teammate whose dungeon-sidebar health Hypixel colors red (SkyHanni's low-health rule), or null. */
+    /** The first teammate whose dungeon-sidebar health Hypixel colors red (the low-health rule), or null. */
     private static String lowTeammate(Minecraft client) {
         String self = client.player.getGameProfile().name();
         for (String line : com.killer560.hub.scoreboard.ScoreboardData.sidebarNow(client)) {

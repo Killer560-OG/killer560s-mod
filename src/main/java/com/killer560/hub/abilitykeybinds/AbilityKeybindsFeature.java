@@ -16,8 +16,8 @@ import com.mojang.blaze3d.platform.InputConstants;
 import java.util.regex.Pattern;
 
 /**
- * Real dungeon class ability keybinds, ported from Noamm's own {@code Abilities.kt} (the keybind half
- * only - Noamm's own "Auto Use Ultimate", which fires automatically on specific real boss chat lines
+ * Real dungeon class ability keybinds (the keybind half
+ * only - the "Auto Use Ultimate", which fires automatically on specific real boss chat lines
  * with no key press at all, is deliberately not ported here per killer560's "keep skipping automation
  * things" instruction).
  * <p>
@@ -29,7 +29,7 @@ import java.util.regex.Pattern;
  * vanilla key would already do. Gated strictly to {@link DungeonState#isInDungeon()}: outside a real
  * dungeon (or while holding an item without a real Hypixel ability) this same real action just drops
  * your held item, identical to what pressing real vanilla Q there would do - a real, accepted trade-off
- * already present in Noamm's own reference implementation, not a new risk this port introduces.
+ * already present in the reference implementation, not a new risk this port introduces.
  */
 public final class AbilityKeybindsFeature {
 

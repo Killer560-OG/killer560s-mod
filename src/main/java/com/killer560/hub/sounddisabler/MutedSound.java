@@ -14,7 +14,7 @@ import net.minecraft.sounds.SoundSource;
  * so a real ghast, a Blaze Slayer demon's fireball or a firework somewhere else still plays. The ids come from the Hypixel
  * forum (the staff "is using" firework and ghast sounds) and match the 1.8 sounds Hypixel plays through ViaVersion
  * ({@code mob.ghast.*} -> {@code entity.ghast.*}, {@code fireworks.*} -> {@code entity.firework_rocket.*}). The other rows
- * are the sound hiders other Skyblock mods offer: Skyblocker's Mute Endermen / Blaze / Wolf / Spider sounds and SkyHanni's
+ * are the sound hiders other Skyblock mods offer: the Mute Endermen / Blaze / Wolf / Spider sounds and the
  * Mute Phantom, plus the common dungeon complaints (explosions, bow spam, the F7 Withers, rain).
  *
  * <p>{@link #SKYBLOCK_WEATHER} (wxmute-1104) is the island weather Hypixel added in 0.27.2 (2026-10-06): every sound in

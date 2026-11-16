@@ -16,7 +16,7 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Hypixel's lava in the boss, as ADM recorded it (boss fights with their packets):
+ * Hypixel's lava in the boss, as recorded (boss fights with their packets):
  * <ul>
  * <li>The server checks every 2 ticks whether it sees you in lava by the old 1.8 rule: your box shrunk to x/z +-0.2 and
  * feet +0.4 to +1.4 overlapping any lava block. On the P3 floor that is feet below 106.6.</li>
@@ -64,7 +64,7 @@ final class BossLava {
             p.fallDistance = 0;
             p.clearFire();
             // A launch on purpose, so it passes the sim's no-knockback filter. Hypixel tilts the camera on about half the
-            // bounces (ADM's capture); the sim does not (killer560 2026-11-05: lava "moves my pov like im taking damage").
+            // bounces (a recorded capture); the sim does not (killer560 2026-11-05: lava "moves my pov like im taking damage").
             com.killer560.hub.roomsim.SimLaunch.push(p, new Vec3(0.0, vy, 0.0));
             bounces++;
             LOGGER.info("[BossSim] lava bounce at y {} (vy {})", String.format(java.util.Locale.ROOT, "%.2f", p.getY()), vy);

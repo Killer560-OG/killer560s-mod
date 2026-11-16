@@ -15,10 +15,10 @@ import net.minecraft.client.Minecraft;
  * off (so they stay in one style and are known-good):
  * <ul>
  * <li>Storm / Necron - the same two P2 and P4 lines {@code splittimers.SplitTimersFeature} splits on, which are
- * Odin's {@code SplitsManager.kt} {@code floor7SplitGroup} lines.
- * <li>Wither King - NoammAddons' {@code features/impl/dungeon/Ragnarock.kt} M7 alert line.
+ *  lines.
+ * <li>Wither King - M7 alert line.
  * <li>Livid - the same entry line {@code boss.LividSolverFeature} arms its 390-tick invulnerability countdown
- * on (Odin's {@code LividSolver.kt}).
+ * on.
  * </ul>
  * The fifth ({@link RagAxePrompt#M7_DRAGON_SPAWN}) is event-timed instead: it reads the live per-dragon
  * countdown out of {@code com.killer560.hub.witherdragons} on {@link ServerTickClock}'s server ticks and fires
@@ -92,7 +92,7 @@ final class RagAxePrompts {
         }
     }
 
-    /** Odin's own dragon countdown: {@code timeToSpawn} server ticks (100 = 5 s) left on a SPAWNING dragon. */
+    /** The dragon countdown: {@code timeToSpawn} server ticks (100 = 5 s) left on a SPAWNING dragon. */
     private static void onServerTick() {
         RagAxeConfig cfg = RagAxeConfig.getInstance();
         RagAxePrompt prompt = RagAxePrompt.M7_DRAGON_SPAWN;
@@ -115,7 +115,7 @@ final class RagAxePrompts {
     }
 
 
-    /** NoammAddons/Odin both skip the M7 dragon rag call for Tank and Healer (they don't rag for dragons). */
+    /** Other implementations both skip the M7 dragon rag call for Tank and Healer (they don't rag for dragons). */
     private static boolean skippedForClass(RagAxePrompt prompt) {
         if (!RagAxeConfig.getInstance().isSkipTankHealer()
                 || (prompt != RagAxePrompt.M7_DRAGONS && prompt != RagAxePrompt.M7_DRAGON_SPAWN)) {

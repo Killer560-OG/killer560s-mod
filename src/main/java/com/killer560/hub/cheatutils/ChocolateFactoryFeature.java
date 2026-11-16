@@ -14,7 +14,7 @@ import java.util.List;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Auto Chocolate Factory - originally ported from QUOI {@code misc/ChocolateFactory.kt} (OdinLegacy's, BSD-3-Clause).
+ * Auto Chocolate Factory (BSD-3-Clause).
  * Only runs while the open container is titled exactly "Chocolate Factory". What is where comes from
  * {@link ChocolateFactoryMenu}, the reader the legit helper uses too (killer560, 2026-10-11: "It will click the cookie
  * but does nothing else. I think the menu has changed" - it had: the Time Tower moved 39 -> 38 and the Coach 42 -> 41,
@@ -23,7 +23,7 @@ import com.killer560.hub.compat.McCompat;
  * <li>One action per random [min,max] delay, in priority order: activate the Time Tower (right-click) when it has a
  * charge and is inactive; claim a stray (top three rows, "CLICK ME!" / "Golden Rabbit"); click the chocolate.</li>
  * <li>Best upgrade on its own "Upgrade delay" timer: the cheapest chocolate per extra chocolate-per-second among the
- * seven employees, the Time Tower and the Coach, bought (middle-click, QUOI's) only when affordable.</li>
+ * seven employees, the Time Tower and the Coach, bought (middle-click, the) only when affordable.</li>
  * <li>Never clicks {@link ChocolateFactoryMenu#DESTRUCTIVE_SLOTS} or anything outside the factory's own slots.</li>
  * <li>A different screen replacing the factory halts it until every screen is closed.</li>
  * </ul>

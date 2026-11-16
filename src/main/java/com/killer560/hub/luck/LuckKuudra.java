@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
  * Kuudra Paid Chests for How Lucky Are You. The chest's open button (a chest item in the "Paid Chest" menu) lists its
  * contents and its key in its lore: "Contents", the items, a blank line, "Cost", the key ("Infernal Kuudra Key"), "Click
  * to open!". A click on that button is a pending claim of the key's tier with those items, counted after 1.5 s unless
- * Hypixel answers "You cannot afford this!" or "Whoa! Slow down there!" - Odin's KuudraTracker reads the same lore and rolls
+ * Hypixel answers "You cannot afford this!" or "Whoa! Slow down there!" - the KuudraTracker reads the same lore and rolls
  * back on the same two lines. A button whose lore says "Already opened!" or "Can't open another chest!" is no claim, and
  * one menu counts once.
  */

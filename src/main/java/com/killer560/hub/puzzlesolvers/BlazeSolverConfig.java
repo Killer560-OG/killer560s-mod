@@ -7,7 +7,7 @@ import com.killer560.hub.util.ConfigJson;
 import java.nio.file.Path;
 
 /** Persisted Blaze Solver settings - see {@link BlazeSolverFeature}'s class doc for the real
- *  Odin-ported HP-order logic this is built on. Ships disabled by default, same as every other new
+ *  HP-order logic this is built on. Ships disabled by default, same as every other new
  *  feature in this mod. */
 public final class BlazeSolverConfig extends SolverConfigBase {
 

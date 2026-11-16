@@ -11,7 +11,7 @@ import com.killer560.hub.compat.McCompat;
  * <ul>
  * <li>Left-button press with no screen open -&gt; {@link FastLeapFeature#onLeftClick()} (fast leap; cancels the click
  * while holding a Spirit Leap).</li>
- * <li>{@link LeapManager#blocksInput()} (QUOI "Block inputs" / "Fast mode"): every mouse-button press, key press,
+ * <li>{@link LeapManager#blocksInput} (the reference "Block inputs" / "Fast mode"): every mouse-button press, key press,
  * scroll and camera turn is canceled, in the world and while the Spirit Leap menu itself is open.</li>
  * <li>{@link I4LeapFeature#blocksInput()} ("Prevent Inputs"): in the world only - mouse-button presses, movement-key
  * presses (forward/back/left/right/jump/sprint/sneak), scroll and camera turn are canceled.</li>

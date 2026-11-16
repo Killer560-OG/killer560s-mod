@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * QUOI {@code ItemAnimations.kt} "No eat animation" and "No shortbow swing" (both OFF by default,
+ *  "No eat animation" and "No shortbow swing" (both OFF by default,
  * {@link ObjectHiderConfig}). 26.3 copy; the 26.2 copy (src/mc26_2) explains the two hooks.
  *
  * <p>26.3 removed {@code ItemInHandRenderer}; both hooks are on {@code FirstPersonHandsAndItemsRenderer} (javap, 26.3):

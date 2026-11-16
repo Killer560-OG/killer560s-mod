@@ -24,7 +24,7 @@ import net.minecraft.world.inventory.Slot;
  * Killer560's item 5.8 ("Custom inventory overlay in the mod's theme") - re-skins the vanilla chest and
  * player-inventory GUI to match this mod's own black+Amber look (see {@code ModScreen}'s header/panel
  * colors, reused here as-is) instead of Minecraft's stone-texture background, the same kind of thing
- * SkyHanni/Odin already do to Hypixel's menus.
+ * Other implementations already do to Hypixel's menus.
  * <p>
  * Every mixin that hooks this feature is a HEAD-level cancel-and-redraw of a single, narrow vanilla
  * method (background, one slot backdrop, one hover highlight, or the title label) on exactly the two

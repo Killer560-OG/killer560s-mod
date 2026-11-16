@@ -24,8 +24,8 @@ import java.util.regex.Pattern;
  * Ability Ready Alert (legit, both builds; killer560 2026-11-01: "a on screen pop up whenever an ability is ready to be used
  * again with an optional timer till it comes back up").
  *
- * <p>The popup: Hypixel says {@code "Mining Speed Boost is now available!"} (green and gold; SkyHanni's ChatFilter and
- * Skyblocker's "Mining Ability Alert" chat rule key on the same line) the moment a pickaxe ability is ready again; this
+ * <p>The popup: Hypixel says {@code "Mining Speed Boost is now available!"} (green and gold; the ChatFilter and
+ * The "Mining Ability Alert" chat rule key on the same line) the moment a pickaxe ability is ready again; this
  * shows "&lt;ability&gt; READY" large on screen for {@link #POPUP_MS} and optionally plays a sound. The pattern is anchored
  * and allows only letters, spaces and apostrophes before " is now available!", so a player's chat line ("Bob: ...") can
  * never match.

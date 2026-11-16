@@ -96,7 +96,7 @@ public class AutoTerminalTab extends BaseTab {
                 y += 22;
             }
             if (!streamSafe) {
-                // Click Order (Nebulune / NoammAddons): which highlighted slot goes next. Stream Safe has its own human order.
+                // Click Order: which highlighted slot goes next. Stream Safe has its own human order.
                 widgets.add(SettingsButtonWidget.cycling(Component.literal("Click Order: " + cfg().getAutoClickOrder().label), (btn, dir) -> {
                             cfg().setAutoClickOrder(cfg().getAutoClickOrder().next(dir));
                             cfg().save();
@@ -241,7 +241,7 @@ public class AutoTerminalTab extends BaseTab {
         }
         y += 8;
 
-        // Queue Terms (Nebulune): your own clicks wait for the server's answer to the click before. Its own feature and switch.
+        // Queue Terms: your own clicks wait for the server's answer to the click before. Its own feature and switch.
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Queue Terms", true));
         y += 16;
         widgets.add(onOffButton("Queue Terms", () -> cfg().isQueueTermsRaw(), v -> cfg().setQueueTerms(v), () -> cfg().save(),

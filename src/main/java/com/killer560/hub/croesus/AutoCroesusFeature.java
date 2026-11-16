@@ -51,7 +51,7 @@ import com.killer560.hub.gui.ThemeAccent;
  * or re-opening after any stop, silently did nothing and printed no reason. There is now exactly one way to
  * start, it is on screen, and every refusal says why in chat.
  *
- * <p>Menu layout facts, all from quoi AutoCroesus.kt (a port of UnclaimedBloom6's AutoCroesus): run heads
+ * <p>Menu layout facts, all from the real menu: run heads
  * live in slots 10-16/19-25/28-34/37-43 and are PLAYER_HEADs; next page is an ARROW in slot 53; a run view's
  * chests are clicked by slot; in a chest screen the open button is slot 31, the Kismet "Reroll Chest" button
  * is slot 50 and "Go Back" is slot 49; after a claim the menu may close, in which case Croesus is re-opened
@@ -717,7 +717,7 @@ public final class AutoCroesusFeature {
             }
             pendingReroll = false;
             if (DungeonChestValuer.rerollNeedsKismet(button)) {
-                // quoi does the same: one "you have none" answer turns rerolling off for the whole session
+                // another mod does the same: one "you have none" answer turns rerolling off for the whole session
                 // instead of re-asking on every run.
                 kismetAvailable = false;
                 ModChat.send("Auto Croesus", ModChat.bad("No Kismet Feather"),
@@ -939,7 +939,7 @@ public final class AutoCroesusFeature {
             croesusEntity = lastUsedEntity;
             return croesusEntity;
         }
-        // quoi AutoCroesus.kt matches the NPC by an entity whose CUSTOM NAME is exactly "Croesus" - that is
+        // matches the NPC by an entity whose CUSTOM NAME is exactly "Croesus" - that is
         // the floating nameplate stand, so the clickable body is the nearest other entity sharing its spot.
         Entity plate = null;
         double bestPlate = Double.MAX_VALUE;
@@ -1005,7 +1005,7 @@ public final class AutoCroesusFeature {
                 return true;
             }
         }
-        // No "Go Back" arrow found - close instead and re-open the NPC (quoi's own fallback after a claim).
+        // No "Go Back" arrow found - close instead and re-open the NPC (another mod's own fallback after a claim).
         // Not gated: closing a container is not an interaction.
         lastBackContainerId = screen.getMenu().containerId;
         if (client.player != null) {

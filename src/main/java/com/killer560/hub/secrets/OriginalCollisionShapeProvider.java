@@ -13,7 +13,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
  *  com.killer560.hub.secrets.mixin.* owned by killer560smod-secrets.mixins.json and cannot be referenced
  *  directly}. Mixin's classloader reserves an entire package declared as a mixin config's own
  *  {@code "package"} for actual {@code @Mixin} classes only - a plain interface can't live there even
- *  though it's only ever implemented by mixin classes. quoi's own equivalent
+ *  though it's only ever implemented by mixin classes. another mod's own equivalent
  *  ({@code IOriginalCollisionShapeProvider}) already keeps this exact separation (a dedicated
  *  {@code mixininterfaces} package, distinct from its {@code mixins} package) - missed porting that
  *  detail the first time around; this class's location now matches it. */

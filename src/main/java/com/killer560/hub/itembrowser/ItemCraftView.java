@@ -19,8 +19,8 @@ import java.util.Optional;
  * sends a real close-container packet and kicks him out of whatever he actually has open just to look up an item.
  * This never touches the real container at all.
  * <p>
- * Recipes come from the NEU item repo ({@link NeuItemData}) - killer560, 2026-10-11: "Some things are missing
- * recipe data" - with Hypixel's own single {@code recipes[0]} entry as the fallback while NEU's is loading or when
+ * Recipes come from the reference item repo ({@link NeuItemData}) - killer560, 2026-10-11: "Some things are missing
+ * recipe data" - with Hypixel's own single {@code recipes[0]} entry as the fallback while the reference is loading or when
  * it has none. Obtain info (requirements, NPC sell price, minion/museum/salvage) comes from Hypixel's catalog.
  * <p>
  * Also hosts the minion tier picker (killer560, 2026-10-11: "Make it so minions are a sort of stack that if you
@@ -280,7 +280,7 @@ public final class ItemCraftView {
         graphics.text(font, "§6Recipe:", lx, ly, menu == null ? ThemeAccent.light(0xFFFFAA00) : menu.accentHover(), false);
         ly += font.lineHeight;
 
-        Object hoveredTooltip = null; // an ItemStack, or a List of lines for an ingredient with NEU lore
+        Object hoveredTooltip = null; // an ItemStack, or a List of lines for an ingredient with the reference lore
         if (gridIds != null) {
             int gridX = lx;
             int gridY = ly;
@@ -343,7 +343,7 @@ public final class ItemCraftView {
 
         drawCloseButton(graphics, panelX, panelY, PANEL_WIDTH, mouseX, mouseY);
 
-        // Hover over the title shows the item's own tooltip (NEU lore when it has arrived).
+        // Hover over the title shows the item's own tooltip (the reference lore when it has arrived).
         if (hoveredTooltip == null && mouseX >= panelX && mouseX < panelX + PANEL_WIDTH - 16
                 && mouseY >= panelY && mouseY < panelY + font.lineHeight + PADDING) {
             hoveredTooltip = ItemBrowserFeature.buildTooltipLines(entry);
@@ -355,7 +355,7 @@ public final class ItemCraftView {
         }
     }
 
-    /** NEU names vanilla items by their Bukkit material names; the ones that differ from the 1.8 registry name. */
+    /** The reference names vanilla items by their Bukkit material names; the ones that differ from the 1.8 registry name. */
     private static final java.util.Map<String, String> BUKKIT_NAMES = java.util.Map.ofEntries(
             java.util.Map.entry("ink_sack", "dye"), java.util.Map.entry("sulphur", "gunpowder"),
             java.util.Map.entry("wood", "planks"), java.util.Map.entry("log_2", "log2"),
@@ -374,7 +374,7 @@ public final class ItemCraftView {
             java.util.Map.entry("potato_item", "potato"), java.util.Map.entry("skull_item", "skull"),
             java.util.Map.entry("mushroom_soup", "mushroom_stew"), java.util.Map.entry("quartz_ore", "quartz_ore"));
 
-    /** A plain vanilla ingredient the Skyblock catalog doesn't list (NEU's "STICK", "INK_SACK-3" = name-damage), as its
+    /** A plain vanilla ingredient the Skyblock catalog doesn't list (the "STICK", "INK_SACK-3" = name-damage), as its
      *  modern item through the 1.8 flattening table; EMPTY when there is none. */
     static ItemStack vanillaIcon(String neuId) {
         if (neuId == null || neuId.isBlank()) {

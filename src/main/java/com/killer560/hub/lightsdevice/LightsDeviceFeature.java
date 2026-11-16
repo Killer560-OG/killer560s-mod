@@ -40,8 +40,8 @@ import java.util.concurrent.ThreadLocalRandom;
  * complete the dev then if not click another lever to activate the dev. Don't keep flicking, only flick it once."
  * <p>
  * The six levers sit on the wall at z=142 - corners (58/62, 133/136) and middle (60, 134/135). Flicking a lit lever does
- * not turn its light off ("Levers don't turn off lights only on", hypixel.net/threads/5607893). Coordinates: Skyblocker
- * {@code skyblock/dungeon/device/LightsOn.java}, identical to QUOI {@code SecretAura.kt}'s device lever list.
+ * not turn its light off ("Levers don't turn off lights only on", hypixel.net/threads/5607893). Coordinates: the reference
+ * {@code skyblock/dungeon/device/LightsOn.java}, identical to 's device lever list.
  * <p>
  * Two halves, each with its own switch, its own settings and its own {@link ActionGate} actor ({@code LIGHTS_TRIGGER},
  * {@code LIGHTS_AURA}), so neither Secret Aura nor In Boss shares a switch, a setting or a click budget with them, and
@@ -67,7 +67,7 @@ public final class LightsDeviceFeature {
     private static final Logger LOGGER = ModLog.get("killer560smod-lightsdevice");
     private static final String CHAT_TAG = "Lights Device";
 
-    /** Skyblocker LightsOn.java / QUOI SecretAura.kt. */
+    /**  /. */
     private static final List<BlockPos> LIGHTS_LEVERS = List.of(
             new BlockPos(62, 136, 142), new BlockPos(58, 136, 142),   // top corners
             new BlockPos(60, 135, 142), new BlockPos(60, 134, 142),   // middle

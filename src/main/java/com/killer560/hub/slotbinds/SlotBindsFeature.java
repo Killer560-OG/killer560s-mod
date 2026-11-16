@@ -26,8 +26,8 @@ import net.minecraft.world.item.ItemStack;
 import java.util.Map;
 
 /**
- * Real inventory "Slot Binds" feature, ported from Odin's own {@code SlotBinds.kt} (simplified to a
- * single global bind list rather than Odin's 6 profiles). Links two slots in your real vanilla
+ * Real inventory "Slot Binds" feature (simplified to a
+ * single global bind list rather than the 6 profiles). Links two slots in your real vanilla
  * Inventory screen (E menu) together; shift-clicking either one swaps it with its bound partner using
  * the exact same real vanilla mechanic pressing a number key over a slot already uses
  * ({@code MultiPlayerGameMode#handleContainerInput} with the real {@code ContainerInput.SWAP} click

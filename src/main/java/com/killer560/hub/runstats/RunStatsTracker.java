@@ -33,7 +33,7 @@ import java.util.regex.Pattern;
  * <li><b>Rooms cleared</b> - derived, not given. A room that flips to cleared/green on the map is credited to
  *     whoever is standing in it at that moment ({@link RunStatsBridge}). One player inside -> a certain ("solo")
  *     clear; several inside -> a "stacked" clear that counts as <i>possible</i> for each of them, which is why
- *     the summary prints a range like {@code 4-7}. This is the same mechanism NoammAddons uses
+ *     the summary prints a range like {@code 4-7}. This is the same mechanism the reference uses
  *     ({@code ClearInfoUpdater.checkSplits}); rooms cleared while the room is off the map's discovered set, or
  *     while the clearer has already walked out, are missed.
  * <li><b>Secrets</b> - the chat page has only the team total ("Secrets Found: N", {@link #teamSecrets()}). Per player
@@ -48,7 +48,7 @@ public final class RunStatsTracker {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-runstats");
 
-    /** NoammAddons {@code DungeonListener.deathRegex}. */
+    /** The reference {@code DungeonListener.deathRegex}. */
     private static final Pattern DEATH = Pattern.compile(
             "^\\s*☠ (?:You were|(\\w{1,16})) (.+?)(?: and became a ghost)?\\.$");
 

@@ -15,15 +15,15 @@ import java.util.List;
 import java.util.zip.GZIPInputStream;
 
 /**
- * Clipboard import/export. Formats confirmed from the real SkyHanni 7.22.0 and Skyblocker 6.4.1 jars (javap):
+ * Clipboard import/export. Formats confirmed from the real the reference 7.22.0 and the reference 6.4.1 jars (javap):
  * <ul>
- * <li><b>ColeWeight / Soopy ordered</b> (SkyHanni {@code ColeweightWaypointFormat}, Skyblocker
+ * <li><b>ColeWeight / Soopy ordered</b> (the reference
  * {@code fromColeweightJson}): {@code [{"x":int,"y":int,"z":int,"r":0-1,"g":0-1,"b":0-1,"options":{"name":"1"}}]}.
- * SkyHanni orders by {@code Integer.parseInt(options.name)}, so export always writes the 1-based index there.</li>
+ * The reference orders by {@code Integer.parseInt(options.name)}, so export always writes the 1-based index there.</li>
  * <li><b>Skytils</b> ({@code SkytilsWaypointFormat}): {@code <Skytils-Waypoint-Data>(V1):} + base64(gzip(json)),
  * json being {@code {"categories":[{"name","island","waypoints":[{"name","x","y","z","color"}]}]}} or a bare array.</li>
  * </ul>
- * Skyblocker's own {@code [Skyblocker-Waypoint-Data-V1]} codec format is not supported.
+ * The {@code [Skyblocker-Waypoint-Data-V1]} codec format is not supported.
  */
 public final class RouteCodec {
 
@@ -170,7 +170,7 @@ public final class RouteCodec {
 
     private static int channel(double v) { return (int) Math.max(0, Math.min(255, Math.round(v))); }
 
-    /** ColeWeight / Soopy ordered-waypoint JSON - readable by ColeWeight, SkyHanni /sho and Skyblocker. */
+    /** ColeWeight / Soopy ordered-waypoint JSON - readable by ColeWeight, the reference /sho and the reference. */
     public static String toColeweight(Route route) {
         double r = Math.round(((route.color >> 16) & 0xFF) / 255.0 * 1000) / 1000.0;
         double g = Math.round(((route.color >> 8) & 0xFF) / 255.0 * 1000) / 1000.0;

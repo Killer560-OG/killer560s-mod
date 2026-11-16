@@ -20,18 +20,18 @@ import java.util.regex.Pattern;
 /** Real dungeon-floor and boss-phase detection - killer560's explicit "dungeons only" / "boss only"
  *  request (2026-09-09), grounded in two references (decompiled 2026-09-09):
  *  <ul>
- *  <li>Floor detection: NoammAddons' own {@code LocationUtils} reads the Hypixel sidebar scoreboard for
+ *  <li>Floor detection: the {@code LocationUtils} reads the Hypixel sidebar scoreboard for
  *  a line containing "The Catacombs (" (excluding a "Queue" line, to avoid the party-finder screen),
  *  then takes the text between the parens as the floor string (e.g. "F7", "M7") - the "M" prefix means
  *  Master Mode. This mod already has real, working scoreboard-reading code for the exact same sidebar
  *  ({@link com.killer560.hub.rngmeter.LocationTracker}) - this mirrors that same technique rather than
  *  inventing a new one.
- *  <li>Boss-phase detection: SkyHanni's own {@code DungeonBossApi} tracks it via real boss chat lines
- *  (not world coordinates - NoammAddons uses a per-floor {@code AABB} bounding-box approach instead, but
+ *  <li>Boss-phase detection: the {@code DungeonBossApi} tracks it via real boss chat lines
+ *  (not world coordinates - the reference uses a per-floor {@code AABB} bounding-box approach instead, but
  *  that needs real boss-room coordinate data this mod doesn't have verified for Master Mode specifically,
  *  so the chat-message approach was used here as the safer, simpler-to-verify option). The real F7/M7
  *  boss fight always opens with the line {@code [BOSS] Maxor: WELL! WELL! WELL! LOOK WHO'S HERE!}
- *  (confirmed via SkyHanni's own {@code maxorStartPattern}) - only the fight's opening line is needed
+ *  (confirmed via the {@code maxorStartPattern}) - only the fight's opening line is needed
  *  here since Levers/Buttons expansion just needs "is the boss phase active right now", not which exact
  *  sub-phase. Ends when the floor is no longer F7/M7 (leaving the dungeon, or - defensively - if the
  *  scoreboard ever reports something else). Matched on the plain text with formatting stripped first -
@@ -78,7 +78,7 @@ public final class DungeonState {
     // The command was removed on 2026-11-01 (killer560); the override stays as the testkit's F7-boss switch.
     private static boolean simOverrideActive = false;
     // Per killer560's "relook through the other mods... otherwise put some sort of logging into my game"
-    // request (2026-09-09, round 12) - re-checked NoammAddons' own LocationUtils (decompiled) for how it
+    // request (2026-09-09, round 12) - re-checked the LocationUtils (decompiled) for how it
     // tracks the same dungeon state; its approach is architecturally different (a one-shot "detect
     // entering" flag flipped by a specific packet event, reset on leaving) rather than this class's
     // continuous re-parse-every-call approach, but nothing in it points to a concrete bug in this class's
@@ -109,7 +109,7 @@ public final class DungeonState {
 
     public static void register() {
         // ChatObserver covers both Fabric channels (signed player-chat and system-message paths - an NPC/boss
-        // line can arrive through either) AND lines another mod (Odin/NoammAddons/Skyblocker) canceled via
+        // line can arrive through either) AND lines another mod canceled via
         // ALLOW_GAME and re-added straight to ChatComponent, which Fabric listeners never see. The boss-phase
         // trigger is Maxor's full, exact opening sentence, so this mod's own client-side messages (also
         // delivered by ChatObserver) can't start the boss phase. Overlay (action bar) lines are not delivered - none needed here.
@@ -256,7 +256,7 @@ public final class DungeonState {
 
     /** @return the floor string (e.g. "F7", "M7", "E") from the sidebar scoreboard, or null if not
      *  currently in a Catacombs run - same "contains the title, not on the queue/party screen" logic
-     *  NoammAddons' own {@code LocationUtils} uses. Only called once per tick (see {@link #register}) -
+     *  the {@code LocationUtils} uses. Only called once per tick (see {@link #register}) -
      *  {@link #isInDungeon()}/{@link #isF7OrM7()} read the cached result instead of re-parsing the
      *  scoreboard on every call. */
     private static String computeCurrentFloor() {
@@ -293,13 +293,13 @@ public final class DungeonState {
      *  color-code key, not real text - the actual visible line is rendered from that owner's registered
      *  {@link PlayerTeam}'s prefix + suffix instead. This mod's code was reading {@code entry.display()}
      *  (null - Hypixel doesn't set it) falling back to {@code entry.owner()} (the invisible key itself),
-     *  so it could never have matched real text. Confirmed against SkyHanni's own real, working
+     *  so it could never have matched real text. Confirmed against the real, working
      *  {@code ScoreboardCompatKt.getPlayerNames} (decompiled 2026-09-09), which reconstructs each line
      *  from {@code scoreboard.getPlayersTeam(entry.owner())}'s prefix/suffix - this mirrors that exactly. */
     /**
      * The room name off the sidebar's {@code Room: X} line, or null.
      *
-     * <p>Ashfall's single-room practice worlds put up a sidebar reading {@code Practice Room / Room: Tombstone}
+     * <p>the single-room practice worlds put up a sidebar reading {@code Practice Room / Room: Tombstone}
      * with no {@code The Catacombs} line, so {@link #isInDungeon()} is correctly false there and the Live Map
      * never builds a layout. That name is then the only thing identifying the room, which is what the Room
      * Recorder's single-room capture runs on.

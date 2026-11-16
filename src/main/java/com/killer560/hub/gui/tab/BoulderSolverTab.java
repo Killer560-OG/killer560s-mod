@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Boulder Solver settings - see {@link com.killer560.hub.puzzlesolvers.BoulderSolverFeature}'s class doc
- *  for the real Odin-ported puzzle-solution database this is built on. */
+ *  for the real puzzle-solution database this is built on. */
 public class BoulderSolverTab extends BaseTab {
 
     public BoulderSolverTab() {

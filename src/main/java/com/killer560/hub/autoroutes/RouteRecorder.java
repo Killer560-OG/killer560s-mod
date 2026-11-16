@@ -29,8 +29,8 @@ import com.killer560.hub.compat.McCompat;
  * a {@code BOOM} node, and a left-click on a block holding the Dungeon Breaker adds that block to the breaker node
  * being built. Everything else ({@code walk}, {@code await}, {@code rotate}, ...) is {@code /ar add <type>}.
  * <p>
- * Nodes can also be added when NOT recording ({@code /ar add ew} exactly like QUOI): they anchor to the nearest
- * recorded sample, or to a bare route with no path (which then plays back QUOI-style, node by node).
+ * Nodes can also be added when NOT recording ({@code /ar add ew} exactly): they anchor to the nearest
+ * recorded sample, or to a bare route with no path (which then plays back node by node).
  */
 public final class RouteRecorder {
 

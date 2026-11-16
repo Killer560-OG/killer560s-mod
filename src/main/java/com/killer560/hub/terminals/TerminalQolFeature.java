@@ -24,27 +24,26 @@ import com.killer560.hub.compat.McCompat;
 /**
  * Terminal QoL pack for F7/M7 P3 - five small terminal-adjacent features that are independent of the
  * Terminal Solver's own highlighting and work whether that is on or off. Every one is ported from
- * Devonian (Kotlin source read 2026-09-16 at {@code src/main/kotlin/
- * com\github\synnerz\devonian\features\dungeons\f7\}), named per feature below:
+ * The reference (Kotlin source read 2026-09-16), named per feature below:
  * <ul>
  * <li><b>Terminal Protection</b> ({@code TerminalProtection.kt}) - swallows the FIRST click that lands
  *     within a threshold of the terminal opening, so a ghost/double click queued before the GUI even
- *     populated can't fire at a slot you never meant to click. Devonian's threshold slider is 100-700 ms,
+ *     populated can't fire at a slot you never meant to click. The threshold slider is 100-700 ms,
  *     default 400, with the note {@code "lowest current safe value is 400 - ping" - LegendaryJG}; the
  *     ping subtraction is a toggle here instead of something the player has to do in their head.
- *     One-shot per terminal, exactly like Devonian ({@code terminalStart = -1L} after a swallow) - the
+ *     One-shot per terminal, exactly ({@code terminalStart = -1L} after a swallow) - the
  *     feature never traps you in a terminal you can't click.
  * <li><b>Drop Key</b> ({@code TerminalDropKey.kt}) - re-binds the vanilla Drop key while a terminal is
  *     open so Q can't throw your Necron's Blade mid-terms. See {@link #restoreDropKeyAfterCrash()} for
- *     the one thing this does that Devonian's version does not.
+ *     the one thing this does that the version does not.
  * <li><b>Melody Keys</b> ({@code MelodyKeys.kt}) - number keys 1-4 click Melody's four row buttons
  *     (read off the board: 16/25/34/43 on the old 4-row layout, three buttons on the 2026-10-06 3-row one -
  *     the same {@link TerminalLayouts#melodyButtonSlots} {@link TerminalSolverFeature} uses).
  * <li><b>Terminal GUI Scale</b> ({@code CustomTerminalScale.kt}) - a separate GUI scale while a terminal
  *     is open, and a second one just for Melody (whose board is much wider). 0 = auto = leave Minecraft's
- *     own scale alone, same as Devonian's sliders.
+ *     own scale alone sliders.
  * <li><b>Hide Completion</b> ({@code TerminalHideCompletion.kt}) - hides the "Player activated a terminal!
- *     (3/7)" title/subtitle, and optionally the matching chat line. Devonian only does the title; the chat
+ *     (3/7)" title/subtitle, and optionally the matching chat line. The reference only does the title; the chat
  *     half is killer560's own ask and is a separate toggle because of the Terminal Timers interaction
  *     documented on {@link #shouldHideCompletionChat}.
  * </ul>
@@ -60,14 +59,14 @@ public final class TerminalQolFeature {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-terminalqol");
 
-    /** Devonian's own {@code terminalTitleRegex}, widened with the same optional trailing group
+    /** The {@code terminalTitleRegex}, widened with the same optional trailing group
      *  {@code DeviceTimesFeature}/{@code TerminalTimersFeature} already use, so a line another mod (or this
      *  mod's own Terminal Timers) has appended split times to still matches. */
     private static final Pattern COMPLETION_REGEX = Pattern.compile(
             "^(\\w{1,16}) (?:activated a (?:terminal|lever)|completed a device)! \\(\\d+/\\d+\\)(?:\\s.*)?$");
 
     // Melody's row buttons are read off the open board (TerminalLayouts.melodyButtonSlots): 16/25/34/43 on the old
-    // 4-row layout (Devonian's i * 9 + 16), three buttons on the 2026-10-06 3-row one.
+    // 4-row layout (the i * 9 + 16), three buttons on the 2026-10-06 3-row one.
 
     private static final int[] MELODY_KEYS = {com.killer560.hub.util.Keys.NUM_1, com.killer560.hub.util.Keys.NUM_2, com.killer560.hub.util.Keys.NUM_3, com.killer560.hub.util.Keys.NUM_4};
     private static final int[] MELODY_NUMPAD_KEYS =
@@ -143,8 +142,8 @@ public final class TerminalQolFeature {
     private static TerminalType memoType;
 
 
-    /** Devonian {@code TerminalProtection}: true when this click landed too soon after the terminal opened and
-     *  must be swallowed. Plays the same note-block "nope" it does, and - exactly like Devonian - arms itself
+    /** The reference {@code TerminalProtection}: true when this click landed too soon after the terminal opened and
+     *  must be swallowed. Plays the same note-block "nope" it does, and - exactly - arms itself
      *  off afterward ({@code terminalStart = -1L}), so only the first too-early click of a given terminal is
      *  ever eaten. */
     public static boolean shouldSwallowClick() {
@@ -168,7 +167,7 @@ public final class TerminalQolFeature {
      *  @return true while the open terminal is still inside Terminal Protection's opening window. A
      *  synthetic click is simply not SENT while this is true, rather than sent and then swallowed -
      *  swallowing burns Protection's deliberate one-shot ({@code terminalStart = -1L} after the first
-     *  swallow, exactly like Devonian), which would leave killer560's own real first click unprotected
+     *  swallow, exactly), which would leave killer560's own real first click unprotected
      *  because an automated click he never made had already spent it. */
     public static boolean withinProtectionWindow() {
         syncScreen();
@@ -191,13 +190,13 @@ public final class TerminalQolFeature {
     private static void playBlockedSound() {
         Minecraft client = Minecraft.getInstance();
         if (client.level != null) {
-            // Devonian's own PREVENTED_SOUND: NOTE_BLOCK_BASS on MASTER at volume 1, pitch 0.5.
+            // The PREVENTED_SOUND: NOTE_BLOCK_BASS on MASTER at volume 1, pitch 0.5.
             client.level.playPlayerSound(SoundEvents.NOTE_BLOCK_BASS.value(), SoundSource.MASTER, 1f, 0.5f);
         }
     }
 
 
-    /** Devonian {@code MelodyKeys}: 1-4 (and the numpad equivalents) click Melody's four row buttons.
+    /** The reference {@code MelodyKeys}: 1-4 (and the numpad equivalents) click Melody's four row buttons.
      *  @return true when the key was consumed, so the mixin cancels it - otherwise 1-4 would be vanilla's
      *  hotbar-swap keys and would try to SWAP an item into the terminal slot. */
     public static boolean handleMelodyKey(AbstractContainerScreen<?> screen, int keyCode) {
@@ -245,8 +244,8 @@ public final class TerminalQolFeature {
     }
 
 
-    /** Devonian {@code TerminalHideCompletion}: true for a "Player activated a terminal! (3/7)" style title or
-     *  subtitle that should be suppressed. With "Only Others" on (Devonian's own {@code onlyShowOwn} default),
+    /** The reference {@code TerminalHideCompletion}: true for a "Player activated a terminal! (3/7)" style title or
+     *  subtitle that should be suppressed. With "Only Others" on (the {@code onlyShowOwn} default),
      *  your own line still shows - it's the party's spam that fills the screen mid-terminal, not your own. */
     public static boolean shouldHideCompletionTitle(Component text) {
         return TerminalQolConfig.getInstance().isHideCompletionTitles() && matchesHiddenCompletion(text);
@@ -280,7 +279,7 @@ public final class TerminalQolFeature {
     }
 
 
-    /** Devonian {@code TerminalDropKey}, with one addition: the real Drop key's name is written to this mod's
+    /** The reference {@code TerminalDropKey}, with one addition: the real Drop key's name is written to this mod's
      *  own config the moment it is swapped out and cleared the moment it is put back, so
      *  {@link #restoreDropKeyAfterCrash()} can undo the swap on the next launch. Without that, a crash (or the
      *  player alt-F4ing) with a terminal open would leave {@code options.keyDrop} pointing at the replacement
@@ -370,7 +369,7 @@ public final class TerminalQolFeature {
     static int mouseDrops;
 
 
-    /** Devonian {@code CustomTerminalScale}, implemented the simple way: Devonian swaps the scale per FRAME
+    /** The reference {@code CustomTerminalScale}, implemented the simple way: the reference swaps the scale per FRAME
      *  around {@code Screen.extractRenderStateWithTooltipAndSubtitles}, which also needs MouseHandler
      *  width/height overrides to keep the cursor mapped correctly. Setting the window's real GUI scale once on
      *  open and putting it back once on close needs none of that - the mouse handler naturally scales against

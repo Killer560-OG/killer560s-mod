@@ -9,9 +9,9 @@ import java.util.Map;
 import java.util.regex.Matcher;
 
 /**
- * The run's current blessing levels, parsed from the player-list FOOTER exactly like NoammAddons'
+ * The run's current blessing levels, parsed from the player-list FOOTER exactly
  * {@code DungeonListener.kt} does ({@code is ClientboundTabListPacket -> Blessing.entries.forEach { ... }},
- * lines 85-89) and Devonian's {@code BlessingsDisplay.kt} ({@code on<TabFooterEvent>}).
+ * lines 85-89) and ({@code on<TabFooterEvent>}).
  * <p>
  * <b>One parser, one packet hook.</b> The footer arrives through the mod's existing tab-list hook -
  * {@code witherdragons/WitherDragonsPacketMixin#handleTabListCustomisation} -> {@code WitherDragonsPackets.onTabList}
@@ -21,7 +21,7 @@ import java.util.regex.Matcher;
  * handoff notes - that edit is the integrator's, this package does not touch P5State).
  * <p>
  * <b>Chat lines:</b> none. The task allowed "Blessing of X" chat pickup lines "if the exact strings are verified
- * from the sources" - neither NoammAddons, Devonian nor anything else in this repo contains a blessing chat
+ * from the sources" - neither other implementations nor anything else in this repo contains a blessing chat
  * message, so nothing is matched against chat and pickups are detected purely as a footer level INCREASE.
  */
 public final class BlessingTracker {
@@ -72,7 +72,7 @@ public final class BlessingTracker {
         return false;
     }
 
-    /** Cleared on world change (NoammAddons resets {@code Blessing.reset()} on dungeon end, Devonian on
+    /** Cleared on world change (the reference resets {@code Blessing.reset} on dungeon end, the reference on
      *  {@code WorldChangeEvent}). */
     public static void reset() {
         LEVELS.clear();

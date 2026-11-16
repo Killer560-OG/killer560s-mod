@@ -88,8 +88,8 @@ public final class ItemBrowserConfig {
      *  "Remove the default sorting option and instead have it default to high - low"). A saved CATALOG reads back as
      *  this default. */
     private SortMode sortMode = SortMode.VALUE_HIGH_LOW;
-    /** SkyHanni-style "Item Value" tooltip line - killer560 (2026-09-27): "make a whole new setting just
-     *  like skyhanni that shows the items value on its tooltip". Off by default like every other new
+    /** "Item Value" tooltip line - killer560 (2026-09-27): "make a whole new setting just
+     *  like another mod that shows the items value on its tooltip". Off by default like every other new
      *  tooltip-altering feature in this mod (EnchantColorsTooltipMixin etc.). */
     private boolean showItemValue = false;
     /** Only draw the panel on the player's inventory screen (killer560, 2026-10-18: "only have the item browser only show in

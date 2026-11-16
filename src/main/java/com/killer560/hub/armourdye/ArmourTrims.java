@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Resolves a saved {@code material}/{@code pattern} identifier pair to a real {@link ArmorTrim}, the way Skyblocker's
+ * Resolves a saved {@code material}/{@code pattern} identifier pair to a real {@link ArmorTrim}, the way the
  * {@code CustomArmorTrims} does. Trims are the other half of "armor skin": the skin decides which armor texture is
  * painted, the trim is the overlay on top of it, and both are read straight off the stack's data components by
  * {@code EquipmentLayerRenderer} - so overriding the component covers the body and the inventory icon at once.

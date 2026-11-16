@@ -18,7 +18,7 @@ import java.util.Arrays;
 import java.util.List;
 
 /**
- * Wither King Statue Box and Dimensional Slash Alert (Skytils MasterMode7Features; featB-1108), both M7 phase 5 only.
+ * Wither King Statue Box and Dimensional Slash Alert (the reference MasterMode7Features; featB-1108), both M7 phase 5 only.
  * <ul>
  * <li>Statue Box: a wire box (27 wide, from 8 below to 15.5 above the dragon's spawn point) in the dragon's color around each
  * statue still standing. A statue is gone once its block (the one Wither Dragons already watches, {@code statuePos}) went

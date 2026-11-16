@@ -14,8 +14,8 @@ import java.util.function.IntConsumer;
 import com.killer560.hub.compat.McCompat;
 
 /** Etherwarp Overlay settings - see {@link com.killer560.hub.etherwarpoverlay.EtherwarpOverlayFeature}'s
- *  class doc for the real Odin-ported landing-prediction this is built on, and why the client-side
- *  predicted-execution half of Odin's own feature was deliberately left out. */
+ *  class doc for the real landing-prediction this is built on, and why the client-side
+ *  predicted-execution half of the feature was deliberately left out. */
 public class EtherwarpOverlayTab extends BaseTab {
 
     public EtherwarpOverlayTab() {

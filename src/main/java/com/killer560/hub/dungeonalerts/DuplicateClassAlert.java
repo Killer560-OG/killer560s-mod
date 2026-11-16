@@ -11,7 +11,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Duplicate Class Alert (Devonian PartyDuplicateAlert; featB-1108): a title naming the players who share a dungeon class,
+ * Duplicate Class Alert (the reference PartyDuplicateAlert; featB-1108): a title naming the players who share a dungeon class,
  * once per duplicated class per run, optionally also to party chat ("Party Message", its own switch, OFF). It reads the
  * class map {@link ClassColors} already builds from the tab list every 10 ticks (no second tab scan), so the tab is parsed
  * for this switch too while it is on.

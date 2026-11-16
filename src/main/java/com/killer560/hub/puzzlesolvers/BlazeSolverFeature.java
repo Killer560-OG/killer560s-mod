@@ -20,14 +20,14 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Real Hypixel dungeon "Lower Blaze"/"Higher Blaze" puzzle solver, ported from Odin's own
+ * Real Hypixel dungeon "Lower Blaze"/"Higher Blaze" puzzle solver own
  * {@code BlazeSolver.kt}. Real blazes are rendered as real ArmorStands whose name text currently reads
  * {@code [LvN] <glyph> Blaze HP/MAXHP❤} - the bit between the level tag and "Blaze" is cosmetic (a
  * private-use font glyph Hypixel has already changed once) and is matched with a wildcard, never
  * literally; Lower Blaze must be solved by killing the HIGHEST-HP blaze first, Higher
  * Blaze the LOWEST-HP first (both real, confirmed Hypixel mechanics, ported directly). Needs no bundled
  * data at all - purely reads real live entity names, so it carries none of the other solvers'
- * cross-mod corner/rotation risk. Re-scans every 5 ticks (matching Odin's own real re-scan interval) so
+ * cross-mod corner/rotation risk. Re-scans every 5 ticks (matching the real re-scan interval) so
  * the kill order stays live as blaze HP drops and blazes die; highlights the next 3 targets in distinct
  * colors (red/orange/yellow, everything else white) with optional connecting lines showing the order.
  * Never attacks anything - only highlights.
@@ -36,7 +36,7 @@ public final class BlazeSolverFeature {
 
     // killer560, 2026-09-20: "blaze solver is broken". Hypixel dropped a private-use mob-type glyph
     // (currently U+E07C) between the level tag and "Blaze", so the old pattern's two literal spaces
-    // matched nothing at all and the solver found zero blazes. The wildcard mirrors NoammAddons'
+    // matched nothing at all and the solver found zero blazes. The wildcard mirrors the
     // 3bce7b36 "fix blaze solver regex" and, being `.*` rather than their `.+`, survives the glyph being
     // changed or dropped again too. (The old `Lv+` was a typo - "L" then one-or-more "v".)
     private static final Pattern BLAZE_NAME = Pattern.compile("^\\[Lv\\d+].*Blaze [\\d,]+/([\\d,]+)❤$");
@@ -82,7 +82,7 @@ public final class BlazeSolverFeature {
     private static void tick(Minecraft client) { tickInner(client); }
 
     private static void tickInner(Minecraft client) {
-        // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
+        // Boss check: the reference e42d3316 "reset when entering boss" (2026-09-14 port).
         if (!BlazeSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
             if (!"none".equals(LOG.roomKey)) {
                 LOG.room("none", "solver idle: enabled=" + BlazeSolverConfig.getInstance().isEnabled()

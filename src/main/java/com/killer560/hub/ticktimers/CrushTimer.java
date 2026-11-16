@@ -17,13 +17,13 @@ import java.util.Set;
  * stay.
  * <p>
  * Storm is crushed when a teammate steps on a pad while he is under its raised pillar; he says one of the two lines below
- * (QUOI {@code AutoLeap.kt}'s and NoammAddons {@code F7Titles}' pair). Pad boxes: the purple pad is
+ * ('s and the reference {@code F7Titles}' pair). Pad boxes: the purple pad is
  * {@code AABB(95, 165, 86 -> 123, 172, 103)}, green {@code (24, 170, 4 -> 41, 172, 21)}, yellow
- * {@code (24, 170, 86 -> 41, 172, 103)} - the P2 pad boxes {@code fastleap/FastLeapFeature.java} ships (QUOI).
+ * {@code (24, 170, 86 -> 41, 172, 103)} - the P2 pad boxes {@code fastleap/FastLeapFeature.java} ships.
  */
 public final class CrushTimer {
 
-    /** QUOI AutoLeap's {@code STORM_CRUSH_MESSAGES} / NoammAddons F7Titles' "Storm Crushed!" pair. */
+    /** The reference AutoLeap's {@code STORM_CRUSH_MESSAGES} / the reference F7Titles' "Storm Crushed!" pair. */
     static final Set<String> CRUSH_LINES = Set.of("[BOSS] Storm: Oof", "[BOSS] Storm: Ouch, that hurt!");
 
     private static final AABB PURPLE_PAD = new AABB(95.0, 165.0, 86.0, 123.0, 172.0, 103.0);

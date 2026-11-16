@@ -7,7 +7,7 @@ import com.killer560.hub.util.ConfigJson;
 import java.nio.file.Path;
 
 /** Persisted Weirdos Solver settings - see {@link WeirdosSolverFeature}'s class doc for the real
- *  Odin-ported dialogue-matching logic this is built on. Ships disabled by default, same as every other
+ *  dialogue-matching logic this is built on. Ships disabled by default, same as every other
  *  new feature in this mod. */
 public final class WeirdosSolverConfig extends SolverConfigBase {
 

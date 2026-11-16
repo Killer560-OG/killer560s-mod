@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Water Board Solver settings - see {@link com.killer560.hub.puzzlesolvers.WaterSolverFeature}'s class
- *  doc for the real Odin-ported lever-timing database this is built on. */
+ *  doc for the real lever-timing database this is built on. */
 public class WaterSolverTab extends BaseTab {
 
     public WaterSolverTab() {
@@ -34,7 +34,7 @@ public class WaterSolverTab extends BaseTab {
                 null, col2aX, y, col2W, 18));
 
         // Renamed from "Alt. Timing" (killer560, 2026-09-20: "rename alt timing to optimized solutions") -
-        // same setting, same data (Odin's alternate lever-timing set), clearer label.
+        // same setting, same data (the alternate lever-timing set), clearer label.
         widgets.add(onOffButton("Optimized Solutions", cfg::isOptimizedPath, cfg::setOptimizedPath, cfg::save,
                 null, col2bX, y, col2W, 18));
 

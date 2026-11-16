@@ -190,7 +190,7 @@ public final class LevelTables {
     }
 
 
-    /** Skill ids in display order (NEU order), keyed without the {@code SKILL_} prefix. */
+    /** Skill ids in display order (the reference order), keyed without the {@code SKILL_} prefix. */
     public static final List<String> SKILL_ORDER = List.of(
             "FARMING", "MINING", "COMBAT", "FORAGING", "FISHING", "ENCHANTING",
             "ALCHEMY", "CARPENTRY", "TAMING", "HUNTING", "RUNECRAFTING", "SOCIAL");
@@ -214,7 +214,7 @@ public final class LevelTables {
         return cumulative(s.totalXp(), xp, max);
     }
 
-    /** First level past the published table, and its cost: 7,000,000 + 600,000 (SkyHanni's constants). */
+    /** First level past the published table, and its cost: 7,000,000 + 600,000 (the constants). */
     static final long OVERFLOW_FIRST_COST = 7_600_000L;
     static final long OVERFLOW_SLOPE = 600_000L;
 
@@ -222,11 +222,11 @@ public final class LevelTables {
      * The level this XP would reach with NO cap at all (killer560, 2026-10-08/11: "There should be no cap. It should
      * be based off of their level calculation passed the true cap"). Every skill on the standard 60-level curve walks
      * that table to 60 whatever its own cap (Farming, Taming, Foraging, Alchemy and Carpentry included), then keeps
-     * leveling past 60 the way SkyHanni does: level 61 costs 7,600,000 XP, each next level 600,000 more, and the
+     * leveling past 60 the way the reference does: level 61 costs 7,600,000 XP, each next level 600,000 more, and the
      * per-level increase doubles every time a multiple of ten is reached.
      * <p>
-     * Reference (read only, our own code): SkyHanni {@code SkillUtil.calculateSkillLevel}, commit
-     * 88c8bf2f566f42150e869fe9cc7b78dff05dc086 (hannibal002/SkyHanni, branch beta). SkyCrypt (SkyCrypt
+     * Reference (read only, our own code): {@code SkillUtil.calculateSkillLevel}, commit
+     * 88c8bf2f566f42150e869fe9cc7b78dff05dc086 (branch beta). SkyCrypt (SkyCrypt
      * 48fc9bfb {@code src/stats/skills/leveling.js}, SkyCrypt-Backend 3d877640 {@code leveling.go}) stops skills at
      * the table's 60; its flat "repeat the last step" overflow is only for Catacombs and the SkyBlock level.
      * Runecrafting and Social have their own short tables and no overflow in either tool, so they stop at theirs.
@@ -244,7 +244,7 @@ public final class LevelTables {
         return !within.maxed() ? within.level() : overflowLevel(t.length, xp - t[t.length - 1]);
     }
 
-    /** Levels past {@code fromLevel} for {@code remaining} XP above it, on SkyHanni's growing-step curve. */
+    /** Levels past {@code fromLevel} for {@code remaining} XP above it, on the growing-step curve. */
     static int overflowLevel(int fromLevel, long remaining) {
         int level = fromLevel;
         long slope = OVERFLOW_SLOPE;

@@ -18,7 +18,7 @@ import com.killer560.hub.compat.McItems;
  * same method that also fires real clicks - there is no seam to call into without either changing Auto
  * Melody's own behavior or reaching into its private state. {@link MelodyTrackerFeature} needs to work in
  * BOTH builds (legit included) and must never click anything, so this package duplicates only the read math,
- * ported byte-for-byte from that class's own comments (which cite Odin's decompiled {@code MelodyMessage}):
+ * ported byte-for-byte from that class's own comments (which cite the decompiled {@code MelodyMessage}):
  * <ul>
  * <li>The moving lime-pane indicator's row is {@code floor(limeSlot / 9)} and its column within that row is
  * {@code limeSlot % 9 - 1} (real formulas confirmed via decompile, same ones {@code TerminalSolverFeature}
@@ -26,13 +26,13 @@ import com.killer560.hub.compat.McItems;
  * <li>The target marker pane can render as either {@code DyeColor.MAGENTA} or a purple close enough to read
  * as the same color but is really a distinct DyeColor (see that class's {@code isMelodyEndpointColor}) -
  * both count here too. Its column is {@code targetSlot % 9 - 1}.</li>
- * <li>These two formulas already land in Odin's own {@code type=2}/{@code type=5} column range (0-4,
+ * <li>These two formulas already land in the {@code type=2}/{@code type=5} column range (0-4,
  * {@code BridgeTables.MELODY_MIN_COLUMN..MELODY_MAX_COLUMN}) - confirmed against
  * {@code com.killer560.hub.bridge.BridgeTables}'s own resolved {@code mapToRange} math, so nothing here needs
  * to re-derive or guess that mapping.</li>
- * <li>"Which rows are complete" (Odin's {@code type=1}, clay/terracotta) is NOT something
+ * <li>"Which rows are complete" (clay/terracotta) is NOT something
  * {@code TerminalSolverFeature} ever reads (it only ever looks at the moving lime PANE, never the clay
- * BUTTON's own item) - ported instead straight from {@code BridgeTables}' Odin research: Odin's real client
+ * BUTTON's own item) - ported instead straight from {@code BridgeTables}' the reference research: the real client
  * sends {@code type=1} exactly when one of the four clay slots (16/25/34/43, same slots
  * {@code TerminalSolverFeature.MELODY_CLAY_SLOTS} clicks) becomes {@code McItems.LIME_TERRACOTTA} - so this
  * scans those same four slots each tick for that exact item, never a click, and reports the highest row
@@ -45,7 +45,7 @@ final class MelodySlotReader {
     // call TerminalSolverFeature clicks through): 16/25/34/43 on the old 4-row layout, three on the 2026-10-06
     // 3-row one.
 
-    /** @param highestLitClayRow 1-4 (1-3 on the 3-row layout; Odin's own clay row numbering), or -1 if none is lit yet.
+    /** @param highestLitClayRow 1-4 (1-3 on the 3-row layout; the clay row numbering), or -1 if none is lit yet.
      *  @param target            0-4 target/purple column, or -1 if no target pane is visible this scan.
      *  @param current           0-4 moving/lime column, or -1 if no lime pane is visible this scan. */
     record Result(int highestLitClayRow, int target, int current) { static final Result EMPTY = new Result(-1, -1, -1); }
@@ -77,7 +77,7 @@ final class MelodySlotReader {
         }
         for (int slot : buttons) {
             if (items.get(slot).getItem() == McItems.LIME_TERRACOTTA) {
-                highestLit = slot / 9; // Odin's own clay value: the lit terracotta's slot / 9 (row 1 = first button row).
+                highestLit = slot / 9; // The clay value: the lit terracotta's slot / 9 (row 1 = first button row).
             }
         }
         return new Result(highestLit, target, current);

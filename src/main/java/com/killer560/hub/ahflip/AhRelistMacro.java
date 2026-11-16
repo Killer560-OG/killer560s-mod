@@ -52,8 +52,8 @@ import java.util.regex.Pattern;
  * </ol>
  *
  * <p><b>The menu names are not from a recording yet</b> (no dump of these menus existed on 2026-11-02). They are the
- * best-known ones from public mods (NEU's Create BIN Auction slots 13/29/31, SkyHanni's "Manage Auctions" and
- * "Status: Sold!/Expired!" lore, Skyblocker's "Collect Auction" and "... Auction View" titles), and every match is
+ * best-known ones from public mods (the Create BIN Auction slots 13/29/31, the "Manage Auctions" and
+ * "Status: Sold!/Expired!" lore, the "Collect Auction" and "... Auction View" titles), and every match is
  * tolerant (case, a word inside a longer name, a fixed slot only as the last resort) and logged with the whole page
  * ({@code [AhRelist]} lines), so they can be corrected from a real recording. A page it
  * does not know, a button it cannot find, a price that reads back wrong or a step that times out closes the menu and ends
@@ -81,14 +81,14 @@ public final class AhRelistMacro {
     static final String COLLECT = "collect auction";
     static final String SWITCH_BIN = "switch to bin";
     static final String GO_BACK = "go back";
-    /** NEU's Create BIN Auction slots: the item, the create button, the price. */
+    /** The Create BIN Auction slots: the item, the create button, the price. */
     static final int ITEM_SLOT = 13;
     static final int CREATE_SLOT = 29;
     static final int PRICE_SLOT = 31;
 
-    /** "Status: Sold!", "Status: Expired!" (SkyHanni), "Status: Ended!" on a bid page. Anchored, on stripped lore. */
+    /** "Status: Sold!", "Status: Expired!", "Status: Ended!" on a bid page. Anchored, on stripped lore. */
     static final Pattern CLAIMABLE_LORE = Pattern.compile("^Status: (Sold|Expired|Ended)!?$", Pattern.CASE_INSENSITIVE);
-    /** A price on the Create BIN Auction page: NEU's "Item price: N coins", SkyHanni's "Buy it now: N coins". */
+    /** A price on the Create BIN Auction page: the "Item price: N coins", the "Buy it now: N coins". */
     static final Pattern PRICE_TEXT = Pattern.compile("^(?:Item price|Buy it now|Price|Starting bid|BIN price)\\s*:\\s*([\\d,]{1,15}) coins?$",
             Pattern.CASE_INSENSITIVE);
     /** "[Auction] Name bought Item for 1,000 coins CLICK" - someone bought his listing: coins to claim. Anchored, bounded. */
@@ -564,7 +564,7 @@ public final class AhRelistMacro {
         return false;
     }
 
-    /** The price button: a name about the price, else NEU's slot 31. */
+    /** The price button: a name about the price, else the slot 31. */
     static int priceButton(AbstractContainerScreen<?> c) {
         for (Slot slot : BazaarFlipMenus.menuSlots(c.getMenu())) {
             if (slot.index == ITEM_SLOT) {
@@ -620,7 +620,7 @@ public final class AhRelistMacro {
         return -1;
     }
 
-    /** The create button: named "Create BIN Auction", else a create/confirm name, else NEU's slot 29 if named so. */
+    /** The create button: named "Create BIN Auction", else a create/confirm name, else the slot 29 if named so. */
     static int createButton(AbstractContainerScreen<?> c) {
         int fallback = -1;
         for (Slot slot : BazaarFlipMenus.menuSlots(c.getMenu())) {

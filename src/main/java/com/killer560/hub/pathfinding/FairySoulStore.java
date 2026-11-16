@@ -26,7 +26,7 @@ import java.util.Map;
  * rather than as a {@code killer560smod-*.json} file, because {@code profiles/ProfileManager} snapshots and
  * overwrites every file matching that name pattern, and this is real run data, not a setting.
  * <p>
- * Two sources feed it, the way SkyHanni's {@code FastFairySoulsPathfinder} does it:
+ * Two sources feed it, the way the {@code FastFairySoulsPathfinder} does it:
  * <ul>
  * <li>Chat: "SOUL! You found a Fairy Soul!" / "You have already found that Fairy Soul!" mark the closest known soul.</li>
  * <li>Hypixel's own "Fairy Souls Guide" menu: each island item's "Fairy Souls: found/total" lore line. A complete

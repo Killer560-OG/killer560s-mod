@@ -5,7 +5,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.ArrayDeque;
 import java.util.Deque;
 
-/** Per-blood-mob tracking state - real fields ported directly from Noamm's own confirmed
+/** Per-blood-mob tracking state - real fields own confirmed
  *  {@code BloodCamp.kt} ({@code BloodEntity}), see {@link BloodCampFeature}'s class doc. */
 final class BloodMobState {
 

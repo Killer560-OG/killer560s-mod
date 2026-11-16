@@ -7,8 +7,8 @@ import com.killer560.hub.util.ConfigJson;
 import java.nio.file.Path;
 
 /** Persisted "Held Item Transform" settings - resize/reposition/reorient the first-person held item, plus
- *  no-swing / no-equip / no-hand-sway toggles and a swing speed multiplier. Ported from NoammAddons'
- *  "Animations" (itself Odin's / SkyHanni's "Item Animation" idea). Purely visual, both builds, ships OFF.
+ *  no-swing / no-equip / no-hand-sway toggles and a swing speed multiplier. Ported from the
+ *  "Animations" (itself the "Item Animation" idea). Purely visual, both builds, ships OFF.
  *  <p>
  *  The mixins in {@code helditem.mixin} read {@link #active} first - one static boolean read is the entire
  *  disabled-path cost - and only touch {@link #getInstance()} once it's true. */

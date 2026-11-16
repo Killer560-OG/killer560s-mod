@@ -11,7 +11,7 @@ import java.util.Locale;
 import java.util.Set;
 
 /**
- * The Blacksmith's reforge menu as SkyHanni's {@code ReforgeHelper} reads it: a chest titled "Reforge Item" with the item
+ * The Blacksmith's reforge menu reads it: a chest titled "Reforge Item" with the item
  * in slot 13 and the Reforge button in slot 22. Not checked in game (none of his logs has the menu, and the wikis were
  * unreachable on 2026-11-04). An item's reforge is its {@code modifier} in Hypixel's custom data, or the first word of
  * its name when that is missing (a reforged item is named "Fabled Livid Dagger").

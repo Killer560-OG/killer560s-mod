@@ -14,7 +14,7 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 
 /**
  * What the walker reads from the WORLD instead of from the graph's heights (killer560, 2026-10-11: "the path it follows
- * is typically a hair higher than where the player actually runs so they are just jumping the whole time"). SkyHanni's
+ * is typically a hair higher than where the player actually runs so they are just jumping the whole time"). The
  * graph positions are the feet block, and the path points sit half a block above them, so a jump rule keyed on "the
  * path is higher than me" fired on every rise. Jumps now come from the block in front: only an obstacle taller than the
  * step height and no taller than this player's real jump is jumped.

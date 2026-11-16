@@ -45,7 +45,7 @@ import com.killer560.hub.gui.ThemeAccent;
  * <p>
  * Ships disabled. Opened by {@code /search [text]}, any of its open-binds (Ctrl+F by
  * default, see {@link StorageSearchBind}) or the Search button in the Storage Overlay grid. Clicking a storage
- * result sends the same real Hypixel command Storage Overlay / NoammAddons' {@code StoragePage.open} use
+ * result sends the same real Hypixel command Storage Overlay / the {@code StoragePage.open} use
  * ({@code /enderchest N}, {@code /backpack N}) on the player's own click, then outlines the item's slot once that
  * page opens - in the Storage Overlay's own grid when that is on (scrolling the grid to it), or over the real
  * vanilla slot when it is not. Clicking an island-chest result draws a box round the chest in the world instead,

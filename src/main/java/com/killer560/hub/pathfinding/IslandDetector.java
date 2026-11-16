@@ -15,19 +15,19 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Which SkyHanni island graph applies right now.
+ * Which the reference island graph applies right now.
  * <p>
  * Island: the tab list's "Area: X" line, the same read {@code routes/SkyblockArea} and {@code DungeonInfoFeature}
  * already use (this feature keeps its own copy because {@code SkyblockArea.tick} only runs while Waypoint Routes is
  * on, and {@code scoreboard/ScoreboardData} only refreshes while the Custom Scoreboard is on).
  * <p>
- * Sub-area: the scoreboard's area line, needed for one special case SkyHanni has too - the Dwarven Mines and the
- * Glacite Tunnels are one island to Hypixel but two separate graph files, and SkyHanni's {@code data/IslandGraphs.kt}
+ * Sub-area: the scoreboard's area line, needed for one special case the reference has too - the Dwarven Mines and the
+ * Glacite Tunnels are one island to Hypixel but two separate graph files, and 
  * notes that this switch "HAS TO be the scoreboard", not the graph areas.
  */
 public final class IslandDetector {
 
-    /** SkyHanni's own glacite area names (IslandGraphs.kt "glacitetunnels" repo pattern). */
+    /** The glacite area names (IslandGraphs.kt "glacitetunnels" repo pattern). */
     private static final Pattern GLACITE = Pattern.compile(
             "Glacite Tunnels|Dwarven Base Camp|Great Glacite Lake|Fossil Research Center");
     private static final Pattern TAB_AREA = Pattern.compile("^(?:Area|Dungeon):\\s*(.+)$");
@@ -45,7 +45,7 @@ public final class IslandDetector {
     private static volatile String actionBarArea = "";
     private static volatile long actionBarAreaAt = 0L;
 
-    /** Tab-list island name -> graph file name. Names from SkyHanni-REPO {@code constants/misc/IslandType.json}. */
+    /** Tab-list island name -> graph file name. Names from the public {@code constants/misc/IslandType.json}. */
     private static final Map<String, String> ISLANDS = Map.ofEntries(
             Map.entry("hub", "HUB"),
             Map.entry("the farming islands", "THE_FARMING_ISLANDS"),

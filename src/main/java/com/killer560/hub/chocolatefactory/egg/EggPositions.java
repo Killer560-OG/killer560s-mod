@@ -33,13 +33,13 @@ import java.util.Map;
  * The egg spots for each island (killer560, 2026-10-19: "make their current egg table saved, then if they ever find an egg
  * at a non saved spot add that spot"). Two sources, both read at startup:
  * <ul>
- * <li>{@code assets/killer560smod/egg_locations.json}: the spots SkyHanni's HoppityEggLocations table lists per island
- * (SkyHanni-REPO, MIT, Copyright (c) 2022 hannibal2). Converted to {@code [x,y,z]} per island; no meal, since the table
+ * <li>{@code assets/killer560smod/egg_locations.json}: the spots the HoppityEggLocations table lists per island
+ * (public data, MIT). Converted to {@code [x,y,z]} per island; no meal, since the table
  * does not give one.</li>
  * <li>{@code killer560smod-eggpositions.json}: every egg armor stand this client has seen loaded (an invisible, unnamed
  * armor stand wearing an egg head, {@link EggEsp#mealOf}). A spot not already in the set is added and the file saved.</li>
  * </ul>
- * The Egglocator's trail guess is snapped to the nearest spot within {@link #MAX_SNAP} blocks (SkyHanni's
+ * The Egglocator's trail guess is snapped to the nearest spot within {@link #MAX_SNAP} blocks (the
  * MAX_GUESS_DISTANCE of 5). Read-only: it reads entities already loaded, sends nothing.
  */
 public final class EggPositions {
@@ -48,7 +48,7 @@ public final class EggPositions {
     private static final Path PATH = ModPaths.config("killer560smod-eggpositions.json");
     private static final String BUNDLED = "/assets/killer560smod/egg_locations.json";
 
-    /** The Egglocator's guess is snapped only to an egg this close (SkyHanni MAX_GUESS_DISTANCE). */
+    /** The Egglocator's guess is snapped only to an egg this close (the reference MAX_GUESS_DISTANCE). */
     static final double MAX_SNAP = 5.0;
     /** Two stands of one meal this close on one island are the same egg. */
     private static final double SAME_EGG = 0.75;

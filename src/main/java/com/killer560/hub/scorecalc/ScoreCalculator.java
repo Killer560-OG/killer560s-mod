@@ -5,16 +5,16 @@ package com.killer560.hub.scorecalc;
  * <p>
  * Ported from, in order of precedence:
  * <ul>
- * <li><b>Odin</b> (odtheking/Odin, {@code utils/skyblock/dungeon/DungeonUtils.kt#updateScore} +
- * {@code DungeonEnums.kt#Floor.requiredPercentage}): room/skill/secret/bonus math, the "+1 blood, +1 boss room
+ * <li><b>Room math</b> ({@code updateScore} +
+ * {@code Floor.requiredPercentage}): room/skill/secret/bonus math, the "+1 blood, +1 boss room
  * not yet counted" completed-room fudge, total-room estimate {@code floor(completed / (cleared% / 100) + 0.4)}
  * with a 36-room fallback, puzzle penalty {@code (puzzleCount - completed) * 10}, first-death spirit-pet
  * assumption {@code max(0, deaths * 2 - 1)}, bonus = crypts(max 5) + mimic 2 + prince 1 + bat 1 per player (max {@link #BAT_BONUS_CAP}) + Paul 10, and
  * the "min secrets" formula {@code ceil(totalSecrets * req * (40 - bonus + deathPenalty) / 40)}.</li>
- * <li><b>NoammAddons</b> ({@code utils/dungeons/map/handlers/ScoreCalculation.kt}, local copy): the per-floor time
+ * <li><b>Time and secrets</b> ({@code ScoreCalculation}): the per-floor time
  * limits and the percentage-over-limit speed deduction ({@code getSpeedDeduction}), and secret score taken
  * straight from the tab-list percentage ({@code floor(pct / req / 100 * 40)}).</li>
- * <li><b>Skytils</b> (Skytils/SkytilsMod dev, {@code features/impl/dungeons/ScoreCalculation.kt}): rank letters
+ * <li><b>Ranks</b> ({@code ScoreCalculation}): rank letters
  * (D &lt;100, C &lt;160, B &lt;230, A &lt;270, S &lt;300, S+) and the Entrance x0.7 scaling.</li>
  * <li>Hypixel SkyBlock Wiki (hypixelskyblock.minecraft.wiki/w/Dungeon_Score): same secret % table (F1 30% ...
  * F6 85%, F7/Master 100%) and time limits (F1-3/F5 10m, F4/F6 12m, F7 14m, M1-5 8m, M6 10m, M7 14m). The
@@ -66,7 +66,7 @@ public final class ScoreCalculator {
      * has a +10%-100% chance to add 1 Bonus Score to your Dungeon Run", "Limit of +1 Score per run"
      * (hypixelskyblock.minecraft.wiki/w/Murkbat_Shard), and Hypixel says "A Bat has been slain. +1 Bonus Score" when it
      * does. The wiki's Dungeon Score page adds that in practice the limit is one per PLAYER per run, up to 5 in all
-     * ("possibly due to a bug"), and Odin counts it that way since 2026-10-05 (commit 833e0533, a set of bat killers).
+     * ("possibly due to a bug"), and the reference counts it that way since 2026-10-05 (commit 833e0533, a set of bat killers).
      * So each player who gets the line is worth one point, up to this many. If Hypixel ever makes it one per run like
      * the Prince, this is the one number to set to 1.
      */
@@ -79,7 +79,7 @@ public final class ScoreCalculator {
                          int totalRooms, int totalSecrets, int secretsNeeded, int secretsRemaining, String rank) {
     }
 
-    /** Odin {@code Floor.requiredPercentage}: E 0.3, F1 0.3, F2 0.4, F3 0.5, F4 0.6, F5 0.7, F6 0.85, F7 and every
+    /** The reference {@code Floor.requiredPercentage}: E 0.3, F1 0.3, F2 0.4, F3 0.5, F4 0.6, F5 0.7, F6 0.85, F7 and every
      *  Master Mode floor 1.0. */
     public static double requiredSecretFraction(String floor) {
         if (floor == null) return 1.0;
@@ -94,7 +94,7 @@ public final class ScoreCalculator {
         };
     }
 
-    /** NoammAddons {@code timeLimit} (seconds before speed score starts dropping). */
+    /** The reference {@code timeLimit} (seconds before speed score starts dropping). */
     public static int timeLimitSeconds(String floor) {
         if (floor == null) return 600;
         return switch (floor) {
@@ -111,7 +111,7 @@ public final class ScoreCalculator {
         return Character.isDigit(last) ? last - '0' : 0;
     }
 
-    /** NoammAddons {@code ScoreCalculation.getSpeedDeduction}: points lost for being {@code percentageOver}% past
+    /** The reference {@code ScoreCalculation.getSpeedDeduction}: points lost for being {@code percentageOver}% past
      *  the limit - first 20% at 1 per 2%, next 20% at 1 per 3.5%, next 10% at 1 per 4%, next 10% at 1 per 5%,
      *  then 1 per 6%. */
     static float speedDeduction(float percentageOver) {
@@ -136,7 +136,7 @@ public final class ScoreCalculator {
         return Math.max(0, (int) (100 - speedDeduction(over)));
     }
 
-    /** Skytils {@code ScoreCalculation.rank}. */
+    /** The reference {@code ScoreCalculation.rank}. */
     public static String rank(int score) {
         if (score < 100) return "D";
         if (score < 160) return "C";
@@ -150,7 +150,7 @@ public final class ScoreCalculator {
         int floorNum = floorNumber(floor);
         double req = requiredSecretFraction(floor);
 
-        // Odin: completed rooms plus blood (until its clear registers) and the boss room (until entered).
+        // Completed rooms plus blood (until its clear registers) and the boss room (until entered).
         int completed = in.completedRooms() + (in.bloodDone() ? 0 : 1) + (in.inBoss() ? 0 : 1);
         int totalRooms = (in.completedRooms() > 0 && in.clearedPercent() > 0)
                 ? (int) Math.floor(in.completedRooms() / (in.clearedPercent() * 0.01) + 0.4)
@@ -158,12 +158,12 @@ public final class ScoreCalculator {
         int roomsForMath = totalRooms != 0 ? totalRooms : 36;
         double clearFraction = (double) completed / roomsForMath;
 
-        // Odin totalSecrets: floor(100 / pct * found + 0.5).
+        // The reference totalSecrets: floor(100 / pct * found + 0.5).
         int totalSecrets = (in.secretsFound() > 0 && in.secretsPercent() > 0)
                 ? (int) Math.floor(100.0 / in.secretsPercent() * in.secretsFound() + 0.5)
                 : 0;
 
-        // NoammAddons: secret score from the tab percentage directly, so it works before the count line loads.
+        // Secret score from the tab percentage directly, so it works before the count line loads.
         int secretScore = clamp((int) Math.floor(in.secretsPercent() / req / 100.0 * 40.0), 0, 40);
         int roomScore = clamp((int) Math.floor(clearFraction * 60.0), 0, 60);
         int skillRooms = clamp((int) Math.floor(clearFraction * 80.0), 0, 80);
@@ -189,14 +189,14 @@ public final class ScoreCalculator {
 
         int total;
         if ("E".equals(floor)) {
-            // Skytils: Entrance scores are scaled to 70%.
+            // Entrance scores are scaled to 70%.
             total = clamp((int) (skill * 0.7), 14, 70) + (int) (roomScore * 0.7) + (int) (secretScore * 0.7)
                     + (int) (speed * 0.7) + (int) Math.ceil(bonus * 0.7);
         } else {
             total = skill + explore + speed + bonus;
         }
 
-        // Secrets for S+ (Odin neededSecretsAmount, extended): assume every room + puzzle ends up done
+        // Secrets for S+ (the reference neededSecretsAmount, extended): assume every room + puzzle ends up done
         // (room 60, skill 100 - deaths - failed puzzles), keep the current speed and bonus.
         int secretsNeeded = -1;
         int secretsRemaining = -1;
@@ -212,7 +212,7 @@ public final class ScoreCalculator {
     }
 
     /**
-     * Secrets an S+ needs once every room and puzzle is done (Odin {@code neededSecretsAmount}, extended): room score
+     * Secrets an S+ needs once every room and puzzle is done (extended): room score
      * 60, skill 100 less deaths and failed puzzles, speed and bonus as they are now. {@link Integer#MAX_VALUE} when
      * secrets alone cannot get there. {@code deathPenalty} is already the spirit-pet-adjusted one.
      */

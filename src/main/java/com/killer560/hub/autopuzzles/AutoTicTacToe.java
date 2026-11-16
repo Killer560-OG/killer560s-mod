@@ -21,8 +21,8 @@ import java.util.List;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Auto Tic Tac Toe - port of QUOI {@code TicTacToeSolver.kt}'s {@code auto}: whenever the solver has a best move and
- * it is within reach (eye distance squared &lt;= 30), interact that board cell. QUOI re-clicks every 500ms until the
+ * Auto Tic Tac Toe - port of 's {@code auto}: whenever the solver has a best move and
+ * it is within reach (eye distance squared &lt;= 30), interact that board cell. The reference re-clicks every 500ms until the
  * board changes; this caps it at 3 attempts per move (safety addition) and never clicks while sneaking or with a screen
  * open. Since 2026-10-15 only a RETRY of the same square waits those 500 ms: a new move goes the tick it is read.
  * <p>
@@ -293,7 +293,7 @@ final class AutoTicTacToe {
             attemptPos = best;
             attempts = 0;
         }
-        // CLICK_GAP_MS paces a RETRY of the same square only (QUOI re-clicks every 500 ms until the board changes). A new
+        // CLICK_GAP_MS paces a RETRY of the same square only (the reference re-clicks every 500 ms until the board changes). A new
         // move goes the tick it is read: main held every move 500 ms after the last click, which on Hypixel (a reply a
         // second or two later) was mostly hidden and in the sim (a reply 5 ticks later) never was.
         boolean retry = best.equals(lastClickedPos);

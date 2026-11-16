@@ -9,7 +9,7 @@ import java.util.function.Predicate;
 /**
  * Works out where the Egglocator's particle trail is heading. The trail does not reach the egg: Hypixel draws only the start of a
  * cubic Bezier curve from the player toward it, so the last particle is wherever the trail happened to be when it stopped, often
- * far short of the egg. This is SkyHanni's method (PolynomialFitter.kt's BezierFitter / ParticlePathBezierFitter and
+ * far short of the egg. This is the method (PolynomialFitter.kt's BezierFitter / ParticlePathBezierFitter and
  * LocationUtils.computePitchWeight, LGPL-2.1, read for behavior; written again here): fit a cubic in the particle's index to
  * each of x, y and z by least squares, then follow the fitted curve out to the parameter where the real curve ends.
  * <p>
@@ -21,7 +21,7 @@ import java.util.function.Predicate;
  */
 final class TrailFitter {
 
-    /** Cubic, as SkyHanni's {@code ParticlePathBezierFitter(3)}. */
+    /** Cubic. */
     private static final int DEGREE = 3;
     /** Hypixel repeats a particle position (A, A or A, B, A, B); a repeat would stall the index parameter. 0.01 blocks. */
     private static final double REPEAT_TOLERANCE_SQ = 0.0001;
@@ -66,7 +66,7 @@ final class TrailFitter {
         double toLast = points.get(points.size() - 1).distanceTo(p);
         if (toLast > maxDistanceToLast) {
             if (points.size() == 1) {
-                // One point is no trail yet. SkyHanni keeps whatever arrived first, so one stray happy villager (an NPC,
+                // One point is no trail yet. The reference keeps whatever arrived first, so one stray happy villager (an NPC,
                 // another player's Egglocator) ahead of the real trail made every real point "too far" and the click
                 // found nothing. Here an unconnected second point starts the trail over instead.
                 points.set(0, p);
@@ -186,7 +186,7 @@ final class TrailFitter {
 
     /**
      * How far the curve's first control point sits from its start, from the pitch the trail leaves at: sqrt(24 sin(pitch - pi)
-     * + 25), where pitch is the player's look pitch recovered by inverting y = atan2(sin(x) - 0.75, cos(x)) (SkyHanni's
+     * + 25), where pitch is the player's look pitch recovered by inverting y = atan2(sin(x) - 0.75, cos(x)) (the
      * computePitchWeight and getPitchFromDerivative, a 100-step bisection).
      */
     static double controlPointDistance(Vec3 derivative) {

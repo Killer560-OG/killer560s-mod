@@ -10,7 +10,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Persisted Blood Camp settings - see {@link BloodCampFeature}'s class doc for the real Noamm-ported
+/** Persisted Blood Camp settings - see {@link BloodCampFeature}'s class doc for the real
  *  mechanic this is built on. Ships disabled by default, same as every other new feature in this mod.
  *  <p>
  *  Legit getters are {@code raw && SkyblockGate.allows()}; cheat getters additionally require
@@ -19,17 +19,17 @@ import java.nio.file.Path;
  *  getters, so outside Skyblock every row read OFF and clicking it could only ever write true).
  *  <p>
  *  Scope note (2026-09-14): real per-color customization (box/line/timer colors, decimal places) that
- *  Noamm's own real reference exposes is deliberately NOT included here yet, to keep this first version
- *  manageable - fixed real defaults (green=ready, red=already broken, matching Noamm's own real choices)
+ *  the real reference exposes is deliberately NOT included here yet, to keep this first version
+ *  manageable - fixed real defaults (green=ready, red=already broken own real choices)
  *  are used instead. Can be added later if killer560 wants it. */
 public final class BloodCampConfig {
 
-    /** Ticks before the Watcher's predicted move that the kill popup flips to "KILL" (SkyHanni's own lead
+    /** Ticks before the Watcher's predicted move that the kill popup flips to "KILL" (the lead
      *  is 150 ms = 3 ticks). */
     public static final int DEFAULT_KILL_POPUP_LEAD_TICKS = 3;
     public static final int MAX_KILL_POPUP_LEAD_TICKS = 20;
     /** killer560: "the timer on each box should be bigger". Multiplies a 0.025 base; the default 2.0 is
-     *  NoammAddons' own label scale (2 x 0.025), which his 2026-10-07 "like noamm's" request matches. */
+     *  the label scale (2 x 0.025), which his 2026-10-07 "like another mod's" request matches. */
     public static final float DEFAULT_TIMER_TEXT_SCALE = 2.0f;
     public static final float MIN_TIMER_TEXT_SCALE = 1.0f;
     public static final float MAX_TIMER_TEXT_SCALE = 4.0f;
@@ -71,7 +71,7 @@ public final class BloodCampConfig {
     private int killPopupLeadTicks = DEFAULT_KILL_POPUP_LEAD_TICKS;
     private float timerTextScale = DEFAULT_TIMER_TEXT_SCALE;
     /** Color of the countdown text on each blood mob's box (killer560, 2026-10-18: a text color option). Default
-     *  white, the color it always had (NoammAddons' timerColor default). */
+     *  white, the color it always had (the timerColor default). */
     private int timerTextColor = DEFAULT_TIMER_TEXT_COLOR;
     public static final int DEFAULT_TIMER_TEXT_COLOR = 0xFFFFFFFF;
     /** killer560: "it is from the wall spot to where it is going to spawn." Default ON - Blood Camp itself

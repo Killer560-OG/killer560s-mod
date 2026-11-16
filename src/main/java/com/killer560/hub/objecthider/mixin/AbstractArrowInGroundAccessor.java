@@ -6,7 +6,7 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 
 /** {@code AbstractArrow.isInGround()} is {@code protected} (javap-verified against the 26.1.2 merged jar:
  *  {@code protected boolean isInGround();}), so the "Grounded Arrows" hider reaches it through an invoker,
- *  exactly like Devonian's own {@code mixin/accessor/AbstractArrowAccessor.java}. Read-only - the arrow is
+ *  exactly. Read-only - the arrow is
  *  never mutated and never removed, only skipped for one frame. */
 @Mixin(AbstractArrow.class)
 public interface AbstractArrowInGroundAccessor {

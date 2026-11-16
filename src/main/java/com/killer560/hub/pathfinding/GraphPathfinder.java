@@ -8,13 +8,13 @@ import java.util.PriorityQueue;
 /**
  * Shortest paths and multi-target route ordering on an {@link IslandGraph}. Pure Java, thread-safe (no shared state).
  * <p>
- * Same algorithms SkyHanni uses (https://github.com/hannibal002/SkyHanni, LGPL-2.1):
+ * Standard algorithms (LGPL-2.1):
  * <ul>
  * <li>{@code utils/GraphUtils.kt findDijkstraDistances}: plain Dijkstra from the node closest to the player, with an
  * optional early bail-out once the goal is settled. Dijkstra rather than A*: jump pads / teleport pads are edges whose
  * weight is far below their straight-line length, so a Euclidean A* heuristic would not be admissible.</li>
  * <li>{@code utils/navigation/NavigationUtils.kt getRoute}: distance matrix from one Dijkstra per target, greedy
- * nearest-neighbor tour from the start, then a 2-opt pass. SkyHanni's 2-opt only compares the two boundary edges,
+ * nearest-neighbor tour from the start, then a 2-opt pass. The 2-opt only compares the two boundary edges,
  * which is wrong on a directed graph (reversing a segment reverses every edge inside it); this version re-costs the
  * reversed interior too.</li>
  * </ul>

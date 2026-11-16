@@ -18,7 +18,7 @@ import java.util.regex.Pattern;
 
 /**
  * The text answers of the informational commands (!coords, !ping, !fps, !time, !holding, !cf, !8ball, !dice, !tps,
- * !location, !odin) - Odin's {@code ChatCommands.kt} replies, formerly the separate Chat Commands feature
+ * !location, !odin) - replies, formerly the separate Chat Commands feature
  * ({@code chatcommands/}, folded into Party Commands' one list on 2026-10-08). Only builds the line; where and when it
  * is sent is {@link PartyCommandsFeature}'s job.
  */

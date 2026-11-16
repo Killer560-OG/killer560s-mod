@@ -17,11 +17,10 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Real Hypixel dungeon "Quiz" puzzle solver, ported from Odin's own {@code QuizSolver.kt}. The real
+ * Real Hypixel dungeon "Quiz" puzzle solver. The real
  * Oruo the Omniscient statue asks a real trivia question in chat with 3 real lettered answer options
  * (ⓐ/ⓑ/ⓒ), each standing on one of 3 fixed real relative floor positions; the correct option is looked up
- * from a bundled real question-to-answer(s) database ({@code assets/killer560smod/puzzles/quiz-answers.json},
- * copied verbatim from Odin) and highlighted with a floor box. Never answers for you - only highlights.
+ * from a bundled real question-to-answer(s) database ({@code assets/killer560smod/puzzles/quiz-answers.json}) and highlighted with a floor box. Never answers for you - only highlights.
  */
 public final class QuizSolverFeature {
 
@@ -48,7 +47,7 @@ public final class QuizSolverFeature {
     public static void register() {
         // Shared solver highlight pipelines must exist before the level renderer precompiles them.
         SolverEspRender.init();
-        // ChatObserver, not Fabric CHAT/GAME: Odin/NoammAddons/Skyblocker can cancel a server line via
+        // ChatObserver, not Fabric CHAT/GAME: other implementations can cancel a server line via
         // ALLOW_GAME and re-add their own copy straight to ChatComponent, which Fabric listeners never see.
         // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which
         // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
@@ -66,7 +65,7 @@ public final class QuizSolverFeature {
     }
 
     private static void onTick() {
-        // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
+        // Boss check: the reference e42d3316 "reset when entering boss" (2026-09-14 port).
         if (!QuizSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
             if (lastRoomEntry != null || triviaAnswers != null || options[0].blockPos != null) {
                 LOGGER.info("[QuizSolver] solver idle: enabled={} inDungeon={} inBoss={} - question and positions cleared",
@@ -125,7 +124,7 @@ public final class QuizSolverFeature {
         if (!QuizSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) return;
         String msg = ChatObserver.strip(message);
 
-        // Oruo's three lock lines open a new question (NoammAddons QuizSolver.kt clears the options on each): nothing
+        // Oruo's three lock lines open a new question (clears the options on each): nothing
         // known about the last one applies to the next.
         String whole = msg.trim();
         if (whole.equals(QuizState.INTRO) || whole.equals(QuizState.SECOND) || whole.equals(QuizState.THIRD)) {
@@ -314,7 +313,7 @@ public final class QuizSolverFeature {
     private static int blockedClicks = 0;
 
     /**
-     * Block Wrong Answers (NoammAddons {@code QuizSolver.kt}): true for his click on a block next to (Manhattan 1, which is
+     * Block Wrong Answers: true for his click on a block next to (Manhattan 1, which is
      * where each pillar's four buttons are) one of the two WRONG answer pillars, once the solver knows which is right.
      * Before the answer is known, and on the right pillar, nothing is blocked. Sneaking lets it through (the Tic Tac Toe
      * rule). The mixin then fails the click on the client, so nothing is sent.
@@ -374,7 +373,7 @@ public final class QuizSolverFeature {
     }
 
     /** Quiz Timer (killer560, 2026-11-01: "a toggleable hud to show how long till you need to come back to answer"; the
-     *  times are QuizState's, NoammAddons' 220/100 server ticks). */
+     *  times are QuizState's, the 220/100 server ticks). */
     public static final class TimerHudElement extends BasicHud {
         public TimerHudElement() {
             super("quiz_timer", "Quiz Timer", 10, 180);

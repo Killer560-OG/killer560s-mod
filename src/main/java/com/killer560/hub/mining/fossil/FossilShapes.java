@@ -6,7 +6,7 @@ import java.util.List;
 /**
  * The eight Glacite fossils as the Fossil Excavator's 9x6 grid shows them, the orientations Hypixel uses for each, and the
  * "Fossil Excavation Progress" percentage one uncovered tile of each shows (one tile over the fossil's tile count). The
- * shapes, orientations and percentages are Skyblocker's ({@code dwarven/fossil/FossilTypes}); the solver around them is
+ * shapes, orientations and percentages are the ({@code dwarven/fossil/FossilTypes}); the solver around them is
  * this mod's own.
  */
 public final class FossilShapes {
@@ -14,7 +14,7 @@ public final class FossilShapes {
     public static final int WIDTH = 9;
     public static final int HEIGHT = 6;
 
-    /** Orientations, applied as Skyblocker applies them: a flip reverses the rows, then a clockwise turn. */
+    /** Orientations, applied applies them: a flip reverses the rows, then a clockwise turn. */
     enum Turn { R0, R90, R180, R270, F0, F90, F180, F270 }
 
     public enum Fossil {

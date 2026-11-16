@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
- * Salvage Helper and the sell highlight (featF-1108; Skyblocker's SalvageHelper): in the "Salvage Items" menu and the
+ * Salvage Helper and the sell highlight (featF-1108; the SalvageHelper): in the "Salvage Items" menu and the
  * "Trades" menu, marks every slot (menu and your inventory) holding dungeon gear that is cheap, so what is safe to
  * salvage or sell stands out. Gear = a lore line with "DUNGEON" not followed by " ITEM" (so "LEGENDARY DUNGEON SWORD"
  * matches, "DUNGEON ITEM" does not); cheap = its lowest BIN is known and under the Limit. Cost: one screen-title check

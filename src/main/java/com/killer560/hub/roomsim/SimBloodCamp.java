@@ -51,7 +51,7 @@ public final class SimBloodCamp {
     private static final int PASS_DELAY = 40;
     private static final int KILL_LINE_GAP = 40;
 
-    /** Greeting per floor (index 0 = Entrance). The lines are Odin's list; which floor says which is estimated. */
+    /** Greeting per floor (index 0 = Entrance). The lines are the list; which floor says which is estimated. */
     private static final String[] GREETINGS = {
             "Congratulations, you made it through the Entrance.", "Ah, you've finally arrived.", "Ah, we meet again...",
             "So you made it this far... interesting.", "You've managed to scratch and claw your way here, eh?",

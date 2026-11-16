@@ -9,7 +9,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /**
  * The Crystal Hollows Map as a movable, scalable HUD element (killer560, 2026-11-04: "the crystal hollows map should
- * function more like skyhanni and skyblockers do. it should be a hud element like theirs"). Like Skyblocker's Crystals
+ * function more like another mod and another mod do. it should be a hud element like theirs"). Like the Crystals
  * HUD it shows the whole cave in a small square, only while in the Crystal Hollows: the zones, the Nucleus, the
  * structures found this lobby, the saved waypoints and the travel target, and the player as an arrow turned to his
  * facing. Size comes from the HUD editor's scale. Drawn by {@code HudInGameRenderer} (id in UNDRAWN_ELEMENT_IDS).

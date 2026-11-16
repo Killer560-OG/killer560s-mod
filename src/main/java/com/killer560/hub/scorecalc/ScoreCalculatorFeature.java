@@ -59,19 +59,19 @@ import com.killer560.hub.compat.McCompat;
 /**
  * Dungeon Score Calculator: live estimate of the Catacombs score, S+ secrets needed, and 270/300 alerts.
  * <p>
- * Data (same sources Odin's {@code DungeonListener}, NoammAddons' {@code ScoreCalculation} and Skytils'
+ * Data (same sources the {@code DungeonListener}, the {@code ScoreCalculation} and the
  * {@code ScoreCalculation} read, matched on formatting-stripped text):
  * <ul>
  * <li>Tab list: {@code Secrets Found: N}, {@code Secrets Found: X%}, {@code Crypts: N}, {@code Completed Rooms: N},
  * {@code Team Deaths: N}, {@code Puzzles: (N)} and each puzzle's {@code [✔]/[✖]/[✦]} line.</li>
  * <li>Sidebar: {@code Cleared: X% (N)} and {@code Time Elapsed: 1m 2s}.</li>
  * <li>Chat (via {@link ChatObserver}, dungeon-gated, exact lines): {@code A Prince falls. +1 Bonus Score},
- * {@code A Bat has been slain. +1 Bonus Score} (Murkbat; Odin {@code Mimic.kt}), the Watcher's "You have proven
- * yourself" line for blood-done (Odin), and other mods' party announcements ("Mimic Killed!" etc., Odin's list).</li>
- * <li>Mimic: a baby {@link Zombie} dying on F6/F7 outside the boss (Odin {@code Mimic.kt} / NoammAddons entity
+ * {@code A Bat has been slain. +1 Bonus Score} (Murkbat;), the Watcher's "You have proven
+ * yourself" line for blood-done, and other mods' party announcements ("Mimic Killed!" etc., the list).</li>
+ * <li>Mimic: a baby {@link Zombie} dying on F6/F7 outside the boss (/ the reference entity
  * event 3), polled from the tick loop the same way {@code DungeonInfoFeature} does it.</li>
- * <li>Boss room: Odin {@code DungeonListener.getBoss()} coordinates, OR {@link LiveMapFeature#isInBoss()}; latched.</li>
- * <li>Paul (EZPZ +10): Hypixel's keyless election endpoint (Odin {@code WebUtils.hasBonusPaulScore}; Skytils also
+ * <li>Boss room: the reference {@code DungeonListener.getBoss} coordinates, OR {@link LiveMapFeature#isInBoss}; latched.</li>
+ * <li>Paul (EZPZ +10): Hypixel's keyless election endpoint (the reference also
  * counts the minister's perk), falling back to {@link ScoreboardExtraData}'s cached election data.</li>
  * </ul>
  * The math lives in {@link ScoreCalculator}. Everything here only runs while the master toggle is on and
@@ -83,17 +83,17 @@ public final class ScoreCalculatorFeature {
     public static final String ELEMENT_ID = "score_calculator";
     private static final String CHAT_NAME = "Score Calculator";
 
-    // ---- tab list (Odin DungeonListener regexes, loosened to tolerate surrounding whitespace) ----
+    // ---- tab list (the reference DungeonListener regexes, loosened to tolerate surrounding whitespace) ----
     private static final Pattern TAB_SECRETS_PERCENT = Pattern.compile("^\\s*Secrets Found: ([\\d.]+)%\\s*$");
     private static final Pattern TAB_SECRETS_COUNT = Pattern.compile("^\\s*Secrets Found: (\\d+)\\s*$");
     private static final Pattern TAB_CRYPTS = Pattern.compile("^\\s*Crypts: (\\d+)\\s*$");
     private static final Pattern TAB_COMPLETED_ROOMS = Pattern.compile("^\\s*Completed Rooms: (\\d+)\\s*$");
-    // Odin "^Team Deaths: (\d+)$"; BetterMap strips "(n)" parentheses - accept both.
+    // The reference "^Team Deaths: (\d+)$"; BetterMap strips "(n)" parentheses - accept both.
     private static final Pattern TAB_DEATHS = Pattern.compile("^\\s*(?:Team )?Deaths: \\(?(\\d+)\\)?\\s*$");
     private static final Pattern TAB_PUZZLE_COUNT = Pattern.compile("^\\s*Puzzles: \\((\\d+)\\)\\s*$");
     public static final Pattern TAB_PUZZLE = Pattern.compile("^\\s*(\\w+(?: \\w+)*|\\?\\?\\?): \\[([✖✔✦])] ?(?:\\((\\w+)\\))?\\s*$");
 
-    // ---- sidebar (NoammAddons / Skytils) ----
+    // ---- sidebar ----
     private static final Pattern SIDEBAR_CLEARED = Pattern.compile("Cleared: (\\d+)%");
     private static final Pattern SIDEBAR_ELAPSED = Pattern.compile("Time Elapsed: (?:(\\d+)h ?)?(?:(\\d+)m ?)?(?:(\\d+)s)?");
 
@@ -103,7 +103,7 @@ public final class ScoreCalculatorFeature {
     private static final Pattern WATCHER_DONE = Pattern.compile("^\\[BOSS] The Watcher: You have proven yourself\\. You may pass\\.");
     private static final Pattern RUN_START = Pattern.compile("^\\[NPC] Mort: Here, I found this map when I first entered the dungeon\\.$");
     private static final Pattern PARTY_MESSAGE = Pattern.compile("^Party > .*?: (.+)$");
-    // Odin DungeonListener party-assist lists (+ Skytils' marker strings).
+    // The reference DungeonListener party-assist lists (+ the marker strings).
     private static final Set<String> MIMIC_PARTY = Set.of("mimic killed", "mimic slain", "mimic killed!", "mimic dead",
             "mimic dead!", "$skytils-dungeon-score-mimic$");
     private static final Set<String> PRINCE_PARTY = Set.of("prince killed", "prince slain", "prince killed!", "prince dead",
@@ -262,7 +262,7 @@ public final class ScoreCalculatorFeature {
         LOGGER.info("[ScoreCalc] New dungeon run tracked (floor={})", DungeonState.getFloor());
     }
 
-    /** Odin {@code DungeonListener.getBoss()}: per-floor "past the room grid" coordinates, latched for the run. */
+    /** The reference {@code DungeonListener.getBoss}: per-floor "past the room grid" coordinates, latched for the run. */
     private static void updateBoss(Minecraft client) {
         if (LiveMapFeature.isInBoss()) {
             setInBoss("livemap");
@@ -414,7 +414,7 @@ public final class ScoreCalculatorFeature {
             Matcher cleared = SIDEBAR_CLEARED.matcher(plain);
             if (cleared.find()) {
                 int value = parseInt(cleared.group(1), clearedPercent);
-                // Odin: the first "Cleared" change after the Watcher's line is blood's own clear.
+                // The first "Cleared" change after the Watcher's line is blood's own clear.
                 if (value != clearedPercent && expectingBloodUpdate && !bloodDone) {
                     bloodDone = true;
                     LOGGER.info("[ScoreCalc] Blood room counted as cleared ({}% -> {}%)", clearedPercent, value);
@@ -757,7 +757,7 @@ public final class ScoreCalculatorFeature {
      * numbers read "?" rather than the section vanishing; {@code demo} is the HUD editor's sample.
      *
      * <p>Always exactly two rows (killer560, 2026-10-07: "Try to make it smaller and only take up 2 rows"), laid out the
-     * way NoammAddons lays its map info out since 2026-10-15 ("Make the extra info overlay look more like noamm's ...
+     * way the reference lays its map info out since 2026-10-15 ("Make the extra info overlay look more like another mod's...
      * right now there is lots of space to be used and it is used poorly"): the secrets as found / needed for S+ / the
      * floor's total, and crypts; then score, deaths and the bonus kills as M (Mimic, Floor 6 and up), P (Prince) and B
      * (the Murkbat bat), green when done and red when not ("Abbreviate Mimic to M, Prince to P and Bat to B"), split by
@@ -795,7 +795,7 @@ public final class ScoreCalculatorFeature {
         return List.of(secrets + "   " + crypt, row2);
     }
 
-    /** A bonus letter, green when it is done and red when not (NoammAddons' M | P | B). */
+    /** A bonus letter, green when it is done and red when not (the M | P | B). */
     private static String mark(String letter, boolean done) { return (done ? "§a" : "§c") + letter; }
 
     private static int parseInt(String s, int def) {
@@ -830,7 +830,7 @@ public final class ScoreCalculatorFeature {
     private static final int SCORE_YELLOW = 0xFFFF55;
 
     private static int scoreColor(int score, ScoreCalculatorConfig cfg) {
-        // Odin MapInfo.colorizeScore: red < 270, yellow < 300, green 300+ (red and green are his colors now).
+        // The reference MapInfo.colorizeScore: red < 270, yellow < 300, green 300+ (red and green are his colors now).
         return score < 270 ? cfg.getBadColor() : score < 300 ? SCORE_YELLOW : cfg.getGoodColor();
     }
 

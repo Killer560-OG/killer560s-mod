@@ -45,7 +45,7 @@ import com.killer560.hub.gui.ThemeAccent;
  *   <li>Claim logging: a click on the slot-31 open button of a claimable chest (manual - via Fabric
  *   {@code ScreenMouseEvents} - or Auto Croesus calling {@link #onClaimClick}) becomes a pending claim.
  *   It is committed once the chest screen changes/closes or the button turns "Already opened!", and
- *   dropped on "You cannot afford this!" / "Whoa! Slow down there!" - the exact rollback pair Odin's
+ *   dropped on "You cannot afford this!" / "Whoa! Slow down there!" - the exact rollback pair the
  *   KuudraTracker.kt uses for Hypixel's identical reward-chest UI - or if nothing changes within 6s.</li>
  * </ul>
  */
@@ -86,8 +86,8 @@ public final class ChestProfitFeature {
     /** Claimed, no key used, its chests not looked at this session: drawn as "needs a look" (key color, border only),
      *  never hidden, until the run view is opened once (by him or Auto Croesus). */
     static final byte RUN_UNKNOWN = 5;
-    /** The head line once a run is fully used up - SkyHanni's {@code chest.state.keyused} pattern ("No more chests to
-     *  open!", CroesusChestTracker.kt, read 2026-10-12), beside quoi's "No chests opened yet!" and "Opened Chest: ...". */
+    /** The head line once a run is fully used up - the {@code chest.state.keyused} pattern ("No more chests to
+     *  open!", CroesusChestTracker.kt, read 2026-10-12), beside another mod's "No chests opened yet!" and "Opened Chest: ...". */
     static final String RUN_DONE_LORE = "No more chests to open!";
     /** Each run's unopened chests (type -> profit after a key), by run (name, floor, players), from the run views
      *  opened this session. Session only: a run not looked at since the game started is RUN_UNKNOWN. */
@@ -246,7 +246,7 @@ public final class ChestProfitFeature {
         return n == null ? lastKnownRunFloor : (m.group(1) != null ? "M" : "F") + n;
     }
 
-    /** Floor from a Croesus menu run head: name "Master Mode The Catacombs" -> M, lore "Floor VII" (quoi). */
+    /** Floor from a Croesus menu run head: name "Master Mode The Catacombs" -> M, lore "Floor VII" (another mod). */
     public static String floorFromCroesusHead(ItemStack stack) {
         String name = DungeonChestValuer.strip(stack.getHoverName().getString()).trim();
         if (!name.equals("The Catacombs") && !name.equals("Master Mode The Catacombs")) {
@@ -409,7 +409,7 @@ public final class ChestProfitFeature {
      * I even open a run it tells me if i have a claimed chest there yet or not."
      * <p>
      * The head's own lore is the only thing the client is told: {@code "No chests opened yet!"} is present on
-     * a completely untouched run and gone the moment anything in it is claimed (quoi AutoCroesus.kt reads the
+     * a completely untouched run and gone the moment anything in it is claimed ( reads the
      * same line). So this is a two-state answer - untouched vs. something claimed - and cannot tell a run with
      * one chest left from a fully emptied one.
      */

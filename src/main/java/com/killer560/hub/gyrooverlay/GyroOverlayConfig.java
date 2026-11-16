@@ -11,10 +11,10 @@ public final class GyroOverlayConfig {
 
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-gyrooverlay.json");
 
-    /** Skyblocker's default gyro overlay color: a half see-through purple (0x7F761594). */
+    /** The default gyro overlay color: a half see-through purple (0x7F761594). */
     public static final int DEFAULT_COLOR = 0x7F761594;
 
-    /** Skyblocker's three shapes. */
+    /** The three shapes. */
     public enum Style {
         CIRCLE_OUTLINE("Circle Outline"),
         CIRCLE("Circle"),

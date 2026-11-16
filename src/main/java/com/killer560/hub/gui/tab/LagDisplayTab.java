@@ -13,8 +13,8 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /** Performance HUD settings (renamed from "Lag Display", killer560 2026-09-27) - TPS, ping, FPS and CPS in
- *  one movable HUD element. See {@link com.killer560.hub.lagdisplay.LagDisplayFeature} for the Devonian /
- *  NoammAddons sources and the TPS/ping caveats. Master ships OFF; every change saves immediately. */
+ *  one movable HUD element. See {@link com.killer560.hub.lagdisplay.LagDisplayFeature} for the reference /
+ *  the reference sources and the TPS/ping caveats. Master ships OFF; every change saves immediately. */
 public class LagDisplayTab extends BaseTab {
 
     public LagDisplayTab() {

@@ -40,7 +40,7 @@ import com.killer560.hub.gui.ThemeAccent;
  * that, -20% if the reforge ({@code ExtraAttributes.modifier}) differs, -15% if the dungeon star count
  * ({@code ExtraAttributes.dungeon_item_level}) differs, -10% if the enchant count
  * ({@code ExtraAttributes.enchantments}' key count) differs. These three extra NBT keys are well-
- * established, stable real Hypixel fields (the same ones NEU/Skytils/SkyblockAddons have used for years);
+ * established, stable real Hypixel fields (the same ones other mods have used for years);
  * this session could not verify them against a live sample (no game launch allowed - see the boot-test
  * rule), so treat the exact percentages as a documented, honest heuristic rather than a Hypixel-published
  * formula. Only listings that share the id are compared at all - a similarity score is never shown for a

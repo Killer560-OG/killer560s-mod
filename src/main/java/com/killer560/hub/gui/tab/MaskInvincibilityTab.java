@@ -8,7 +8,7 @@ import java.util.List;
 
 /** Mask/pet invincibility timer settings - see
  *  {@link com.killer560.hub.maskinvincibility.MaskInvincibilityFeature}'s class doc for the real
- *  Odin-ported proc detection this is built on. The cheat-build auto-swap
+ *  proc detection this is built on. The cheat-build auto-swap
  *  ({@link com.killer560.hub.maskinvincibility.MaskSwapper}) has its own red section, {@link AutoMaskTab},
  *  since 2026-10-04. */
 public class MaskInvincibilityTab extends BaseTab {

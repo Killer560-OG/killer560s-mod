@@ -19,7 +19,7 @@ import java.util.Set;
  *
  * <p>killer560, 2026-10-05: "add crypt and prince waypoints as toggleables for secret waypoints". Neither can come
  * from where the secret waypoints come from. The room database's {@code crypts} is a COUNT, with no positions, and
- * so is every other room file he has installed (Odin, quoi, rsm, devonian). And neither exists as an entity until
+ * so is every other room file he has installed. And neither exists as an entity until
  * it is opened: the Crypt Undead and the Prince are both spawned BY the Superboom that opens their tomb
  * (hypixelskyblock.minecraft.wiki, Crypt Undead and Prince). So the only thing in the world to point at before a
  * crypt is opened is the tomb itself.

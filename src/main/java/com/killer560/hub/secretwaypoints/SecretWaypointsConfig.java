@@ -35,8 +35,8 @@ public final class SecretWaypointsConfig {
      *  so it ships on; the toggle exists for anyone who wants the old depth-tested boxes back. */
     private boolean throughWalls = true;
     private BoxSize boxSize = BoxSize.HITBOX;
-    // NoammAddons' DungeonWaypoints defaults (killer560, 2026-09-21: "I would like the colors by default to match
-    // noamm's coloring style"): chest MAGENTA, item its favoriteColor (0,134,255), bat GREEN, essence BLACK, key RED.
+    // The DungeonWaypoints defaults (killer560, 2026-09-21: "I would like the colors by default to match
+    // another mod's coloring style"): chest MAGENTA, item its favoriteColor (0,134,255), bat GREEN, essence BLACK, key RED.
     // Superseded 2026-09-27 (killer560: "change chest colors to be green and bats to be a brown") - chest takes the
     // green bats gave up, bats move to brown. See the colorPassV2 migration below for existing configs. Exposed as
     // public constants so the GUI's color pickers can offer a real "Set Default" (same reason
@@ -52,7 +52,7 @@ public final class SecretWaypointsConfig {
     private int batColor = DEFAULT_BAT_COLOR;
     private int redstoneKeyColor = DEFAULT_REDSTONE_KEY_COLOR;
     /** killer560, 2026-09-27: "it also needs to highlight levers just like it does secrets but only during clear...
-     *  You can choose the color for levers." No NoammAddons precedent for this one (levers aren't in its secret
+     *  You can choose the color for levers." No the reference precedent for this one (levers aren't in its secret
      *  waypoint set at all - see {@link SecretWaypointsFeature}'s lever-scan note), so the default is just a color
      *  that doesn't collide with any of the five above. */
     public static final int DEFAULT_LEVER_COLOR = 0xFFFFA500;
@@ -117,7 +117,7 @@ public final class SecretWaypointsConfig {
             cfg.communityRoutes = ConfigJson.getBool(obj, "communityRoutes", true);
             if (!obj.has("noammDefaultsV1")) {
                 // One-time: older files saved the old colors and the Full Block size as plain values, so they are
-                // moved onto the new defaults once (colors match NoammAddons, boxes sized to the object).
+                // moved onto the new defaults once (colors match the reference, boxes sized to the object).
                 SecretWaypointsConfig fresh = new SecretWaypointsConfig();
                 cfg.chestColor = fresh.chestColor;
                 cfg.itemColor = fresh.itemColor;

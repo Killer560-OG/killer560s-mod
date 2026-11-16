@@ -11,11 +11,11 @@ import java.util.Locale;
  * A Shadow Assassin's leap, as the CLIENT sees it: why a right click on a block goes nowhere while one leaps at him.
  * <p>
  * Hypixel shows the leap with a {@code ClientboundInitializeBorderPacket} (the red flash Shadow Assassin Alert reads,
- * QUOI's {@code ShadowAssassinAlert.kt}) whose border leaves him and the blocks round him outside it. Vanilla's
+ * ) whose border leaves him and the blocks round him outside it. Vanilla's
  * {@code MultiPlayerGameMode.useItemOn} returns {@code FAIL} before sending anything for a block outside the client's
  * world border (javap, 26.1.2 and 26.2: {@code WorldBorder.isWithinBounds(BlockPos)} at the top of the method), so
  * every chest, lever or skull click - his, Secret Aura's, a route node's - is dropped client-side until Hypixel sends
- * the border back. QUOI's {@code Tweaks.fixInteract} and RSM's {@code WorldBorderFix} wrap that very check for the
+ * the border back. The {@code Tweaks.fixInteract} and the {@code WorldBorderFix} wrap that very check for the
  * same reason; this mod does not bypass it, it waits for the border to lift (killer560, 2026-10-20: "if I am trying to
  * grab a chest when it leaps to me then it'll sit there and the auto route freezes for forever").
  * <p>

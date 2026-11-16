@@ -29,7 +29,7 @@ import java.util.regex.Pattern;
 /**
  * "Slot Text" - small text drawn over the corner of an item in a container slot: a pet's level, an enchanted book's
  * level, a minion's tier, a skill's level in the Your Skills menu and so on, so the number is readable without hovering.
- * Skyblocker has the same idea; which menus and numbers it covers was read from its documentation and everything here
+ * The reference has the same idea; which menus and numbers it covers was read from its documentation and everything here
  * is written from scratch against this mod's own item helpers. Purely visual, and available on both builds.
  * <p>
  * {@link #compute} is pure (stack, menu title, slot index, which types are on) so it can be tested without a screen;

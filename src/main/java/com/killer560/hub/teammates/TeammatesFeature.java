@@ -28,8 +28,8 @@ import com.killer560.hub.compat.McRender;
  * Teammate Highlight - boxes your dungeon party in the world, colored by their dungeon class, with optional name and
  * distance labels.
  * <p>
- * Ported from Devonian {@code features/dungeons/HighlightTeammates.kt} (box/outline switch, "Highlight Self" option,
- * teammate-role color, wire + fill box). Devonian's default style is vanilla's entity glow outline with a box as the
+ * Ported from (box/outline switch, "Highlight Self" option,
+ * teammate-role color, wire + fill box). The default style is vanilla's entity glow outline with a box as the
  * alternative; this port keeps only the box styles - the glow path in this mod is the {@code cheatutils} WitherGlow
  * mixins, which only ask {@code MobEspFeature}, and those mixins are not this feature's to edit.
  * <p>
@@ -73,7 +73,7 @@ public final class TeammatesFeature {
     private static void tick() {
         TeammatesConfig cfg = TeammatesConfig.getInstance();
         Minecraft client = Minecraft.getInstance();
-        // Dungeon only (Devonian gates on Dungeons.players) - and DungeonState.isInDungeon() is true on p3sim.net
+        // Dungeon only (the reference gates on Dungeons.players) - and DungeonState.isInDungeon is true on p3sim.net
         // while the /killer560 sim override is on, so the feature works there too.
         if (!cfg.isEnabled() || !DungeonState.isInDungeon() || client.level == null || client.player == null) {
             targets = Map.of();

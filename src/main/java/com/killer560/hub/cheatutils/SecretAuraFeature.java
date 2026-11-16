@@ -28,31 +28,30 @@ import java.util.Set;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Secret Aura - interacts (no rotation) with secret chests, levers and Wither Essence skulls in reach, ported
- * from QUOI {@code dungeon/secrets/impl/SecretAura.kt} (itself from NoobRoutes):
+ * Secret Aura - interacts (no rotation) with secret chests, levers and Wither Essence skulls in reach, ported:
  * <ul>
  * <li>Candidates: CHEST / TRAPPED_CHEST, LEVER, and skulls that {@link SecretsFeature#isWitherEssence} or
  * {@link SecretsFeature#isRedstoneKey} confirms by skin profile id; and, once a key skull in reach has gone (picked up),
- * the room's REDSTONE_BLOCK once, to put the key on it (QUOI; Place Redstone Key).
- * <li>Nearest candidate within range: chests and levers 4.5 eye to block BOX (QUOI 6.2 to the center, which the
- * server refused past 4.5); essence skulls QUOI's 4.7 eye to block CENTER (3.8-4.2 to the box), and never past
- * the 4.5 box cap either. Every click also waits out ActionGate's 20-tick world-change settle (QUOI AuraManager).
- * <li>QUOI's "click delay": a block must have been in range for the cooldown before its first click; a global
+ * the room's REDSTONE_BLOCK once, to put the key on it (Place Redstone Key).
+ * <li>Nearest candidate within range: chests and levers 4.5 eye to block BOX (the reference 6.2 to the center, which the
+ * server refused past 4.5); essence skulls the 4.7 eye to block CENTER (3.8-4.2 to the box), and never past
+ * the 4.5 box cap either. Every click also waits out ActionGate's 20-tick world-change settle (the reference AuraManager).
+ * <li>the "click delay": a block must have been in range for the cooldown before its first click; a global
  * cooldown also spaces consecutive clicks. A retry is allowed once after 1s if the click didn't take (chest
  * never opened / lever didn't flip / skull still there), then the block is done for the run.
- * <li>Done detection (QUOI): chest open-ness &gt; 0, lever POWERED changed (incl. flipped by a teammate), essence
+ * <li>Done detection: chest open-ness &gt; 0, lever POWERED changed (incl. flipped by a teammate), essence
  * skull removed. Everything resets on world change / leaving the dungeon / a live map reset (a new run, which
  * includes every sim rebuild - the same room rebuilt puts its secrets back on the same blocks).
- * <li>QUOI room skips via LiveMap's current room: Three Weirdos (wrong chest fails the puzzle) skipped
+ * <li>the reference room skips via LiveMap's current room: Three Weirdos (wrong chest fails the puzzle) skipped
  * entirely; no levers in Water Board / Tic Tac Toe; nothing in Water Board and no chest in Lower / Higher Blaze
- * until that puzzle reads solved or failed on the tab list, or its room is cleared on the map (QUOI's
- * mid-solve checks, 2026-10-12). QUOI's conditional Ice Path / Ice Fill / Teleport Maze
+ * until that puzzle reads solved or failed on the tab list, or its room is cleared on the map (the
+ * mid-solve checks, 2026-10-12). The conditional Ice Path / Ice Fill / Teleport Maze
  * checks need room-relative coordinates, so those rooms are skipped entirely instead (conservative).
- * <li>Boss: nothing, unless "In Boss" is on - then ONLY QUOI's hardcoded F7 P3 levers (with a
+ * <li>Boss: nothing, unless "In Boss" is on - then ONLY the hardcoded F7 P3 levers (with a
  * "Not Activated" stand above). Never the six S2 Lights levers, in boss or not, on an F7/M7 run: they are the Lights
  * Device's own feature since 2026-10-15 ({@code lightsdevice.LightsDeviceFeature}, killer560: "it should not be impacted
  * by other auras"), so Secret Aura neither clicks them nor competes for them, whatever either switch says.
- * <li>Never while a screen is open (QUOI "In container" default off), while sneaking (optional), or while
+ * <li>Never while a screen is open (the reference "In container" default off), while sneaking (optional), or while
  * holding a configured item.
  * <li>While an Auto Routes route runs, only on a node waiting for secrets ({@code RouteExecutor.secretAuraMayClick},
  * killer560 2026-10-16); with no route running it works as above.
@@ -67,7 +66,7 @@ public final class SecretAuraFeature {
     private static final long RETRY_AFTER_MS = 1000;
     private static final int MAX_ATTEMPTS = 2;
 
-    // QUOI SecretAura.kt - F7 P3 levers. QUOI's device levers (the S2 Lights device) are the Lights Device's.
+    //  - F7 P3 levers. The device levers (the S2 Lights device) are the Lights Device's.
     private static final Set<BlockPos> BOSS_LEVERS = Set.of(
             new BlockPos(94, 124, 113), new BlockPos(106, 124, 113), new BlockPos(27, 124, 127),
             new BlockPos(23, 132, 138), new BlockPos(14, 122, 55), new BlockPos(2, 122, 55),
@@ -291,7 +290,7 @@ public final class SecretAuraFeature {
         if (gate == null && roomName != null && SKIP_ROOMS.contains(roomName)) {
             gate = "skipped room"; // only ever tested for null: no per-tick concatenation
         }
-        // QUOI: nothing in Water Board while the board is being solved (its reward chest spawns on the solve).
+        // Nothing in Water Board while the board is being solved (its reward chest spawns on the solve).
         boolean puzzleOpen = roomName != null && CHESTS_AFTER_SOLVE_ROOMS.contains(roomName) && !puzzleDone(roomName);
         if (gate == null && puzzleOpen && "Water Board".equals(roomName)) {
             gate = "Water Board mid-solve";
@@ -304,7 +303,7 @@ public final class SecretAuraFeature {
         }
 
         boolean leversAllowed = cfg.isAuraLevers() && (roomName == null || !NO_LEVER_ROOMS.contains(roomName));
-        // QUOI: the blaze rooms' chest waits for the puzzle too.
+        // The blaze rooms' chest waits for the puzzle too.
         boolean chestsAllowed = cfg.isAuraChests() && !puzzleOpen;
         Vec3 eye = client.player.getEyePosition();
         double range = cfg.getAuraRange();
@@ -356,7 +355,7 @@ public final class SecretAuraFeature {
             // made the effective reach nearer 4.0 and dropped clicks the server would have taken.
             double distSq = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos);
             if ("essence".equals(kind) || "redstoneKey".equals(kind) || "redstoneNode".equals(kind)) {
-                // A skull goes by its CENTER, QUOI's 4.7 (see CheatUtilsConfig.MAX_AURA_SKULL_RANGE), and still never
+                // A skull goes by its CENTER, the 4.7 (see CheatUtilsConfig.MAX_AURA_SKULL_RANGE), and still never
                 // past the 4.5-to-the-box cap every click has.
                 if (Vec3.atCenterOf(pos).distanceToSqr(eye) > skullRangeSq || distSq > capSq) {
                     if (distSq <= capSq * 2.0) {
@@ -644,10 +643,10 @@ public final class SecretAuraFeature {
             if (cfg.isAuraEssence() && SecretsFeature.isWitherEssence(client.level, pos)) {
                 return "essence";
             }
-            // QUOI clicks the Redstone Key's skull too, at the same skull range (killer560, 2026-10-12).
+            // The reference clicks the Redstone Key's skull too, at the same skull range (killer560, 2026-10-12).
             return cfg.isAuraRedstoneKey() && isLooseKey(client, pos) ? "redstoneKey" : null;
         }
-        // The key's target: the room's redstone block, QUOI's rule (it clicks a REDSTONE_BLOCK once the key skull is
+        // The key's target: the room's redstone block, the rule (it clicks a REDSTONE_BLOCK once the key skull is
         // gone). Only with a key found and not yet placed, and never with a block in hand - that click would place it.
         if (block == Blocks.REDSTONE_BLOCK && keyFound && cfg.isAuraPlaceRedstoneKey()
                 && !(client.player.getMainHandItem().getItem() instanceof net.minecraft.world.item.BlockItem)
@@ -662,7 +661,7 @@ public final class SecretAuraFeature {
 
     /**
      * The key counts as found when a key skull within {@link #KEY_WATCH_RANGE} of the eye goes - picked up by him or by
-     * anyone (RSA watches the same, a skull turning to air, within ~6.3). Skulls are block entities, so the chunks around
+     * anyone (the reference watches the same, a skull turning to air, within ~6.3). Skulls are block entities, so the chunks around
      * him are asked for theirs rather than every block in a 21-block cube. One that leaves the range while still there
      * is forgotten: its later pickup is not counted (848: 9 blocks counts, 11 does not).
      */
@@ -720,7 +719,7 @@ public final class SecretAuraFeature {
                 && client.level.getBlockState(pos.below()).getBlock() != Blocks.REDSTONE_BLOCK;
     }
 
-    /** QUOI {@code isBossBlock}: P3 lever with a "Not Activated" stand above (the Lights levers never reach here). */
+    /** The reference {@code isBossBlock}: P3 lever with a "Not Activated" stand above (the Lights levers never reach here). */
     private static boolean isBossLeverClickable(Minecraft client, BlockPos pos, BlockState state) {
         // In Boss's own lever clicking owns S2's two section levers while its Section Levers option is on - don't
         // double-click them here: its whole point is clicking each of them exactly once.

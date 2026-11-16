@@ -18,7 +18,7 @@ public final class TerminalStands {
 
     /** Hypixel's nametag for a terminal that hasn't been opened yet. */
     public static final String INACTIVE_TERMINAL = "Inactive Terminal";
-    /** How much the stands' boxes are grown before testing, matching QUOI's own interact inflation. */
+    /** How much the stands' boxes are grown before testing own interact inflation. */
     public static final double INFLATE = 0.1;
 
     private TerminalStands() {

@@ -27,15 +27,15 @@ import java.util.regex.Pattern;
  * <p>
  * A blend of two ports:
  * <ul>
- * <li><b>NoammAddons {@code features/impl/floor7/LeapCounter.kt}</b> - counts a teammate the moment a movement /
+ * <li><b></b> - counts a teammate the moment a movement /
  * teleport / add-entity packet puts them in the right P3 section while you stand in one of seven hardcoded boxes,
  * deduped by entity id, target capped at {@code min(teammates excluding you, section max)}. Its packet check is
  * really encoding "they got here by a jump, not on foot" - that idea is kept, the boxes are not (they are that mod's
  * coordinates and would break the moment Hypixel moves anything, and killer560 places no nodes for this feature).</li>
- * <li><b>Devonian {@code features/dungeons/f7/LeapCounter.kt}</b> - per-tick polling of teammate entities within a
+ * <li><b></b> - per-tick polling of teammate entities within a
  * radius (kept, no packet mixin needed), and its important trick: Hypixel prints "You have teleported to Name!"
  * when YOU leap, and everything is suppressed for 3 seconds after that line - otherwise everyone already standing
- * near the spot you just landed on is miscounted as having leapt to you (kept). Devonian compares the player's own
+ * near the spot you just landed on is miscounted as having leapt to you (kept). The reference compares the player's own
  * SQUARED distance against an UNSQUARED radius ({@code distanceToSqr(...) > it.dist}); every distance here is
  * compared squared-against-squared.</li>
  * </ul>
@@ -79,9 +79,9 @@ public final class LeapTracker {
         }
     }
 
-    /** Devonian's own-leap regex, verbatim. */
+    /** The own-leap regex, verbatim. */
     private static final Pattern SELF_LEAP = Pattern.compile("^You have teleported to \\w{1,16}!$");
-    /** Devonian's 3 seconds. */
+    /** The 3 seconds. */
     private static final long SELF_LEAP_SUPPRESS_MS = 3000L;
     /** How far back a teammate's old position may be for the displacement check (see class doc). */
     private static final int WINDOW_TICKS = 5;
@@ -168,7 +168,7 @@ public final class LeapTracker {
         if (plain == null || !SELF_LEAP.matcher(plain).matches()) {
             return;
         }
-        // Devonian: nothing counts for 3 s after your own leap. Also a new spot - the old count is meaningless.
+        // Nothing counts for 3 s after your own leap. Also a new spot - the old count is meaningless.
         lastSelfLeapMs = System.currentTimeMillis();
         reset();
     }
@@ -343,7 +343,7 @@ public final class LeapTracker {
 
     // ---- helpers ----
 
-    /** NoammAddons' {@code min(dungeonTeammatesNoSelf.size, maxCount)} - a 4-man party must not wait for a 5th leap.
+    /** The {@code min(dungeonTeammatesNoSelf.size, maxCount)} - a 4-man party must not wait for a 5th leap.
      *  Only alive teammates can leap. With no party known at all (p3sim.net, or the tab list not parsed yet) the
      *  configured number is used as-is rather than capping to 0. */
     private static int capTarget(int configured, List<String> party) {

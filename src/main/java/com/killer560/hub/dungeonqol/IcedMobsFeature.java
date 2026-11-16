@@ -31,7 +31,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-/** Iced Mob Boxes (Devonian BoxIcedMobs, featE-1108): right-clicking an Ice Spray Wand freezes the mobs in front of
+/** Iced Mob Boxes (the reference BoxIcedMobs, featE-1108): right-clicking an Ice Spray Wand freezes the mobs in front of
  *  you for 5 seconds. A frozen mob shows ice blocks on its head (killer560, 2026-11-09, screenshot), so after a click
  *  this boxes exactly the mobs that carry that marker, for as long as it is there: an ice block in the mob's head slot,
  *  or an armor stand holding one within reach of its head. If no marker shows up within {@link #MARKER_WAIT} ticks of

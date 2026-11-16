@@ -27,7 +27,7 @@ import java.util.TreeMap;
  * <ul>
  *   <li>Hypixel's {@code tier_completions} objects now carry a {@code "total"} key; lilyweight's
  *   {@code Object.entries} loop would multiply it by {@code undefined} (NaN). Only numeric floor keys are
- *   used here (NEU's Java port does the same). Master mode "floor 0" is ignored for the same reason.</li>
+ *   used here (the Java port does the same). Master mode "floor 0" is ignored for the same reason.</li>
  *   <li>With the Skills API off both upstreams fall back to the /player achievements endpoint; this viewer
  *   doesn't fetch that, so skill weight is reported as 0 and {@link Result#skillsApi()} is false.</li>
  * </ul>

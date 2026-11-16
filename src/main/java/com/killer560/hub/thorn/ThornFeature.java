@@ -26,13 +26,13 @@ import com.killer560.hub.compat.McCompat;
 /**
  * Floor 4 / Master Mode 4 (Thorn) boss helpers - entry point. Three parts, all default OFF ({@link ThornConfig}):
  * <ul>
- * <li>{@link SpiritBearTracker} - Spirit Bear kill counter / spawn timer (ported from Odin {@code SpiritBear.kt}) plus
+ * <li>{@link SpiritBearTracker} - Spirit Bear kill counter / spawn timer plus
  * this mod's own overkill counter, drawn by {@link #HUD}.
  * <li>{@link ThornEspFeature} - Spirit Bear / spirit mob / Spirit Bow highlights (Dungeon ESP's styles and legit rules).
  * <li>{@link StunSpotWaypoints} - world waypoints from the config's stun-spot list (empty until coordinates are added).
  * </ul>
  * <b>"In the Thorn fight"</b> reuses the mod's own detection: {@link DungeonState#getFloor()} is "F4"/"M4" AND either
- * {@link LiveMapFeature#isInBoss()} (NoammAddons' floor-4 boss-room bounds, latched) or a {@code [BOSS] Thorn:} chat
+ * {@link LiveMapFeature#isInBoss} (the floor-4 boss-room bounds, latched) or a {@code [BOSS] Thorn:} chat
  * line was seen this run (same kind of boss-dialogue trigger {@code DungeonState} uses for Maxor). p3sim.net only
  * simulates F7, so none of this can trigger there (the /killer560 sim override forces "F7", never F4).
  */
@@ -54,7 +54,7 @@ public final class ThornFeature {
     public static void register() {
         ThornConfig.getInstance();
         ThornEspRenderer.init();
-        // ChatObserver (not Fabric CHAT/GAME) so a line Odin/NoammAddons/Skyblocker canceled and re-added still arrives.
+        // ChatObserver (not Fabric CHAT/GAME) so a line other implementations canceled and re-added still arrives.
         // Anchored server-format "[BOSS] Thorn: " prefix, so this mod's own client messages can't match.
         ChatObserver.subscribe(ThornFeature::onChat);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("ThornFeature.tick", ThornFeature::tick));

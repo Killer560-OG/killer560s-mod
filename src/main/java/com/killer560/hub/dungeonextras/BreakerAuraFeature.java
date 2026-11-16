@@ -43,11 +43,11 @@ import com.killer560.hub.compat.McCompat;
  * broken: the automatic path sweep, Side Reach and the "Only Picked Blocks" switch were removed 2026-10-05
  * (killer560: "the aura shouldn't randomly grab blocks, only ones I have selected").
  * <p>
- * Sources: QUOI {@code DungeonBreaker.kt} auto-db tick loop (charges cap per cycle, eye-to-center reach, skip
+ * Sources: auto-db tick loop (charges cap per cycle, eye-to-center reach, skip
  * recently-attempted positions) and {@code AuraManager.breakBlock(immediate = true)} (one
  * {@code START_DESTROY_BLOCK} sent through {@code MultiPlayerGameMode#startPrediction} + main-hand swing, 6-tick
- * cooldown); QUOI {@code VecUtils.getHitResult} for the face; target validity = QUOI
- * {@code Dungeon.isProtectedBlock} (any block entity, or {@code blacklistedDBBlocks}) plus NoammAddons
+ * cooldown); the reference {@code VecUtils.getHitResult} for the face; target validity = the reference
+ * {@code Dungeon.isProtectedBlock} (any block entity, or {@code blacklistedDBBlocks}) plus the reference
  * {@code BreakerHelper.kt} (player heads, obsidian excluded from zero-ping). Charges are read from lore exactly like
  * {@code DungeonBreakerFeature} ("Charges: N/M"), with locally-spent charges subtracted until the lore changes.
  */
@@ -61,7 +61,7 @@ public final class BreakerAuraFeature {
      * <p>
      * It was 1500 ms. A break that did not take - the server disagreed, or the packet landed a tick early - then
      * sat out thirty ticks before being tried again, while he stood in front of a block that was plainly still
-     * there. Neither vanilla nor QUOI has anything like it: QUOI simply re-targets the nearest block that is not
+     * there. Neither vanilla nor the reference has anything like it: the reference simply re-targets the nearest block that is not
      * air, every tick, so a failed break is retried immediately. This only exists to stop the same block being
      * hammered while the server is still answering, and four ticks is enough for that.
      */
@@ -895,8 +895,8 @@ public final class BreakerAuraFeature {
 
         // How many go out this cycle, and in what order.
         //
-        // killer560 (2026-09-23): "Look at how quoi parses multiple blocks and follow it exactly. I trust them."
-        // So this follows QUOI, and QUOI does NOT break several on one tick. Its DungeonBreaker holds a whole set
+        // killer560 (2026-09-23): "Look at how another mod parses multiple blocks and follow it exactly. I trust them."
+        // So this follows other implementations does NOT break several on one tick. Its DungeonBreaker holds a whole set
         // of blocks and every tick takes `activeBreakerBlocks.minByOrNull { it.distToCenterSqr(playerPos) }` - the
         // single nearest one - line-of-sight checks it, sends one START_DESTROY_BLOCK and swings once. Its
         // AuraManager is built the same way: a queue, `queuedBlocks.firstOrNull()` per tick, and a cooldown after
@@ -904,9 +904,9 @@ public final class BreakerAuraFeature {
         //
         // Which is also the rule he gave here first, for levers and chests: "have it only pick one and then the
         // other on the next tick". The setting stays for when he wants otherwise, but it defaults to one, and one
-        // is what following QUOI exactly means.
+        // is what exactly means.
         //
-        // WHAT IS IN HIS WAY first, then QUOI's nearest-first for everything else.
+        // WHAT IS IN HIS WAY first, then the nearest-first for everything else.
         //
         // This is the one honest way left to make it feel faster, and it sends not one extra packet: the rate is
         // still one block a tick. killer560 (2026-09-23): "it can still break if i run into it. Is there some way
@@ -919,9 +919,9 @@ public final class BreakerAuraFeature {
         // The corridor is his own width plus half a block: anything further off his line he would walk past
         // anyway. Ordered by how far AHEAD they are, so the hole opens at his feet and grows away from him.
         //
-        // A departure from "look at how quoi parses multiple blocks and follow it exactly" - deliberately, and
-        // only in the order. Which blocks are eligible, and one a tick, are still QUOI's. When he is not moving
-        // there is no way to be in, and this falls back to QUOI's rule exactly.
+        // A departure from "look at how another mod parses multiple blocks and follow it exactly" - deliberately, and
+        // only in the order. Which blocks are eligible, and one a tick, are still the. When he is not moving
+        // there is no way to be in, and this falls back to the rule exactly.
         // ONE a tick, whatever Multi Break says. Until 2026-11-02 Multi Break sent everything in reach on one tick; GrimAC
         // 2.3.74's experimental MultiBreak flags a second dig on another block (or face) before the server's next tick
         // packet, and a vanilla client sends exactly one of those per client tick (util/DigWindow has the source lines),
@@ -943,7 +943,7 @@ public final class BreakerAuraFeature {
             dirX = vel.x / speed;
             dirZ = vel.z / speed;
         } else {
-            dirX = Double.NaN; // standing still: nothing is "ahead", so QUOI's order stands
+            dirX = Double.NaN; // standing still: nothing is "ahead", so the order stands
             dirZ = Double.NaN;
         }
         List<BlockPos> order = new ArrayList<>(targets);
@@ -1140,7 +1140,7 @@ public final class BreakerAuraFeature {
         com.killer560.hub.compat.McCompat.swingAttack(player);
         // MINUS ONE, because the wait is checked on a later tick and that check costs a tick of its own: with the
         // old arithmetic a cooldown of 1 meant break, skip, break - half the rate the setting says, and half
-        // QUOI's, which has no cooldown in its break loop at all and simply sends one every tick. killer560
+        // The, which has no cooldown in its break loop at all and simply sends one every tick. killer560
         // (2026-09-23): "right now the breaker aura is just way to slow. It isnt how the other clients feel."
         // Multi Break: no cooldown while blocks of this run are still in reach - the next goes next tick; the cooldown
         // applies once the run is over (nothing else in reach this tick).
@@ -1289,7 +1289,7 @@ public final class BreakerAuraFeature {
             lastSentSeq = sequence;
             // Obsidian never reaches here: it is dug over time by ObsidianDig and never zero-pinged (killer560,
             // 2026-10-19: obsidian takes time on the breaker; the 2026-10-05 "treat it as any other block" made a
-            // ghost hole of it). QUOI's BreakerHelper exempts it from zero ping for the same reason.
+            // ghost hole of it). The BreakerHelper exempts it from zero ping for the same reason.
             // Never for barrier or bedrock or anything unbreakable: the server never breaks them, so air here is a
             // ghost hole (killer560, 2026-10-06, seen in the sim with Zero Ping on).
             var state = level.getBlockState(pos);
@@ -1334,9 +1334,9 @@ public final class BreakerAuraFeature {
                 }
             }
             if (level.isLoaded(pos) && level.getBlockState(pos).isAir()) {
-                // QUOI: `if (level.getBlockState(targetBlock).isAir) { activeBreakerBlocks.remove(targetBlock) }`.
+                // `if (level.getBlockState(targetBlock).isAir) { activeBreakerBlocks.remove(targetBlock) }`.
                 // A pick that has been broken stops being a target - but it stays SAVED, because his picks are a
-                // route he runs every time and QUOI's own blocks outlive the run that cleared them.
+                // route he runs every time and the blocks outlive the run that cleared them.
                 continue;
             }
             // RECENT: tried a moment ago; give the server time to answer
@@ -1387,7 +1387,7 @@ public final class BreakerAuraFeature {
                 && state.getDestroySpeed(level, pos) >= 0f;
     }
 
-    /** QUOI {@code BlockPos.getHitResult}: clip the block's own outline shape from the eyes through its center. */
+    /** The reference {@code BlockPos.getHitResult}: clip the block's own outline shape from the eyes through its center. */
     private static BlockHitResult hitResult(LocalPlayer player, ClientLevel level, BlockPos pos) {
         VoxelShape shape = level.getBlockState(pos).getShape(level, pos);
         if (shape.isEmpty()) {

@@ -1,7 +1,7 @@
 package com.killer560.hub.slottext;
 
 /** One kind of small text {@link SlotTextFeature} can draw on a slot. Each has its own on/off setting. Names and the
- *  menu each one applies to were read off Skyblocker's Slot Text documentation; the code is this mod's own. */
+ *  menu each one applies to were Slot Text documentation; the code is this mod's own. */
 public enum SlotTextType {
     PET_LEVEL("Pet Level", "A pet's level, top left. Pets in the pets menu, the choose-pet menu and your inventory.", true),
     ENCHANT_LEVEL("Enchanted Book Level", "The level of the enchantment on an enchanted book, bottom left. Also Bazaar book listings.", true),

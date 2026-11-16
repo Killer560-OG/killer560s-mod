@@ -54,7 +54,7 @@ import java.util.regex.Pattern;
  *
  * <h2>Menus</h2>
  * Every page is classified by {@link BazaarPages} (the reskin's classifier) and every button found by a name the repo
- * already records from SkyHanni, Skyblocker and the wiki: the product page's Buy Instantly / Sell Instantly / Create Buy
+ * already records from other implementations and the wiki: the product page's Buy Instantly / Sell Instantly / Create Buy
  * Order / Create Sell Offer; "How many do you want?" (Custom Amount, or a preset whose lore states exactly the amount);
  * "How much do you want to pay?" (Top Order +0.1); Confirm Buy Order (Buy Order); "At what price are you selling?" (Best
  * Offer -0.1); Confirm Sell Offer (Sell Offer); the bar's Manage Orders; Your Bazaar Orders (each order read by

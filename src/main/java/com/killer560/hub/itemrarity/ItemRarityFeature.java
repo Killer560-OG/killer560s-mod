@@ -27,18 +27,18 @@ import java.util.regex.Pattern;
 
 /**
  * "Item Rarity Backgrounds" - draws a translucent rarity-colored square / circle / outline behind every
- * Skyblock item in container slots (and optionally the hotbar), like Skyblocker's "Item Rarity Backgrounds"
- * and NoammAddons' "Item Rarity" feature. Purely visual.
+ * Skyblock item in container slots (and optionally the hotbar) "Item Rarity Backgrounds"
+ * and the "Item Rarity" feature. Purely visual.
  * <p>
- * Rarity detection, in order (same order Skyblocker's {@code ItemUtils#getItemRarity} uses):
+ * Rarity detection, in order (same order the {@code ItemUtils#getItemRarity} uses):
  * <ol>
  *   <li>Pets (Skyblock id {@code PET}): the {@code petInfo} JSON's {@code tier}, one tier higher if the
  *       held item is {@code PET_ITEM_TIER_BOOST}.</li>
  *   <li>Lore, scanned bottom-up: the first line that STARTS with a rarity word, allowing the leading
  *       obfuscated recombobulator character ("a LEGENDARY DUNGEON CHESTPLATE a") and "SHINY ".</li>
  *   <li>Pet display names ("[Lvl 100] Golden Dragon" - menus without petInfo): the color of the name
- *       segment after the level bracket, as NoammAddons' {@code PET_PATTERN} does.</li>
- *   <li>A non-vanilla {@code tooltip_style} component whose path names a rarity (Skyblocker's fallback
+ *       segment after the level bracket.</li>
+ *   <li>A non-vanilla {@code tooltip_style} component whose path names a rarity (the fallback
  *       for reforge stones etc.).</li>
  * </ol>
  * Results are cached per {@link ItemStack} instance (weak keys - ItemStack uses identity equality) and the

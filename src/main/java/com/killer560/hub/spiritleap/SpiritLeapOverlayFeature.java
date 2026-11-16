@@ -33,7 +33,7 @@ import java.util.regex.Pattern;
  * <p>
  * Spot order comes from the Leap Order editor ({@link com.killer560.hub.leapmenu.LeapOrderScreen}) for the class
  * you are playing; anyone not placed there fills the remaining spots in Hypixel's own order. Targets are
- * re-read from the live slots every frame because Hypixel's items arrive after the screen opens (NoammAddons
+ * re-read from the live slots every frame because Hypixel's items arrive after the screen opens (the reference
  * 26.1.2 LeapMenu does the same) - but only once those slots have settled, see {@code MenuState}.
  * <p>
  * 2026-10-11 batch (killer560): a face in each box (Show Player Heads); the Map in Clear style (the dungeon map with a
@@ -157,7 +157,7 @@ public final class SpiritLeapOverlayFeature {
         return screen != null && screen == activeScreen && SpiritLeapOverlayConfig.getInstance().isEnabled();
     }
 
-    /** Exact titles only (QUOI uses equalsOneOf("Spirit Leap", "Teleport to Player")) - a substring match would also
+    /** Exact titles only (the reference uses equalsOneOf("Spirit Leap", "Teleport to Player")) - a substring match would also
      *  hijack and hide e.g. a Bazaar/AH page for the Spirit Leap item. */
     private static boolean isLeapTitle(String title) {
         String plain = ChatFormatting.stripFormatting(title);
@@ -468,7 +468,7 @@ public final class SpiritLeapOverlayFeature {
         return out;
     }
 
-    /** The whole screen counts as 4 quarters for clicking (Odin's behavior) - the boxes are a visual guide. */
+    /** The whole screen counts as 4 quarters for clicking (the behavior) - the boxes are a visual guide. */
     private static int spotFor(double mouseX, double mouseY, int width, int height) {
         int row = mouseY >= height / 2.0 ? 1 : 0;
         int col = mouseX >= width / 2.0 ? 1 : 0;

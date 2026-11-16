@@ -29,10 +29,10 @@ import java.util.TreeMap;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Auto Anvil (killer560, 2026-10-07: "look at quoi's auto anvil combiner and if you can improve it great but create
+ * Auto Anvil (killer560, 2026-10-07: "look at another mod's auto anvil combiner and if you can improve it great but create
  * that as well. make sure it only combines the same tier of the exact same book.").
  * <p>
- * <b>What QUOI's {@code AutoBookCombine} does</b> (quoi-1.1.1+26.1.jar, read with {@code javap -c -p}): on every
+ * <b>What the {@code AutoBookCombine} does</b> (read with {@code javap -c -p}): on every
  * client tick end, while a container titled exactly "Anvil" is open in SkyBlock, it scans the player-inventory slots
  * for {@code minecraft:enchanted_book} stacks whose {@code custom_data.enchantments} has exactly one key, skips level
  * 5 and level 10 outright, and takes the first two with the same id and level. It then shift-clicks the first, waits
@@ -47,7 +47,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * both inputs are the expected book, a result the anvil previews in slot 13 is exactly the book one level up, both
  * inputs were consumed, and the inventory gained exactly that book. Anything else stops it with the reason in chat -
  * nothing is clicked through. The claim click on 22 is only sent while the result is still sitting in the anvil
- * (where QUOI always sends it). The cap is per enchantment ({@link AnvilBooks#canCombine}), not "not V". Books are
+ * (where the reference always sends it). The cap is per enchantment ({@link AnvilBooks#canCombine}), not "not V". Books are
  * paired lowest level first, so with Combine Results Again on, four III books become two IV and then a V in one go.
  * Item Protect is honored: a protected book or one in a locked slot is never put in.
  * <p>
@@ -56,7 +56,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * than one, or anything whose SkyBlock id is not {@code ENCHANTED_BOOK} is never a candidate.
  * <p>
  * <b>Not verified against live Hypixel</b> (no server here): where exactly the combined book goes. The wiki's anvil UI
- * shows slot 13 as the result and 22 as "Combine Items"; QUOI's double click on 22 implies the result is then taken
+ * shows slot 13 as the result and 22 as "Combine Items"; the double click on 22 implies the result is then taken
  * with 22. This handles both a result left in 13 (claimed with 22, then 13 if that did nothing) and one delivered
  * straight to the inventory.
  */
@@ -336,7 +336,7 @@ public final class AutoAnvilFeature {
                 if (now < nextActionAtMs) {
                     return;
                 }
-                // QUOI takes the result with a second click on 22; if that has not moved it, try the result itself.
+                // The reference takes the result with a second click on 22; if that has not moved it, try the result itself.
                 int target = claimClicks == 0 ? SLOT_COMBINE : SLOT_RESULT;
                 if (claimClicks >= 2) {
                     stop("the " + resultBook + " is still in the anvil - take it out by hand");

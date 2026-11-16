@@ -5,7 +5,7 @@ Part of the sim docs: [SIM.md](SIM.md).
 
 ## The room library
 
-- No public dungeon dataset ships room GEOMETRY (checked 2026-09-28). Dungeon Rooms Mod and its kind store secret
+- No public dungeon dataset ships room GEOMETRY (checked 2026-09-28). The reference and its kind store secret
   coordinates plus room identification, which a waypoint mod needs and a sim cannot use. DRM is also GPL-3.0
   against this mod's MIT, so its code can never be used here - data only, credited, and only with his say-so.
 - **A room stored at the OLD footprint silently HIDES a good copy of the same room.** `RoomLibrary.Room.
@@ -28,7 +28,7 @@ Part of the sim docs: [SIM.md](SIM.md).
   one room seen twice; the next unidentified room would overwrite it with half of two different rooms. Check for the
   placeholder, not just for blank, and distrust a room count that has not been diffed.
 - The room database (`RoomDatabase`) only loads when something calls `ensureLoading()` - the live map does so
-  only inside a real dungeon. Anything that names rooms or votes on rotation outside one (Ashfall solo rooms, the
+  only inside a real dungeon. Anything that names rooms or votes on rotation outside one (the reference solo rooms, the
   sim) must start the load itself and must not judge rooms until `isReady()` - before it, the tile audit and the
   rotation vote judge good rooms broken.
 
@@ -158,7 +158,7 @@ coordinate translation has no constant error; the only free variable is the rota
 
 Where it fails is a DATA mismatch. Seven rooms - Purple Flags, Quartz Knight, Redstone Warrior, Spider, Supertall,
 Waterfall, Withermancer - land zero secrets at every rotation AND every offset, and Red Blue's capture has no chest at
-all. Those Ashfall-preset rooms do not hold the chests the database describes. Scenario 82's figure mixes "is the
+all. Those preset rooms do not hold the chests the database describes. Scenario 82's figure mixes "is the
 rotation right" with "does this capture contain the chest at all", and cannot reach 70% on this library however
 correct the code is. Fix the instrument before touching the bar: assert the chosen rotation against the
 best-scoring rotation per room, and skip the rooms whose captures hold no matching chest.

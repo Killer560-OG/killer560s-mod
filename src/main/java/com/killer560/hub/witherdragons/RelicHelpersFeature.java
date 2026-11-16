@@ -34,15 +34,15 @@ import java.util.Locale;
 import java.util.Optional;
 
 /**
- * M7 Phase 5 relic helpers, cheat build only, both OFF by default (dungeon-gaps-1025 item 10, C1). After NoammAddons'
- * {@code floor7/M7Relics.kt} (Relic Triggerbot, Relic Look) and RSA's {@code dungeon/boss/p5/Relics.java} - ideas only.
+ * M7 Phase 5 relic helpers, cheat build only, both OFF by default (dungeon-gaps-1025 item 10, C1). After the
+ * {@code floor7/M7Relics.kt} (Relic Triggerbot, Relic Look) and - ideas only.
  * <ul>
  * <li><b>Relic Triggerbot</b>: when the crosshair is ALREADY on a relic (not holding one) or on the held relic's own
  * cauldron, it clicks it - one interaction, at START_CLIENT_TICK, through {@link ActionGate}. It never turns anything to
  * find a target. The click goes only when the look the server last heard (the movement packets) meets the same target
  * too, so the server judges it along a look that hits: a crosshair moved by this frame's mouse but not yet reported waits
  * a tick. Reach is measured eye to BOX: 3.0 for the relic's armor stand (an entity), 4.5 for the cauldron. Optionally
- * selects the relic's hotbar slot one tick before the cauldron click (RSA swaps to slot 9 first).</li>
+ * selects the relic's hotbar slot one tick before the cauldron click (the reference swaps to slot 9 first).</li>
  * <li><b>Relic Look</b>: turns toward the nearest unpicked relic within Look Range, then (once it is in the inventory) its
  * cauldron - through Auto Routes' {@link RouteRotation} (a humanized approach, then a plain follow while he walks), the
  * same path the routes use: a delta from the running yaw (never clamped or wrapped), pitch held in -90..90. Moving the
@@ -260,7 +260,7 @@ public final class RelicHelpersFeature {
         return KingRelic.fromStack(head);
     }
 
-    /** A relic stand standing on a cauldron is one already placed (NoammAddons' check, KingRelicsFeature's too). */
+    /** A relic stand standing on a cauldron is one already placed (the check, KingRelicsFeature's too). */
     static boolean isPlaced(Entity stand) {
         for (KingRelic r : KingRelic.values()) {
             double dx = stand.getX() - r.placedX;

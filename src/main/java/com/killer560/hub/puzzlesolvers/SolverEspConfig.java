@@ -26,8 +26,8 @@ import java.util.Map;
  * <p>
  * Deliberately NOT cheat-gated, unlike Dungeon ESP's / Thorn ESP's / P3 Nav's "Through Walls": those reveal mobs and devices
  * you cannot see. A solver highlight only ever redraws an answer the solver has already worked out from data you were given,
- * and both reference mods draw exactly these highlights through blocks on their normal builds (NoammAddons'
- * {@code BoulderSolver.renderBox(..., phase = true)}; QUOI's solvers ship with its "Depth check" switch off).
+ * and both reference mods draw exactly these highlights through blocks on their normal builds (the
+ * {@code BoulderSolver.renderBox(..., phase = true)}; the solvers ship with its "Depth check" switch off).
  */
 public final class SolverEspConfig {
 

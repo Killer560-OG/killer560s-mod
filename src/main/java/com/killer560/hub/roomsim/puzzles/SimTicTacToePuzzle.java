@@ -23,7 +23,7 @@ import com.killer560.hub.compat.McBlocks;
  *
  * <p>The win rule and the computer's move selection are NOT invented here - {@link #getScore}, {@link #alphaBeta}
  * and {@link #getBestMove} are ported line-for-line from
- * {@code com.killer560.hub.puzzlesolvers.TicTacToeSolverFeature} (itself ported from QUOI's Kotlin solver, which
+ * {@code com.killer560.hub.puzzlesolvers.TicTacToeSolverFeature} (itself Kotlin solver, which
  * the real puzzle's board colors were read against), including its move-order table and its choice of who moves
  * on an odd/even mark count. That class's own comment records killer560's request that the "safe prediction" it
  * shows only ever points at a cell that cannot lose - the working assumption here, since nothing in this codebase

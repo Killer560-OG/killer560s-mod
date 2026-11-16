@@ -18,14 +18,14 @@ public final class TerminalTimersConfig {
     private static TerminalTimersConfig instance;
 
     private boolean enabled = false;
-    // Odin "Terminal Times": client-side "<Terminal> solved in Xs" after each terminal you complete.
+    // The reference "Terminal Times": client-side "<Terminal> solved in Xs" after each terminal you complete.
     private boolean solveTimes = true;
-    // Odin "Terminal Splits": section/phase times appended to every "completed a terminal/device/lever! (n/m)"
+    // The reference "Terminal Splits": section/phase times appended to every "completed a terminal/device/lever! (n/m)"
     // line, plus a per-section summary when the core opens.
     private boolean splits = true;
     // killer560's own "bundle the simon says one into this as well" - the Simon Says "Whole device solved" message.
     private boolean simonSaysTime = true;
-    // Devonian's end-of-P3 per-player count of terminals, devices and levers (featsweep-1108, item 2).
+    // The end-of-P3 per-player count of terminals, devices and levers (featsweep-1108, item 2).
     private boolean breakdown = true;
 
     private TerminalTimersConfig() {

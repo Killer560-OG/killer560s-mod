@@ -12,14 +12,14 @@ import java.util.List;
  * Crystal Hollows Walls (killer560, 2026-11-04: "add section walls (other mods have this)"): draws each Hollows zone's
  * boundary as translucent colored walls, in the Crystal Hollows only.
  *
- * <p>Bounds (shelved/mining/docs/CRYSTAL-HOLLOWS.md 3.2-3.3, not SkyHanni's looser box): the Hollows fill X 202..823,
- * Z 202..823, Y 31..188 (Skyblocker and QUOI hardcode them; the wiki's 621 x 157 x 621), so the block edges are 202 and 824,
+ * <p>Bounds (shelved/mining/docs/CRYSTAL-HOLLOWS.md 3.2-3.3, not the looser box): the Hollows fill X 202..823,
+ * Z 202..823, Y 31..188 (other implementations hardcode them; the wiki's 621 x 157 x 621), so the block edges are 202 and 824,
  * 31 and 189. The four surface zones are the quadrants split at X and Z 513 (the Jungle low/low, Mithril Deposits
  * high X/low Z, Goblin Holdout low X/high Z, Precursor Remnants high/high), Magma Fields is the layer at or below Y 64
- * under the whole footprint, and the Crystal Nucleus is the box Hypixel protects, X 462..564 and Z 461..565 (Skyblocker's AABB; his dig log
+ * under the whole footprint, and the Crystal Nucleus is the box Hypixel protects, X 462..564 and Z 461..565 (the AABB; his dig log
  * 2026-11-05 pins Z: a block at z 461 and one at z 562 both answered "A magical force ... prevents you from breaking blocks",
- * so the wiki's 465..562 sat inside the protection; X is Skyblocker's, unconfirmed by a log). The real biome edge is cave
- * terrain, not a plane (QUOI's comment), so a wall marks the nominal line.
+ * so the wiki's 465..562 sat inside the protection; X is the, unconfirmed by a log). The real biome edge is cave
+ * terrain, not a plane (the comment), so a wall marks the nominal line.
  *
  * <p>Each zone draws only its own side of a shared line, a slab {@link #T} thick, so two zones never fight over one
  * plane. A wall is clipped to a cube round the player ("near only", per zone; 0 = whole wall) and drawn as a filled box,

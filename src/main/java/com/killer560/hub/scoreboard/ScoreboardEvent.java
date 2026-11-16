@@ -16,8 +16,8 @@ import static com.killer560.hub.scoreboard.ScoreboardData.sidebar;
 import static com.killer560.hub.scoreboard.ScoreboardData.sublistAfter;
 
 /**
- * The reorderable "Events" block - SkyHanni's {@code ScoreboardConfigEventElement} + {@code events/ScoreboardEvent*}.
- * Default order/on-set follows SkyHanni's {@code defaultOption} (Queue, Anniversary and Starting Soon tab events are
+ * The reorderable "Events" block - the {@code ScoreboardConfigEventElement} + {@code events/ScoreboardEvent*}.
+ * Default order/on-set follows the {@code defaultOption} (Queue, Anniversary and Starting Soon tab events are
  * off by default there too). The Dungeons event also adds the action bar's "x/y Secrets" count.
  */
 public enum ScoreboardEvent {
@@ -353,7 +353,7 @@ public enum ScoreboardEvent {
         }
     }
 
-    /** Header line + up to {@code after} following lines, minus the footer (SkyHanni {@code sublistAfter}). */
+    /** Header line + up to {@code after} following lines, minus the footer. */
     static List<String> headerSection(Pattern header, int after) {
         String line = firstMatches(header, sidebar());
         if (line == null) return List.of();

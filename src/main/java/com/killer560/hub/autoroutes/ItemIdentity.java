@@ -258,7 +258,7 @@ public final class ItemIdentity {
         return -1;
     }
 
-    /** Hotbar slot holding any of these Skyblock ids (QUOI {@code SwapManager.swapById} order), or -1. */
+    /** Hotbar slot holding any of these Skyblock ids (the reference {@code SwapManager.swapById} order), or -1. */
     public static int findHotbarSlotById(LocalPlayer player, String... ids) {
         if (player == null) {
             return -1;

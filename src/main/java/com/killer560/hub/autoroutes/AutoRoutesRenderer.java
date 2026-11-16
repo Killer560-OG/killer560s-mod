@@ -16,10 +16,10 @@ import java.util.List;
 import com.killer560.hub.compat.McRender;
 
 /**
- * Node markers for the current room's route (QUOI Box / Filled box / Cylinder styles, per-type or uniform colors,
+ * Node markers for the current room's route (the reference Box / Filled box / Cylinder styles, per-type or uniform colors,
  * thickness + height sliders, the active node in its own color), the chain line between consecutive nodes, each
  * node's 1-based number (AP3's numbering, behind Show Node Numbers), and in edit mode: the recorded path as a faint line, and a faint highlight on every block any dungeon
- * breaker node will break (air = red outline, present = white fill - QUOI's DB editor). Nothing is drawn while the
+ * breaker node will break (air = red outline, present = white fill - the DB editor). Nothing is drawn while the
  * Interactive Map is open (the feature decides that; see {@link AutoRoutesFeature#isRenderHidden}).
  * <p>
  * Everything is depth-tested against the world like Secret Waypoints, and drawn through {@link WorldRenderUtils}'s
@@ -953,7 +953,7 @@ public final class AutoRoutesRenderer {
 
     /**
      * killer560: "blocks that will be broken by any node get a faint highlight while in edit mode". Air (already broken)
-     * is red, a standing block white - QUOI's DB editor. How they are drawn is the Auto Routes tab's Breaker Block
+     * is red, a standing block white - the DB editor. How they are drawn is the Auto Routes tab's Breaker Block
      * Display and Breaker Block Style (2026-10-06), through Breaker Aura's own draw ({@code BreakerAuraFeature
      * .drawPickBoxes}): Highlight is depth-tested, Waypoint draws through walls and is culled to the render distance
      * (horizontal, from the camera) before any world lookup, as Breaker Aura's is.

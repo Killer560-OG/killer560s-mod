@@ -21,7 +21,7 @@ import java.util.UUID;
  * "Name Changer" / nick hider suite (killer560's roadmap: change your own displayed IGN client-side, rename specific
  * other players client-side, and a mode that randomizes everyone else's name).
  * <p>
- * How it works (modeled on quoi's {@code NickHider} + {@code FontMixin}, itself a port of Ownwn's Client-Custom-Name):
+ * How it works (modeled on another mod's {@code NickHider} + {@code FontMixin}, itself a port of Ownwn's Client-Custom-Name):
  * every piece of text the client draws - chat, name tags, tab list, scoreboard, item lore, container titles, tooltips -
  * ends up in {@code Font.prepareText(...)} (GUI text via {@code GuiTextRenderState.ensurePrepared}, world text via
  * {@code Font.drawInBatch}), and layout goes through {@code Font.width(...)}. {@code NameChangerFontMixin} rewrites
@@ -116,7 +116,7 @@ public final class NameChangerFeature {
         String name = profile.name();
         UUID id = profile.id();
         // Hypixel's fake tab-list columns ("!A-a" etc.) fail the name-shape check; Hypixel NPC player entities
-        // use version-2 UUIDs (the same heuristic SkyHanni/Skyblocker use), real players are v4 (v3 offline).
+        // use version-2 UUIDs (the same heuristic other implementations use), real players are v4 (v3 offline).
         if (!NameTable.isValidName(name) || name.length() < 3 || name.equalsIgnoreCase(ownName)
                 || (id != null && id.version() == 2)) {
             return false;

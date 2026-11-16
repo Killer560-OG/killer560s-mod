@@ -16,8 +16,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /** Expands a button's interaction hitbox - killer560's explicit request for a Flat/Full Box choice
- *  (2026-09-09), matching quoi's own real "Expanded" vs "FullBlock" {@code ButtonHitbox} selector
- *  (decompiled via CFR) - "Flat" here is quoi's "Expanded": a face-aware shape that covers the button's
+ *  (2026-09-09), matching another mod's own real "Expanded" vs "FullBlock" {@code ButtonHitbox} selector
+ *  (decompiled via CFR) - "Flat" here is another mod's "Expanded": a face-aware shape that covers the button's
  *  whole attached face but stays thin, rather than a full cube. No collision-shape preservation needed
  *  (see {@link LeverBlockMixin}'s own doc) - a button's real vanilla collision is hardcoded empty
  *  regardless of outline shape. */

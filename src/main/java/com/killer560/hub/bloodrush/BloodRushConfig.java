@@ -50,7 +50,7 @@ public final class BloodRushConfig {
     private DoorKills doorKills = DoorKills.NEVER;
     private boolean dropBottom = false;
 
-    /** adm's Door Kills: when the door runner kills too (one more role, the last). */
+    /** Door Kills: when the door runner kills too (one more role, the last). */
     public enum DoorKills {
         NEVER("Never"), ALWAYS("Always"), AFTER_FAIRY("After Fairy");
 

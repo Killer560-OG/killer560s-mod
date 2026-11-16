@@ -25,8 +25,8 @@ import com.killer560.hub.compat.McCompat;
  * sound when the expected number of teammates have leapt to you, and owns the movable/scalable HUD element.
  * Default OFF ({@link LeapCounterConfig}); informational only, so it ships on both jars.
  * <p>
- * Alert defaults follow NoammAddons' LeapCounter ("&aEveryone Leaped!" title, experience-orb pickup sound); the HUD
- * line is its "{count}/{max} Players Leaped" shape with Devonian's color-by-progress.
+ * Alert defaults follow the LeapCounter ("&aEveryone Leaped!" title, experience-orb pickup sound); the HUD
+ * line is its "{count}/{max} Players Leaped" shape with the color-by-progress.
  */
 public final class LeapCounterFeature {
 

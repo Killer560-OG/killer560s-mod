@@ -28,49 +28,49 @@ import java.util.regex.Pattern;
 /**
  * All of the automatic detection and every running countdown for {@link ItemAbility}.
  *
- * <p>Ported from SkyHanni {@code beta},
+ * <p>Ported from the reference {@code beta},
  * {@code features/itemabilities/abilitycooldown/ItemAbilityCooldown.kt} (fetched 2026-09-16). Three
- * independent detection paths, exactly as SkyHanni has them:
+ * independent detection paths, exactly them:
  * <ol>
- *   <li><b>Sound</b> - every sound id / pitch / volume triple below is SkyHanni's {@code onPlaySound}
+ *   <li><b>Sound</b> - every sound id / pitch / volume triple below is the {@code onPlaySound}
  *       verbatim. Reached through the mod's existing {@code DungeonAlertsPackets.onSound} bridge (the same
  *       one {@code ragaxe} reuses) rather than a second sound mixin.</li>
  *   <li><b>Action bar</b> - Hypixel writes {@code -N Mana (AbilityName)} into the action bar whenever a mana
- *       ability fires; SkyHanni's {@code abilityUsePattern} is {@code ".*-\d+ Mana \((?<type>.*)\).*"} with
- *       the color codes spelled out. Only the abilities SkyHanni gives an {@code abilityName} to are matched
+ *       ability fires; the {@code abilityUsePattern} is {@code ".*-\d+ Mana \((?<type>.*)\).*"} with
+ *       the color codes spelled out. Only the abilities the reference gives an {@code abilityName} to are matched
  *       (the ones it notes "doesn't have a sound"), because those are the only real Hypixel ability names any
  *       reference mod actually confirms - nothing here invents one.</li>
  *   <li><b>Chat</b> - {@code Creeper Veil Activated!} for the Wither Cloak.</li>
  * </ol>
  *
- * <p><b>The 400 ms click gate.</b> SkyHanni's {@code ItemAbility.sound()} only starts the timer when the
+ * <p><b>The 400 ms click gate.</b> the {@code ItemAbility.sound} only starts the timer when the
  * player clicked an item within the last 400 ms, so a teammate firing the same ability next to you can never
  * start your countdown. Reproduced here off Fabric's {@code UseItemCallback}/{@code UseBlockCallback}
  * (see {@link AbilityCooldownFeature}); the window is a slider because it really is a ping-sensitive value.
  *
- * <p><b>Simplifications vs. SkyHanni, all deliberate:</b>
+ * <p><b>Simplifications, all deliberate:</b>
  * <ul>
- *   <li>SkyHanni draws two-phase timers over the hotbar item (a colored "effect active" phase, then the
+ *   <li>the reference draws two-phase timers over the hotbar item (a colored "effect active" phase, then the
  *       rest of the cooldown). This draws one countdown per ability in a movable HUD list, so the
  *       Wither Shield's 5 s shield phase and Tactical Insertion's 3 s placed phase are folded into the one
  *       10 s / 20 s number. The numbers themselves are unchanged.</li>
- *   <li>SkyHanni's {@code recentlyHeld} (anything held in the last few seconds) is simplified to "the item
+ *   <li>the {@code recentlyHeld} (anything held in the last few seconds) is simplified to "the item
  *       in your main hand right now", used only to disambiguate sounds two different items share
  *       (Voodoo Doll vs. Wilted, Weird vs. Weirder Tuba, the flares, Totem of Corruption).</li>
  *   <li>Mage cooldown reduction is OFF by default. "Am I a Mage" is auto-detected
  *       ({@code PartyTracker.selfClass()}); the SIZE of the reduction is a flat percentage setting (25%
- *       default) rather than SkyHanni's unique-class/level formula, because nothing in this codebase reads
+ *       default) rather than the unique-class/level formula, because nothing in this codebase reads
  *       your dungeon class LEVEL yet - the same simplification {@code RagAxeConfig} already made.</li>
  * </ul>
  */
 public final class AbilityCooldownState {
 
-    /** SkyHanni {@code abilityUsePattern}: {@code ".*§b-\d+ Mana \(§6(?<type>.*)§b\).*"}. Written here so the
+    /** The reference {@code abilityUsePattern}: {@code ".*§b-\d+ Mana \(§6(?<type>.*)§b\).*"}. Written here so the
      *  color codes are optional - this mod's own {@code PlayerStatsFeature} learned the hard way that a real
      *  action bar does not always carry the codes the reference mod's regex assumed. */
     private static final Pattern ABILITY_USE =
             Pattern.compile("-[\\d,]+ Mana \\((?:\u00A7.)*([^\u00A7()]+?)(?:\u00A7.)*\\)");
-    /** SkyHanni {@code onChat}: {@code "§dCreeper Veil §r§aActivated!"} (stripped of color codes here). */
+    /** The reference {@code onChat}: {@code "§dCreeper Veil §r§aActivated!"} (stripped of color codes here). */
     private static final Pattern CREEPER_VEIL_ON = Pattern.compile("^Creeper Veil Activated!$");
 
     private static final Map<ItemAbility, Long> ENDS_AT = new EnumMap<>(ItemAbility.class);
@@ -119,7 +119,7 @@ public final class AbilityCooldownState {
         ENDS_AT.put(ability, System.currentTimeMillis() + durationMs);
     }
 
-    /** SkyHanni's {@code ItemAbility.sound()} - only yours if you clicked an item inside the window. */
+    /** The {@code ItemAbility.sound} - only yours if you clicked an item inside the window. */
     private static void sound(ItemAbility ability) {
         long since = System.currentTimeMillis() - lastItemClickMs;
         if (lastItemClickMs == 0L || since >= AbilityCooldownConfig.getInstance().getClickWindowMs()) {
@@ -176,13 +176,13 @@ public final class AbilityCooldownState {
 
     /**
      * killer560, 2026-09-21: "implement auto mage reduction detection and class detection" - same pattern
-     * {@code RagAxeConfig#effectiveCooldownSeconds} already uses. SkyHanni's real formula (50% as the only
+     * {@code RagAxeConfig#effectiveCooldownSeconds} already uses. The real formula (50% as the only
      * Mage in the party, 25% otherwise, minus 1% per two class levels) needed a class LEVEL this mod has no
      * way to read, so that formula and its two manual toggles ("Unique Class" / "Mage Class Level") are gone.
      * "Am I a Mage" is now free from {@link PartyTracker#selfClass()}; the SIZE of the cut stays a setting
      * ({@link AbilityCooldownConfig#getMageCooldownReductionPercent()}, 25% default) because Hypixel never
      * tells the client the real number. {@code WAND_OF_ATONEMENT} and {@code RAGNAROCK_AXE} are still excluded
-     * ({@link ItemAbility#ignoresMageReduction()}) - SkyHanni treats them as effects over time, not cooldowns.
+     * ({@link ItemAbility#ignoresMageReduction}) - the reference treats them as effects over time, not cooldowns.
      */
     private static double multiplier(ItemAbility ability) {
         AbilityCooldownConfig cfg = AbilityCooldownConfig.getInstance();
@@ -206,7 +206,7 @@ public final class AbilityCooldownState {
             return;
         }
         String name = m.group(1).trim();
-        // SkyHanni: the same line is re-sent every tick while the bar holds it, so only a CHANGE counts as
+        // The same line is re-sent every tick while the bar holds it, so only a CHANGE counts as
         // a new use.
         if (name.equals(lastActionBarAbility)) {
             return;
@@ -220,7 +220,7 @@ public final class AbilityCooldownState {
         }
     }
 
-    /** Wither Cloak. SkyHanni instead shows a purple "veil active" phase and starts the 10 s cooldown on the
+    /** Wither Cloak. The reference instead shows a purple "veil active" phase and starts the 10 s cooldown on the
      *  de-activation lines; this starts the table's 10 s cooldown right at activation, which is the same
      *  number without the second phase. */
     static void onChat(Component message) {
@@ -235,7 +235,7 @@ public final class AbilityCooldownState {
     }
 
     /**
-     * Every branch below is SkyHanni's {@code onPlaySound} verbatim (sound id, pitch, volume). Reached from
+     * Every branch below is the {@code onPlaySound} verbatim (sound id, pitch, volume). Reached from
      * {@code DungeonAlertsPackets.onSound}, which is already on the client thread and already Skyblock-gated.
      */
     public static void onSoundPacket(ClientboundSoundPacket packet) {
@@ -261,7 +261,7 @@ public final class AbilityCooldownState {
                         sound(ItemAbility.WITHER_IMPACT);
                     }
                 } else if (eq(pitch, 1.8888888f) && eq(volume, 0.7f)) {
-                    // SkyHanni: TACTICAL_INSERTION.activate(null, 17_000) - the 17 s left after the 3 s placed
+                    // TACTICAL_INSERTION.activate(null, 17_000) - the 17 s left after the 3 s placed
                     // phase. Not gated on the click window: it is the server answering your own insertion.
                     activate(ItemAbility.TACTICAL_INSERTION, 17_000L);
                 }
@@ -364,7 +364,7 @@ public final class AbilityCooldownState {
                 }
             }
             case "item.flintandsteel.use" -> {
-                // SkyHanni: TACTICAL_INSERTION.activate(DARK_PURPLE, 3_000) - the 3 s placed phase. Here the
+                // TACTICAL_INSERTION.activate(DARK_PURPLE, 3_000) - the 3 s placed phase. Here the
                 // whole 20 s runs from this moment; the cure sound above refreshes it to the real 17 s left.
                 if (eq(pitch, 0.74603176f) && eq(volume, 1f)) {
                     sound(ItemAbility.TACTICAL_INSERTION);
@@ -387,7 +387,7 @@ public final class AbilityCooldownState {
                 }
             }
             default -> {
-                // Weird / Weirder Tuba: SkyHanni keys on "entity.wolf.death" at volume 0.5. On 26.1.2 the wolf
+                // Weird / Weirder Tuba: the reference keys on "entity.wolf.death" at volume 0.5. On 26.1.2 the wolf
                 // death sound is per-variant, so it is matched the same way ragaxe/RagAxeState matches
                 // Ragnarock's cast sound - against every WolfSoundVariant's own death sound.
                 if (eq(volume, 0.5f) && isWolfDeath(id)) {
@@ -433,7 +433,7 @@ public final class AbilityCooldownState {
 
     /** The three scroll ids Wither Impact needs on one item. Kept as raw Skyblock ids, not {@link ItemAbility}
      *  constants - killer560, 2026-09-21, dropped the three scrolls as individually-timed abilities, but
-     *  Wither Impact (all three at once) still needs to recognize them on the item. Devonian reads exactly
+     *  Wither Impact (all three at once) still needs to recognize them on the item. The reference reads exactly
      *  this list in {@code misc/WitherShieldTimer.kt} ({@code data.getList("ability_scroll")}). */
     private static final Set<String> WITHER_COMBO_SCROLL_IDS =
             Set.of("WITHER_SHIELD_SCROLL", "SHADOW_WARP_SCROLL", "IMPLOSION_SCROLL");

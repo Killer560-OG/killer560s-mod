@@ -296,11 +296,11 @@ public final class F7SpotsConfig {
     public boolean isAimAllSituations() { return aimAllSituations; }
     public void setAimAllSituations(boolean v) { aimAllSituations = v; }
 
-    /** NoammAddons' arrow-stack aim points, see {@link AimSpots}. */
+    /** The arrow-stack aim points, see {@link AimSpots}. */
     public boolean isAimArrowStack() { return aimArrowStack; }
     public void setAimArrowStack(boolean v) { aimArrowStack = v; }
 
-    /** Devonian's Last Breath waypoints for the five P5 dragons, see {@link AimSpots#DEVONIAN_LB}. */
+    /** The Last Breath waypoints for the five P5 dragons, see {@link AimSpots#DEVONIAN_LB}. */
     public boolean isAimDevonianLb() { return aimDevonianLb; }
     public void setAimDevonianLb(boolean v) { aimDevonianLb = v; }
 

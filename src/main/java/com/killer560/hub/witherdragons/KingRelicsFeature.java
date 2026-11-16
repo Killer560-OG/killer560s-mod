@@ -47,29 +47,28 @@ import java.util.regex.Pattern;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * M7 Phase 5 relic helpers - port of Odin's {@code KingRelics} module
- * (https://github.com/odtheking/Odin/blob/main/src/main/kotlin/com/odtheking/odin/features/impl/boss/KingRelics.kt)
- * plus NoammAddons' {@code M7Relics.kt} (local copy a local NoammAddons checkout, features/impl/floor7):
+ * M7 Phase 5 relic helpers - port of the {@code KingRelics} module
+ * plus:
  * <ul>
- * <li>Relic spawn timer: Necron's "All this, for nothing..." line starts a {@code Relic Spawn Ticks} (Odin default
+ * <li>Relic spawn timer: Necron's "All this, for nothing..." line starts a {@code Relic Spawn Ticks} (the reference default
  * 38) server-tick countdown shown on the "King Relic Timer" HUD.
  * <li>Held relic (by Skyblock id, or the "Corrupted &lt;Colour&gt; Relic" name) highlights its own cauldron
- * (Odin relic beacon / NoammAddons relic box), with an optional tracer.
- * <li>Your placement: Odin times a cauldron/anvil click while holding a relic from the Necron line. Here the click
+ * (the reference relic beacon / the reference relic box), with an optional tracer.
+ * <li>Your placement: the reference times a cauldron/anvil click while holding a relic from the Necron line. Here the click
  * only counts once the relic actually leaves your inventory within 1s, so a click on the wrong cauldron (which
  * Hypixel rejects) doesn't record a bogus time.
- * <li>Party placements: NoammAddons' check - an armor stand wearing a relic head standing on a relic's cauldron
+ * <li>Party placements: the check - an armor stand wearing a relic head standing on a relic's cauldron
  * x/z (&lt; 1.5 blocks) means that relic is placed; who picked it comes from "X picked the Corrupted Y Relic!".
  * Summary once all five are placed.
- * <li>Relic spawn: the first relic head equipped on an armor stand after the Necron line (Odin "relic spawned in").
- * Odin only checks this while you already hold a relic, which can't happen before they spawn - that gate is dropped.
+ * <li>Relic spawn: the first relic head equipped on an armor stand after the Necron line (the reference "relic spawned in").
+ * The reference only checks this while you already hold a relic, which can't happen before they spawn - that gate is dropped.
  * </ul>
  * Everything also feeds {@link P5Splits} for the Split Timers "Relic" lines. Info/render only (legit).
  */
 public final class KingRelicsFeature {
 
-    // Odin KingRelics.relicPickupRegex (the Necron line that starts P5)
-    // NoammAddons M7Relics.relicPickUpRegex
+    // The reference KingRelics.relicPickupRegex (the Necron line that starts P5)
+    // The reference M7Relics.relicPickUpRegex
     private static final Pattern PICKUP = Pattern.compile("^(\\w{3,16}) picked the Corrupted (\\w{3,6}) Relic!$");
 
     private static long p5StartTick = 0L;
@@ -139,7 +138,7 @@ public final class KingRelicsFeature {
         String plain = com.killer560.hub.util.ChatObserver.strip(message);
         if (plain == null) return;
         Minecraft client = Minecraft.getInstance();
-        // NoammAddons gates on "in boss + M7" rather than Odin's y<=45 P5 check: players can still be above y 45
+        // The reference gates on "in boss + M7" rather than the y<=45 P5 check: players can still be above y 45
         // when Necron's last line arrives.
         // F7 has no Phase 5 (Necron's line ends the run there) - only M7, p3sim, or the manual sim override.
         boolean inBoss = (DungeonState.isBossPhaseActive() && (DungeonState.isSimOverrideActive() || !"F7".equals(DungeonState.getFloor())))
@@ -223,7 +222,7 @@ public final class KingRelicsFeature {
         }
     }
 
-    /** Odin {@code EntityEvent.SetItemSlot}: a relic head on an armor stand = relics have spawned. */
+    /** The reference {@code EntityEvent.SetItemSlot}: a relic head on an armor stand = relics have spawned. */
     static void onEquipment(ClientboundSetEquipmentPacket packet) {
         if (!active() || p5StartTick == 0L || announcedSpawn) return;
         for (var pair : packet.getSlots()) {
@@ -263,7 +262,7 @@ public final class KingRelicsFeature {
     private static int blockedRelicClicks = 0;
 
     /**
-     * Block Wrong Relic (NoammAddons {@code M7Relics.kt}): true for his click (left or right) on one of the five relic
+     * Block Wrong Relic: true for his click (left or right) on one of the five relic
      * cauldrons that is not the one of the relic he carries, in P5. Only the cauldrons themselves (their x/z, within a
      * block of their height), so every other block, and his own cauldron, is untouched. Sneaking lets it through.
      */
@@ -312,7 +311,7 @@ public final class KingRelicsFeature {
         }
     }
 
-    /** Odin: {@code Relic.entries.find { inventory contains item with that id }}. */
+    /** {@code Relic.entries.find { inventory contains item with that id }}. */
     private static KingRelic heldRelic() {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) return null;
@@ -339,7 +338,7 @@ public final class KingRelicsFeature {
         AABB block = new AABB(p);
         WorldRenderUtils.renderFilledBox(context, block, c[0], c[1], c[2], 0.35f);
         WorldRenderUtils.renderOutlineBox(context, block.inflate(0.002), c[0], c[1], c[2], 1f, 3f);
-        // Odin drawCustomBeacon: a tall beam over the cauldron so it's findable from across the room.
+        // The reference drawCustomBeacon: a tall beam over the cauldron so it's findable from across the room.
         AABB beam = new AABB(p.getX() + 0.35, p.getY() + 1, p.getZ() + 0.35, p.getX() + 0.65, p.getY() + 40, p.getZ() + 0.65);
         WorldRenderUtils.renderFilledBox(context, beam, c[0], c[1], c[2], 0.25f);
         if (cfg.isRelicTracer()) {
@@ -351,7 +350,7 @@ public final class KingRelicsFeature {
     }
 
 
-    /** Odin "Relic Hud": "Relics: 1.85s" while the relic spawn countdown runs. */
+    /** The reference "Relic Hud": "Relics: 1.85s" while the relic spawn countdown runs. */
     public static final class RelicTimerHudElement extends BasicHud {
         public RelicTimerHudElement() {
             super("king_relic_timer", "King Relic Timer", 10, 240);

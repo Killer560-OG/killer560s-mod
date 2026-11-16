@@ -3,13 +3,13 @@ package com.killer560.hub.terminals;
 import java.util.regex.Pattern;
 
 /** The Floor 7 dungeon terminal minigames this solver covers, with the exact GUI title Hypixel opens
- *  for each - confirmed by decompiling Odin's own {@code TerminalTypes} enum (its real title regexes,
+ *  for each - confirmed by decompiling the {@code TerminalTypes} enum (its real title regexes,
  *  byte-for-byte). Melody IS a real container GUI (confirmed by killer560's own screenshot, 2026-09-09,
  *  matching this exact regex) but isn't actually solved here - {@link TerminalSolverFeature} only hides
  *  its player-inventory rows and recenters it, no highlight logic.
  *
  *  <p>Re-checked 2026-10-08 after "all terminal solvers and auto terminal is broken": the six titles are unchanged in
- *  the current source of Odin (TerminalTypes.kt), NoammAddons, Skyblocker, Devonian and jcnlk's quoi (Dungeon.kt). Every
+ *  the current source of the reference (TerminalTypes.kt), and other implementations (Dungeon.kt). Every
  *  matcher in the mod goes through {@link #match} / {@link #normalizeTitle}, which drops color codes and the
  *  private-use / formatting glyphs a resource-pack GUI title carries, so a decorated title still matches. */
 public enum TerminalType {

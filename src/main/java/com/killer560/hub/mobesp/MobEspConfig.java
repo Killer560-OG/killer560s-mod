@@ -61,7 +61,7 @@ public final class MobEspConfig {
     /** Blood Mobs (killer560, 2026-10-15: "blood mob ESP ... will highlight them red"). */
     public static final int DEFAULT_BLOOD_COLOR = 0xFFFF0000;
     public static final int DEFAULT_WITHER_COLOR = 0xFFFF0000;
-    /** Fel Skulls: NoammAddons' fel color (pink). */
+    /** Fel Skulls: the fel color (pink). */
     public static final int DEFAULT_FEL_COLOR = 0xFFFF69B4;
     /** Mimic: purple. */
     public static final int DEFAULT_MIMIC_COLOR = 0xFFAA00FF;

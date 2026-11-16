@@ -25,23 +25,21 @@ import java.util.Set;
 /**
  * Spirit Bear kill counter + spawn timer + overkill counter for the Thorn fight.
  * <p>
- * <b>Kill counter / timer - a faithful port of Odin {@code features/impl/boss/SpiritBear.kt}</b>
- * (github.com/odtheking/Odin, fetched 2026-09-15; CaribouStonks {@code ThornBossFeature.java} and NoammAddons 26.1.2
- * {@code F4Features.kt} use the identical signal and identical coordinates). The arena has a ring of blocks at y=77
+ * <b>Kill counter / timer - a faithful port of the known signal</b>
+ * (fetched 2026-09-15; other implementations use the identical signal and identical coordinates). The arena has a ring of blocks at y=77
  * that turns from {@code COAL_BLOCK} to {@code SEA_LANTERN} one block per spirit-animal kill; when the ring is full the
- * Spirit Bear spawns. The wiki (hypixelskyblock.minecraft.wiki/w/Thorn) and all three mods agree on the thresholds:
+ * Spirit Bear spawns. The wiki (hypixelskyblock.minecraft.wiki/w/Thorn) and all the implementations agree on the thresholds:
  * <b>F4 = 25 kills (25 ring blocks), M4 = 30 kills (30 ring blocks)</b>. The last block to light is always
- * {@code (7, 77, 34)}; it lighting starts a 68-tick spawn timer (Odin/NoammAddons 68, NoFrills 68, CaribouStonks 69
+ * {@code (7, 77, 34)}; it lighting starts a 68-tick spawn timer (other implementations 68, 68, 69
  * "68-70"); it going back to coal means the bear cycle is over (timer back to "not spawned").
  * <p>
- * Differences from Odin, all behavior-preserving: Odin reacts to block-update packets through its own mixin event;
+ * Differences from the reference, all behavior-preserving: the reference reacts to block-update packets through its own mixin event;
  * this polls the 25/30 fixed positions once per client tick (no mixin needed, and a mid-fight join/relog picks up the
- * ring's current state instead of starting at 0). Kills = number of lit ring blocks, which equals Odin's clamped
- * +1/-1 transition count. Odin's timer counts server ticks (ping-packet based); this counts client ticks, so it can
+ * ring's current state instead of starting at 0). Kills = number of lit ring blocks, which equals the clamped
+ * +1/-1 transition count. The timer counts server ticks (ping-packet based); this counts client ticks, so it can
  * drift slightly under lag (same caveat as this mod's Tick Timers).
  * <p>
- * <b>Overkill - this mod's own addition</b> (no public mod has one; searched Odin, NoammAddons, NoFrills,
- * CaribouStonks, Skyblocker, SkyHanni, Skytils). Once the ring is full it can't show further kills, so overkill counts
+ * <b>Overkill - this mod's own addition</b> (no public mod has one; several were searched). Once the ring is full it can't show further kills, so overkill counts
  * spirit-animal deaths directly: a non-player, non-armor-stand, non-Ghast living entity that goes into its death state
  * ({@link LivingEntity#isDeadOrDying()} - vanilla sets health 0 on the client when the server sends the death entity
  * event) while the fight is active. Each ring block that lights is paired with one observed death (either order, within
@@ -55,14 +53,14 @@ public final class SpiritBearTracker {
 
     public static final int F4_KILLS = 25;
     public static final int M4_KILLS = 30;
-    /** Odin/NoammAddons {@code bearSpawnTime} = 68 ticks. */
+    /** Other implementations {@code bearSpawnTime} = 68 ticks. */
     public static final int BEAR_SPAWN_TICKS = 68;
     private static final int PAIR_WINDOW_TICKS = 40;
 
-    /** Odin {@code lastBlockLocation} - the final ring block to light in both F4 and M4. */
+    /** The reference {@code lastBlockLocation} - the final ring block to light in both F4 and M4. */
     private static final BlockPos LAST_BLOCK = new BlockPos(7, 77, 34);
 
-    /** Odin/NoammAddons {@code f4BlockLocations} (25). */
+    /** Other implementations {@code f4BlockLocations} (25). */
     private static final BlockPos[] F4_RING = {
             new BlockPos(-3, 77, 33), new BlockPos(-9, 77, 31), new BlockPos(-16, 77, 26), new BlockPos(-20, 77, 20), new BlockPos(-23, 77, 13),
             new BlockPos(-24, 77, 6), new BlockPos(-24, 77, 0), new BlockPos(-22, 77, -7), new BlockPos(-18, 77, -13), new BlockPos(-12, 77, -19),
@@ -71,7 +69,7 @@ public final class SpiritBearTracker {
             new BlockPos(31, 77, 19), new BlockPos(27, 77, 25), new BlockPos(20, 77, 30), new BlockPos(14, 77, 33), new BlockPos(7, 77, 34)
     };
 
-    /** Odin/NoammAddons/CaribouStonks {@code m4BlockLocations} (30). */
+    /** The M4 ring block locations (30). */
     private static final BlockPos[] M4_RING = {
             new BlockPos(-2, 77, 33), new BlockPos(-7, 77, 32), new BlockPos(-13, 77, 28), new BlockPos(-17, 77, 24), new BlockPos(-21, 77, 18),
             new BlockPos(-23, 77, 13), new BlockPos(-24, 77, 7), new BlockPos(-24, 77, 2), new BlockPos(-23, 77, -4), new BlockPos(-21, 77, -9),
@@ -85,7 +83,7 @@ public final class SpiritBearTracker {
     private static Boolean[] ringState = new Boolean[M4_RING.length];
     private static BlockPos[] activeRing = null;
     private static int kills = 0;
-    /** Odin's state: -1 = not spawned, 0 = alive, 1+ = spawning in N ticks. */
+    /** The state: -1 = not spawned, 0 = alive, 1+ = spawning in N ticks. */
     private static int timer = -1;
     private static final com.killer560.hub.util.PerTickServerClock.Step STEP = new com.killer560.hub.util.PerTickServerClock.Step();
     private static boolean ringFull = false;
@@ -139,7 +137,7 @@ public final class SpiritBearTracker {
         tickCount++;
         int step = STEP.take();
         if (timer > 0) {
-            timer = Math.max(0, timer - step); // server ticks (2026-11-03), as Odin's ping-based timer
+            timer = Math.max(0, timer - step); // server ticks (2026-11-03) ping-based timer
             if (timer == 0) {
                 com.killer560.hub.util.TickAudit.predict("Spirit Bear", 0);
             }
@@ -290,7 +288,7 @@ public final class SpiritBearTracker {
         }
     }
 
-    /** NoammAddons F4Features: a Player entity whose name starts with "spirit bear" (case-insensitive). */
+    /** The reference F4Features: a Player entity whose name starts with "spirit bear" (case-insensitive). */
     static boolean isSpiritBear(Entity entity) {
         return entity instanceof Player p && p.getName().getString().regionMatches(true, 0, "spirit bear", 0, 11);
     }

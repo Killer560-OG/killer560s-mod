@@ -12,7 +12,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Fetchur Solver (legit, both builds; Skyblocker's Fetchur): in the Dwarven Mines, Fetchur's daily riddle ("its yellow and
+ * Fetchur Solver (legit, both builds; the Fetchur): in the Dwarven Mines, Fetchur's daily riddle ("its yellow and
  * see through") is answered in chat with the item he wants, and optionally as a title. Reads chat only; sends nothing.
  * Off by default.
  */
@@ -22,10 +22,10 @@ public final class FetchurSolver {
             .flag("chat", true)
             .flag("title", false);
 
-    /** Skyblocker's line, anchored: Hypixel's NPC prefix starts the line, so another player's chat cannot match. */
+    /** The line, anchored: Hypixel's NPC prefix starts the line, so another player's chat cannot match. */
     private static final Pattern RIDDLE = Pattern.compile("^\\[NPC] Fetchur: (?:its|theyre) ([a-zA-Z, \\-]{1,60})$");
 
-    /** Riddle -> item, Skyblocker's table with the item names written out and the amount he wants (wiki Fetchur page). */
+    /** Riddle -> item, the table with the item names written out and the amount he wants (wiki Fetchur page). */
     private static final Map<String, String> ANSWERS = Map.ofEntries(
             Map.entry("yellow and see through", "20x Yellow Stained Glass"),
             Map.entry("circular and sometimes moves", "1x Compass"),

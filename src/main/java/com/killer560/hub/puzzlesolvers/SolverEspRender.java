@@ -29,8 +29,8 @@ import com.killer560.hub.compat.McRender;
  * this class's own render types (copies of vanilla's LINES / DEBUG_FILLED pipelines that WRITE depth: with the setting off
  * they keep the depth test, with it on the depth state is ALWAYS_PASS), because on 26.3 water is drawn after the box and a box
  * that wrote no depth had water behind it painted over it (killer560, 2026-11-03; docs/LESSONS-GUI.md "Solver boxes and water"). The
- * through-walls construction is the same as {@code mobesp/EspRenderer} and {@code p3nav/P3NavRenderer} (NoammAddons' 26.1.2
- * {@code NoammRenderPipelines}: {@code withDepthStencilState}). The pipeline ids are solver-specific so they cannot collide.
+ * through-walls construction is the same as {@code mobesp/EspRenderer} and {@code p3nav/P3NavRenderer} (the 26.1.2
+ * the 26.1.2 through-walls pipeline set: {@code withDepthStencilState}). The pipeline ids are solver-specific so they cannot collide.
  */
 public final class SolverEspRender {
 

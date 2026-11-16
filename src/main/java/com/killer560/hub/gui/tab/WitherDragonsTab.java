@@ -13,8 +13,8 @@ import java.util.function.Consumer;
 import java.util.function.Supplier;
 
 /** M7 Phase 5 settings - Wither Dragons and King Relics (see
- *  {@link com.killer560.hub.witherdragons.WitherDragonsFeature} / {@code KingRelicsFeature} for the Odin /
- *  NoammAddons sources every timing, coordinate and priority rule is ported from). Both masters ship OFF; every
+ *  {@link com.killer560.hub.witherdragons.WitherDragonsFeature} / {@code KingRelicsFeature} for the reference /
+ *  the reference sources every timing, coordinate and priority rule is ported from). Both masters ship OFF; every
  *  change saves immediately. Info/render only, except the cheat build's Auto Debuff, the red last section. */
 public class WitherDragonsTab extends BaseTab {
 

@@ -390,7 +390,7 @@ public final class LevelEtherGrid implements EtherSearch.Grid {
         return !blackListed(state) && fullTop(state.getCollisionShape(level, pos));
     }
 
-    /** QUOI's landing blacklist, formerly {@code EtherwarpPathfinder.blackListed}. */
+    /** The landing blacklist, formerly {@code EtherwarpPathfinder.blackListed}. */
     static boolean blackListed(BlockState state) {
         if (state == null) {
             return true;

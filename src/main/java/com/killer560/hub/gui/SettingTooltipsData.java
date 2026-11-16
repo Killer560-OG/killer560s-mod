@@ -60,7 +60,7 @@ final class SettingTooltipsData {
         d.put("watcher blood camp", "Dungeon Sim: the Watcher runs a blood camp in the Blood room - his lines, skulls flying out of the wall cases and landing as one-HP blood mobs on Hypixel's timing; after the last kill he lets you pass and the boss portal opens. Off: five seconds in Blood open the portal.");
         d.put("blood rush helper", "On the blood rush, boxes where the starred mobs of the room you are in stand, grouped into spots and numbered in the order to kill them from the door you came in by; the next one is filled in, and a spot goes when its mobs die. Until the Blood door opens. Shows only, never moves or clicks.");
         d.put("blood rush helper/killers", "How many of you kill on the rush (the door runner not counted). Above Just Me each room is split into one area a killer, as seen from the door you came in by. Party chat (!3br 2) overrides it for a run.");
-        d.put("blood rush helper/my role", "Your role, numbered as the reference mod adm numbers them: role 1 takes the area farthest from the door (in master mode the biggest area). Door kills nothing. In master mode your class picks it (Archer 1, Mage 2, Berserk 3, Tank 4, Healer the door). Party chat (!br 2, !br d) overrides it for a run.");
+        d.put("blood rush helper/my role", "Your role, numbered as other blood rush tools numbers them: role 1 takes the area farthest from the door (in master mode the biggest area). Door kills nothing. In master mode your class picks it (Archer 1, Mage 2, Berserk 3, Tank 4, Healer the door). Party chat (!br 2, !br d) overrides it for a run.");
         d.put("blood rush helper/door kills", "When the door runner kills too, as one more role (the last): Never, Always, or After Fairy (only in rooms the rush reaches after fairy).");
         d.put("blood rush helper/drop bottom after fairy", "With Door Kills After Fairy: once the rush reaches fairy, the highest numbered killer leaves the rush to clear (told in chat, only to you) and the rest go on with the door runner killing.");
         d.put("blood rush helper/show others' spots", "Also draws the other killers' spots, in gray, marked with their role and the player who claimed it in party chat. Once yours are done, theirs that are left show in gold as help either way.");
@@ -296,7 +296,7 @@ final class SettingTooltipsData {
     }
 
     private static void priceTooltip(Map<String, String> d) {
-        // killer560, 2026-10-15: Skyblocker-style price lines on item tooltips (pricetooltip/, gui/tab/PriceTooltipTab).
+        // killer560, 2026-10-15: price lines on item tooltips (pricetooltip/, gui/tab/PriceTooltipTab).
         d.put("price tooltip", "Adds price lines to Skyblock item tooltips: NPC sell price, Bazaar, lowest BIN, average BIN, estimated value, when it was obtained and whether your museum has it.");
         d.put("price tooltip/npc sell price", "What an NPC pays for the item, from Hypixel's item list.");
         d.put("price tooltip/bazaar buy/sell", "For Bazaar items: the instant-buy and instant-sell prices.");
@@ -808,7 +808,7 @@ final class SettingTooltipsData {
         d.put("lines per scroll", "How many tooltip lines one wheel notch moves (1-10).");
         d.put("hide enchant descriptions", "Removes the gray description lines under each enchant in item tooltips, leaving only the enchant names. Enchanted Books keep theirs unless the next switch is on.");
         d.put("also on enchanted books", "Also hides the description on an Enchanted Book.");
-        d.put("enchant colors", "Recolors enchantment names in Hypixel item lore by tier, like SkyHanni.");
+        d.put("enchant colors", "Recolors enchantment names in Hypixel item lore by tier.");
         d.put("only known enchantments", "ON recolors only enchants this mod knows; OFF recolors every enchant.");
         d.put("unknown enchants", "Color for enchants this mod does not have a tier for yet.");
         d.put("enchants/poor", "Color for an enchant below its good level, like Sharpness I-IV.");
@@ -1392,7 +1392,7 @@ final class SettingTooltipsData {
         d.put("claim stray rabbits", "Clicks stray rabbits in the factory menu when they appear.");
         d.put("auto time tower", "Activates the Time Tower whenever it has a charge.");
         d.put("upgrade delay", "How often Buy Best Upgrade checks and buys, 300-2000 ms.");
-        d.put("chocolate factory", "Legit helper for the Chocolate Factory menu, like SkyHanni's: highlights the best upgrade and strays, reminds you about the Time Tower. Never clicks.");
+        d.put("chocolate factory", "Legit helper for the Chocolate Factory menu: highlights the best upgrade and strays, reminds you about the Time Tower. Never clicks.");
         d.put("chocolate factory helper", "Master switch for the legit Chocolate Factory helper. It only draws and alerts; it never clicks.");
         d.put("highlight best upgrade", "Outlines the upgrade with the best chocolate-per-second value green, and other upgrades you can afford yellow.");
         d.put("highlight strays", "Outlines stray rabbits gold while the factory menu is open.");
@@ -1423,7 +1423,7 @@ final class SettingTooltipsData {
         d.put("check now", "Checks your Auto Update channel right now and downloads the update if there is one. It installs when you close the game.");
         d.put("this build", "The commit this jar was built from, and its Minecraft version and variant. Auto Update compares the commit with the release's.");
         d.put("open menu key", "Key that opens this menu in game, when no screen is open and you are not typing. Click, then press a key; Backspace unbinds.");
-        d.put("superpairs overview", "A panel beside the Superpairs board, like SkyHanni's: every reward found (green once claimed, gray with only one tile seen), the powerups turned over, the pairs still to find (half-found ones plus up to how many wholly unseen) and the powerups still covered (exact when the board allows, otherwise an upper bound). Needs the solver or Auto E-Table on. Move it in Edit HUD Positions.");
+        d.put("superpairs overview", "A panel beside the Superpairs board: every reward found (green once claimed, gray with only one tile seen), the powerups turned over, the pairs still to find (half-found ones plus up to how many wholly unseen) and the powerups still covered (exact when the board allows, otherwise an upper bound). Needs the solver or Auto E-Table on. Move it in Edit HUD Positions.");
         d.put("emergency cancel key", "Stops everything automatic at once: every macro, Auto Routes, AP3, Mimic Killer, the Interactive Map's warps, and holds every aura, triggerbot, Auto Terminals, the auto puzzles and Auto I4 until you press it again, change worlds or start a macro yourself (your Slot Binds, Pet Wheel and Loadout Keybinds still work). Click macros (Auto E-Table, Bazaar Flip, Auto Croesus, Auto Sell, Auto Anvil, Inventory Sorter, Storage Scan All) otherwise stop only on Escape; movement macros (Auto Fairy Souls, Auto Secret, Auto Clear, Blood Rush) also on a movement key or opening chat. Not counted while you type in chat or a menu. A key or a mouse button; click, then press it; Backspace unbinds.");
         d.put("edit hud keybind", "Key that opens the HUD editor, over any screen (a chest, Croesus, this menu) so its overlays can be placed where they sit. It does nothing while you are typing: chat, a rename, a sign or book, any search box.");
         d.put("correction alarm", "Plays a siren when the server corrects your position during an automation. Nothing is stopped; the mod carries on from the corrected position.");
@@ -1655,8 +1655,8 @@ final class SettingTooltipsData {
         d.put("aim spot size", "Size of the aim-spot crosshair marker, 0.1-2.0 blocks.");
         d.put("show all classes", "Shows every aim spot instead of only the ones for your class.");
         d.put("show all situations", "Shows every aim spot whatever phase or dragon it is for.");
-        d.put("arrow stack spots", "Adds NoammAddons' arrow-stack aim points for the five P5 dragons (needs Aim Spots on).");
-        d.put("devonian lb spots", "Adds Devonian's five Last Breath spots for the P5 dragons (needs Aim Spots on).");
+        d.put("arrow stack spots", "Adds the arrow-stack aim points for the five P5 dragons (needs Aim Spots on).");
+        d.put("devonian lb spots", "Adds five Last Breath spots for the P5 dragons (needs Aim Spots on).");
         d.put("new aim situation", "Which dragon or phase the next added aim spot is tagged with; Auto uses where you are.");
         d.put("new aim class", "Which class the next added aim spot is tagged for; Auto uses your class.");
         d.put("add aim spot here", "Saves the point your crosshair is on as an aim spot.");
@@ -1686,7 +1686,7 @@ final class SettingTooltipsData {
         d.put("show elapsed time", "Shows an elapsed-time timer on your Discord profile.");
     }
 
-    /** Custom Scoreboard's list editor (2026-10-07, SkyHanni's add / trash can / drag system). */
+    /** Custom Scoreboard's list editor (2026-10-07, the add / trash can / drag system). */
     private static void scoreboardEditor(Map<String, String> d) {
         d.put("custom scoreboard/add line", "Opens a list of the lines not on your board; pick one to add it at the bottom, then drag it where you want it.");
         d.put("custom scoreboard/add event", "Opens a list of the events not in your list; pick one to add it at the bottom (lowest priority).");
@@ -3157,7 +3157,7 @@ final class SettingTooltipsData {
         d.put("custom party finder/check requirements", "Checks a listing's Cata Level, Secrets and S+ PB against your stats before asking to join (and waits while your stats are still loading). Other requirements are shown, not checked.");
     }
 
-    /** Auto Kick (killer560, 2026-09-27 - "create auto kick. I really Like Odins."). Scoped to "auto kick/"
+    /** Auto Kick (killer560, 2026-09-27 - "create auto kick"). Scoped to "auto kick/"
      *  (the sub-tab's own name) per the 2026-09-16 collision rule - "Action Mode" and the per-floor labels
      *  are generic enough other tabs could plausibly reuse them later. */
     private static void autoKick(Map<String, String> d) {
@@ -3272,7 +3272,7 @@ final class SettingTooltipsData {
         d.put("breaker aura/pick block key", "Look at a block and press this key to pick it, or unpick it if it is already picked. Default ; (semicolon).");
         d.put("breaker aura/clear picked", "Unpicks every block in the active Breaker Aura config (the number is how many are picked).");
         d.put("fill box", "Fills each blaze's highlight box solid instead of drawing only its outline.");
-        d.put("optimized solutions", "Uses Odin's alternate lever-timing set instead of the default one.");
+        d.put("optimized solutions", "Uses the alternate lever-timing set instead of the default one.");
         d.put("line color", "Color of the Ice Fill route line. Click to pick a color.");
         d.put("auto e-table", "Cheat build: the autonomous Experimentation Table macro - opens Chronomatron or Ultrasequencer, plays, claims and buys renews. Escape or the Emergency Cancel Key (Home) stops a run, and no other key or click does; you can finish the board by hand and the solver follows. Off by default.");
         d.put("skip grand xp bottles", "Superpairs skips Grand Experience Bottles only; Titanic bottles are still paired (cheat build, Autonomous mode).");
@@ -3303,7 +3303,7 @@ final class SettingTooltipsData {
         d.put("ah flipper/relist now", "Runs Auto Relist once as soon as no menu is open, and clears a halt.");
         d.put("ah flipper/max buys per session", "The macro stops buying after this many purchases. Switch Run Mode off Main and back to buy again.");
         d.put("ah flipper/relist at my last price", "Cheat build: Auto Relist lists an item at the price you listed the same item at in the last 6 hours, instead of its lowest BIN less the Undercut.");
-        d.put("ah price buttons", "Buttons on Hypixel's Create BIN Auction menu (and the reskinned Auction House) that copy a price for the item you are listing: Copy LBIN (lowest BIN of that exact item from the AH scan, less the Undercut), Copy Average (its 1 or 3 day average lowest BIN from Skyblocker's price list, the Price Tooltip's Average Days), Copy Estimated Value (Est. Item Value with its modifiers) and Copy My Last Price (what you listed it at in the last 6 hours). All times the stack. Clipboard only: never clicks, types or sends anything.");
+        d.put("ah price buttons", "Buttons on Hypixel's Create BIN Auction menu (and the reskinned Auction House) that copy a price for the item you are listing: Copy LBIN (lowest BIN of that exact item from the AH scan, less the Undercut), Copy Average (its 1 or 3 day average lowest BIN from the hysky price list, the Price Tooltip's Average Days), Copy Estimated Value (Est. Item Value with its modifiers) and Copy My Last Price (what you listed it at in the last 6 hours). All times the stack. Clipboard only: never clicks, types or sends anything.");
         d.put("ah price buttons/undercut", "Coins Copy LBIN takes off the lowest BIN before copying it. 1 copies the lowest BIN minus one coin. Auto Relist uses it too.");
         d.put("bazaar flipper/npc sales today", "Coins you have sold to NPCs today, counted from every \"You sold\" line on this account (all instances). Hypixel stops paying at 500,000,000 a day and resets at 00:00 UTC.");
         d.put("auto sell/min wait between sells", "The shortest random wait, in ticks, between two sell clicks (1 to 10).");

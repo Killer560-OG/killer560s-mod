@@ -20,18 +20,18 @@ import java.util.Set;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Auto Teleport Maze - port of QUOI {@code TeleportMazeSolver.kt}'s {@code auto}, which IS movement automation: once
+ * Auto Teleport Maze - port of 's {@code auto}, which IS movement automation: once
  * the first maze teleport has happened (you step on the start pad yourself), one tick after every maze teleport it
  * picks the pad to use in the current cell ({@link MazeRoute} since 2026-10-06: the exit pad, or a way to it over links
- * already taken, else QUOI's exploring order - best, unvisited diagonal, farthest - else a known way to a chamber with
+ * already taken, else the exploring order - best, unvisited diagonal, farthest - else a known way to a chamber with
  * a pad still untried), turns the camera to face that pad's center and holds the forward key until the next teleport. Nothing
- * beyond QUOI: no pathing, jumping or strafing. Stops when a screen opens, when there is no pad to go to (the end),
+ * beyond no pathing, jumping or strafing. Stops when a screen opens, when there is no pad to go to (the end),
  * when you leave the room, and (safety addition) after 3 seconds of walking without a teleport.
  * <p>
  * killer560, 2026-09-27: "For auto tp maze make it also aura the chest once it detects it stepped on the final
  * correct pad, then have it walk to the exit pad and walk out of the room as well." {@link TeleportMazeSolverFeature}
  * tracks exactly two pads outside every cell - "end" (relative 15,69,14) and "start" (relative 15,69,12), the same
- * fixed layout QUOI's own solver uses - so "the final correct pad" is detected the moment {@code getPad} would
+ * fixed layout every solver of this room uses - so "the final correct pad" is detected the moment {@code getPad} would
  * normally report "no pad to go to" (the existing stop condition) AND the landing pad is that "end" pad specifically.
  * From there this walks (plain forward-key + camera turn, same primitive already used above for pad-to-pad hops -
  * both "end" and "start" sit on the maze's own starting platform, not across a void gap, so no etherwarp/pathfinder
@@ -50,7 +50,7 @@ final class AutoTeleportMaze {
     private static final long FINISH_WALK_TIMEOUT_MS = 5000L;
     /** The measured block reach, squared - was 36.0 (6.0 blocks) measured to the center. */
     private static final double AURA_REACH_SQ = AutoPuzzleUtil.BLOCK_REACH_SQ;
-    private static final double ARRIVE_SQ = 2.25; // 1.5 blocks - "close enough", same feel as QUOI's own pad hops
+    private static final double ARRIVE_SQ = 2.25; // 1.5 blocks - "close enough", same feel own pad hops
     // Same fixed relative layout TeleportMazeSolverFeature's own PADS array carries ("end"/"start", the two pads
     // outside every cell) - copied, not re-derived, so this can never disagree with what that solver detected.
     private static final int[] END_PAD_RELATIVE = {15, 69, 14};
@@ -288,7 +288,7 @@ final class AutoTeleportMaze {
             }
             LOGGER.info("[AutoPuzzles] TeleportMaze: next pad picked in 1 tick (hop {}) tick={}", hops, nowTick());
             stop(client);
-            pendingTicks = 1; // QUOI: Scheduler.scheduleTask { nextMove = true }
+            pendingTicks = 1; // Scheduler.scheduleTask { nextMove = true }
             engage(client);
             return;
         }
@@ -373,7 +373,7 @@ final class AutoTeleportMaze {
         if (!walkStraight && WALK.tick(client)) {
             return;
         }
-        // No planned way (or the planned points are used up, i.e. he is at the pad): straight at it, as QUOI does.
+        // No planned way (or the planned points are used up, i.e. he is at the pad): straight at it.
         float[] dir = AutoPuzzleUtil.direction(player.getEyePosition(), Vec3.atCenterOf(walkTarget));
         AutoPuzzleUtil.rotateCamera(player, dir[0], dir[1]);
         client.options.keyUp.setDown(true);
@@ -383,7 +383,7 @@ final class AutoTeleportMaze {
      * Walks from where the Interactive Map put him onto the start pad, which is what starts the maze.
      *
      * <p>killer560 (2026-10-04): "When I teleport to tp maze using interactive map it doesn't auto run to the first
-     * tp node." The auto only ever reacted to a maze teleport - QUOI's design, where you step on the start pad
+     * tp node." The auto only ever reacted to a maze teleport - the design, where you step on the start pad
      * yourself - so a map path ending at this room's doorway spot left him standing there. Now an arrival by the
      * map ({@code ClearExecutor.arrivalSeq}, which only moves when a path ends with him where it planned) inside
      * this room, before any maze teleport, walks him onto the start pad; from its teleport on the auto runs as
@@ -470,7 +470,7 @@ final class AutoTeleportMaze {
      * Walks onto the start pad when he is standing in the maze's ENTRANCE, not only after a map arrival.
      *
      * <p>2026-10-04, 93-solve: with the player at the room's own spawn in the entrance chamber, the auto never moved
-     * him; the test walked him onto the start pad itself. QUOI's design leaves that first step to the player, but
+     * him; the test walked him onto the start pad itself. The design leaves that first step to the player, but
      * the arrival-only trigger above misses every way in that is not the Interactive Map (walking in, /goto, a
      * door). So: in the Teleport Maze, before any maze teleport, on the ground, with none of his movement keys
      * down for {@link #ENTRANCE_IDLE_TICKS} ticks, and with a walk on foot to the start pad of at most
@@ -875,7 +875,7 @@ final class AutoTeleportMaze {
 
     /**
      * The next pad, from {@link MazeRoute} over what this visit has learned (the solver's visited pads, exit candidates,
-     * best pad and the links its teleports showed). QUOI's own pick - best, unvisited diagonal, farthest, and once a
+     * best pad and the links its teleports showed). The pick - best, unvisited diagonal, farthest, and once a
      * chamber was used up "the diagonal again" - walked him BACK through the maze from any pad he had come back
      * through, and on two generated floors of three never reached the middle (2026-10-06); see MazeRoute.
      */

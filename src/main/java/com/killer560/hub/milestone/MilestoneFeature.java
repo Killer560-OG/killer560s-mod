@@ -14,14 +14,14 @@ import net.minecraft.network.chat.Component;
 import java.util.regex.Pattern;
 
 /**
- * Milestone Display (featF-1108; SkyHanni DungeonMilestonesDisplay): a small HUD "Milestone: N" counting the dungeon
+ * Milestone Display (featF-1108; the reference DungeonMilestonesDisplay): a small HUD "Milestone: N" counting the dungeon
  * milestone lines Hypixel prints ("Milestone ❖: You have dealt 1.2M damage so far! (3s)") this run, up to 9: red at 0 and 1,
  * orange at 2, green from 3 on. The count is per world: a new dungeon is a new level and starts at 0. Reads
  * the line through {@link ChatObserver}, hides nothing. The HUD is drawn by {@code hud/HudInGameRenderer}.
  */
 public final class MilestoneFeature {
 
-    /** SkyHanni's {@code dungeon.milestone.colorless} shape, with the damage / tank / heal wording of all three classes. The prefix before "Milestone" has no colon or bracket, so a player's chat ("Eve: Milestone ...", "[MVP+] Eve: ...") never counts. */
+    /** The {@code dungeon.milestone.colorless} shape, with the damage / tank / heal wording of all three classes. The prefix before "Milestone" has no colon or bracket, so a player's chat ("Eve: Milestone...", "[MVP+] Eve:...") never counts. */
     static final Pattern MILESTONE = Pattern.compile("^[^:\\[]{0,6}Milestone .: You have (?:tanked and )?(?:dealt|healed) .*so far! .*$");
 
     public static final HudElement HUD = new MilestoneHud();

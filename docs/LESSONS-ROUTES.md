@@ -149,7 +149,7 @@ and Auto Clear are in [LESSONS-AUTOCLEAR.md](LESSONS-AUTOCLEAR.md). Problem, the
   three** (ar-1019, every AOTV warp with an unpaired AOTV click before it in his 2026-10-19 logs): 1 tick after, 45 of 69
   refused; 2 ticks, 1 of 7; 3+, 0 of ~250; after a Dungeon Breaker or Superboom click, 3 of 3 landed one tick on. Every
   K=1 case had a fresh sneak, but 19 of 19 fresh-sneak warps with no click landed, and the server ray met nothing in every
-  refusal, so it is neither the sneak nor the 1.8 pairing; the cause is NOT known. QUOI (`interactDelay = 2`) and RSA
+  refusal, so it is neither the sneak nor the 1.8 pairing; the cause is NOT known. The reference (`interactDelay = 2`) and the reference
   (`lastBlockC08 = 2`) both resume at N+2. `RouteExecutor.clickGapHolds` sends the warp two client tick ends after such a
   click (counted from `client_tick_end` packets, the server's own clock); the testkit's `HypixelClickThenUse` plays the
   rule (96-ar-1019-clickgap: main ignored the warp and retried, 7 ticks; fixed 3). `ar1019-refusals.py` in
@@ -217,7 +217,7 @@ and Auto Clear are in [LESSONS-AUTOCLEAR.md](LESSONS-AUTOCLEAR.md). Problem, the
   between nodes, a DELAY await, a crypt/bat node and an await already met all say no. So a secret passed mid-route is
   taken only if an await node has it in reach (Kill Mimic's trapped chest and the Redstone Key's pickup and placing too);
   item pickups are untouched (96-ar-1016-auraawait, 62-argrim-1016-auraawait).
-- **His routes count a secret bat's APPEARANCE toward the node waiting when it appears, BAT node or not** (QUOI's rule).
+- **His routes count a secret bat's APPEARANCE toward the node waiting when it appears, BAT node or not** (the rule).
   Deathmite #11 breaker awaits 2, a chest and the bat that #12 BAT then kills, on one tile; taking the appearance away from
   #11 while a BAT node was ahead stalled it 20 s (fullclear-1016 run 034), so that change was reverted. The same rule is
   why his Doors fails under aura-await-only: #7 awaits 2, the bat appears 8.6 blocks off and meets one, the second lever

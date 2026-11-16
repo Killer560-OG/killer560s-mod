@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Trajectories settings - see {@link com.killer560.hub.trajectories.TrajectoriesFeature}'s class doc
- *  for the real QUOI-ported projectile simulation this is built on. */
+ *  for the real projectile simulation this is built on. */
 public class TrajectoriesTab extends BaseTab {
 
     public TrajectoriesTab() {

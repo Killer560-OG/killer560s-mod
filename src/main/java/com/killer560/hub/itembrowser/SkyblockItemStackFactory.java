@@ -160,7 +160,7 @@ public final class SkyblockItemStackFactory {
         // broken/missing) model that id resolves to under the default pack instead of a clean vanilla
         // item. Skipping the tag entirely falls back to the plain base item below, which always renders
         // correctly with or without a resource pack.
-        // With a pack disabler on (Noamm's, or this mod's own Pack Disabler), the item's pre-pack look from the shared
+        // With a pack disabler on (or this mod's own Pack Disabler), the item's pre-pack look from the shared
         // table, the same answer the game and the Bazaar give.
         if (entry.itemModel() != null && (DetectedMods.isPackDisablerActive() || PackDisabler.isActive())) {
             ItemLooks.applyLook(stack, entry.id());

@@ -18,9 +18,9 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * Interactive Map packet hooks (QUOI InteractiveMap / ClearExecutor):
+ * Interactive Map packet hooks (the reference InteractiveMap / ClearExecutor):
  * <ul>
- * <li>"Keep chunks loaded" - QUOI cancels {@code ClientboundForgetLevelChunkPacket} so far rooms stay scannable and
+ * <li>"Keep chunks loaded" - the reference cancels {@code ClientboundForgetLevelChunkPacket} so far rooms stay scannable and
  * raycastable for long teleport paths.
  * <li>{@code ClientboundPlayerPositionPacket} - the executor's "server synced the last teleport" signal.
  * </ul>

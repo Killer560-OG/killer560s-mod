@@ -143,7 +143,7 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   default Grim with 0 lines, and the boss wall in 10 ticks (the 20 charges are the limit). Experimental Grim's MultiBreak
   CANCELS every dig after the first in a tick (MultiBreak.java 36-66), so a burst there only re-dug and left picks standing;
   after 2 refused extras Burst goes one a tick for 100 ticks (not for good: a pick refused for a miscounted charge looks
-  the same). QUOI/RSA's whole-wall "zero tick" digs need no look at all: that is possible
+  the same). The whole-wall "zero tick" digs need no look at all: that is possible
   only on a server without RotationBreak. The "sticks around" report (Burst + Blink Charge): BlinkCharge.deferBlockUpdate
   holds the server's break until its ping answer goes (~1 s) while the break sound is not held; a pending pick is now drawn
   as air through the SectionCompiler hook (`MithrilStone.replace`, remeshed on add/remove, expires at 3 s and on world change).
@@ -303,7 +303,7 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   report with `experimental-checks: true` (the testkit's server has it off). A second "tick" inside a client tick needs an
   extra flying packet, and Grim's Timer counts every tick packet (client_tick_end too, 1.21.2+) with only 120 ms of
   fall-behind (`clockDrift`), so that cannot be banked. Arrow Align Aura therefore does one frame a tick, all its clicks
-  (Clicks Per Tick up to 7), and RSA's and QUOI's auras do the same (one frame, every click, then `break`).
+  (Clicks Per Tick up to 7), and the auras do the same (one frame, every click, then `break`).
 - **GrimAC 2.3.74 RotationPlace (vineflower of `RotationPlace.class`) judges a block click by a ray against the block's
   FULL cube, only out to `BLOCK_INTERACTION_RANGE` (4.5), from the server's eye with yaw/pitch/lastYaw/lastPitch mixes.**
   A lever whose outline is hit 4.85-5.0 away can sit within 4.5 by box distance yet have the look enter its cube past 4.5:
@@ -469,10 +469,10 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
 - **Dungeon key pickup range = Key Base Range + 5; the Magnetic Talisman does NOT apply to keys** (confirmed in game by
   killer560, 2026-10-06; the wiki x3 is for items only, keys are armor stands). Default 1.0 + 5 = 6 blocks. The talisman
   setting and the x3 were removed; an old `magneticTalisman` key in the config file is ignored.
-- **QUOI's aura ranges are eye to block CENTER; ours are eye to block BOX.** A center distance is 0.5-0.87 longer than the
-  box distance, so QUOI's 4.7 skull range is 3.8-4.2 to the box and was TIGHTER than our 4.5-to-the-box skull cap, though the
-  number is bigger. Compare in one measure. Skull Range uses QUOI's center measure (testkit 842: 4.8 not clicked, 4.6
-  clicked); the 20-tick world-change pause QUOI's AuraManager adds was already ActionGate's WORLD_SETTLE_TICKS (841).
+- **the aura ranges are eye to block CENTER; ours are eye to block BOX.** A center distance is 0.5-0.87 longer than the
+  box distance, so the 4.7 skull range is 3.8-4.2 to the box and was TIGHTER than our 4.5-to-the-box skull cap, though the
+  number is bigger. Compare in one measure. Skull Range uses the center measure (testkit 842: 4.8 not clicked, 4.6
+  clicked); the 20-tick world-change pause the AuraManager adds was already ActionGate's WORLD_SETTLE_TICKS (841).
 - **Secret Aura needs no line of sight**: it picks by standing eye to the block's BOX within Aura Range (capped 4.5) and
   clicks through walls, as the server allows. Grab Secret's landing is chosen by that same rule; in the sim's Tic Tac Toe the
   chest is in a roofed pit no warp or walk reaches, and a landing on the board side of its wall lets the aura take it
@@ -488,7 +488,7 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   wait ran to its limit until `AutoCloseChestFeature.autoClose` told the aura (`noteWindowOpened`, network thread).
 - **A Shadow Assassin's leap refuses block clicks CLIENT-side** (killer560, 2026-10-20: a route froze on a chest). Hypixel's
   leap is a `ClientboundInitializeBorderPacket` that leaves him outside the client's border, and `useItemOn` returns FAIL
-  before sending anything for a block outside it (javap, both versions; QUOI `fixInteract` and RSM `WorldBorderFix` bypass
+  before sending anything for a block outside it (javap, both versions; the reference `fixInteract` and the reference `WorldBorderFix` bypass
   that check - this mod does not). Secret Aura booked each FAIL as an attempt and gave the chest up, so an await sat at 0
   for ever. It holds while `util/ShadowAssassinLeap.refuses` (clicks when the border lifts, 5 s ceiling), and an await
   lets go uncounted once a click was refused and none is coming (that route run then does not mark the room fully
@@ -496,7 +496,7 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
 
 ## Walking, fairy souls and other autos
 
-- **SkyHanni's island graph positions are the FEET block, and the path points sit half a block above them** (his HUB.json:
+- **the island graph positions are the FEET block, and the path points sit half a block above them** (his HUB.json:
   Village nodes at y 70, where a player stands). `AutoWalker` jumped whenever the next path point was 0.6 higher than his
   feet, so every gentle rise was a hop ("jumping the whole time"). Jumps come from the block in front (`WalkTerrain.rise`
   against his real jump height, Jump Boost included); testkit 746 counts 1 take-off for a course with one step. Straight
@@ -521,8 +521,8 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   (1017-fairy-overshoot, before -> after): past the corner at Skyblock 400 +2.28 -> -0.14/+0.08, at 600 +3.47 ->
   +0.10/+0.75, 600 with Jump Boost II +2.63 -> +0.27/+0.24; past the soul at 600 +0.70 -> -1.73 (stopping 1.7 short). Walk,
   sprint and Speed II were never past.
-- **A soul's stand is not at its graph node** (doc-fairy-1101). NEU's `constants/fairy_souls.json` ("the soul itself") against
-  SkyHanni's `fairy_soul` nodes: Hub offsets 0 to 3.6 blocks, often a block up or down (his 2026-11-01 picture: node
+- **A soul's stand is not at its graph node** (doc-fairy-1101). The `constants/fairy_souls.json` ("the soul itself") against
+  the `fairy_soul` nodes: Hub offsets 0 to 3.6 blocks, often a block up or down (his 2026-11-01 picture: node
   90,68,-152, soul 87,68,-154). "Arrived" at the node with the stand's box 3.7 from his eye bounced WALKING/COLLECTING every
   tick and he stood there for good (testkit 1101-fairy-ledgesoul and every 1101-fairy-island run on the old jar: stuck on
   the first such soul). The runner now walks to a cell the stand is in reach and in sight from (`APPROACH`).
@@ -537,7 +537,7 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   walk was called stuck 2.5 s later: any teleport resets it. Standing beside a fence or wall post, the block holding his
   feet is the fence's, so a plan from it went straight through the fence line: plan from the open cell on his side of it.
   A fence or wall top is 1.5 high: no step up onto one his jump does not clear. Way-back goals must cover the stretch from
-  him to the route's first point (the SkyHanni shortcut drops the node behind him, and the next one can be 35 blocks away).
+  him to the route's first point (the reference shortcut drops the node behind him, and the next one can be 35 blocks away).
 - **GrimAC and water currents: Grim's, not ours (doc-fairy-1101, settled 2026-11-02).** On a ladder with flowing water
   touching his box, GrimAC 2.3.74 (experimental checks on) reports Simulation .004667/.0070 (= vanilla's current push .014/k)
   for the ticks he is on the ladder in the current, then decaying x0.8. With NO automation - the testkit holding plain W+A (or
@@ -586,10 +586,10 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
 - **Simulated key presses (Fabric's `TestInput.pressKey`) never reach a key read with `KeyUtil.isKeyDown`** (GLFW's own
   state): the Start/Stop key poll did not see the testkit's K. The key is taken from `KeyboardHandler.keyPress`, the same
   event the "any key stops it" rule reads, so a press is either the toggle or a stop, never both.
-- **The Chocolate Factory menu moved** (killer560 2026-10-11, "clicks the cookie but does nothing else"): per SkyHanni-REPO
+- **The Chocolate Factory menu moved** (killer560 2026-10-11, "clicks the cookie but does nothing else"): per the public data repo
   `constants/HoppityEggLocations.json` the Time Tower is 38 (39 is the Rabbit Shrine), the Coach 41, and 42/43/47-51/53 are
   menu buttons. `chocolatefactory/ChocolateFactoryMenu` is the one reader for the auto and the legit helper; check that
-  file in his SkyHanni repo copy before changing a slot (testkit 754 puts traps on 39 and 42). At 1x the production lore
+  file in his the reference repo copy before changing a slot (testkit 754 puts traps on 39 and 42). At 1x the production lore
   has no "Total Multiplier" line (his 2026-10-18 log): the reader needed it, so no upgrade was a candidate and the helper
   highlighted nothing. A missing line means 1x when "per second" is there (`ChocolateFactoryMenu.read`).
 
@@ -649,13 +649,13 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
 - In the sim a wither-door click with an ability item in hand went to `SimAbilities` (a Wither Impact into the door) before
   `SimDoors`; the door now takes the click in an earlier phase and the ability skips door blocks.
 
-- Auto Fairy Souls on the REAL hub (fairyhub-1105, testkit 1105-fairy-hub on the owner's private capture): SkyHanni's HUB
+- Auto Fairy Souls on the REAL hub (fairyhub-1105, testkit 1105-fairy-hub on the owner's private capture): the HUB
   graph has edges no walk can take - a 7-block straight-up edge at 13,80,-64 with nothing to climb (soul 28), a 1.5-block
   step into the Rabbit cave's doorway at 68,62,-6 (soul 7), vines that start 2 blocks over the floor at -68,72,-70 and are
   reached only by jumping from the top slab beside them (soul 26). A failure ON the route (or beside the soul) now skips the
   soul at once: a /warp walked the same route and failed the same way, 30-40 s a soul. Only a fall off the route warps.
   Graph points sit 1.5 over the feet (`NavigationManager.centre` of a node one block above the floor), and a path planned at
-  the foot of a climb starts at its top (SkyHanni's shortcut drops the first node): `distanceSqToRoute` counts that leg too.
+  the foot of a climb starts at its top (the shortcut drops the first node): `distanceSqToRoute` counts that leg too.
 - Clicking a soul from a ladder (soul 48's hut, 97,70-75,-28): with no key down he slid out of reach while the look turned,
   four approaches in a row, then gave up. The runner holds sneak on a ladder while it clicks (vanilla stops the slide).
 - After a /warp the rescue budget starts over: the 8 ways back spent before it failed the walk back 3 s after landing.
@@ -726,7 +726,7 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
 - Different looks in ONE real tick (owner 2026-10-27, testkit 1027-zpewlk-*, javap GrimAC 2.3.74): every look needs its own
   tick packet, and only a whole extra client tick will do. BadPacketsJ resets at each tick packet and compares the last
   use's look with that packet's UPDATED look (`canSkipTicks` is false for 1.21.2+ clients, so no lastYaw fallback): the
-  order is use, then the tick packet reporting its look. Measured: RSA's shape (n uses at n looks, nothing between) =
+  order is use, then the tick packet reporting its look. Measured: the shape (n uses at n looks, nothing between) =
   BadPacketsJ; look packet BEFORE each use (a 1.8 server's way) = BadPacketsJ + TickTimer; use then a look-only packet =
   TickTimer (a flying needs a tick-end before it) and Timer/TimerLimit (each tick packet is +50 ms on the timer balance,
   whose floor is the last answered ping - 120 ms, so the headroom is about a ping plus 120 ms and does not come back while
@@ -1003,7 +1003,7 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   node was running, so an armed route never knew a landing was a leap (1027-ap3-live34-beside-leap).
 
 - **Etherwarp passability: carpets are solid** (killer560, 2026-11-02, asked about the to-do Doc's "doesnt work right on
-  carpets": the trouble was only on the sim). The modern passable tables (Odin, QUOI, ours in EtherwarpOverlayFeature and
+  carpets": the trouble was only on the sim). The modern passable tables (ours in EtherwarpOverlayFeature and
   TeleportUtils) are the 1.8 "valid feet" id list carried over block by block with carpet (171) and lily pad (111) dropped;
   doc-routes 419fd24c added carpet back as passable, which made 62-argrim-1020-midas fail 3 of 3 and was reverted
   (65199074) before it shipped. A look at a carpet lands ON the carpet; a carpeted block is no landing. Testkit 1101-ew-carpet
@@ -1012,7 +1012,7 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   `getLookAngle` (Mth's sine table, ~1e-4 rad apart). A ray at a carpet meets the full-cube carpet voxels a block or more
   before the carpet looked at, grazing voxel corners, so the sim landed one carpet off the box 2 of 23 times in real rooms.
   The sim now casts along `getLookAngle`. Any two etherwarp models must share the look formula, not only the block table.
-- **Spring Boots charge is countable from sound alone**: `dungeonalerts.SpringBootsOverlay` (Odin's pitch table) counts
+- **Spring Boots charge is countable from sound alone**: `dungeonalerts.SpringBootsOverlay` (the pitch table) counts
   `note_block.pling` notes while crouched in Spring Boots; AP3's Crystal node reads `chargedHeight()` and asks it to
   count with the HUD off (`setCountForAp3`). Its handler is behind the Skyblock gate (DungeonAlertsPackets.guard).
 - **Zero Ping Etherwarp's own sends do not pass ActionGate** (Warps Per Tick's `flushExtraWarps` and Aimed Warps' `fireAimed`

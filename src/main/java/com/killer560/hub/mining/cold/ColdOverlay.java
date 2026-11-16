@@ -20,7 +20,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Cold Overlay (legit, both builds; Skyblocker's GlaciteColdOverlay, SkyHanni's ColdOverlay): while the sidebar shows
+ * Cold Overlay (legit, both builds; the GlaciteColdOverlay, the ColdOverlay): while the sidebar shows
  * Hypixel's "Cold: -N❄" line (the Glacite Tunnels and Mineshafts), vanilla's powder-snow frost is drawn over the screen,
  * more opaque the colder you are (N of 100), scaled by Strength. A campfire's "reduced your ❄ Cold to 0!" clears it at
  * once. Draws only. Off by default.

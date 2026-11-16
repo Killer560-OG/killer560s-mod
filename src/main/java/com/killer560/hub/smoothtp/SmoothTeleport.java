@@ -22,9 +22,9 @@ import java.util.ArrayDeque;
 import java.util.Locale;
 
 /**
- * Smooth Teleport (killer560, 2026-10-07: "add smooth teleporting, I believe skyhanni and skyblocker have it"): when a
+ * Smooth Teleport (killer560, 2026-10-07: "add smooth teleporting, I believe another mod and another mod have it"): when a
  * teleport ability moves him, the CAMERA glides from where it was to where he landed over a short time instead of
- * snapping. Skyblocker 6.9.1 has this as "Smooth AOTE"; SkyHanni 7.48.0 has nothing like it.
+ * snapping. The reference 6.9.1 has this as "Smooth AOTE"; the reference 7.48.0 has nothing like it.
  *
  * <p><b>Purely visual.</b> The player's position is the server's from the moment its position packet is handled -
  * nothing here writes it, sends a packet, or touches rotation. The only write is {@code Camera.setPosition} at the end
@@ -39,7 +39,7 @@ import java.util.Locale;
  * next position packet is matched against the oldest one still under {@link #PENDING_MS}. It must land within the
  * item's range (plus slack) and in the direction he was looking. Anything else - a lag-back, a correction, /warp, a
  * server tp, a teleport with no use behind it - cancels any glide in progress and the camera is where he is on the
- * next frame: a correction is honored, never smoothed over. Skyblocker's default mode instead smooths ANY position
+ * next frame: a correction is honored, never smoothed over. The default mode instead smooths ANY position
  * packet while a teleport item is held, which would glide a lag-back too.
  *
  * <p><b>Glide.</b> At the first frame after an accepted packet the camera's offset from its vanilla position (which
@@ -158,7 +158,7 @@ public final class SmoothTeleport {
     }
 
     /** Hypixel's ranges: 57 etherwarp and 8 Instant Transmission plus the item's own tuners (docs/LESSONS.md), 10 for
-     *  Wither Impact; Sinseeker 4 plus tuners and Leech 3/4 are Skyblocker's numbers. */
+     *  Wither Impact; Sinseeker 4 plus tuners and Leech 3/4 are the numbers. */
     static double rangeOf(Kind kind, ItemStack stack) {
         CompoundTag tag = tag(stack);
         int tuners = tag == null ? 0 : Math.max(0, Math.min(4, tag.getIntOr("tuned_transmission", 0)));

@@ -94,7 +94,7 @@ name), `warnedForTest()` whether its one WARN was logged, `sessionForTest()`, `c
 
 Not routed: the Shorts player's DevTools client (127.0.0.1, a browser the mod launched), Discord RPC (a local
 pipe), the Proxy Client (the game connection itself), and anything Minecraft or authlib does on its own
-(skins, the Devonian bridge's `joinServer` session check).
+(skins, the reference bridge's `joinServer` session check).
 
 ## OS opens (`util/ExternalOpen`)
 

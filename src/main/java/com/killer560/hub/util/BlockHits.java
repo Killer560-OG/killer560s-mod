@@ -157,7 +157,7 @@ public final class BlockHits {
     /**
      * A surface hit on a face of the block that is EXPOSED - its neighbor on that side is air - and faces the eye, or
      * null when there is none (killer560, 2026-10-12, Redstone Key placement: "it has to be on a side hitting air").
-     * The eye-to-center ray's own face first (the face {@link #surface} returns, which is what QUOI, RSA and a vanilla
+     * The eye-to-center ray's own face first (the face {@link #surface} returns, which is what other implementations and a vanilla
      * look at the block produce); if that face is against another block, the nearest other exposed face the eye is in
      * front of, hit at a point on that face. A face against a block is never returned.
      */

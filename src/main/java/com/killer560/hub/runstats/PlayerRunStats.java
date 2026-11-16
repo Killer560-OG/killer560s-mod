@@ -15,7 +15,7 @@ import java.util.List;
  * <li>{@link #soloRooms} / {@link #stackedRooms} - <b>derived</b> room-clear attribution from the dungeon map
  *     (see {@link com.killer560.hub.livemap.RunStatsBridge}). Hypixel publishes no per-player room count, so a
  *     room finished while two people stood in it counts as "stacked" for both and is shown as a range
- *     ({@code solo}-{@code solo+stacked}), exactly like NoammAddons. {@code -1} means "not tracked".
+ *     ({@code solo}-{@code solo+stacked}), exactly. {@code -1} means "not tracked".
  * <li>{@link #secrets} - lifetime-secret delta over the run from Hypixel's own player data (the
  *     {@code skyblock_treasure_hunter} achievement), not from the end-of-run chat page, which carries no
  *     per-player numbers at all. {@code -1} means "unknown" (API unavailable, or the option is off).

@@ -9,9 +9,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Persisted Terminal QoL settings - see {@link TerminalQolFeature}. Ported from Devonian's own
+/** Persisted Terminal QoL settings - see {@link TerminalQolFeature}. Ported from the
  *  {@code features/dungeons/f7/{TerminalProtection, TerminalDropKey, MelodyKeys, CustomTerminalScale,
- *  TerminalHideCompletion}.kt} (source read 2026-09-16 at a local Devonian checkout).
+ *  TerminalHideCompletion}.kt} (source read 2026-09-16 at a local the reference checkout).
  *  <p>
  *  Deliberately a SEPARATE file from {@link TerminalSolverConfig} ({@code killer560smod-terminalsolver.json})
  *  rather than more keys inside it: none of these five settings touch the solver's own highlighting at all -
@@ -23,12 +23,12 @@ import java.nio.file.Path;
  *  Everything ships OFF, per killer560's standing "all default OFF" rule for new features. */
 public final class TerminalQolConfig {
 
-    /** Devonian's own slider bounds for its {@code terminalProtection.threshold} (100-700, default 400). */
+    /** The slider bounds for its {@code terminalProtection.threshold} (100-700, default 400). */
     public static final int MIN_PROTECTION_MS = 100;
     public static final int MAX_PROTECTION_MS = 700;
     public static final int DEFAULT_PROTECTION_MS = 400;
 
-    /** 0 = "auto" (leave Minecraft's own GUI scale alone), matching Devonian's own {@code 0 = auto} sliders. */
+    /** 0 = "auto" (leave Minecraft's own GUI scale alone) sliders. */
     public static final int MIN_GUI_SCALE = 0;
     public static final int MAX_GUI_SCALE = 5;
 
@@ -39,7 +39,7 @@ public final class TerminalQolConfig {
 
     private boolean protectionEnabled = false;
     private int protectionThresholdMs = DEFAULT_PROTECTION_MS;
-    /** Devonian's slider tooltip is literally "lowest current safe value is 400 - ping" - LegendaryJG, i.e. the
+    /** The slider tooltip is literally "lowest current safe value is 400 - ping" - LegendaryJG, i.e. the
      *  real threshold people use is the slider MINUS their ping. Doing that subtraction here instead of making
      *  the player re-tune the slider every time their ping changes. */
     private boolean protectionSubtractPing = true;
@@ -47,7 +47,7 @@ public final class TerminalQolConfig {
     private boolean dropKeyEnabled = false;
     /** GLFW key code the vanilla Drop key is temporarily re-bound to while a terminal is open.
      *  -1 ({@code GLFW_KEY_UNKNOWN}) = unbound, i.e. nothing can drop an item while a terminal is open, which is
-     *  the whole point of the feature (Devonian's own default is {@code GLFW_KEY_UNKNOWN} too). */
+     *  the whole point of the feature (the default is {@code GLFW_KEY_UNKNOWN} too). */
     private int dropKeyCode = -1;
     /** Crash recovery, see {@link TerminalQolFeature#restoreDropKeyAfterCrash()}. Non-empty ONLY while the
      *  vanilla Drop key is currently swapped out; holds the real key's {@code InputConstants.Key#getName()}
@@ -59,18 +59,18 @@ public final class TerminalQolConfig {
     private int terminalGuiScale = 0;
     private int melodyGuiScale = 0;
 
-    /** Terminal Sounds (Odin, featsweep-1108): a chosen sound (clicksound/ClickSounds ids) for each correct click you make and
+    /** Terminal Sounds (featsweep-1108): a chosen sound (clicksound/ClickSounds ids) for each correct click you make and
      *  for each terminal you finish; "default" adds nothing. Volume is a percent. */
     private boolean terminalSounds = false;
     private String clickSound = "tick";
     private String completeSound = "chime";
     private int soundVolume = 100;
-    /** Terminal Click Path (Athen's Terminal Click): your clicks drawn as dots and lines for 4 s after the terminal closes. */
+    /** Terminal Click Path (the Terminal Click): your clicks drawn as dots and lines for 4 s after the terminal closes. */
     private boolean clickPath = false;
 
     private boolean hideCompletionTitles = false;
     private boolean hideCompletionChat = false;
-    /** Devonian's own {@code onlyShowOwn} (default true): your OWN "activated a terminal! (n/m)" still shows,
+    /** The {@code onlyShowOwn} (default true): your OWN "activated a terminal! (n/m)" still shows,
      *  everyone else's is hidden. */
     private boolean hideCompletionOnlyOthers = true;
 

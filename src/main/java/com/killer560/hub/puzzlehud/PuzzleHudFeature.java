@@ -27,7 +27,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Puzzle HUD (Odin PuzzleHud, Devonian PuzzlesDisplay and PuzzleTimers): the dungeon's puzzles with their state, who solved
+ * Puzzle HUD (the reference PuzzleHud, the reference PuzzlesDisplay and PuzzleTimers): the dungeon's puzzles with their state, who solved
  * or failed each and how long it took. State is the tab list's puzzle rows (the same lines Score Calculator reads,
  * {@link ScoreCalculatorFeature#TAB_PUZZLE}), polled twice a second only inside a dungeon with the switch on; who comes from
  * Hypixel's {@code PUZZLE SOLVED!} / {@code PUZZLE FAIL!} lines. A puzzle's clock starts when the tab list first names it and

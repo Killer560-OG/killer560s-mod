@@ -15,10 +15,10 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Full item data from the NEU item repo (NotEnoughUpdates-REPO {@code items/<ID>.json}), fetched lazily per item the
+ * Full item data from the reference item repo (NotEnoughUpdates-REPO {@code items/<ID>.json}), fetched lazily per item the
  * first time the Item Browser shows its tooltip or recipe, then kept for the session. killer560, 2026-10-11:
  * "make it so hovering something there shows its tooltip" and "Some things are missing recipe data" - Hypixel's
- * public items resource has no lore and a recipe for only 1 of ~5,600 items, while NEU's repo has both for nearly
+ * public items resource has no lore and a recipe for only 1 of ~5,600 items, while the repo has both for nearly
  * everything. Same keyless source {@code profileviewer.item.PetIcons} already reads pet heads from.
  * <p>
  * Parsed fields: {@code displayname} and {@code lore} (section-sign formatted, shown as-is), the 3x3 crafting
@@ -76,7 +76,7 @@ public final class NeuItemData {
         return ProfileViewerApi.getKeylessJson(url).thenApply(NeuItemData::parse).exceptionally(t -> null);
     }
 
-    /** Parses one NEU repo item JSON. @return null for a null/non-item object. Public for the testkit. */
+    /** Parses one the reference repo item JSON. @return null for a null/non-item object. Public for the testkit. */
     public static Info parse(JsonObject json) {
         if (json == null) {
             return null;

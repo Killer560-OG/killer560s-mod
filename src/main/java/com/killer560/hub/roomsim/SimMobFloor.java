@@ -322,7 +322,7 @@ public final class SimMobFloor {
      * Keeps every chunk of the floor loaded while it has mobs. A sim mob is a {@code SimZombie}/{@code SimEnderman} - a
      * subclass only while it stays in memory: a chunk that unloads saves it as a plain zombie or enderman and loads it back
      * as one (vanilla AI, no Fel state, a sleeping Fel now visible and a woken skull a stale reference), and a Fel's skull
-     * the sim holds is no longer the entity in the world (doc-adm-sim-1101: Knight's Fel never woke, 4 blocks from him).
+     * the sim holds is no longer the entity in the world (doc-sim-1101: Knight's Fel never woke, 4 blocks from him).
      */
     private static void forceChunks(Minecraft client, DungeonLayout layout) {
         MinecraftServer server = client.getSingleplayerServer();

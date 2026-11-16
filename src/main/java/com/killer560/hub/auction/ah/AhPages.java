@@ -13,17 +13,17 @@ import java.util.regex.Pattern;
  * <p>
  * Sources (2026-10-07):
  * <ul>
- *   <li>Titles: Skyblocker {@code MenuScreensConstructorMixin} ("auctions browser", "auctions: ", ends with
- *       "auction view", "confirm purchase", "confirm bid"); SkyHanni {@code AuctionsHighlighter} ("Manage Auctions"),
+ *   <li>Titles: the reference {@code MenuScreensConstructorMixin} ("auctions browser", "auctions: ", ends with
+ *       "auction view", "confirm purchase", "confirm bid"); the reference {@code AuctionsHighlighter} ("Manage Auctions"),
  *       {@code AuctionHouseCopyUnderbidPrice} ("Create BIN Auction", {@code Auctions: "..."}); the hypixelskyblock wiki's
  *       Auction House page (menus "Auction House", "Your Bids", "Create Auction", "Create BIN Auction",
  *       "Auction Duration").</li>
- *   <li>Auctions Browser slots: Skyblocker {@code AuctionBrowserScreen} - categories in column 0 (one per row),
+ *   <li>Auctions Browser slots: the reference {@code AuctionBrowserScreen} - categories in column 0 (one per row),
  *       listings in rows 1-4 x columns 2-7, 46 previous page, 47 reset, 48 search, 49 back, 50 sort, 51 rarity,
  *       52 BIN filter, 53 next page; the page arrows' first lore line reads "(n/total)"; the selected option of a
  *       filter is the lore line marked "▶"; the search sign's lore carries "Filtered: ...".</li>
- *   <li>Auction View: the item in slot 13 (Skyblocker {@code AuctionViewScreen}); Confirm Bid/Purchase: confirm 11,
- *       cancel 15 (Skyblocker's popup clicks exactly those).</li>
+ *   <li>Auction View: the item in slot 13; Confirm Bid/Purchase: confirm 11,
+ *       cancel 15 (the popup clicks exactly those).</li>
  * </ul>
  * "Auction Stats", "Bid History" and anything else are not mapped.
  */

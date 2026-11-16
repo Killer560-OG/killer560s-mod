@@ -5,18 +5,18 @@ import java.util.Comparator;
 import java.util.List;
 
 /**
- * How a room's boxes are shared between the roles, as seen from the door the rush came in by. The reference mod adm
+ * How a room's boxes are shared between the roles, as seen from the door the rush came in by. Other tools
  * keeps hand-made plans per room x entry door x team size on its site; this is the rule we fitted to those plans
- * (killer560s-mod-logs\adm-study\measure_final.py, measured on all 90 rooms of both their normal and M7 sets; with
- * equal box weights: 64% / 53% / 56% of boxes the same role as adm's at 2 / 3 / 4 killers on normal floors, 55% / 50% on
+ * (a private measurement script, measured on all 90 rooms of both their normal and M7 sets; with
+ * equal box weights: 64% / 53% / 56% of boxes the same role as the usual plans at 2 / 3 / 4 killers on normal floors, 55% / 50% on
  * M7, against 37% / 28% / 13% for our first nearest-first cut):
  * <ol>
  *   <li><b>Regions.</b> The boxes form one region a role: k-means on the boxes' x/z, seeded with the box farthest from
  *       the door, then each next seed the box farthest from those already picked. On normal floors the regions are then
- *       evened out to at most ceil(boxes / roles) each, the box nearest another region's middle moving first (adm's normal
+ *       evened out to at most ceil(boxes / roles) each, the box nearest another region's middle moving first (the normal
  *       plans are near equal box counts; its M7 ones are not).</li>
  *   <li><b>Numbering.</b> Normal floors: role 1 is the region farthest from the door (on average), then the next farthest.
- *       Master mode: role 1 is the region with the most boxes (adm's M7 roles are classes, the Archer taking the most), ties
+ *       Master mode: role 1 is the region with the most boxes (the M7 roles are classes, the Archer taking the most), ties
  *       to the nearer one.</li>
  *   <li><b>Kill order</b> inside a role: from the door, the nearest box first, then each next the nearest to the last.</li>
  *   <li>A room with one box (a miniboss room) is every role's.</li>

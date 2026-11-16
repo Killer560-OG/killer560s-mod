@@ -111,7 +111,7 @@ wall's own material (else stone bricks): about 100,000 blocks a floor, ~1.5 s at
   the opening. `SimDoors.carveDoorway` now returns the floor it carved from and the fill walls those columns too, all but
   the opening (floor .. floor + 3).
 - **That broke every door scanner in the sim for three weeks** (found 2026-11-01, doors263-1101). Wither Doors, Door
-  Helpers and the map's world scan all find a door cell by QUOI's rule: the top block of the door's MIDDLE seam column is
+  Helpers and the map's world scan all find a door cell by the rule: the top block of the door's MIDDLE seam column is
   y 73/74/81/82 (Hypixel's connector roof, open above). Walled to the room roofs it read 99-119, every cell became "not a
   door", and the sim had no wither or blood doors: testkit 538/678 failed on 26.1.2 from 2026-10-15 on and were then
   blamed on the 26.3 port. Now the middle column (t = 0) is filled only up to the highest block it already holds over

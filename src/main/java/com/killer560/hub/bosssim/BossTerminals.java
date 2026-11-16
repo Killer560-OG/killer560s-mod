@@ -31,14 +31,14 @@ import java.util.Random;
 /**
  * F7's six terminals, served by the sim's server the way Hypixel serves them, so the mod's Terminal Solver, Auto Terminal,
  * Terminal Aura and Hover Terminal treat them as the real thing: the same titles (TerminalType's regexes), the same window
- * sizes and slot layouts (ADM's measurements of Hypixel's: Click in order 4 rows, slots 11-15 and 20-24, ten numbers since
+ * sizes and slot layouts (measurements of Hypixel's: Click in order 4 rows, slots 11-15 and 20-24, ten numbers since
  * Hypixel's 2026-10-06 update; Panes 5 rows, 11-15/20-24/29-33; Rubix 5 rows, the middle 3x3; Starts With 5 rows,
  * 10-16/19-25/28-34; Select 6 rows, 10-16 to 37-43; Melody 5 rows, three lanes since the update, Lock buttons in column 7),
  * a nameless black pane as filler, and a correct Starts With / Select pick glinting. A click never moves an item: it is
  * judged, the menu re-sent, and the finishing click closes the window on the next tick.
  *
  * <p>Rules ported from the testkit's server terminals ({@code hx/menu/HxTerminals}, built from the mod's own practice
- * screen and solver); layouts from ADM's measurements (facts, not code).
+ * screen and solver); layouts from measurements (facts, not code).
  */
 public final class BossTerminals {
 

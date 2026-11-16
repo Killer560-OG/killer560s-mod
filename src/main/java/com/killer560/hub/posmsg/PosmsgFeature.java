@@ -29,7 +29,7 @@ import java.util.Set;
  * if i walk into it... it only needs to send a message like \"at hee2\" no coordinates or anything".
  * The old build instead sent a machine-readable {@code [PM]name|x|y|z|r} payload that other copies of
  * this mod parsed back out into a top-left HUD list; both the payload and that HUD are gone. What goes
- * out now is a plain sentence, so teammates on Odin, on NoammAddons or on no mod at all all read it.
+ * out now is a plain sentence, so teammates on the reference, on the reference or on no mod at all all read it.
  * <p>
  * Sent to Party Chat through {@link OutgoingChat} (NOT through {@code TranslateFeature.sendGenerated})
  * so Translate / Auto Correct / Chat Emotes can't rewrite a callout mid-run.

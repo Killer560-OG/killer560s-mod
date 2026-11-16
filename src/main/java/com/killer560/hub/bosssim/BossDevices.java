@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.Random;
 
 /**
- * P3's four devices, at the coordinates the mod's own device features read them from, with Hypixel's rules as ADM
+ * P3's four devices, at the coordinates the mod's own device features read them from, with Hypixel's rules as
  * measured them (Devices.kt, after the 2026-10-05/06 boss update):
  * <ul>
  * <li><b>Simon Says</b> (S1): sea lanterns on the obsidian wall x 111, stone buttons x 110, y 120-123, z 92-95, start button
@@ -455,7 +455,7 @@ public final class BossDevices {
     }
 
     /**
-     * Hypixel's buttons come back up fast (ADM: the start button 2 ticks after a press, a grid button 3), not after a
+     * Hypixel's buttons come back up fast (measured: the start button 2 ticks after a press, a grid button 3), not after a
      * vanilla stone button's 20, so a quick second press (a reset, the next step) is a new press.
      */
     private static void popUp(ServerLevel level, BlockPos pos, int ticks) {
@@ -483,7 +483,7 @@ public final class BossDevices {
     }
 
     /**
-     * Simon Says as Hypixel runs it (ADM's measured device, facts only). The start button toggles: a press while stopped
+     * Simon Says as Hypixel runs it (the measured device, facts only). The start button toggles: a press while stopped
      * draws a pattern and queues a round task 4 ticks on; a press while started resets it (round 0, lamps off, buttons
      * gone) but never cancels a round task already queued nor a show already running. That is the skip: start, reset 3
      * ticks later, start 3 ticks after that, and the first start's task shows round 1 while the second's adds round 2.

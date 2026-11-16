@@ -10,7 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted Etherwarp Overlay settings - see {@link EtherwarpOverlayFeature}'s class doc for the real
- *  Odin-ported landing-prediction this is built on. Ships disabled by default, same as every other new
+ *  landing-prediction this is built on. Ships disabled by default, same as every other new
  *  feature in this mod. */
 public final class EtherwarpOverlayConfig {
 

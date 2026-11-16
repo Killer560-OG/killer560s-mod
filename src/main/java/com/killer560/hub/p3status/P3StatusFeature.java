@@ -35,17 +35,17 @@ import java.util.regex.Pattern;
 /**
  * P3 Status (2026-10-25, legit): F7/M7 Phase 3 at a glance, and Hypixel's progress titles made short.
  * <p>
- * <b>Status HUD</b> (Skyblocker {@code TerminalHud}, Odin {@code TerminalsStatus}): the current section's progress as
+ * <b>Status HUD</b>: the current section's progress as
  * four short rows, "Terminals 2/4" (5 in section 2), "Device 0/1", "Levers 1/2" and, in sections 1-3, "Gate" with a mark
  * (killer560, 2026-11-02: "remove all that. it should just be terminal 0/4, device 0/1, lever 0/2 and such" - the per-row
  * list with names and Show Who Is At Each went). The section comes from {@link P3SectionTracker}, which every P3 feature
  * shares.
  * Which objective a line finished: a device is the section's only device; a terminal or lever is the unfinished one of
- * that kind nearest the named player (Skyblocker's rule), the first unfinished one when he is not in sight. A terminal's
+ * that kind nearest the named player (the rule), the first unfinished one when he is not in sight. A terminal's
  * own hologram overrides that whenever it is loaded: "Inactive Terminal" is not done, "Terminal Active" is done (the
  * same stands P3 Nav reads), so a guess is corrected as soon as the stand is in range.
  * <p>
- * <b>Titles</b> (Odin {@code TerminalTitles}, NoammAddons {@code F7Titles}): Hypixel's "Name activated a terminal!
+ * <b>Titles</b>: Hypixel's "Name activated a terminal!
  * (3/7)" title or subtitle is replaced by one short subtitle, "Name Terminal 3/7": the name in that player's dungeon class
  * color ({@code PartyTracker.classOf}, white when unknown) and "Terminal 3/7" in gold (killer560, 2026-11-02); "Device Done" and "Section Complete"
  * are shown as titles (with a pling when Title Sound is on) off the chat lines; and the P1 "The Energy Laser is charging
@@ -61,7 +61,7 @@ public final class P3StatusFeature {
             "^([A-Za-z0-9_]{1,16}) (?:activated|completed) a (terminal|lever|device)! \\((\\d)/(\\d)\\)(?:\\s.{0,60})?$");
     static final String LASER_CHARGING = "The Energy Laser is charging up!";
 
-    /** Terminal hologram positions per section (P3 Nav's NoammAddons table), numbered as Skyblocker numbers them. */
+    /** Terminal hologram positions per section (P3 Nav's the reference table), numbered numbers them. */
     private static final Vec3[][] TERMINALS = {
             {new Vec3(110, 113, 73), new Vec3(110, 119, 79), new Vec3(90, 112, 92), new Vec3(90, 122, 101)},
             {new Vec3(68, 109, 122), new Vec3(59, 119, 123), new Vec3(47, 109, 122), new Vec3(40, 124, 123),

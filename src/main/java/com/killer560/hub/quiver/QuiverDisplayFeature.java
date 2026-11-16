@@ -22,11 +22,11 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Real Skyblock quiver-arrow-count display, ported from Odin's own {@code QuiverDisplay.kt}. Real
+ * Real Skyblock quiver-arrow-count display. Real
  * arrow/quiver items (Flint Arrow, Spirit Bow ammo, etc.) show their remaining count on a real visible
  * lore line ("Arrows Remaining: N") rather than exposing it any other way. Scans the player's own real
  * inventory (hotbar, main inventory, and off hand) each tick for a Feather- or Arrow-type item carrying
- * that lore line - simpler and more robust than Odin's own fixed-slot-index check, which depends on
+ * that lore line - simpler and more robust than the fixed-slot-index check, which depends on
  * exactly which menu is open and isn't something this session could confirm still matches a specific
  * slot number in this Minecraft version.
  */

@@ -7,7 +7,7 @@ import com.killer560.hub.util.ModPaths;
 import java.nio.file.Path;
 
 /**
- * Bazaar Order Helper settings ({@link BazaarOrderHelper}): the switch (ON, as SkyHanni ships its Order Helper), Highlight
+ * Bazaar Order Helper settings ({@link BazaarOrderHelper}): the switch (ON ships its Order Helper), Highlight
  * Outbid, Highlight Filled, and the two colors (ARGB, the alpha is how strong the slot fill is; the outline is drawn
  * opaque).
  */
@@ -21,7 +21,7 @@ public final class BazaarOrderHelperConfig {
     static final int OLD_OUTBID_COLOR = 0x80FF5555;
     /** Expired: red. */
     public static final int DEFAULT_EXPIRED_COLOR = 0x80FF5555;
-    /** Filled or ready to claim: green, as SkyHanni and the Bazaar screen. */
+    /** Filled or ready to claim: green and the Bazaar screen. */
     public static final int DEFAULT_FILLED_COLOR = 0x8055FF55;
 
     private static BazaarOrderHelperConfig instance;

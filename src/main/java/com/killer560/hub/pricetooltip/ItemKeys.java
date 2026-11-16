@@ -9,7 +9,7 @@ import java.util.Locale;
 
 /**
  * The price key of a Skyblock item: the id {@link PriceData}'s Bazaar and auction maps are keyed by. Mostly the item's
- * {@code id}; a few items share one id and are told apart by another field (same scheme as Skyblocker's API ids,
+ * {@code id}; a few items share one id and are told apart by another field (same scheme API ids,
  * reimplemented here):
  * <ul>
  *   <li>an enchanted book with one enchant: {@code ENCHANTMENT_<NAME>_<LEVEL>} (a Bazaar product);</li>

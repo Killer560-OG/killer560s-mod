@@ -19,7 +19,7 @@ import net.minecraft.world.level.block.state.BlockState;
  * <li>Anything inside a Fairy room - always, no setting. The room is the one over the BLOCK, by the map's own room
  * type ({@link LiveMapFeature#roomTypeAt}).</li>
  * <li>A dungeon secret block, when {@link DungeonBreakerConfig#isNoBreakSecrets} is on. The kinds are the Secret
- * Triggerbot's (QUOI {@code Dungeon.isSecret}): chests, trapped chests, levers that are not dummies, and the Wither
+ * Triggerbot's: chests, trapped chests, levers that are not dummies, and the Wither
  * Essence / Redstone Key skulls.</li>
  * </ul>
  * Puzzle rooms are deliberately not touched by either rule.

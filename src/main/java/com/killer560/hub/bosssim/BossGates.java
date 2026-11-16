@@ -8,7 +8,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import java.util.function.Predicate;
 
 /**
- * P3's three boundaries, each a GATE and a DOOR, as Hypixel changes them (measured in 73 recorded runs, facts from ADM's
+ * P3's three boundaries, each a GATE and a DOOR, as Hypixel changes them (measured in 73 recorded runs, facts from recordings of
  * notes; the blocks themselves are read off his captures, where the two kinds never share a cell):
  * <ul>
  * <li>the gate: the cracked stone bricks and stone brick stairs of the arch, gone in one tick with "The gate has been

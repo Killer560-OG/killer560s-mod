@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Weirdos Solver settings - see {@link com.killer560.hub.puzzlesolvers.WeirdosSolverFeature}'s class doc
- *  for the real Odin-ported dialogue-matching logic this is built on. */
+ *  for the real dialogue-matching logic this is built on. */
 public class WeirdosSolverTab extends BaseTab {
 
     public WeirdosSolverTab() {

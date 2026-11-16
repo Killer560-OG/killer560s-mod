@@ -9,8 +9,8 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * QUOI {@code NameTags.kt} "Custom nametag" (OFF by default, {@link ObjectHiderConfig#isCancelVanillaNametags()})
- * - QUOI cancels the vanilla nametag so it can draw its own instead (mixins/LivingEntityRendererMixin.java:16-23,
+ *  "Custom nametag" (OFF by default, {@link ObjectHiderConfig#isCancelVanillaNametags})
+ * - the reference cancels the vanilla nametag so it can draw its own instead (mixins/LivingEntityRendererMixin.java:16-23,
  * {@code shouldShowName} HEAD cancellable). This port has no custom nametag renderer to replace it with, so
  * turning this on simply removes every living entity's floating nametag - same "hide" scope as everything
  * else in this pack. javap-verified {@code LivingEntityRenderer} declares two {@code shouldShowName}

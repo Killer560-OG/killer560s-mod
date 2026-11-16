@@ -33,7 +33,7 @@ import java.util.regex.Pattern;
  * <li><b>Drop lines.</b> Hypixel's {@code RARE DROP!}, {@code VERY RARE DROP!}, {@code CRAZY RARE DROP!},
  *     {@code INSANE DROP!}, {@code PRAY TO RNGESUS DROP!}, {@code RNGESUS INCARNATE DROP!} and {@code PET DROP!} lines,
  *     anchored at the start of the line, so {@code [VIP] Bob: RARE DROP! Warden Heart} (any typed chat starts with a
- *     channel, rank or name) never matches. Formats from SkyHanni's and Skyblocker's regex tests (slayer drops are in
+ *     channel, rank or name) never matches. Formats from the regex tests (slayer drops are in
  *     brackets, often with "2x "), not copied code.</li>
  * <li><b>Slayer kills.</b> {@code SLAYER QUEST COMPLETE!} / {@code NICE! SLAYER BOSS SLAIN!} (once per 5 s, both can
  *     come for one boss) count one attempt at the boss and tier the sidebar showed in the last minute ("Revenant Horror
@@ -68,14 +68,14 @@ public final class LuckDetector {
     private static final Pattern PET_RARITY = Pattern.compile("^(?:COMMON|UNCOMMON|RARE|EPIC|LEGENDARY|MYTHIC) ");
     /**
      * Hypixel's line after a slayer kill: "Zombie Slayer LVL 7 - Next LVL in 46,100 XP!" or "... LVL 9 - LVL MAXED OUT!"
-     * (SkyHanni's and Skyblocker's slayer level regexes; an optional "» " lead). Whole line: another player's chat line
+     * (the slayer level regexes; an optional "» " lead). Whole line: another player's chat line
      * starts with a channel, rank or name and never matches.
      */
     static final Pattern SLAYER_LEVEL = Pattern.compile("^(?:» )?(Zombie|Spider|Wolf|Enderman|Blaze|Vampire) Slayer LVL "
             + "(\\d{1,2}) - (?:Next LVL in [\\d,]{1,15} XP!|LVL MAXED OUT!)$");
     /** "RNG Meter - 123,456 Stored XP" after a slayer kill (wording not seen live; a mismatch only skips the update). */
     static final Pattern METER_XP = Pattern.compile("^RNG Meter - ([\\d,]{1,15}) Stored XP$");
-    /** The Crystal Nucleus loot message (the shelved Nucleus tracker's patterns, from SkyHanni's CrystalNucleusApi). */
+    /** The Crystal Nucleus loot message (the shelved Nucleus tracker's patterns, from the CrystalNucleusApi). */
     static final Pattern NUCLEUS_START = Pattern.compile("^\\s{0,64}CRYSTAL NUCLEUS LOOT BUNDLE\\s{0,64}$");
     static final Pattern NUCLEUS_END = Pattern.compile("^\\s{0,64}▬{20,128}\\s{0,64}$");
     private static final Pattern COUNT_PREFIX = Pattern.compile("^(\\d{1,6})x\\s+(.+)$");

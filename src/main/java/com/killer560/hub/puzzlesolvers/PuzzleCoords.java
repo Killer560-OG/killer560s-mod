@@ -4,7 +4,7 @@ import com.killer560.hub.roomdatabase.RoomDatabase;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import net.minecraft.core.BlockPos;
 
-/** Room-relative <-> real coordinate shorthands (QUOI {@code OdonRoom.getRealCoords/getRelativeCoords}) on top of
+/** Room-relative <-> real coordinate shorthands on top of
  *  {@link RoomDatabase#toRealCoord}/{@link RoomDatabase#toRelativeCoord}, the same transform every existing solver
  *  uses. {@code clayAndRotation} is {@code LiveMapFeature.currentRoomClayAndRotation()}. */
 public final class PuzzleCoords {

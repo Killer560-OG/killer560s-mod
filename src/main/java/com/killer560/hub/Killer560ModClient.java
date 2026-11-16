@@ -170,7 +170,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.roomsim.SimMobs.register();
         com.killer560.hub.roomsim.SimSecretItems.register();
         com.killer560.hub.roomsim.SimRun.register();
-        // The F7 boss in the sim (doc-adm-boss-1101): its own package, after the sim it builds into.
+        // The F7 boss in the sim (doc-boss-1101): its own package, after the sim it builds into.
         com.killer560.hub.bosssim.BossSim.register();
         // The sim's Catacombs sidebar. Without it DungeonState sees no dungeon inside the sim, and every
         // feature that gates on it - the live map, secret waypoints, every solver, the timers, the score -
@@ -400,7 +400,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.bridge.BridgeFeature.register();
         com.killer560.hub.melody.MelodyTrackerFeature.register();
         com.killer560.hub.interop.SharingDefaults.applyOnce();
-        // Auto Leap Out replaced by the QUOI AutoLeap port (fast leap + auto leaps) and the separate i4 leap.
+        // Auto Leap Out replaced by the reference AutoLeap port (fast leap + auto leaps) and the separate i4 leap.
         com.killer560.hub.fastleap.FastLeapFeature.register();
         com.killer560.hub.bloodcamp.BloodCampFeature.register();
         com.killer560.hub.bloodcamp.BloodCampFeature.hudElements().forEach(HudElementRegistry::register);

@@ -19,13 +19,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The Interactive Map screen - QUOI {@code InteractiveMap.map()} / {@code MapRenderer.renderMap(autoClear = true)}:
- * QUOI's room layout (16-unit rooms, 4-unit gaps, merged multi-tile rooms, door blocks, names centered on
+ * The Interactive Map screen - the reference {@code InteractiveMap.map} / {@code MapRenderer.renderMap(autoClear = true)}:
+ * The room layout (16-unit rooms, 4-unit gaps, merged multi-tile rooms, door blocks, names centered on
  * {@code textPlacement}, name color by clear state, no names on Entrance/Fairy/Blood), current-room highlight color,
- * hover brighten + white outline, and clicks that teleport-path (cheat builds). On top of QUOI: player heads/arrows
- * with names and class colors (QUOI's commented-out icon config / NoammAddons), hover tooltips (type, secrets, crypts,
+ * hover brighten + white outline, and clicks that teleport-path (cheat builds). On top of player heads/arrows
+ * with names and class colors (the commented-out icon config / the reference), hover tooltips (type, secrets, crypts,
  * puzzle, clear state, who cleared), scroll zoom (the map never pans: no drag moves it) and a legend.
- * No world dim/blur, like QUOI's {@code open(background = false)}.
+ * No world dim/blur.
  */
 public class InteractiveMapScreen extends Screen implements com.killer560.hub.gui.MenuThemedScreen {
 
@@ -104,7 +104,7 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
 
     @Override
     public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
-        // QUOI opens the map with background = false: keep the world visible, no blur or dim.
+        // The reference opens the map with background = false: keep the world visible, no blur or dim.
     }
 
     private boolean legendBeside() {

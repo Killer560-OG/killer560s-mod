@@ -10,7 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted Ability Keybinds settings - see {@link AbilityKeybindsFeature}'s class doc for the real
- *  Noamm-ported ability-trigger this is built on. Ships disabled by default, same as every other new
+ *  ability-trigger this is built on. Ships disabled by default, same as every other new
  *  feature in this mod. */
 public final class AbilityKeybindsConfig {
 

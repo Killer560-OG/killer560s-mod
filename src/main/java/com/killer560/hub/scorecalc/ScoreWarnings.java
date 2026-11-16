@@ -19,7 +19,7 @@ import java.util.List;
  * pass" (the Portal Entry split's start), it lists what is still missing - crypts under 5, rooms not cleared, secrets
  * short of S+ - before you take the portal. Silent when nothing is missing. Optionally Mage only, and Permanent: a title
  * held up until the boss, "DO NOT ENTER PORTAL" (with or without the list) or a green "ENTER THE PORTAL".</li>
- * <li><b>Crypt Reminder</b> (Skyblocker's crypts message, on a timer instead of a score): once the run's clock passes
+ * <li><b>Crypt Reminder</b> (the crypts message, on a timer instead of a score): once the run's clock passes
  * the set time with fewer than 5 crypts, outside the boss, a title and a chat line; optionally the count to party.</li>
  * </ul>
  */
@@ -236,7 +236,7 @@ public final class ScoreWarnings {
 
     /**
      * What still keeps the run from its best score before the boss: crypts under 5, rooms not cleared, secrets short of
-     * S+. Rooms count as the calculator does (Odin): blood is cleared until Hypixel's "Cleared" line has counted it, and
+     * S+. Rooms count as the calculator does: blood is cleared until Hypixel's "Cleared" line has counted it, and
      * the boss room once entered - so right on the Watcher's line, before blood's clear reaches the sidebar, a fully
      * cleared run reads 100%.
      */

@@ -11,7 +11,7 @@ import java.util.List;
 /**
  * Immutable snapshot of the scanned dungeon (rooms, doors, lock state) taken on the client thread, so the teleport
  * pathfinders ({@code livemap.autoclear}) can read it from worker threads without racing {@link LiveMapFeature}'s
- * regrouping. The QUOI equivalent is {@code ScanUtils.grid} ({@code OdonRoom}/{@code OdonDoor} per cell).
+ * regrouping. The reference equivalent is {@code ScanUtils.grid} ({@code OdonRoom}/{@code OdonDoor} per cell).
  */
 public final class DungeonLayout {
 
@@ -256,7 +256,7 @@ public final class DungeonLayout {
             // killer560, 2026-09-27: "it does not draw the wither door on the fairy room door if it is
             // the first door in the run and it should." The cell right next to the Entrance is
             // deliberately refused a room union in rebuildGroups() ("Never next to the Entrance -
-            // NoammAddons turns that gap into an entrance door"), so when the world scan's own roof-
+            // The reference turns that gap into an entrance door"), so when the world scan's own roof-
             // height/block read couldn't tell that gap apart from a plain connector, classifyDoor()
             // never ran on it at all and it was left classified Tile.ROOM by scan() forever - nothing
             // downstream ever reconsidered it, so it fell straight to DOOR_NONE below and never drew.
@@ -300,7 +300,7 @@ public final class DungeonLayout {
                 ? com.killer560.hub.roomsim.SimAltitude.offset() : 0;
     }
 
-    /** World position of a door cell's lock block (QUOI {@code OdonDoor.pos} at y 69). */
+    /** World position of a door cell's lock block (the reference {@code OdonDoor.pos} at y 69). */
     public static BlockPos doorBlock(int idx) {
         // y 69 is Hypixel's floor height. In the sim the whole map is shifted vertically, so the block that
         // tells a wither door apart from an open one is somewhere else entirely - and read at 69 it is always
@@ -310,7 +310,7 @@ public final class DungeonLayout {
                 LiveMapFeature.START_Z + (idx / GRID) * LiveMapFeature.HALF_ROOM);
     }
 
-    /** World center of a cell at y 70 (QUOI {@code RoomTile.blockPos}). */
+    /** World center of a cell at y 70. */
     public static BlockPos cellCenter(int idx) {
         return cellCenter(idx % GRID, idx / GRID);
     }
@@ -366,7 +366,7 @@ public final class DungeonLayout {
         }
     }
 
-    /** QUOI {@code ScanUtils.getRoomFromPos}: clamped grid tile under a world position, or -1. */
+    /** The reference {@code ScanUtils.getRoomFromPos}: clamped grid tile under a world position, or -1. */
     public int roomAtWorld(double x, double z) {
         // Math.floor, not a cast.
         //

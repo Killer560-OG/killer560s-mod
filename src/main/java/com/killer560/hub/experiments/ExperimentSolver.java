@@ -22,7 +22,7 @@ import java.util.regex.Pattern;
  * <a href="https://github.com/AzureSky0116/astrail-experiment">astrail-experiment</a> mod (targets
  * MC 26.2/Fabric - close enough to our 26.1.2 that every API it uses was independently re-verified
  * against our own decompiled jar via javap before porting, not assumed identical), cross-checked
- * against SkyHanni's real container-title regex and per-tier slot ranges
+ * against the real container-title regex and per-tier slot ranges
  * ({@code ExperimentationTableApi.kt}) for the parts astrail's own README didn't spell out in
  * detail. Algorithm, not guessed:
  * <ul>
@@ -66,7 +66,7 @@ import java.util.regex.Pattern;
  * real auto-clicking bot path, while {@link #observe} alone is exposed for Solver-Only's highlight-only
  * mode, which needs the exact same tested game-state tracking to know what's correct, but must never
  * call {@code MultiPlayerGameMode.handleContainerInput(...)} itself - it only highlights the correct
- * slot(s) on screen, the same way SkyHanni's own "Next Click Helper" does, so a human choosing to use
+ * slot(s) on screen, the same way the "Next Click Helper" does, so a human choosing to use
  * only that mode is doing 100% real manual clicking, not running a macro.
  */
 final class ExperimentSolver {
@@ -303,7 +303,7 @@ final class ExperimentSolver {
 
     /** @return the very next slot the bot itself is about to click for Chronomatron, or -1 if none
      *  (round not latched in yet, or the whole current sequence has already been clicked) - for the
-     *  highlight overlay to show exactly what to click right now (green), the way SkyHanni's own Next
+     *  highlight overlay to show exactly what to click right now (green), the way the Next
      *  Click Helper does. Per killer560's explicit request (2026-09-06): shows only the next click and the
      *  one after it, not the whole accumulated history with numbers. */
     int chronomatronNextClickSlot() {
@@ -362,7 +362,7 @@ final class ExperimentSolver {
      *  Real bug found and fixed (2026-09-08), per killer560's report that clicking the correct block,
      *  then the next correct one in order, then the next, could still fail partway through: a min-gap
      *  timer here (since removed) was blocking a legitimately fast SECOND correct click if it landed
-     *  within the gap window, mistaking normal skilled fast play for a duplicate. Checked SkyHanni's own
+     *  within the gap window, mistaking normal skilled fast play for a duplicate. Checked the
      *  real (decompiled) ExperimentsAddonsHelper.handleChronomatronClick/handleUltrasequencerClick for
      *  comparison per killer560's request - it uses NO timing gate at all, purely comparing each click
      *  against {@code expected[userProgress.size()]}; a genuine duplicate/double-fired click naturally
@@ -571,7 +571,7 @@ final class ExperimentSolver {
     }
 
     /** Per killer560's request: Solver-Only mode's Superpairs highlight should always show SOMETHING to
-     *  click, exactly like SkyHanni's own Next Click Helper does, instead of going blank whenever no
+     *  click, exactly own Next Click Helper does, instead of going blank whenever no
      *  confirmed match is currently known (e.g. the very start of a board, or right after the last
      *  known match gets claimed). Mirrors the real bot's own exploration priority in
      *  {@link #decideSuperpairsClick} - the next still-covered tile in snake order (a face-up powerup is
@@ -712,12 +712,12 @@ final class ExperimentSolver {
             bySlot.put(cell.slot(), cell);
         }
 
-        // Real root cause found (2026-09-07) by reading SkyHanni's actual working Superpairs source
+        // Real root cause found (2026-09-07) by reading the actual working Superpairs source
         // directly (see isRevealedPair's doc) after a real log showed EVERY SINGLE click in a round
         // timing out with zero confirmations - not occasional lag, total failure. The previous version
         // of this check compared raw itemId, which apparently never flips between covered and revealed
         // in the current Hypixel build. Now reuses the exact same isRevealedPair() classification the
-        // rest of this class already relies on for identity-tracking (itself switched to SkyHanni's
+        // rest of this class already relies on for identity-tracking (itself switched to the
         // real display-name-pattern approach), so "changed" means the same thing everywhere in this
         // file: covered -> revealed, or revealed -> empty/claimed.
         if (superpairsAwaitingConfirmSlot != null) {
@@ -1099,7 +1099,7 @@ final class ExperimentSolver {
 
     /**
      * The Superpairs HUD's numbers (killer560, 2026-11-01: "show how many things are left for superpairs ... found stuff
-     * undiscovered pairs and undiscovered powers", like SkyHanni's). Read from the same board facts the solver plays by:
+     * undiscovered pairs and undiscovered powers"). Read from the same board facts the solver plays by:
      * {@code found} is every reward kind seen, with how many of its two tiles were seen and whether it is claimed;
      * {@code halfFound} counts kinds with one tile seen (the partner is certainly still covered); {@code unseen} counts
      * covered tiles never seen, which are those partners, whole pairs never seen, or powerups. Which powerups a board
@@ -2186,11 +2186,11 @@ final class ExperimentSolver {
                 || cell.itemId().equals("minecraft:bone_meal");
     }
 
-    /** Real bug root-caused (2026-09-07) by directly reading SkyHanni's actual, currently-working
+    /** Real bug root-caused (2026-09-07) by directly reading the actual, currently-working
      *  Superpairs source ({@code ExperimentationSuperpairApi.kt}, per killer560's "why do you not just use
-     *  the skyhanni code directly... instead of trying to reverse engineer the solver") after a real log
+     *  the another mod code directly... instead of trying to reverse engineer the solver") after a real log
      *  showed the confirm-timeout NEVER once detecting a real reveal across an entire round - not
-     *  occasional lag, total failure. SkyHanni doesn't determine hidden-vs-revealed by item TYPE at all;
+     *  occasional lag, total failure. The reference doesn't determine hidden-vs-revealed by item TYPE at all;
      *  it matches the item's DISPLAY NAME against the exact set of placeholder texts Hypixel uses for a
      *  covered tile ("?", "Click any button!", "Click a second button!", "Next button is instantly
      *  rewarded!" - {@code unknownSuperpairsClickPattern} in their source). The previous version of this

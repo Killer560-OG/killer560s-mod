@@ -49,7 +49,7 @@ public class LeapCounterTab extends BaseTab {
         y[0] += 24;
         // Settings stay visible while the master is OFF (like F7 Spots) so the counts can be set up before a run.
 
-        // Per-section targets - killer560's numbers for S2/S3/S4, S1 and Core/Relic from NoammAddons (0 = off).
+        // Per-section targets - killer560's numbers for S2/S3/S4, S1 and Core/Relic from the reference (0 = off).
         header(w, contentX, y, contentWidth, "Expected Leaps");
         countSlider(w, contentX, y[0], half, "S1 Leaps", cfg::getCountS1, cfg::setCountS1, cfg);
         countSlider(w, colB, y[0], half, "S2 Leaps", cfg::getCountS2, cfg::setCountS2, cfg);

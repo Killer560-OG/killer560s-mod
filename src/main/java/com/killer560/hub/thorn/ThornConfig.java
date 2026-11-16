@@ -47,7 +47,7 @@ public final class ThornConfig {
         }
     }
 
-    // Defaults: Spirit Bear magenta + Spirit Bow cyan are NoammAddons F4Features' own defaults.
+    // Defaults: Spirit Bear magenta + Spirit Bow cyan are the reference F4Features' own defaults.
     public static final int DEFAULT_BEAR_COLOR = 0xFFFF55FF;
     public static final int DEFAULT_THORN_COLOR = 0xFFFF5555;
     public static final int DEFAULT_MOB_COLOR = 0xFFFFAA00;

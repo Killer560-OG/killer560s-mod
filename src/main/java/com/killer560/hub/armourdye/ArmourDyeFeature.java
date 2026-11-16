@@ -7,7 +7,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 
 /**
- * Wiring for Custom Items (see {@link ArmourDye} for what the feature does and what it borrows from Skyblocker):
+ * Wiring for Custom Items (see {@link ArmourDye} for what the feature does and what it borrows from the reference):
  * <ol>
  *   <li>{@code /customitems} opens {@link CustomItemsScreen}, where items are picked and their look is set. The
  *       capture key and the "Add Helmet/Chest/Legs/Boots" buttons it replaces were removed at killer560's request

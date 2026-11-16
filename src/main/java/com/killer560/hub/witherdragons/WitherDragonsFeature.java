@@ -50,13 +50,10 @@ import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.compat.McRender;
 
 /**
- * M7 Phase 5 Wither Dragons - port of Odin's {@code WitherDragons} module
- * (https://github.com/odtheking/Odin/tree/main/src/main/kotlin/com/odtheking/odin/features/impl/boss :
- * WitherDragons.kt, WitherDragonsEnum.kt, DragonCheck.kt), with NoammAddons' additions
- * (arrow-hit counter, packed-ice spray check - local copy a local NoammAddons checkout,
- * features/impl/floor7/dragons). SkyHanni has no M7 dragon features (its dragon code is End dragons only).
+ * M7 Phase 5 Wither Dragons - port of the {@code WitherDragons} module,
+ * with the additions (arrow-hit counter, packed-ice spray check). The original has no M7 dragon features (its dragon code is End dragons only).
  * <p>
- * Flow (Odin):
+ * Flow:
  * <ul>
  * <li>Spawn: Hypixel plays a FLAME particle burst (count 20, y 19, spread 2/3/2, speed 0, whole-block x/z) over a
  * dragon's statue ~5s before it spawns. The x/z range picks the dragon -&gt; SPAWNING with a 100 server-tick
@@ -71,7 +68,7 @@ public final class WitherDragonsFeature {
 
     static final Logger LOGGER = ModLog.get("killer560smod-witherdragons");
 
-    // Odin WitherDragons.witherKingRegex; Hypixel's boss update says "The Wither King" (Floor7Tracker, 8562102f).
+    // The reference WitherDragons.witherKingRegex; Hypixel's boss update says "The Wither King" (Floor7Tracker, 8562102f).
     private static final Pattern WITHER_KING_REGEX =
             Pattern.compile("^\\[BOSS] (?:The )?Wither King: (Oh, this one hurts!|I have more of those\\.|My soul is disposable\\.)$");
 
@@ -109,7 +106,7 @@ public final class WitherDragonsFeature {
     private static void onClientTick() {
         Minecraft client = Minecraft.getInstance();
         if (client.level != lastLevel) {
-            // Odin LevelEvent.Load: dragonHealthMap.clear(); WitherDragonsEnum.reset()
+            // The reference LevelEvent.Load: dragonHealthMap.clear; WitherDragonsEnum.reset
             lastLevel = client.level;
             WitherDragon.resetAll();
             DRAGON_ENTITIES.clear();
@@ -126,7 +123,7 @@ public final class WitherDragonsFeature {
         pollStatues(client.level);
     }
 
-    /** Odin BlockUpdateEvent: a statue block becoming air = that dragon died (not timed). Polled here as a
+    /** The reference BlockUpdateEvent: a statue block becoming air = that dragon died (not timed). Polled here as a
      *  solid -&gt; air transition, which covers both single-block and section block-update packets. */
     private static void pollStatues(ClientLevel level) {
         for (WitherDragon d : WitherDragon.values()) {
@@ -139,7 +136,7 @@ public final class WitherDragonsFeature {
         }
     }
 
-    /** Odin TickEvent.Server. */
+    /** The reference TickEvent.Server. */
     private static void onServerTick() {
         for (WitherDragon d : WitherDragon.values()) {
             if (d.timeToSpawn > 0) {
@@ -187,7 +184,7 @@ public final class WitherDragonsFeature {
         boolean wasPriority = priorityDragon == d;
         if (wasPriority) {
             priorityDragon = null;
-            choosePriority(); // Odin: the next one in spawn order
+            choosePriority(); // the next one in spawn order
         }
         if (!wasAlive) return;
         long nowMs = System.currentTimeMillis();
@@ -208,7 +205,7 @@ public final class WitherDragonsFeature {
 
     // ------------------------------------------------------------------ packets (from WitherDragonsPackets)
 
-    /** Odin {@code handleSpawnPacket}. */
+    /** The reference {@code handleSpawnPacket}. */
     static void onParticles(ClientboundLevelParticlesPacket p) {
         // The packet's own fields first: almost every particle in every world fails them, and they cost nothing
         // beside trackingActive()'s config reads and inP5()'s state lookups (FPS sweep, 2026-10-21).
@@ -237,7 +234,7 @@ public final class WitherDragonsFeature {
     }
 
     /**
-     * Today's rule in both references (Odin {@code spawnOrder.first()}; NoammAddons e00d160a/c57e51b6, 2026-10-06, which
+     * Today's rule in both references (the reference e00d160a/c57e51b6, 2026-10-06, which
      * dropped the power/class split): the priority is the dragon that spawned or spawns FIRST. With Dragon Priority on, the
      * Solo Priority class takes the LAST one instead, and with First Dragon Only only while fewer than two have spawned.
      * Titles and tells him whenever the priority moves to a spawning dragon, and whenever a second dragon starts spawning
@@ -272,7 +269,7 @@ public final class WitherDragonsFeature {
         }
     }
 
-    /** Odin {@code DragonCheck.dragonSpawn} (EntityEvent.Add). */
+    /** The reference {@code DragonCheck.dragonSpawn} (EntityEvent.Add). */
     static void onAddEntity(Entity entity) {
         if (!(entity instanceof EnderDragon dragon) || !trackingActive() || !P5State.inP5()) return;
         DRAGON_ENTITIES.put(dragon.getUUID(), dragon);
@@ -299,7 +296,7 @@ public final class WitherDragonsFeature {
         return e.getHealth();
     }
 
-    /** Odin {@code DragonCheck.dragonUpdate} (synched data id 9 = health), read after vanilla applied it. */
+    /** The reference {@code DragonCheck.dragonUpdate} (synched data id 9 = health), read after vanilla applied it. */
     static void onEntityData(Entity entity) {
         if (!(entity instanceof EnderDragon dragon) || !trackingActive() || !P5State.inP5()) return;
         DRAGON_ENTITIES.put(dragon.getUUID(), dragon);
@@ -315,9 +312,9 @@ public final class WitherDragonsFeature {
         }
     }
 
-    /** Ice spray: an armor stand given packed ice within 8 blocks of a living, unsprayed dragon. NoammAddons'
-     *  check (packed ice REQUIRED); Odin's current {@code DragonCheck.dragonSprayed} returns early ON packed ice,
-     *  which looks inverted, so NoammAddons' direction is used. Message wording is Odin's. */
+    /** Ice spray: an armor stand given packed ice within 8 blocks of a living, unsprayed dragon. The
+     *  check (packed ice REQUIRED); the current {@code DragonCheck.dragonSprayed} returns early ON packed ice,
+     *  which looks inverted, so the direction is used. Message wording is the. */
     static void onEquipment(ClientboundSetEquipmentPacket packet, ClientLevel level) {
         if (level == null || !trackingActive() || !P5State.inP5()) return;
         boolean ice = false;
@@ -341,7 +338,7 @@ public final class WitherDragonsFeature {
         }
     }
 
-    /** NoammAddons {@code DragonCheck.trackArrows}: arrow-hit sounds while the priority dragon is inside its
+    /** The reference {@code DragonCheck.trackArrows}: arrow-hit sounds while the priority dragon is inside its
      *  skip-kill window. */
     static void onSound(ClientboundSoundPacket packet) {
         if (!trackingActive() || priorityDragon == null || packet.getSound().value() != SoundEvents.ARROW_HIT_PLAYER) return;
@@ -378,7 +375,7 @@ public final class WitherDragonsFeature {
 
     private static void send(Component message) { ModChat.send("Wither Dragons", message); }
 
-    /** Odin {@code alert(..., playSound = true)}: title 0/20/5 ticks + NOTE_BLOCK_PLING. */
+    /** The reference {@code alert(..., playSound = true)}: title 0/20/5 ticks + NOTE_BLOCK_PLING. */
     private static void alert(WitherDragon d, String subtitle) {
         Minecraft client = Minecraft.getInstance();
         McCompat.setTimes(client, 0, 20, 5);
@@ -400,7 +397,7 @@ public final class WitherDragonsFeature {
         return sb.toString();
     }
 
-    /** Odin {@code getDragonTimer}. */
+    /** The reference {@code getDragonTimer}. */
     static String formatTimer(int ticks) {
         WitherDragonsConfig cfg = WitherDragonsConfig.getInstance();
         // Memoized (fps pass 2026-10-19): asked per dragon per frame by the world text and the HUD, and the Seconds style
@@ -432,7 +429,7 @@ public final class WitherDragonsFeature {
         };
     }
 
-    /** Odin {@code colorHealth}/{@code formatHealth}. */
+    /** The reference {@code colorHealth}/{@code formatHealth}. */
     static String formatHealth(float health) {
         // Memoized on the exact float (fps pass 2026-10-19): a dragon's health changes on a server update, not per
         // frame, and this is a String.format per dragon per frame in P5. Pure function of its argument.
@@ -463,7 +460,7 @@ public final class WitherDragonsFeature {
 
     public static WitherDragon priorityDragon() { return priorityDragon; }
 
-    // ------------------------------------------------------------------ world render (Odin RenderEvent.Extract)
+    // ------------------------------------------------------------------ world render (the reference RenderEvent.Extract)
 
     private static void onWorldRender(LevelRenderContext context) {
         WitherDragonsConfig cfg = WitherDragonsConfig.getInstance();
@@ -549,7 +546,7 @@ public final class WitherDragonsFeature {
     }
 
 
-    /** Dragon spawn timers list (Odin "Dragon Timer HUD", extended to every spawning dragon; the priority one
+    /** Dragon spawn timers list (the reference "Dragon Timer HUD", extended to every spawning dragon; the priority one
      *  is marked with "»"). */
     public static final class DragonTimersHudElement extends BasicHud {
         public DragonTimersHudElement() {

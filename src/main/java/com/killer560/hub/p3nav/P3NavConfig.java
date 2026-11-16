@@ -22,7 +22,7 @@ public final class P3NavConfig {
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-p3nav.json");
 
-    /** Same three modes NoammAddons' {@code GateHighlight}/{@code TerminalESP} "Mode" dropdown offers. */
+    /** Same three modes the {@code GateHighlight}/{@code TerminalESP} "Mode" dropdown offers. */
     public enum Style {
         OUTLINE("Outline"), FILLED("Fill"), FILLED_OUTLINE("Filled Outline");
 
@@ -45,7 +45,7 @@ public final class P3NavConfig {
     private int gateColor = DEFAULT_GATE_COLOR;
     private Style gateStyle = Style.FILLED_OUTLINE;
     private float gateLineWidth = 2.5f;
-    /** Noamm's own behavior: the box only draws while the gate's probe block is still there. Off = always
+    /** The behavior: the box only draws while the gate's probe block is still there. Off = always
      *  draw the box for the section you're in, even after the gate is gone. */
     private boolean gateHideDestroyed = true;
 
@@ -53,9 +53,9 @@ public final class P3NavConfig {
     private int terminalColor = DEFAULT_TERMINAL_COLOR;
     private Style terminalStyle = Style.FILLED;
     private float terminalLineWidth = 2.0f;
-    /** Noamm only ever draws the section you're standing in; off draws every not-yet-done terminal in P3. */
+    /** The reference only ever draws the section you're standing in; off draws every not-yet-done terminal in P3. */
     private boolean terminalCurrentSectionOnly = true;
-    /** Devices/levers ("Not Activated" stands) - Noamm's TerminalESP does terminals only; this is the extra half. */
+    /** Devices/levers ("Not Activated" stands) - the TerminalESP does terminals only; this is the extra half. */
     private boolean deviceEsp = false;
     private int deviceColor = DEFAULT_DEVICE_COLOR;
     /** Cheat build only - see {@link #isTerminalThroughWalls()}. */

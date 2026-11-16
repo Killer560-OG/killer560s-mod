@@ -13,10 +13,10 @@ import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Gyrokinetic Wand Overlay (to-do Doc 2026-11-01, "other mods have it for you to reference"): Skyblocker's
+ * Gyrokinetic Wand Overlay (to-do Doc 2026-11-01, "other mods have it for you to reference"): the
  * {@code GyroOverlay}. While you hold the Gyrokinetic Wand (Skyblock id {@code GYROKINETIC_WAND}) in your main hand, the
  * ring its ability pulls mobs from - {@link #RADIUS} blocks around the block or entity you look at, up to
- * {@link #REACH} blocks away (Skyblocker's numbers) - is drawn there: a circle outline, a filled circle, or a sphere.
+ * {@link #REACH} blocks away (the numbers) - is drawn there: a circle outline, a filled circle, or a sphere.
  * Render only: it raycasts on the client and sends nothing.
  */
 public final class GyroOverlayFeature {

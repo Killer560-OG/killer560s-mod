@@ -6,13 +6,11 @@ import net.minecraft.world.phys.AABB;
 import java.util.UUID;
 
 /**
- * The five M7 Phase 5 dragons. Coordinates ported verbatim from Odin's {@code WitherDragonsEnum.kt}
- * (spawnPos, statuePos, aabbDimensions, particle xRange/zRange):
- * https://github.com/odtheking/Odin/blob/main/src/main/kotlin/com/odtheking/odin/features/impl/boss/WitherDragonsEnum.kt
- * (identical spawn/box/range values in NoammAddons' {@code WitherDragonEnum.kt}, local copy
- * a local NoammAddons checkout, except Blue's box minY 16 there vs 13 in Odin - Odin's kept). Type names
+ * The five M7 Phase 5 dragons. Coordinates
+ * (spawnPos, statuePos, aabbDimensions, particle xRange/zRange;
+ * two independent tables give identical spawn/box/range values, except Blue's box minY 16 vs 13 - 13 kept). Type names
  * (Power/Flame/Apex/Ice/Soul) and {@code skipKillTime} (ticks after spawn an arrow hit still counts toward the
- * "arrows hit" stat) are from NoammAddons.
+ * "arrows hit" stat) are from the reference.
  */
 public enum WitherDragon {
     RED("Red", "Power", 'c', 0xFFFF5555, new BlockPos(27, 14, 59), new BlockPos(32, 22, 59),
@@ -43,7 +41,7 @@ public enum WitherDragon {
     final double maxZ;
     public final int skipKillTicks;
 
-    // runtime state (Odin WitherDragonsEnum vars + NoammAddons arrowsHit)
+    // runtime state (the reference WitherDragonsEnum vars + the reference arrowsHit)
     int timeToSpawn = 100;
     State state = State.DEAD;
     int timesSpawned = 0;
@@ -71,7 +69,7 @@ public enum WitherDragon {
         this.skipKillTicks = skipKillTicks;
     }
 
-    /** Kotlin {@code x in a..b} (inclusive) for Odin's particle ranges. */
+    /** Kotlin {@code x in a..b} (inclusive) for the particle ranges. */
     boolean particleInRange(double x, double z) { return x >= minX && x <= maxX && z >= minZ && z <= maxZ; }
 
     public State state() { return state; }
@@ -89,7 +87,7 @@ public enum WitherDragon {
 
     public String colored() { return "§" + colorCode + displayName(); }
 
-    /** Odin {@code WitherDragonsEnum.reset()} (hard). */
+    /** The reference {@code WitherDragonsEnum.reset} (hard). */
     static void resetAll() {
         for (WitherDragon d : values()) {
             d.timeToSpawn = 0;

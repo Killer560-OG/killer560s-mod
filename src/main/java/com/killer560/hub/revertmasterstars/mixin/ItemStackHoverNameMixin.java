@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /** Read-modify-return only - injects at the tail of real vanilla {@code ItemStack#getHoverName()} and
- *  optionally swaps its return value, same low-risk shape as QUOI's own confirmed, shipped mixin this
+ *  optionally swaps its return value, same low-risk shape own confirmed, shipped mixin this
  *  is ported from. Never touches item data, NBT, or anything server-visible - purely a client-side
  *  display-text substitution. */
 @Mixin(ItemStack.class)

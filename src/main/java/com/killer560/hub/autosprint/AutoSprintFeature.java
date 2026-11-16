@@ -13,7 +13,7 @@ package com.killer560.hub.autosprint;
  * <b>Other mods' auto sprint</b> ({@link #blocksSprintStart}): while one of the mod's own movers is driving and the key
  * it chose has sprint UP, no sprint may start on the local player, whoever asks. Other mods do it either by holding the
  * sprint key (already undone: the movers replace the whole key record at the end of {@code KeyboardInput.tick}), by
- * answering true where vanilla reads the sprint key in {@code LocalPlayer.aiStep} (Odin's Auto Sprint,
+ * answering true where vanilla reads the sprint key in {@code LocalPlayer.aiStep} (the Auto Sprint,
  * {@code @ModifyExpressionValue} on {@code Input.sprint()}), or by calling {@code setSprinting(true)} each tick. The
  * last two both end in {@code LivingEntity.setSprinting(true)}, which the mixin refuses then. A sprint already under
  * way is left alone (vanilla keeps it while moving forward, and the movers plan with that), so only starts are blocked;

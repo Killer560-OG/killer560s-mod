@@ -344,7 +344,7 @@ public final class ProfileViewerApi {
         // outright ("Do not include your API key in your code, especially if you plan to distribute a
         // binary or have the code available publicly"), and which realistically ends with that one key
         // banned for serving thousands of clients rather than with anyone extracting it. No mainstream
-        // Skyblock mod does this: Odin and QUOI need no key at all, and SkyHanni / NEU / Skyblocker keep
+        // Skyblock mod does this: other implementations need no key at all, and other implementations keep
         // theirs on a proxy. The keyless SkyBlockPV BACKEND covers everyone who hasn't supplied a key.
         USER_KEY, BACKEND
     }

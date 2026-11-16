@@ -8,7 +8,7 @@ import com.killer560.hub.util.ModChat;
 import java.util.Locale;
 
 /**
- * Watcher Helper (Athen): how fast the Watcher speaks and what the blood room cost. The clock starts on the blood door's
+ * Watcher Helper: how fast the Watcher speaks and what the blood room cost. The clock starts on the blood door's
  * greeting and stops the Watcher speaking at "Let's see how you can handle this." (the speak time, graded by a title:
  * Vroom under 22 s, Watcher under 23, Yawn under 25, Zzz after); "You have proven yourself" ends it and one chat line splits
  * the room into speak, move (the Watcher's first step, {@link WatcherMoveTracker}), kill and total. It reads the same

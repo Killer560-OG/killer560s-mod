@@ -15,14 +15,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Real Hypixel dungeon "Ice Fill" puzzle solver, ported from Odin's own {@code IceFillSolver.kt}. The
+ * Real Hypixel dungeon "Ice Fill" puzzle solver. The
  * puzzle has 3 real floors, each with several possible real ice layouts; each floor's layout is
  * identified by checking 2 fixed real relative positions (the first must be real air, the second must
- * NOT be air - a unique fingerprint for that layout, ported directly from Odin's own real
+ * NOT be air - a unique fingerprint for that layout own real
  * {@code identifier} data) and, once identified, that layout's known real safe walking path (a real,
  * pre-solved list of relative positions, {@code easy} or {@code hard} depending on
  * {@link IceFillSolverConfig#isOptimizedPath()}) is drawn as a connected line through all 3 floors. All
- * real position/path data is bundled verbatim from Odin in
+ * real position/path data is bundled verbatim from the reference in
  * {@code assets/killer560smod/puzzles/ice-fill-floors.json}. Never walks for you - only draws the path.
  */
 public final class IceFillSolverFeature {
@@ -67,7 +67,7 @@ public final class IceFillSolverFeature {
     private static void tick(Minecraft client) { tickInner(client); }
 
     private static void tickInner(Minecraft client) {
-        // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
+        // Boss check: the reference e42d3316 "reset when entering boss" (2026-09-14 port).
         if (!IceFillSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
             if (!"none".equals(LOG.roomKey)) {
                 LOG.room("none", "solver idle: enabled=" + IceFillSolverConfig.getInstance().isEnabled()
@@ -137,7 +137,7 @@ public final class IceFillSolverFeature {
                 }
             }
             if (!found) {
-                // Odin logs a per-floor failure and still draws whatever floors DID identify; simplified
+                // The reference logs a per-floor failure and still draws whatever floors DID identify; simplified
                 // here to retry the whole scan next tick instead - self-healing once the real ice finishes
                 // spawning, and avoids ever showing a path that's missing a floor in the middle.
                 LOG.scan("miss " + floorIndex, "scan failed: floor " + (floorIndex + 1) + " matched none of its "

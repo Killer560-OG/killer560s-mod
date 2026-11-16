@@ -29,7 +29,7 @@ import java.util.regex.Pattern;
  *
  * <p>While he holds a tool whose lore names the Pickobulus ability and it is not on cooldown (the tab list's "Pickaxe
  * Ability:" widget says "Pickobulus: Available", or is not shown), every block the ability would break is outlined. The
- * model is Skyblocker's PickobulusHelper (LGPL-3.0, read for behavior only, no code taken): Pickobulus is thrown from
+ * model is the PickobulusHelper (LGPL-3.0, read for behavior only, no code taken): Pickobulus is thrown from
  * 0.53625 blocks above the eye, lands on the first block in a 20-block line of sight, and breaks the blocks with an exposed
  * face (air on at least one side) within 3 blocks of where it lands (a 6x6x6 box round the landing block). Which blocks
  * break depends on the island: in the Dwarven Mines, Gold Mine and Deep Caverns only the ore and mineable blocks, in the
@@ -205,7 +205,7 @@ public final class PickobulusEstimate {
                     }
                     if (breakable) {
                         out.add(pos.offset(i - 4, j - 4, k - 4));
-                        // Where everything breaks, a broken block exposes the ones behind it (Skyblocker does the same).
+                        // Where everything breaks, a broken block exposes the ones behind it (the reference does the same).
                         if (all || (tunnels && (s.is(Blocks.PACKED_ICE) || glass(s)))) {
                             b[i][j][k] = Blocks.AIR.defaultBlockState();
                         }

@@ -607,7 +607,7 @@ public final class AutoClearFeature {
             keyTrip = false;
             if (travelStarted && failed && keyId >= 0) {
                 // No way onto that stand (a key in a pit: its nearest stand was down in it): another stand in range, up to
-                // KEY_STAND_TRIES, before the key is left (doc-adm-sim-1101: one failed trip left the key for good).
+                // KEY_STAND_TRIES, before the key is left (doc-sim-1101: one failed trip left the key for good).
                 if (lastKeyStand != null) {
                     keyStandsFailed.add(lastKeyStand);
                 }
@@ -1901,7 +1901,7 @@ public final class AutoClearFeature {
             keyLastDist = player.position().distanceTo(e.position());
         } else {
             com.killer560.hub.doorkeys.DungeonKeys.Dropped best = null;
-            // Waiting at a shut wither door with no key: a key anywhere in view is the way on (doc-adm-sim-1101: a 2x2
+            // Waiting at a shut wither door with no key: a key anywhere in view is the way on (doc-sim-1101: a 2x2
             // room's key dropped 50 blocks from the door he went to wait at, and he waited there for 12 minutes).
             double bestD = keyAnyRange ? Double.MAX_VALUE : KEY_SEARCH_RANGE;
             for (com.killer560.hub.doorkeys.DungeonKeys.Dropped k
@@ -1956,7 +1956,7 @@ public final class AutoClearFeature {
             return true;
         }
         if ((keyTripDone || keyStandsFailed.size() >= KEY_STAND_TRIES) && !keyWalkTried) {
-            // The etherwarps get no closer (a key on a ledge the warp graph cannot land on, doc-adm-sim-1101): walk to it once.
+            // The etherwarps get no closer (a key on a ledge the warp graph cannot land on, doc-sim-1101): walk to it once.
             keyWalkTried = true;
             BlockPos walkTo = com.killer560.hub.doorkeys.DungeonKeys.standWithin(keyPos, reach, player.position());
             final double keyReach = reach;
@@ -3640,7 +3640,7 @@ public final class AutoClearFeature {
     }
 
     /** As above; {@code force}: walk whenever a way on foot exists (up to {@link #FORCED_WALK_MAX_BLOCKS}), whatever an
-     *  etherwarp would take - for a goal the etherwarps have already failed to reach (a sleeping Fel, doc-adm-sim-1101). */
+     *  etherwarp would take - for a goal the etherwarps have already failed to reach (a sleeping Fel, doc-sim-1101). */
     private static boolean walkInsteadOfTrip(Minecraft client, LocalPlayer player, BlockPos spot,
                                              java.util.function.Predicate<Vec3> doneAt, String what, boolean forDoor,
                                              boolean force) {

@@ -74,7 +74,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * the four blocks that identify which physical board is active
  * ({@link WaterSolverFeature#IDENTIFIER_MARKERS}), and the timings themselves
  * ({@link WaterSolverFeature#bundledClickOrder}, straight out of the bundled
- * {@code water-solutions.json} Odin ships). It even reads his own <b>Optimized Path</b> setting, because that
+ * {@code water-solutions.json} the reference ships). It even reads his own <b>Optimized Path</b> setting, because that
  * switches the whole sequence - a sim that ignored it would disagree with the tracer on his screen.
  *
  * <p>That is also what makes his <b>solver work in here</b>, which he asked for. The solver needs three of the
@@ -165,7 +165,7 @@ public final class SimWaterPuzzle {
      * end of the walkway under the glass has gray carpet at {@code (13|14|16|17, 56, 22)} and {@code (14|16, 56, 23)},
      * the walkway's end wall at z 24. So the middle of the carpets is x 15; z 23 touches the end wall, z 22 does not
      * and is the one nearer the way out (the stairs at the low-z end). The chest stands on the walkway floor at
-     * {@code (15, 56, 22)}, facing back up the walkway. That is also the block straight under QUOI's own chest spot
+     * {@code (15, 56, 22)}, facing back up the walkway. That is also the block straight under the chest spot
      * {@code (15, 58, 22)}, which {@code AutoWater} warps onto when the board is done - so Secret Aura reaches it from
      * there, as on Hypixel.
      *

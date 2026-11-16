@@ -12,7 +12,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Fast/Auto Leap - the QUOI AutoLeap port, split out of the Leap Menu tab into a tab of its own
+ * Fast/Auto Leap - the reference AutoLeap port, split out of the Leap Menu tab into a tab of its own
  * (2026-09-15, killer560: "For fast leap put that in its own complete section outside of the leap menu.
  * Title it fast/auto leap. Then reformat it to look better."). The Leap Menu tab keeps the legit stuff:
  * Custom Leap Menu, Leap Order and Leap Message. The i4 leap stays in the Sharp Shooter (i4) tab, where it

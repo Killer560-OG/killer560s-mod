@@ -16,7 +16,7 @@ import java.util.regex.Pattern;
 
 /**
  * Pet head textures. The API pet list only has {@code type}/{@code tier}/{@code skin}, so the icon comes
- * from the NEU item repo (NotEnoughUpdates-REPO {@code items/<TYPE>;<rarity>.json} and
+ * from the reference item repo (NotEnoughUpdates-REPO {@code items/<TYPE>;<rarity>.json} and
  * {@code items/PET_SKIN_<SKIN>.json}) - the texture blob is pulled out of the item's nbttag. Fetched lazily
  * off-thread, cached per id for the session; a bone is shown until it arrives (or if it never does).
  */

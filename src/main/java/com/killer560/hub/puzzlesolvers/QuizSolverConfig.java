@@ -6,7 +6,7 @@ import com.killer560.hub.util.ConfigJson;
 
 import java.nio.file.Path;
 
-/** Persisted Quiz Solver settings - see {@link QuizSolverFeature}'s class doc for the real Odin-ported
+/** Persisted Quiz Solver settings - see {@link QuizSolverFeature}'s class doc for the real
  *  trivia-answer database this is built on. Ships disabled by default, same as every other new feature
  *  in this mod. */
 public final class QuizSolverConfig extends SolverConfigBase {

@@ -18,9 +18,9 @@ import com.killer560.hub.compat.McCompat;
  * once-per-blessing party message; removed 2026-09-27 (killer560: "remove the announcments tab in blessings").
  * <ul>
  * <li>Parsing: {@link BlessingTracker} - the existing tab-list packet hook, no new mixin, same footer strings
- * NoammAddons ({@code DungeonListener.kt} / {@code enums/Blessing.kt}) and Devonian
+ * The reference ({@code DungeonListener.kt} / {@code enums/Blessing.kt}) and the reference
  * ({@code features/dungeons/BlessingsDisplay.kt}) use.</li>
- * <li>HUD layout: one line per enabled blessing, "Power: 12" (or "Power XII" with Roman Numerals on) - Devonian's
+ * <li>HUD layout: one line per enabled blessing, "Power: 12" (or "Power XII" with Roman Numerals on) - the
  * two formats, drawn in its order (Power, Time, Wisdom, Stone, Life) in its colors.</li>
  * <li>LEVELS ONLY: no source gives a level -> stat table, so no derived stat is ever shown.</li>
  * <li>Reset on world change, like both sources.</li>
@@ -66,7 +66,7 @@ public final class BlessingsFeature {
         }
 
 
-        /** Editor preview values, Devonian's {@code getEditText()} sample set. */
+        /** Editor preview values, the {@code getEditText} sample set. */
         private static final int[] EXAMPLE = {29, 5, 11, 10, 36};
 
         @Override

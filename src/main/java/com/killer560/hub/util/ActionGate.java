@@ -244,7 +244,7 @@ public final class ActionGate {
          *  input, not automation, but it goes through the gate so it never shares a tick with another click. */
         SLOT_BIND(Kind.SCREEN),
         /** Auto Sell clicking sellable items in whatever NPC screen is open (killer560: "add an auto sell feature
-         *  you can refrence quoi for it" - QUOI's own source has no auto-sell module to port; see
+         *  you can refrence another mod for it" - the source has no auto-sell module to port; see
          *  {@code autosell.AutoSellFeature}'s class doc). Same "no one dies if this is a tick late" bucket. */
         AUTO_SELL(Kind.SCREEN),
         /** Auto Anvil putting matching enchanted books into Hypixel's anvil and combining them (killer560,
@@ -285,7 +285,7 @@ public final class ActionGate {
         /** Powder Chest Triggerbot's swap to the highest Gemstone Powder drill, a tick before its click. Same caller. */
         POWDER_CHEST_SWAP(Kind.HOTBAR),
         /** Auto Kick sending "p kick &lt;name&gt;" once a floor's target time is missed (killer560: "create
-         *  auto kick... The kick based off of timed comp of a floor and whatnot", ported from Odin's own
+         *  auto kick... The kick based off of timed comp of a floor and whatnot" own
          *  auto-kick). A command, not a click, so {@link Kind#COMMAND} - no screen rules, same as
          *  {@code AUTO_GFS}/{@code PET_WHEEL_CMD}. Declared last (lowest priority): unlike a route step or a
          *  boss lever, losing this tick to something else costs nothing - {@code AutoKickFeature} already

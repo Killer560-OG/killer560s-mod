@@ -16,7 +16,7 @@ import java.util.EnumMap;
 import java.util.Map;
 
 /**
- * Persisted Fast Leap settings (QUOI {@code AutoLeap.kt} port) - see {@link FastLeapFeature}. Real automation
+ * Persisted Fast Leap settings (port) - see {@link FastLeapFeature}. Real automation
  * (uses the Spirit Leap item and clicks the leap menu), so every getter is gated on
  * {@link BuildVariant#CHEAT_FEATURES_ENABLED}. Every switch defaults OFF. Saved to
  * {@code config/killer560/dungeons/runs/killer560smod-fastleap.json}.
@@ -37,7 +37,7 @@ public final class FastLeapConfig {
     public static final int TIMEOUT_STEP_MS = 250;
     public static final int DEFAULT_TIMEOUT_MS = 2000;
 
-    /** How a leap picks who it goes to. PER_LEAP: each leap's own Target button (a class or a name - QUOI's Name and
+    /** How a leap picks who it goes to. PER_LEAP: each leap's own Target button (a class or a name - the Name and
      *  Class modes, chosen per leap since 2026-10-13). POSMSG: whoever last announced that position in party chat,
      *  with the leap's Target as the backup. Files from before 2026-10-13 say NAME or CLASS, read as PER_LEAP. */
     public enum TargetMode {
@@ -50,7 +50,7 @@ public final class FastLeapConfig {
         }
     }
 
-    /** One QUOI leap ("Crystal leap", "P3 leap", ...), with its own Fast switch (his left click) and Auto switch (its
+    /** One the reference leap ("Crystal leap", "P3 leap",...), with its own Fast switch (his left click) and Auto switch (its
      *  trigger), each on or off by itself since 2026-10-13 (killer560: "for fast leap it should be a toggle for each
      *  specific section"). The constant
      *  names are the file's keys, so P1 keeps its name though the leap is "Crystal" since 2026-10-13 (killer560:
@@ -77,7 +77,7 @@ public final class FastLeapConfig {
         }
     }
 
-    /** One configurable target (QUOI's per-leap name/class). The P3 group has four (S1-S4); DOOR has none. */
+    /** One configurable target (the per-leap name/class). The P3 group has four (S1-S4); DOOR has none. */
     public enum LeapTarget {
         P1(LeapGroup.P1, "Target", null, "p2, storm"),
         PREDEV(LeapGroup.PREDEV, "Target", null, "ss, simon says, predev, pre dev"),
@@ -579,7 +579,7 @@ public final class FastLeapConfig {
         return targets.get(target).name;
     }
 
-    /** @return the configured class, or null for QUOI's "Unknown" (not set). */
+    /** @return the configured class, or null for the "Unknown" (not set). */
     public DungeonClass getTargetClass(LeapTarget target) {
         return targets.get(target).clazz;
     }

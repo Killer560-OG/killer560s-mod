@@ -27,12 +27,12 @@ import java.util.Locale;
 import java.util.regex.Pattern;
 
 /**
- * Creation Cooldown (to-do Doc 2026-11-01, "Look at creation cooldown in skyhanni"): a port of SkyHanni's
+ * Creation Cooldown (to-do Doc 2026-11-01, "Look at creation cooldown in another mod"): a port of the
  * {@code DungeonCreationCooldown}. Hypixel will not create another dungeon instance for 30 s after you entered one; the
  * clock starts on any player's "&lt;name&gt; entered The Catacombs, Floor N!" line (Hypixel prints only the creator's line to the party)
  * <ul>
  *   <li>HUD "Creation Cooldown: 12s" while it runs, in a dungeon (only in the green Entrance room with Only In Green
- *       Room, SkyHanni's "Only Show In Entrance Room") and, with Show On All Islands, anywhere else on Skyblock.</li>
+ *       Room, the "Only Show In Entrance Room") and, with Show On All Islands, anywhere else on Skyblock.</li>
  *   <li>Block Instance Creation: a {@code /joininstance} or {@code /joindungeon} during the cooldown is held back with
  *       a chat line - typed ones through Fabric's ALLOW_COMMAND, the mod's own (the /f7 shortcuts, Party Commands' !f7,
  *       Insta Clear Warning's requeue) in {@link com.killer560.hub.util.ServerCommands#toServer}.</li>
@@ -158,7 +158,7 @@ public final class CreationCooldownFeature {
         return ((ms + 999) / 1000) + "s";
     }
 
-    /** SkyHanni's isEnabled: in a dungeon (only the Entrance with Only In Green Room), or anywhere on Skyblock with Show On All Islands. */
+    /** The isEnabled: in a dungeon (only the Entrance with Only In Green Room), or anywhere on Skyblock with Show On All Islands. */
     static boolean showsHere() {
         CreationCooldownConfig cfg = CreationCooldownConfig.getInstance();
         if (!cfg.isEnabled()) {
@@ -170,7 +170,7 @@ public final class CreationCooldownFeature {
         return cfg.isShowOnAllIslands() && SkyblockGate.isOnSkyblock();
     }
 
-    /** In the Entrance (green) room - or before the map knows any room, which is where a run starts (SkyHanni's rule). */
+    /** In the Entrance (green) room - or before the map knows any room, which is where a run starts (the rule). */
     static boolean inEntrance() {
         if (LiveMapFeature.isInBoss()) {
             return false;

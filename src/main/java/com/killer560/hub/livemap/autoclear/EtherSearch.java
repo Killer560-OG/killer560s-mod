@@ -8,7 +8,7 @@ import java.util.List;
  * The etherwarp path search itself, with no Minecraft types in it.
  *
  * <p>killer560 (2026-10-04): "the found path needs to be faster, like 1-2 ms every time it has to calculate."
- * The QUOI port it replaces read every voxel through {@code LevelChunk.getBlockState}, a registry lookup for its
+ * The reference port it replaces read every voxel through {@code LevelChunk.getBlockState}, a registry lookup for its
  * flags and, on every hit, a {@code VoxelShape} query for the collision top; it allocated a {@code Node}, a
  * {@code BlockPos} and a boxed map key per landing, ran four threads over one synchronized priority queue, and
  * expanded a fan of about a thousand rays per node. Here every block is one byte from a {@link Grid} (built
@@ -140,7 +140,7 @@ public final class EtherSearch {
     private static volatile Fan cachedFan;
 
     /**
-     * QUOI's {@code generateRaycasts}: rows of pitch, each with as many yaws as keep the spacing even. The yaw is
+     * The {@code generateRaycasts}: rows of pitch, each with as many yaws as keep the spacing even. The yaw is
      * stored WRAPPED and the direction computed from the wrapped value, because the hop is executed with
      * {@code getLook(wrapDegrees(yaw))} and 350 and -10 are not the same float arithmetic.
      */
@@ -1059,7 +1059,7 @@ public final class EtherSearch {
     }
 
     /**
-     * QUOI's {@code smoothPath}: from each stop, jump to the furthest later stop one warp can reach, aimed with
+     * The {@code smoothPath}: from each stop, jump to the furthest later stop one warp can reach, aimed with
      * {@link #aim}. Where no later stop is aimable the search's own ray to the next one is kept - it reached that
      * block by construction.
      */

@@ -13,15 +13,15 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 /**
- * Auto Requeue - a port of Odin's {@code DungeonQueue.kt} auto-requeue (Devonian's {@code AutoRequeueDungeons.kt}
+ * Auto Requeue - a port of auto-requeue (
  * uses the same trigger and command):
  * <ul>
  * <li>Trigger: the "{@code > EXTRA STATS <}" line of the end-of-run summary.
  * <li>After Requeue Delay seconds, sends {@code /instancerequeue} - unless requeueing was disabled in the meantime.
- * <li>Disable on leave/kick: any party leave / kick / disband message (Odin's {@code PartyUtils} patterns that post
- * {@code PartyEvent.Leave}) skips the next requeue. Cleared on world change, like Odin's {@code LevelEvent.Load}.
+ * <li>Disable on leave/kick: any party leave / kick / disband message (the {@code PartyUtils} patterns that post
+ * {@code PartyEvent.Leave}) skips the next requeue. Cleared on world change.
  * </ul>
- * Safety on top of Odin: at most one requeue per world (i.e. per run), and a pending requeue is dropped on disconnect
+ * Safety on top of at most one requeue per world (i.e. per run), and a pending requeue is dropped on disconnect
  * or when the feature is turned off.
  */
 public final class DungeonQueueFeature {
@@ -32,7 +32,7 @@ public final class DungeonQueueFeature {
     private static final Pattern EXTRA_STATS = Pattern.compile("(?m)^\\s*> EXTRA STATS <\\s*$");
 
     private static final String NAME = "(?:\\[[^]]*?] ?)?\\w{1,16}";
-    /** Odin {@code PartyUtils}: removeMember + disband patterns (both post {@code PartyEvent.Leave}). */
+    /** The reference {@code PartyUtils}: removeMember + disband patterns (both post {@code PartyEvent.Leave}). */
     private static final List<Pattern> PARTY_LEAVE = List.of(
             Pattern.compile("^" + NAME + " has left the party\\.$"),
             Pattern.compile("^" + NAME + " has been removed from the party\\.$"),
@@ -96,8 +96,8 @@ public final class DungeonQueueFeature {
         }
     }
 
-    /** Called by Party Commands' "!dt" ({@code partycommands.PartyCommandsFeature}) - Odin's own "!dt" also
-     *  disables the pending auto-requeue for that run (2026-09-21 gap review vs Odin 0.3.1), since asking for
+    /** Called by Party Commands' "!dt" ({@code partycommands.PartyCommandsFeature}) - the "!dt" also
+     *  disables the pending auto-requeue for that run (2026-09-21 gap review 0.3.1), since asking for
      *  downtime and then getting auto-requeued into the next run a few seconds later defeats the point of
      *  asking. Safe to call at any time, including while this feature is off or nothing is pending. */
     public static void skipRequeueForThisRun() {

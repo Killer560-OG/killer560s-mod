@@ -71,13 +71,13 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import java.util.function.Predicate;
 
 /**
- * Shared helpers for the Auto Puzzles ports - straight Java ports of the QUOI utilities the puzzle autos use
+ * Shared helpers for the Auto Puzzles ports - straight Java ports of the reference utilities the puzzle autos use
  * ({@code VecUtils.getDirection/getArrowDirection/getArrowOrigin/isPathClear/getVisiblePoint/getLook},
  * {@code TeleportUtils.getEtherwarpDirection/traverseVoxels}, {@code PlayerUtils.useItem/at/eyePosition},
  * {@code ItemUtils.isShortbow/hasTerminator}, {@code SwapManager}).
  * <p>
  * Rotation rule (this mod): a use-with-rotation never sends a wrapped/clamped yaw - the yaw used is
- * {@code currentYaw + wrapDegrees(targetYaw - currentYaw)}. QUOI's {@code useItem(yaw, pitch)} puts the rotation only
+ * {@code currentYaw + wrapDegrees(targetYaw - currentYaw)}. The {@code useItem(yaw, pitch)} puts the rotation only
  * in the {@code ServerboundUseItemPacket}; vanilla 26.1.2 {@code MultiPlayerGameMode.useItem} builds that packet from
  * {@code player.getYRot()/getXRot()} inside the synchronous prediction lambda (javap-verified), so the rotation is set
  * for the duration of that one call and restored straight after - the camera never visibly moves.
@@ -136,7 +136,7 @@ public final class AutoPuzzleUtil {
     private AutoPuzzleUtil() {
     }
 
-    /** {yaw, pitch} from {@code from} to {@code to} (QUOI getDirection, wrapped - only ever used as a target). */
+    /** {yaw, pitch} from {@code from} to {@code to} (the reference getDirection, wrapped - only ever used as a target). */
     public static float[] direction(Vec3 from, Vec3 to) {
         double dx = to.x - from.x;
         double dy = to.y - from.y;
@@ -147,7 +147,7 @@ public final class AutoPuzzleUtil {
         return new float[]{Mth.wrapDegrees(yaw), Mth.wrapDegrees(pitch)};
     }
 
-    /** QUOI getLook. */
+    /** The reference getLook. */
     public static Vec3 look(float yaw, float pitch) {
         double f2 = -Math.cos(-pitch * 0.017453292f);
         return new Vec3(Math.sin(-yaw * 0.017453292f - 3.1415927f) * f2, Math.sin(-pitch * 0.017453292f),
@@ -226,7 +226,7 @@ public final class AutoPuzzleUtil {
     }
 
     /**
-     * Visible camera rotation (QUOI {@code player.rotate(dir)}), unwrapped per this mod's rule.
+     * Visible camera rotation, unwrapped per this mod's rule.
      * <p>
      * The REAL yaw and pitch still move - the aim has to be real or the shot misses and the server sees something
      * the client did not do. What changed (2026-09-27) is that his CAMERA no longer follows it: killer560, "if it
@@ -256,8 +256,8 @@ public final class AutoPuzzleUtil {
     }
 
     /**
-     * QUOI {@code player.at(pos)}: {@code BlockPos(x, ceil(y - 1), z) == pos} - or hovering up to {@link #LANDING_HOVER}
-     * over its top. An etherwarp lands him 0.05 over the block and gravity sets him down the tick after; QUOI's test read
+     * The reference {@code player.at(pos)}: {@code BlockPos(x, ceil(y - 1), z) == pos} - or hovering up to {@link #LANDING_HOVER}
+     * over its top. An etherwarp lands him 0.05 over the block and gravity sets him down the tick after; the test read
      * that landing tick as "not there yet", so every reposition saw its arrival a tick late (93-solve-*-timing,
      * 2026-10-15: landing to the sneak let go 2 ticks on main).
      */
@@ -274,7 +274,7 @@ public final class AutoPuzzleUtil {
     /** How far over a block's top an etherwarp landing leaves him for its first tick (0.05), with a hair to spare. */
     private static final double LANDING_HOVER = 0.08;
 
-    /** QUOI {@code isMoving}. */
+    /** The reference {@code isMoving}. */
     public static boolean isMoving(LocalPlayer player) {
         return player.getDeltaMovement().x != 0.0 || player.getDeltaMovement().z != 0.0 || player.input.hasForwardImpulse();
     }
@@ -367,7 +367,7 @@ public final class AutoPuzzleUtil {
         return false;
     }
 
-    /** QUOI SwapManager: hotbar swap to the first matching item, at most one swap per client tick.
+    /** The reference SwapManager: hotbar swap to the first matching item, at most one swap per client tick.
      *  @return true if that item is now (or already was) selected */
     public static boolean swapTo(Minecraft client, LocalPlayer player, Predicate<ItemStack> predicate) {
         Inventory inv = player.getInventory();
@@ -400,7 +400,7 @@ public final class AutoPuzzleUtil {
         return false;
     }
 
-    // ------------------------------------------------------------------ arrows (QUOI VecUtils)
+    // ------------------------------------------------------------------ arrows (the reference VecUtils)
 
     public static Vec3 arrowOrigin(Vec3 from, float yaw, boolean terminator) {
         if (terminator) {
@@ -410,7 +410,7 @@ public final class AutoPuzzleUtil {
         return new Vec3(from.x - Math.cos(r) * 0.16, from.y - 0.1, from.z - Math.sin(r) * 0.16);
     }
 
-    /** QUOI getArrowDirection(from, to, isTerminator): yaw from the XZ angle, pitch by binary search on a 3.0
+    /** The reference getArrowDirection(from, to, isTerminator): yaw from the XZ angle, pitch by binary search on a 3.0
      *  speed / 0.99 drag / 0.05 gravity arrow simulation. @return {yaw, pitch} (yaw NOT wrapped - raw atan2 - 90) */
     public static float[] arrowDirection(Vec3 from, Vec3 to, boolean terminator) {
         float yaw = (float) Math.toDegrees(Math.atan2(to.z - from.z, to.x - from.x)) - 90.0f;
@@ -457,13 +457,13 @@ public final class AutoPuzzleUtil {
         return py;
     }
 
-    /** QUOI isPathClear: vanilla collider clip from {@code from} to {@code target} misses. */
+    /** The reference isPathClear: vanilla collider clip from {@code from} to {@code target} misses. */
     public static boolean isPathClear(Level level, LocalPlayer player, Vec3 from, Vec3 target) {
         BlockHitResult result = level.clip(new ClipContext(from, target, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
         return result.getType() == HitResult.Type.MISS;
     }
 
-    // ------------------------------------------------------------------ etherwarp (QUOI TeleportUtils)
+    // ------------------------------------------------------------------ etherwarp (the reference TeleportUtils)
 
     /** @return {yaw, pitch} to etherwarp onto {@code to} from {@code from}, or null if no visible face point. */
     public static float[] etherwarpDirection(Level level, Vec3 from, BlockPos to, double dist) {
@@ -477,11 +477,11 @@ public final class AutoPuzzleUtil {
     /**
      * The aim for an etherwarp that will actually LAND on {@code to}, for {@link AutoReposition}.
      *
-     * <p>{@link #etherwarpDirection} is QUOI's: its top-center point sits exactly on the top face, which the voxel
+     * <p>{@link #etherwarpDirection} is its top-center point sits exactly on the top face, which the voxel
      * walk files under the air block above, so from above it never matches and what gets used is a point 0.001
      * from an edge - a grazing aim that a rounding can put on the neighbor (the same fault
      * {@code TeleportUtils.getEtherwarpDirection} documents and fixes). That one aims inside the face and checks the
-     * real hop, so it is tried first; the QUOI answer is the fallback so nothing that warped before stops warping.
+     * real hop, so it is tried first; the reference answer is the fallback so nothing that warped before stops warping.
      */
     public static float[] etherwarpAim(Level level, LocalPlayer player, BlockPos to) {
         Vec3 eye = eyePosition(player, true);
@@ -500,7 +500,7 @@ public final class AutoPuzzleUtil {
             {0.001, 1.0, 0.001}, {0.001, 1.0, 0.999}, {0.999, 1.0, 0.001}, {0.999, 1.0, 0.999},
     };
 
-    /** QUOI getVisiblePoint with the default etherwarp rayCast. */
+    /** The reference getVisiblePoint with the default etherwarp rayCast. */
     public static Vec3 visiblePoint(Level level, Vec3 from, BlockPos to) {
         for (double[] o : VISIBLE_OFFSETS) {
             Vec3 target = new Vec3(to.getX() + o[0], to.getY() + o[1], to.getZ() + o[2]);
@@ -512,7 +512,7 @@ public final class AutoPuzzleUtil {
         return null;
     }
 
-    /** QUOI traverseVoxels(etherwarp = true): the first non-passable block along the segment (only its
+    /** The reference traverseVoxels(etherwarp = true): the first non-passable block along the segment (only its
      *  position is used by getVisiblePoint), or null. */
     public static BlockPos traverseEtherwarp(Level level, Vec3 start, Vec3 end) {
         double x0 = start.x, y0 = start.y, z0 = start.z;
@@ -553,7 +553,7 @@ public final class AutoPuzzleUtil {
         return null;
     }
 
-    /** QUOI TeleportUtils.blockFlags PASSABLE classification. */
+    /** The reference TeleportUtils.blockFlags PASSABLE classification. */
     public static boolean isPassable(BlockState state) {
         Block b = state.getBlock();
         return b instanceof AirBlock || b instanceof FlowerBlock || b instanceof TallGrassBlock || b instanceof BushBlock
@@ -642,7 +642,7 @@ public final class AutoPuzzleUtil {
      * <p>Every puzzle auto carried its own constant - 36.0 (6.0 blocks) in Blaze, Boulder, Teleport Maze,
      * Tic Tac Toe and the Quiz, 30.0 (5.48) in Weirdos and Water - and all of them measured to the block's
      * CENTER, which reads up to half a block further still. Measured on a real server, the limit is 4.5 to the
-     * BOX and past it the server refuses the interaction outright. Those numbers were inherited from QUOI and
+     * BOX and past it the server refuses the interaction outright. Those numbers were inherited from the reference and
      * were never tied to the measurement.
      *
      * <p>One constant, derived from {@link CheatUtilsConfig#MEASURED_MAX_REACH}, so it cannot drift again.
@@ -1124,7 +1124,7 @@ public final class AutoPuzzleUtil {
         return heard;
     }
 
-    /** No-rotate block interact - same as {@code AutoPuzzlesFeature}'s (QUOI {@code BlockPos.getHitResult()}):
+    /** No-rotate block interact - same as {@code AutoPuzzlesFeature}'s:
      *  {@code useItemOn} with the eye-to-shape-center ray clipped against the real shape, then a main-hand swing.
      *  Callers must have claimed the tick with {@link #gateWorldClick()} first.
      *  @return false (nothing sent) if the block has no shape */

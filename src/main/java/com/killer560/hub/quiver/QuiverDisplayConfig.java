@@ -10,7 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted Quiver Display settings - see {@link QuiverDisplayFeature}'s class doc for the real
- *  Odin-ported lore-reading this is built on. Ships disabled by default, same as every other new
+ *  lore-reading this is built on. Ships disabled by default, same as every other new
  *  feature in this mod. */
 public final class QuiverDisplayConfig {
 

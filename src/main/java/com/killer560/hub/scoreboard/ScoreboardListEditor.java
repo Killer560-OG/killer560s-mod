@@ -16,8 +16,8 @@ import java.util.Set;
 import java.util.function.Function;
 
 /**
- * The Custom Scoreboard's list editor, SkyHanni style (killer560, 2026-10-07: "redo the custom scoreboard such that
- * things are draggable to be in order and it has the add and trashcan system SkyHanni uses instead of an individual
+ * The Custom Scoreboard's list editor, the reference style (killer560, 2026-10-07: "redo the custom scoreboard such that
+ * things are draggable to be in order and it has the add and trashcan system the reference uses instead of an individual
  * toggle system"): an Add button that drops down every entry not on the board, a Reset Order button, and a
  * {@link DragListWidget} of the entries that are - drag to reorder, trash can to take one off, click to select it.
  * <p>
@@ -25,8 +25,8 @@ import java.util.function.Function;
  * preview since 2026-10-11). The open dropdown, the selected entry and the list's scroll are remembered per
  * list for the session (both screens rebuild every widget after each change).
  * <p>
- * Decisions: Add puts the entry at the BOTTOM of the board, as SkyHanni's does (MoulConfig's draggable list appends;
- * javap of SkyHanni 7.48.0), and then selects it and scrolls to it so it can be dragged straight up. The dropdown
+ * Decisions: Add puts the entry at the BOTTOM of the board (MoulConfig's draggable list appends;
+ * javap of the reference 7.48.0), and then selects it and scrolls to it so it can be dragged straight up. The dropdown
  * opens in place, pushing the list down, rather than floating over it: the mod menu draws its rows in order but gives
  * a press to the FIRST row under the cursor, so a popup over other rows would look on top and act underneath
  * (docs/LESSONS.md, "Two mod-menu rows on one rectangle"). The sixteen Separators share one name, so Add offers

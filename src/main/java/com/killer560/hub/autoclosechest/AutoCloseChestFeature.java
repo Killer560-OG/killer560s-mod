@@ -11,7 +11,7 @@ import net.minecraft.world.inventory.MenuType;
 import java.util.Set;
 
 /**
- * "Auto close chest" - killer560's request. Real reference: QUOI's own confirmed, compiling
+ * "Auto close chest" - killer560's request. Real reference: the confirmed, compiling
  * {@code AutoCloseChest.kt} (Secrets group, credited "Kyleen" in that source) - a real Dungeon Secrets
  * QoL feature: a real Hypixel secret reward chest opens as a plain vanilla chest GUI titled exactly
  * "Chest", "Large Chest", or "Trapped Chest" (a fixed real menu type in {@link #SECRET_CHEST_MENU_TYPES}

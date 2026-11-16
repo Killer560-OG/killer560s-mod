@@ -20,8 +20,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.Map;
 
-/** Expands a chest's interaction hitbox to the full block - ported 1:1 from quoi's own
- *  {@code ChestBlockMixin} (decompiled via CFR, 2026-09-09; NoammAddons has no chest equivalent, so this
+/** Expands a chest's interaction hitbox to the full block - ported 1:1 from another mod's own
+ *  {@code ChestBlockMixin} (decompiled via CFR, 2026-09-09; the reference has no chest equivalent, so this
  *  side is quoi-only). Unlike Levers/Buttons, a chest has REAL solid collision - implements
  *  {@link OriginalCollisionShapeProvider} so {@link BlockBehaviourMixin} can hand the player's own
  *  movement collision back the chest's real (non-expanded) shape instead of silently becoming a full

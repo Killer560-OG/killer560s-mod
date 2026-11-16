@@ -31,7 +31,7 @@ import com.killer560.hub.gui.ThemeAccent;
 /** Generates and hosts a fake, entirely local terminal puzzle to practice on - killer560's explicit
  *  request (2026-09-09): "generate its own terminal for me to practice solve." No real Hypixel menu is
  *  ever involved (this is a plain {@link Screen}, not a container screen at all) - Panes/Rubix/Numbers/
- *  Starts With/Select each reuse the exact same real mechanics already ported from Odin for
+ *  Starts With/Select each reuse the exact same real mechanics already for
  *  {@code TerminalSolverFeature}'s own solvers, just driving a self-generated puzzle instead of a real
  *  one, so practicing here matches the genuine terminal's real click behavior. Deliberately renders the
  *  RAW puzzle with no highlighting at all - unlike Custom GUI mode (which exists to skip reading the
@@ -64,7 +64,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
     // standalone practice screen can get to vanilla's own inventory-screen look without a real container.
     private static final int VANILLA_BG_COLOR = 0xF0373737;
     private static final int VANILLA_BORDER_COLOR = 0xFFC6C6C6;
-    // Real per-type grid dimensions (columns x rows), decompiled 2026-09-09 straight from Odin's own
+    // Real per-type grid dimensions (columns x rows), decompiled 2026-09-09 straight from the
     // TerminalTypes enum - each type builds its real Custom GUI panel via
     // simpleTermGui(rows, cols, startRow, startCol): PANES(3,5,..), RUBIX(3,3,..), NUMBERS(2,7,..),
     // STARTS_WITH(3,7,..), SELECT(4,7,..). Round 10.1's guessed 5-wide/4-wide grids were all wrong (round
@@ -76,7 +76,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
     private static final List<DyeColor> RUBIX_COLOR_ORDER =
             List.of(DyeColor.ORANGE, DyeColor.YELLOW, DyeColor.GREEN, DyeColor.BLUE, DyeColor.RED);
 
-    // Real Melody mechanic, ported from Odin's own MelodySim (decompiled 2026-09-09 as reference) - the
+    // Real Melody mechanic own MelodySim (decompiled 2026-09-09 as reference) - the
     // real terminal is 9 columns wide, 6 rows tall (0-5). Columns 1-5 are the track, column 7 is the real
     // clickable buttons (0, 6, 8 are always empty). Rows 1-4 are the "active band" - each round, the
     // WHOLE active row is red except one pane (the "moving" marker) that bounces left-right between
@@ -340,7 +340,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
         return ItemStack.EMPTY;
     }
 
-    /** Advances the moving (lime) marker on a fixed real-time interval, matching Odin's own "every 10
+    /** Advances the moving (lime) marker on a fixed real-time interval own "every 10
      *  ticks" (~500ms) cadence - called every render frame (see #extractRenderState) but only actually
      *  moves/rebuilds once the interval has actually elapsed. */
     private void updateMelodyAnimation() {
@@ -564,7 +564,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
     }
 
     // Real Rubix is a dense 3x3 - every cell is a colored pane, none empty (killer560's "rubix still
-    // isnt a 3x3" report, 2026-09-09, round 11 - confirmed against Odin's own simpleTermGui(3, 3, ..)).
+    // isnt a 3x3" report, 2026-09-09, round 11 - confirmed against the simpleTermGui(3, 3,..)).
     private void generateRubix() {
         columns = 3;
         int gridSize = columns * 3;
@@ -576,11 +576,11 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
 
     // Real Numbers is a dense 2x7 - all 14 cells filled, numbered 1-14 (killer560's "numbers should be a
     // 2x7" report, round 11, and "numbers is not generating with all the numbers 1-14" follow-up, round
-    // 12 - confirmed against Odin's own simpleTermGui(2, 7, ..); was still only randomly filling 4-7 of
+    // 12 - confirmed against the simpleTermGui(2, 7,..); was still only randomly filling 4-7 of
     // the 14 cells, same sparse pattern Panes/Rubix legitimately use but Numbers apparently doesn't).
     // 2026-10-06 Hypixel update: 10 numbers instead of 14. The count follows the last live board seen
     // (TerminalLayouts.numbersCount(), else its ASSUME_NEW_LAYOUT switch), two rows of count/2. For 10 that is 5 wide by
-    // 2 tall, the shape NoammAddons 1.2.9's NumberTerminal gives the 0.27.2 board (gridSize 5 to 2, was 7 to 2).
+    // 2 tall, the shape the reference 1.2.9's NumberTerminal gives the 0.27.2 board (gridSize 5 to 2, was 7 to 2).
     private void generateNumbers() {
         int gridSize = com.killer560.hub.terminals.TerminalLayouts.numbersCount();
         columns = Math.max(1, gridSize / 2);
@@ -595,7 +595,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
         }
     }
 
-    // Real Starts With is a 3x7 (Odin's own simpleTermGui(3, 7, ..)).
+    // Real Starts With is a 3x7 (the simpleTermGui(3, 7,..)).
     private void generateStartsWith() {
         columns = 7;
         List<NamedItem> pool = new ArrayList<>(STARTS_WITH_POOL);
@@ -664,7 +664,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
         remainingMatches = chosenMatches.size();
     }
 
-    // Real Select is a 4x7 (Odin's own simpleTermGui(4, 7, ..)).
+    // Real Select is a 4x7 (the simpleTermGui(4, 7,..)).
     private void generateSelect() {
         columns = 7;
         int gridSize = columns * 4;
@@ -765,7 +765,7 @@ public class TermismPracticeScreen extends Screen implements com.killer560.hub.g
             case MELODY -> {
                 int col = index % columns;
                 int row = index / columns;
-                // Real Odin mechanic: only the real button (column 7) in the CURRENT active row counts,
+                // Real the reference mechanic: only the real button (column 7) in the CURRENT active row counts,
                 // and only if the moving marker's column currently matches the fixed target column - a
                 // mistimed click (or clicking the wrong row's button) is simply a no-op, same as the real
                 // terminal.

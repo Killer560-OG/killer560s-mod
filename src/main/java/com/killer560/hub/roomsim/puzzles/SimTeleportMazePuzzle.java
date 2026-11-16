@@ -78,7 +78,7 @@ public final class SimTeleportMazePuzzle {
 
     /**
      * The real room's own pads, copied verbatim from {@code TeleportMazeSolverFeature.PADS} (which took them
-     * from QUOI's {@code TeleportMazeSolver.kt}): 28 cell pads in cell order, four to a cell, then the END pad
+     * from): 28 cell pads in cell order, four to a cell, then the END pad
      * and the START pad. Room-relative, y=69, the same frame every solver in this mod works in.
      *
      * <p>Only {@link #bindAt} uses these - {@link #build}'s standalone arena keeps its own invented layout,

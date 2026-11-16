@@ -14,7 +14,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Blood rush roles, with the reference mod adm's conventions (facts from its BrRoles; our own code) so a party mixing
+ * Blood rush roles, with the usual conventions (facts from its BrRoles; our own code) so a party mixing
  * the two mods numbers its roles the same way (killer560, 2026-11-03: "I just don't want someone on their mod to be player
  * 1 and ours 2 and they go for the same mobs").
  *
@@ -221,7 +221,7 @@ public final class BloodRushRoles {
         return doorerKills(cfg, late) && onDoor(cfg) && p > 0 ? p : null;
     }
 
-    /** Whether anyone in the party has claimed a role this run (adm's party chat). */
+    /** Whether anyone in the party has claimed a role this run (party chat). */
     public static boolean admInParty() {
         return seen;
     }

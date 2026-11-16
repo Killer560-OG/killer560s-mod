@@ -25,7 +25,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Reforge Helper (SkyHanni's {@code ReforgeHelper}, killer560 2026-11-04: "a seprate menu on the left side you click with
+ * Reforge Helper (killer560 2026-11-04: "a seprate menu on the left side you click with
  * all the reforges you can get and it wont let you reroll over it"). In the Blacksmith's "Reforge Item" menu: a panel left
  * of the menu listing every reforge the item can roll for its type and rarity, with that rarity's stats, the current one
  * marked; a click on a row adds it to (or takes it off) the Wanted Reforges. The item gets an outline once it has a wanted
@@ -46,7 +46,7 @@ public final class ReforgeHelperFeature {
     private static final int TITLE_COLOR = 0xFFFF9A2E;
     private static final int HOVER_BG = 0x40FF9A2E;
 
-    /** Hypixel's stat icons and colors, and the names the tooltip uses, by NEU stat key. */
+    /** Hypixel's stat icons and colors, and the names the tooltip uses, by the reference stat key. */
     private static final Map<String, String[]> STATS = Map.ofEntries(
             Map.entry("strength", new String[]{"§c", "❁", "Strength"}),
             Map.entry("crit_chance", new String[]{"§9", "☣", "Crit Chance"}),

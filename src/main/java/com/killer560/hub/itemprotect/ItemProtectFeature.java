@@ -23,9 +23,9 @@ import java.util.List;
 
 /**
  * Item Protection - client-side guards that stop you throwing your own gear away, all OFF by default. Ported from
- * Devonian's {@code misc/inventory/{ProtectItem, ProtectStarredItems, PreventDroppingHotbar}.kt} (its shared
- * {@code PreventItem.kt} cancel funnel is folded into {@link ItemProtect}), cross-checked against NoammAddons
- * {@code general/ProtectItem.kt}, Skytils' {@code ItemFeatures} (branch {@code 1.x}) and SkyHanni's
+ * The {@code misc/inventory/{ProtectItem, ProtectStarredItems, PreventDroppingHotbar}.kt} (its shared
+ * {@code PreventItem.kt} cancel funnel is folded into {@link ItemProtect})
+ * {@code general/ProtectItem.kt}, the {@code ItemFeatures} (branch {@code 1.x}) and the
  * {@code ItemProtection}.
  *
  * <ol>

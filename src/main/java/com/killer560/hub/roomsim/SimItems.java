@@ -31,7 +31,7 @@ import com.killer560.hub.compat.McCompat;
  *
  * <p>Every item handed out is a plain {@link ItemStack} carrying the real Skyblock id in {@code CUSTOM_DATA}
  * "id" - the exact inverse of how {@link com.killer560.hub.cheatutils.CheatUtils#skyblockId} (and everything
- * else in this mod) reads that field. There is no NEU-repo lookup and no skin/model dressing: the rest of the
+ * else in this mod) reads that field. There is no item-repo lookup and no skin/model dressing: the rest of the
  * mod only ever cares about the id, and a plain stack is one fewer thing that can silently fail to build
  * offline in a sim with no Hypixel resource pack loaded.
  *

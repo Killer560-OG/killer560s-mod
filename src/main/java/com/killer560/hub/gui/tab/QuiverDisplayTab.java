@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Quiver Display settings - see {@link com.killer560.hub.quiver.QuiverDisplayFeature}'s class doc for
- *  the real Odin-ported lore-reading this is built on. The explanation lines that sat at the bottom were removed
+ *  the real lore-reading this is built on. The explanation lines that sat at the bottom were removed
  *  (killer560, 2026-10-11: "remove the extra text at the bottom of the quiver display"); the description lives in the
  *  tooltips. Labels double as tooltip keys, so the alert ones carry a "Quiver" / "Low Arrow" prefix to stay clear of
  *  keys other tabs own. */

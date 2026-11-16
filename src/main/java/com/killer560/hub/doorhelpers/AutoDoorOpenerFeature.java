@@ -15,18 +15,18 @@ import java.util.List;
 import com.killer560.hub.compat.McBlocks;
 
 /**
- * Auto Door Opener - port of QUOI {@code module/impl/dungeon/AutoDoorOpener.kt} (runs on tick end, clear
+ * Auto Door Opener - port of (runs on tick end, clear
  * phase only, not while dead):
  * <ul>
  * <li>Aura: closest locked door (block at (door.x, 69, door.z)) whose center is within Range of the eyes.
  * <li>Triggerbot: the crosshair block, when it is within {@code blockInteractionRange}, at y 69..73, and within 2
  * blocks (x and z) of a locked door of the matching material - COAL_BLOCK for Wither, RED_TERRACOTTA for Blood.
- * <li>One attempt per Retry delay (the timer restarts on every attempt, as in QUOI), optional main-hand swing,
+ * <li>One attempt per Retry delay (the timer restarts on every attempt), optional main-hand swing,
  * nothing while a CONTAINER screen is open (see {@code ActionGate}).
  * </ul>
- * The click is QUOI {@code AuraManager.interactBlock} -> {@code BlockInteract}: the face comes from
+ * The click is the reference {@code AuraManager.interactBlock} -> {@code BlockInteract}: the face comes from
  * {@code VecUtils.getHitResult} (clip the block's outline shape from the eyes through its center; no shape = no
- * click), sent here through {@code gameMode.useItemOn} like {@code SecretAuraFeature}. QUOI's one-tick
+ * click), sent here through {@code gameMode.useItemOn} like {@code SecretAuraFeature}. The one-tick
  * "another use-item packet just went out, queue this one" spacer is not ported (no packet hook here; Retry delay
  * is at least 100ms anyway).
  * <p>
@@ -276,7 +276,7 @@ public final class AutoDoorOpenerFeature {
         return null;
     }
 
-    /** QUOI {@code BlockInteract.execute}. @return false when the block has no outline shape to hit, or vanilla refused
+    /** The reference {@code BlockInteract.execute}. @return false when the block has no outline shape to hit, or vanilla refused
      *  the click before sending it. */
     private static boolean interactBlock(Minecraft client, BlockPos pos) {
         BlockHitResult hit = hitResult(client, pos);
@@ -310,7 +310,7 @@ public final class AutoDoorOpenerFeature {
         return now - borderHeldSinceMs < com.killer560.hub.util.ShadowAssassinLeap.HOLD_MAX_MS;
     }
 
-    /** QUOI {@code BlockPos.getHitResult(force = false)} (same as {@code BreakerAuraFeature.hitResult}). */
+    /** The reference {@code BlockPos.getHitResult(force = false)} (same as {@code BreakerAuraFeature.hitResult}). */
     static BlockHitResult hitResult(Minecraft client, BlockPos pos) {
         VoxelShape shape = client.level.getBlockState(pos).getShape(client.level, pos);
         if (shape.isEmpty()) {

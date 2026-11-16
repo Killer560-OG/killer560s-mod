@@ -7,8 +7,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** QUOI {@code Tweaks.kt} "Disable item cooldowns" (OFF by default, {@link ObjectHiderConfig}) - the gray
- *  cooldown sweep drawn over an item. QUOI's own hook is a config check inside {@code ItemCooldowns}
+/**  "Disable item cooldowns" (OFF by default, {@link ObjectHiderConfig}) - the gray
+ *  cooldown sweep drawn over an item. The hook is a config check inside {@code ItemCooldowns}
  *  ({@code mixins/ItemCooldownsMixin.java:22}); javap-verified {@code ItemCooldowns.getCooldownPercent
  *  (ItemStack, float)} - the value every cooldown-overlay render reads - still exists unchanged in the
  *  26.1.2 merged jar, so forcing it to {@code 0} here has the identical effect. Deliberately does NOT touch

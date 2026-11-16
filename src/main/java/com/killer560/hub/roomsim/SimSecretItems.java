@@ -110,7 +110,7 @@ public final class SimSecretItems {
      * How close he has to come before a secret bat appears, in blocks from his feet to the bat's spot.
      *
      * <p>Hypixel's secret bat appears as a player comes near, and Auto Routes' await counts that appearance only within
-     * {@code AwaitEvents.BAT_SPAWN_RANGE} (10, QUOI's number) of him. Hypixel's own trigger distance is not published;
+     * {@code AwaitEvents.BAT_SPAWN_RANGE} (10, the number) of him. Hypixel's own trigger distance is not published;
      * NOT measured on Hypixel. It was 8, and his Doors route's #8 BAT node - recorded on Hypixel, where the bat appeared for
      * it - stands 8.6 from Doors' bat (7.5 under it): the sim never spawned that bat, so the node waited out its attack
      * time and the room was a secret short in his sim run of 2026-10-16 and in fullclear-1016 run 013. 10 is the await's

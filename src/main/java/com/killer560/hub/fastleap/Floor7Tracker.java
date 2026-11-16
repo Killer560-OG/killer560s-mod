@@ -10,9 +10,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * F7/M7 boss phase + P3 stage tracking, ported from QUOI {@code api/skyblock/dungeon/Floor7.kt},
+ * F7/M7 boss phase + P3 stage tracking,
  * {@code enums/Phase.kt} and {@code enums/Stage.kt} (and {@code Dungeon.getBoss()} for "in boss"). Chat-driven phase
- * ({@link #getPhase()}), position-driven phase/stage ({@link #getPhaseAt()}, {@link #getStageAt()}), and QUOI's
+ * ({@link #getPhase}), position-driven phase/stage ({@link #getPhaseAt}, {@link #getStageAt}), and the
  * {@code DungeonEvent.StageComplete} / {@code StageComplete.Full} events delivered to a {@link Listener}.
  */
 public final class Floor7Tracker {
@@ -21,11 +21,11 @@ public final class Floor7Tracker {
         UNKNOWN, P1, P2, P3, P4, P5
     }
 
-    /** QUOI {@code Stage}: per-section terminal/lever/device progress, gate state, and section transitions. */
+    /** The reference {@code Stage}: per-section terminal/lever/device progress, gate state, and section transitions. */
     public enum Stage {
         UNKNOWN(0), S1(1), S2(2), S3(3), S4(4), S5(5);
 
-        // QUOI REGEX_TERM_COMPLETED, plus an optional trailing suffix so a line annotated by another mod still matches.
+        // The reference REGEX_TERM_COMPLETED, plus an optional trailing suffix so a line annotated by another mod still matches.
         // The name group is a REAL username, not any 16 characters.
         //
         // ".{1,16}" is anchored but still matches "[VIP] Bob: a" - twelve characters - so any player typing
@@ -100,10 +100,10 @@ public final class Floor7Tracker {
     }
 
     public interface Listener {
-        /** QUOI {@code DungeonEvent.StageComplete}: every objective of {@code stage} is done (gate may still be up). */
+        /** The reference {@code DungeonEvent.StageComplete}: every objective of {@code stage} is done (gate may still be up). */
         void onStageComplete(Stage stage);
 
-        /** QUOI {@code DungeonEvent.StageComplete.Full}: the tracker moved past {@code stage}. */
+        /** The reference {@code DungeonEvent.StageComplete.Full}: the tracker moved past {@code stage}. */
         void onStageCompleteFull(Stage stage);
     }
 
@@ -119,7 +119,7 @@ public final class Floor7Tracker {
         listener = l;
     }
 
-    /** QUOI {@code Dungeon.getBoss()} per floor, from the player's position. */
+    /** The reference {@code Dungeon.getBoss} per floor, from the player's position. */
     public static boolean inBoss() {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null || !DungeonState.isInDungeon()) {
@@ -147,7 +147,7 @@ public final class Floor7Tracker {
         return Character.isDigit(c) ? c - '0' : 0;
     }
 
-    /** QUOI {@code Floor7.inF7Boss}. */
+    /** The reference {@code Floor7.inF7Boss}. */
     public static boolean inF7Boss() {
         return DungeonState.isF7OrM7() && inBoss();
     }
@@ -180,7 +180,7 @@ public final class Floor7Tracker {
                 Stage at = DungeonState.isSimBoss() ? getStageAt() : Stage.UNKNOWN;
                 updateState(Phase.P3, at.number >= 1 && at.number <= 5 ? at : Stage.S1);
             }
-            // QUOI: not Goldor's death line, since it can be dialogue-skipped
+            // Not Goldor's death line, since it can be dialogue-skipped
             case "[BOSS] Necron: Finally, I heard so much about you. The Eye likes you very much.",
                  "[BOSS] Necron: You went further than any human before, congratulations." -> updateState(Phase.P4, Stage.UNKNOWN);
             case "The Core entrance is opening!" -> updateState(null, Stage.S5);
@@ -192,7 +192,7 @@ public final class Floor7Tracker {
         }
         // Goldor's opening line can be missed (p3sim skips it; on Hypixel a dialogue-skip perk, a late join, or a
         // changed line): with the chat phase still before P3, the first terminal/lever/device line while standing in
-        // P3 starts P3 at the section you're in (not in QUOI). Terminals, levers and devices exist only in P3, so a
+        // P3 starts P3 at the section you're in (not in the reference). Terminals, levers and devices exist only in P3, so a
         // completion line is proof. Used to require "no boss line at all", which a heard Maxor/Storm line defeated.
         if (beforeP3(phase) && getPhaseAt() == Phase.P3 && Stage.TERM_COMPLETED.matcher(unformatted).matches()) {
             inferP3("a completion line");
@@ -207,9 +207,9 @@ public final class Floor7Tracker {
 
     /**
      * The start of Phase 5: Necron's death line, or the Wither King's first line. Since SkyBlock 0.27.2 sped boss
-     * dialogue up (Celestial_Milk perk), the reference mods stopped trusting Necron's line for M7 P5: jcnlk's quoi
+     * dialogue up (Celestial_Milk perk), the reference mods stopped trusting Necron's line for M7 P5:
      * 8562102f ("fix: p5 start not registering", 2026-10-06) switched to "[BOSS] The Wither King: Ohh?" / "You... again?",
-     * and Odin 1cf58050 (2026-10-03) moved its last split to "^\[BOSS] The Wither King: You\.\.\. again\?$". Either line
+     * and the reference 1cf58050 (2026-10-03) moved its last split to "^\[BOSS] The Wither King: You\.\.\. again\?$". Either line
      * counts, whichever arrives first. Anchored and bounded: a player's chat line cannot start with "[BOSS]".
      */
     public static final Pattern P5_START = Pattern.compile(
@@ -303,7 +303,7 @@ public final class Floor7Tracker {
         if (newStage != null) {
             stage = newStage;
         }
-        // QUOI: explicitly setting the same stage still completes it
+        // Explicitly setting the same stage still completes it
         if (newStage != null && oldStage != Stage.UNKNOWN && listener != null) {
             listener.onStageCompleteFull(oldStage);
         }

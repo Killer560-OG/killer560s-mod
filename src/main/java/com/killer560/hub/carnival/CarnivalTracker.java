@@ -30,13 +30,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Carnival Tracker (SkyHanni's Carnival Goals and daily ticket reminder, and its custom scoreboard's Carnival lines): in
+ * Carnival Tracker (the Carnival Goals and daily ticket reminder, and its custom scoreboard's Carnival lines): in
  * the Carnival, a HUD with the game you are playing (score, fruits, catch streak, kills, accuracy, time left), your
  * Carnival Tokens and what this session added, games played this session, your best score in each game, the goals not
  * yet reached from Chantelle's "Carnival Goals" menu, and whether today's 25 Carnival Tickets are still to claim from
  * the Carnival Leader (with a chat reminder when you walk in). Display only.
  *
- * <p>Unverified in game (SkyHanni's and the wiki's text): "You earned N Carnival Tokens!", "You claimed Carnival Ticket
+ * <p>Unverified in game (the reference and the wiki's text): "You earned N Carnival Tokens!", "You claimed Carnival Ticket
  * x25!", the Carnival Leader's "already claimed" line, the goal lore and its "COMPLETE" line, the goal chat lines.
  */
 public final class CarnivalTracker {

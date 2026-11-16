@@ -22,9 +22,9 @@ import com.killer560.hub.compat.McRender;
  * <p>
  * The no-depth pipelines are built the same way {@code mobesp/EspRenderer} and {@code p3nav/P3NavRenderer}
  * build theirs - copies of vanilla's LINES / DEBUG_FILLED snippets with
- * {@code withDepthStencilState(Optional.empty())}, which is how NoammAddons' 26.1.2
- * {@code NoammRenderPipelines} does it. The pipeline ids are secretwaypoints-specific so they cannot collide
- * with Dungeon ESP's or P3 Nav's registrations. Vertex layout is the same Odin-derived one the rest of the
+ * {@code withDepthStencilState(Optional.empty)}, which is how the 26.1.2
+ * the 26.1.2 through-walls pipeline set does it. The pipeline ids are secretwaypoints-specific so they cannot collide
+ * with Dungeon ESP's or P3 Nav's registrations. Vertex layout is the same one the rest of the
  * repo's box renderers use.
  * <p>
  * Everything is drawn in one camera-relative {@code pushPose}/{@code popPose} for the whole batch rather than

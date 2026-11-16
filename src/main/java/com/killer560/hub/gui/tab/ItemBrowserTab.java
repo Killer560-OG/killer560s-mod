@@ -10,7 +10,7 @@ import net.minecraft.network.chat.Component;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Item Browser (NEU-style panel) settings - see
+/** Item Browser (panel) settings - see
  *  {@link com.killer560.hub.itembrowser.ItemBrowserFeature}'s class doc for the real Not Enough
  *  Updates-referenced item panel this is built on, and how it shares its search box with
  *  {@link com.killer560.hub.inventorysearch.InventorySearchFeature}. Explanatory text moved into

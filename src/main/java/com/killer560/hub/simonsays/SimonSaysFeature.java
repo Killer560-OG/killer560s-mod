@@ -43,15 +43,15 @@ import com.killer560.hub.compat.McRender;
 /**
  * F7/M7 boss-fight Simon Says solver.
  * <p>
- * The real device layout and detection logic below is ported from Odin's and QUOI's own confirmed,
+ * The real device layout and detection logic below is own confirmed,
  * compiling implementations for this exact Minecraft version (both pin {@code minecraft_version=26.1.2}
  * in their {@code gradle.properties}) - not guessed. The button grid is a 4x4 wall at x=110 (stone
  * buttons) with a matching sea-lantern wall at x=111, y in [120,123], z in [92,95], with the device's
  * start button at (110, 121, 91). The real "P1 starts" auto-start trigger and its two settings are
- * ported from NoammAddons' own {@code SimonSays.kt} (cloned reference, 2026-09-14) - see
+ *  (cloned reference, 2026-09-14) - see
  * {@link #AUTO_START_TRIGGER_PATTERN}'s doc comment.
  * <p>
- * This mod has no {@code BlockUpdateEvent}-style hook (Odin/QUOI each define their own via a Mixin this
+ * This mod has no {@code BlockUpdateEvent}-style hook (other implementations each define their own via a Mixin this
  * codebase hasn't added, deliberately - see this mod's standing "no unconfirmed Mixin target" rule), so
  * detection here is done by polling {@link net.minecraft.world.level.Level#getBlockState} once a client
  * tick and diffing against the previous tick's snapshot, same safe mixin-free technique the original
@@ -64,9 +64,9 @@ public final class SimonSaysFeature {
     private static final BlockPos START_BUTTON = new BlockPos(110, 121, 91);
     private static final double ACTIVE_RANGE_SQ = 30.0 * 30.0;
 
-    // "SS 3/5" - deliberately the same wire format Odin's own announceProgress uses (its real chat call
+    // "SS 3/5" - deliberately the same wire format the announceProgress uses (its real chat call
     // is literally `pc SS ${clickInOrder.size}/5`), so this mod's party progress tracker also understands
-    // teammates running Odin or QUOI, not just other killer560s-mod users.
+    // teammates running other implementations, not just other killer560s-mod users.
     /**
      * Bounded digits, because this parses what OTHER PLAYERS type.
      *
@@ -79,7 +79,7 @@ public final class SimonSaysFeature {
     private static final Pattern PROGRESS_PATTERN = Pattern.compile("(?:^|[:>\\]]\\s*)(\\S+?)\\s*:\\s*SS (\\d{1,3})/(\\d{1,3})");
     private static final Pattern PROGRESS_PATTERN_SIMPLE = Pattern.compile("SS (\\d{1,3})/(\\d{1,3})");
 
-    // Real chat line (ported from NoammAddons' own SimonSays.kt `startRegex`, confirmed against this
+    // Real chat line (confirmed against this
     // exact Minecraft version's F7/M7 boss fight) marking the moment the SS device's boss phase actually
     // begins - killer560's own "the second p1 starts" request. Matched on plain text with formatting
     // stripped first, same established convention DungeonState's own BOSS_START_PATTERN uses.
@@ -107,21 +107,21 @@ public final class SimonSaysFeature {
         return list;
     }
 
-    // --- solve state (Odin's real, confirmed sequence-detection logic, ported) ---
+    // --- solve state (the real, confirmed sequence-detection logic, ported) ---
     private static final List<BlockPos> clickInOrder = new ArrayList<>();
     private static int clickNeeded = 0;
     private static boolean firstPhase = true;
     // Real bug found and fixed (2026-09-14): this mod's port of the firstPhase reveal-order quirk
     // (size 2 -> reverse, size 3 -> drop the first - see detectGridChanges for the real size-3 rule,
     // corrected same day from an earlier "drop the middle" guess) only ever cleared firstPhase after a
-    // FULL successful click-through - Odin's own real code instead clears it on a real TIMEOUT once the
+    // FULL successful click-through - the real code instead clears it on a real TIMEOUT once the
     // reveal flash settles (see below), independent of whether you've clicked anything yet. Without
     // that timeout, every subsequent lantern reveal past the 3rd kept re-triggering the same size-3
     // correction forever (add a 4th -> size 3 again -> correct again -> stays at 2), which is exactly
     // the real symptom killer560 reported: "only keeping 2 highlighted" and highlights "moving off
     // early." lastLanternChangeTick counts ticks since the last real lantern step was recorded; once 10
     // ticks pass with the grid back to mostly real buttons (not still mid-flash), firstPhase clears for
-    // the rest of this device's reveal, matching Odin's own real logic.
+    // the rest of this device's reveal own real logic.
     private static int lastLanternChangeTick = -1;
     private static BlockState lastStartButtonState = null;
     private static final Map<BlockPos, BlockState> lastGridStates = new HashMap<>();
@@ -158,15 +158,15 @@ public final class SimonSaysFeature {
     // both funnel through the exact same real method, with no other distinguishing signal available.
     private static boolean syntheticClickInProgress = false;
 
-    // --- auto-start pacing (real trigger + settings ported from NoammAddons) ---
+    // --- auto-start pacing (real trigger + settings) ---
     private static boolean autoStartRunning = false;
     // True while the running start-button burst is a RESTART (Auto Restart SS / Restart Key) rather than Auto Start's
     // own Goldor-line trigger - so it runs even with Auto Start switched off, and waits for interact range.
     private static boolean autoStartIsRestart = false;
-    // --- device-break detection (ported from NoammAddons' own SimonSays.kt "SS Broke" check, newest upstream):
+    // --- device-break detection ("SS Broke" check, newest upstream):
     // once the device has shown a lit lantern, a stretch with NO lit lantern AND all 16 buttons gone means the
     // device broke (a wrong click / reset) - a normal round change always lights the next pattern well before
-    // that. Noamm waits 12 server ticks from the last lantern; this counts consecutive ticks of "no lantern lit
+    // that. The reference waits 12 server ticks from the last lantern; this counts consecutive ticks of "no lantern lit
     // and every button air" and uses a longer 30-tick window so a slow reveal-to-buttons handoff can never
     // false-trigger a restart (which would reset a device that was actually fine).
     private static final int BREAK_CONFIRM_TICKS = 30;
@@ -354,7 +354,7 @@ public final class SimonSaysFeature {
     // before any click" means two different real things depending on whether a skip was actually
     // attempted: a landed skip (drop the first, real remaining sequence is the last two) if a real skip
     // attempt happened, or Hypixel's own normal round-1 reveal-flash quirk (drop the middle instead,
-    // Odin's original confirmed behavior) if it didn't. Real bug found and fixed (2026-09-14, "make sure
+    // The original confirmed behavior) if it didn't. Real bug found and fixed (2026-09-14, "make sure
     // that the solver works if it resets even for the skip detection"): this used to only ever get set
     // by Auto Start's OWN synthetic clicks - Auto Start only ever fires once per real Goldor line, so a
     // real MANUAL retry after a mid-attempt reset (a real player rapid-clicking start themselves,
@@ -706,7 +706,7 @@ public final class SimonSaysFeature {
     }
 
     /** For {@code SimonSaysMisclickMixin} - "Prevent Misclicks", killer560's own request, same real
-     *  behavior as Odin's own "Block Wrong Clicks" toggle: only blocks a real click on one of the 16
+     *  behavior own "Block Wrong Clicks" toggle: only blocks a real click on one of the 16
      *  main grid buttons that ISN'T the one you actually need next, and shift always overrides it (so a
      *  manual "click it anyway" is never fully locked out). Never blocks the start button, and never
      *  blocks anything once the device isn't actively being tracked - this is a safety net during a
@@ -780,13 +780,13 @@ public final class SimonSaysFeature {
             LOGGER.info("[SimonSays] Chat line mentioning Simon Says: \"{}\"", raw);
         }
 
-        // Real auto-start trigger (ported from NoammAddons) - fires the moment Goldor's real boss line
+        // Real auto-start trigger - fires the moment Goldor's real boss line
         // appears, regardless of whether the player is near the device yet (tickAutoStart below only
         // actually clicks once in range, so this just arms the sequence to begin as soon as possible).
         // goldorLineSeenThisPhase is tracked independently of isAutoStartEnabled() - killer560's own
         // gate for the idle-look-at-first-button behavior ("only after the line...") applies to Rotate
         // Mode generally, not just when Auto Start specifically is turned on.
-        // The Goldor trigger itself moved to ChatObserver (see register()) so it still fires when Odin/NoammAddons
+        // The Goldor trigger itself moved to ChatObserver (see register) so it still fires when other implementations
         // cancel and re-add the boss line; the party progress part stays here (matched anywhere in the line, so it
         // must not see this mod's own "SS n/5" messages, which ChatObserver would deliver).
 
@@ -878,7 +878,7 @@ public final class SimonSaysFeature {
         }
         if (!wasActive) {
             // A fresh encounter with the device - one of firstPhase's two real trigger points (see
-            // resetSolveState's doc comment), matching Odin's own LevelEvent.Load reset. Also re-arms
+            // resetSolveState's doc comment) own LevelEvent.Load reset. Also re-arms
             // Auto Solve's own once-per-attempt pacing window (see its field doc comment).
             firstPhase = true;
             autoSolveArmed = false;
@@ -967,7 +967,7 @@ public final class SimonSaysFeature {
         clickNeeded = 0;
         skipDropped = false;
         skipDroppedLantern = null;
-        // Deliberately does NOT touch firstPhase - matching Odin's own real resetSolution(), which
+        // Deliberately does NOT touch firstPhase - own real resetSolution, which
         // never does either. Real bug found and fixed (2026-09-14): this used to force firstPhase=true
         // right here, unconditionally - but this method is also called on the routine "grid reset
         // detected" between EVERY round of a real multi-round device (the sequence genuinely grows and
@@ -976,7 +976,7 @@ public final class SimonSaysFeature {
         // round 2 onward, scrambling a sequence that should never have gotten that correction again -
         // exactly killer560's report ("first one should always be the first one", seeing only the last
         // two entries highlighted). firstPhase is now set true ONLY at its own two real trigger points:
-        // entering device range fresh, and a real start-button press (see below) - both matching Odin's
+        // entering device range fresh, and a real start-button press (see below) - both
         // own explicit reset sites, never the general per-round reset.
         lastLanternChangeTick = -1;
         lastGridStates.clear();
@@ -1002,7 +1002,7 @@ public final class SimonSaysFeature {
         autoSolveStallTarget = null;
     }
 
-    /** Real start-button-press detection, ported from Odin's own {@code BlockUpdateEvent} check for
+    /** Real start-button-press detection check for
      *  {@code pos == startButton}. This is firstPhase's OTHER real trigger point besides entering
      *  device range fresh (see resetSolveState's doc comment) - a real press means the attempt is
      *  restarting from scratch (e.g. after a failure), so the reveal-order quirk needs to apply again
@@ -1076,11 +1076,11 @@ public final class SimonSaysFeature {
         }
     }
 
-    /** Ported from Odin's real {@code BlockUpdateEvent} handler, adapted to tick-polling: a lantern
+    /** Ported from the real {@code BlockUpdateEvent} handler, adapted to tick-polling: a lantern
      *  going from lit (sea lantern) to dark (obsidian) records that position as the next step in the
      *  real sequence order; a button (x=110) transitioning to powered advances progress. The
      *  first-activation reveal quirk (size 2 -&gt; reverse) is Hypixel's own real behavior, confirmed by
-     *  Odin against a live run. The size-3 case was corrected 2026-09-14 from an earlier "drop the
+     *  the reference against a live run. The size-3 case was corrected 2026-09-14 from an earlier "drop the
      *  middle" guess to "drop the first" instead, per killer560's own direct real-attempt observation:
      *  seeing 3 real lights light up before he'd clicked anything means a real Auto Start skip landed
      *  successfully, and the real remaining sequence to click is only the LAST two of those three - the
@@ -1126,7 +1126,7 @@ public final class SimonSaysFeature {
                         // but after this reverse ran on [A, B], the list was actually [B, A], so the later
                         // remove(0) dropped B (the real 2nd light) instead of A (the real 1st), leaving
                         // [A, C] instead of the intended [B, C]. The reverse is real Hypixel behavior only
-                        // for the ordinary NON-skip case (Odin's own confirmed reveal-order quirk) - a
+                        // for the ordinary NON-skip case (the confirmed reveal-order quirk) - a
                         // skip attempt needs the list left in real arrival order so the size==3 drop below
                         // can correctly remove the true first element.
                         if (autoStartClickedThisPhase) {
@@ -1147,7 +1147,7 @@ public final class SimonSaysFeature {
                     } else if (clickInOrder.size() == 3 && !skipDropped) {
                         // Real bug found and fixed (2026-09-14, "now it's bugged every time instead of
                         // just sometimes"): dropping the first unconditionally broke the ordinary,
-                        // non-skip case - Odin's own confirmed real behavior for THAT case is drop the
+                        // non-skip case - the confirmed real behavior for THAT case is drop the
                         // MIDDLE. The two cases look identical (firstPhase true, size reaches 3, before
                         // any click) unless something else distinguishes them: whether Auto Start
                         // actually sent a real click this phase. Only when it did is a landed skip the
@@ -1190,7 +1190,7 @@ public final class SimonSaysFeature {
                 onButtonPressed(pos, cfg, client);
             }
         }
-        // Real timeout ported from Odin's own TickEvent.Server check (see this class's firstPhase field
+        // Real timeout own TickEvent.Server check (see this class's firstPhase field
         // doc comment) - the reveal-order quirk only ever applies during the initial flash; 10 ticks
         // after the last real lantern change, once the grid has settled back to mostly real buttons,
         // firstPhase clears for the rest of THIS device so later reveals stop getting truncated.
@@ -1410,7 +1410,7 @@ public final class SimonSaysFeature {
                     expectFive = TerminalLayouts.simonRounds() == TerminalLayouts.OLD_SIMON_ROUNDS;
                 }
             }
-            // Real format ported from Odin's own announceProgress ("pc SS ${clickInOrder.size}/5") - only sent on the
+            // Real format own announceProgress ("pc SS ${clickInOrder.size}/5") - only sent on the
             // LAST click of the current round (round N has N steps, so clickInOrder.size() at round-completion IS the
             // round number). The total is the device's: /5 on the old one, /4 since the 2026-10-06 update - sent
             // after the round count was decided above, so a device that just showed it has 4 rounds says "4/4".
@@ -1479,7 +1479,7 @@ public final class SimonSaysFeature {
         verboseLog("[SimonSays][Stim] Rehearsing {} button(s) of round {}: {}", stimQueue.size(), size, stimQueue);
     }
 
-    // Auto-start - real trigger + settings ported from NoammAddons' own SimonSays.kt
+    // Auto-start - real trigger + settings
 
     /** The whole device is done: the client-side completion message (Terminal Timers' Simon Says time), and idle
      *  look / break detection stand down. {@code completedAtMs} is when the last click landed. */
@@ -1623,7 +1623,7 @@ public final class SimonSaysFeature {
         }
     }
 
-    /** Noamm-style "SS broke" detection - see {@link #BREAK_CONFIRM_TICKS}. Restarts it when Auto Restart SS is on. */
+    /** "SS broke" detection - see {@link #BREAK_CONFIRM_TICKS}. Restarts it when Auto Restart SS is on. */
     private static void tickBreakDetection(Minecraft client, SimonSaysConfig cfg) {
         boolean anyLanternLit = false;
         for (BlockPos lantern : GRID_LANTERNS) {
@@ -1761,10 +1761,10 @@ public final class SimonSaysFeature {
         autoStartTicksUntilNextClick = rotateActive(cfg) ? 0 : cfg.getAutoStartClickDelayTicks() - 1;
     }
 
-    /** Real trigger ported from NoammAddons' own SimonSays.kt: the moment Goldor's real "Who dares
+    /** Real trigger: the moment Goldor's real "Who dares
      *  trespass into my domain?" boss line appears (see {@link #AUTO_START_TRIGGER_PATTERN}), begin
      *  auto-clicking the real start button. Clicks/delay are both directly configurable, matching
-     *  NoammAddons' own two settings exactly ("Start Clicks" 1-10, "Start Click Delay" 1-25 ticks)
+     *  the two settings exactly ("Start Clicks" 1-10, "Start Click Delay" 1-25 ticks)
      *  instead of this mod's old guessed six-preset "skip mode" system (removed 2026-09-14 - killer560's
      *  own call, since this session never had confirmed real per-mode click counts). Only actually
      *  clicks once {@link #tickAutoStart} sees the device in range - see this method's own call site. */
@@ -3092,7 +3092,7 @@ public final class SimonSaysFeature {
     }
 
     /** Interacts with a block without needing the player's crosshair on it - the "no rotate" click
-     *  killer560 asked for ("just like QUOI"), which sends the interact packet directly via a synthetic
+     *  killer560 asked for ("just like the reference"), which sends the interact packet directly via a synthetic
      *  {@link BlockHitResult} instead of first turning the camera to aim. Real automation - callers must
      *  already be behind a {@code BuildVariant.CHEAT_FEATURES_ENABLED} check. Also Rotate Mode's own
      *  final click-fire step (see {@link #tickRotateClick}) once its own real aim is confirmed.
@@ -3243,7 +3243,7 @@ public final class SimonSaysFeature {
         // withCull(false), and RenderPipeline.Builder.build() defaults cull to true - so every glyph
         // AND the background quad were back-face culled, 100% of the time. The see-through/depth
         // change below was real but could never have been visible on its own. (Same (+s, -s, s) as
-        // NoammAddons' 26.1.2 Render3D.renderString.)
+        // The 26.1.2 Render3D.renderString.)
         poseStack.scale(scale, -scale, scale);
 
         float width = McRender.textWidth(font, text);
@@ -3254,7 +3254,7 @@ public final class SimonSaysFeature {
         // almost exactly where the button's own rendered geometry is, so the number was very likely
         // being depth-occluded by the button model itself ("rendered inside the button", killer560's own
         // guess). SEE_THROUGH ignores depth test - confirmed the correct real fix by checking how
-        // NoammAddons and Odin render their own equivalent Simon Says numbers: both explicitly pass a
+        // Other implementations render their own equivalent Simon Says numbers: both explicitly pass a
         // "through walls"/"phase" flag to their text renderer for exactly this reason.
         // -lineHeight/2 so the digit is vertically centered on the button face, not hanging below it.
         McRender.drawText(context, font, text, -width / 2f, -font.lineHeight / 2f, 0xFFFFFFFF, false, poseStack, Font.DisplayMode.SEE_THROUGH, background, 0xF000F0);

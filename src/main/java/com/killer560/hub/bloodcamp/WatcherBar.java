@@ -20,9 +20,9 @@ import java.util.LinkedHashSet;
  * The mapping, and what it rests on:
  * <ul>
  *   <li>The bar is named "The Watcher" ({@code §c§lThe Watcher}) and its progress is the share of the camp's mobs still to
- *   go: Odin's and Noamm's "Watcher Bar" both print {@code round(progress * amount) + "/" + amount}.</li>
+ *   go: the "Watcher Bar" both print {@code round(progress * amount) + "/" + amount}.</li>
  *   <li>The camp's size: the wiki (hypixelskyblock.minecraft.wiki/w/The_Watcher) says he summons "9 in Entrance and
- *   increasing by 1 with each floor", quoting Hypixel staff "9 + (floorTier)" - F7 16. Odin and Noamm use 8 + floor
+ *   increasing by 1 with each floor", quoting Hypixel staff "9 + (floorTier)" - F7 16. Other implementations use 8 + floor
  *   (F7 15). The two disagree by one, so the size is not trusted from either: it is CALIBRATED from the bar itself. The
  *   bar steps by whole mobs (k of N), so every settled value times the right N is a whole number, and a wrong N by one
  *   is off by at least 1/N. Until the first step the floor's default (the wiki's 9 + tier) is used.</li>

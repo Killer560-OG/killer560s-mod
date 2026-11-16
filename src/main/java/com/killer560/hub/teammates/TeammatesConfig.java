@@ -45,8 +45,8 @@ public final class TeammatesConfig {
     private Style style = Style.OUTLINE;
     private float lineWidth = 2.0f;
     private double range = 64.0;
-    /** Devonian HighlightTeammates SETTING_SELF ("None"/"Glow"/"Box") - kept as a plain on/off here since there is
-     *  no Glow style; off by default, like Devonian's own default of not boxing yourself. */
+    /** The reference HighlightTeammates SETTING_SELF ("None"/"Glow"/"Box") - kept as a plain on/off here since there is
+     *  no Glow style; off by default own default of not boxing yourself. */
     private boolean highlightSelf = false;
     private boolean showName = false;
     private boolean showDistance = false;

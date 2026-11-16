@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * The skin and trim half of Armor Recolor. Same hook Skyblocker uses
+ * The skin and trim half of Armor Recolor. Same hook the reference uses
  * ({@code mixins/DataComponentHolderMixin}, credited in {@link ArmourDye}): a client-side, read-only override of
  * three render-only data components on the client's own copy of a stack.
  * <ul>

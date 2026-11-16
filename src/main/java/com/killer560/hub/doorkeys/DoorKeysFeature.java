@@ -19,10 +19,10 @@ import java.util.List;
 import com.killer560.hub.compat.McRender;
 
 /**
- * Real Hypixel dungeon Wither/Blood Key ESP, ported from noamm's own {@code DoorKeys.kt}. Real dropped
+ * Real Hypixel dungeon Wither/Blood Key ESP, ported from the original {@code DoorKeys}. Real dropped
  * door keys are real {@code ArmorStand}s with a fixed real display name ("Wither Key"/"Blood Key") -
  * this polls real rendered entities each tick (the same real technique Weirdos/Blaze/Livid Solver
- * already use tonight) rather than porting noamm's own entity-metadata-packet hook, since polling needs
+ * already use tonight) rather than porting another mod's own entity-metadata-packet hook, since polling needs
  * no new mixin at all for a check this cheap. Marks the real key with a circle at the key's own height of the radius it
  * is picked up from (or a shaded sphere of it), and an optional tracer line from your eyes to it - never picks anything up.
  * <p>
@@ -64,7 +64,7 @@ public final class DoorKeysFeature {
     }
 
     /** Copy of vanilla's line pipeline with the depth/stencil state removed, so the key's box and tracer draw
-     *  through walls (cheat build only). Same technique NoammAddons' {@code lines_through_walls} and this
+     *  through walls (cheat build only). Same technique the {@code lines_through_walls} and this
      *  mod's own {@code mobesp.EspRenderer} use; its copy is package-private there, hence this one. Holder
      *  idiom: built on the first touch, which {@link #register()} does at client init. */
     private static final class ThroughWalls {

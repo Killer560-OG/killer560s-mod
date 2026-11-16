@@ -7,7 +7,7 @@ import com.killer560.hub.util.ConfigJson;
 import java.nio.file.Path;
 
 /** Persisted Ice Fill Solver settings - see {@link IceFillSolverFeature}'s class doc for the real
- *  Odin-ported path database this is built on. Ships disabled by default, same as every other new
+ *  path database this is built on. Ships disabled by default, same as every other new
  *  feature in this mod. */
 public final class IceFillSolverConfig extends SolverConfigBase {
 
@@ -83,7 +83,7 @@ public final class IceFillSolverConfig extends SolverConfigBase {
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
-    /** Odin's "hard" path set - a real, different (usually shorter/riskier) valid route than the default
+    /** The "hard" path set - a real, different (usually shorter/riskier) valid route than the default
      *  "easy" set. Both are real, confirmed-valid solve paths - this is a style preference, not a
      *  correctness difference. */
     public boolean isOptimizedPath() { return optimizedPath; }

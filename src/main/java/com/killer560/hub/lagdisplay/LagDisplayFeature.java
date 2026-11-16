@@ -25,10 +25,10 @@ import com.killer560.hub.compat.McCompat;
  * the last five seconds and stutters in the last minute) and 1% Low; the last two and the stutter log are
  * {@link FrameStats} (stutter-1026), which times individual frames because the FPS count hides a single long one.
  *
- * <p>Ported from Devonian {@code misc/{PingDisplay,FPSDisplay}.kt} plus NoammAddons
- * {@code features/impl/visual/InfoDisplay.kt} (local source, a local NoammAddons checkout) for the CPS
- * counter - NoammAddons counts click timestamps and drops anything older than 1000 ms, which is exactly
- * what {@link #cps(Deque)} does. The old "server lag" line (Devonian's "zzz for N.NNs", threshold slider
+ * <p>Ported from the reference {@code misc/{PingDisplay,FPSDisplay}.kt} plus the reference
+ * {@code features/impl/visual/InfoDisplay.kt} (local source, a local the reference checkout) for the CPS
+ * counter - the reference counts click timestamps and drops anything older than 1000 ms, which is exactly
+ * what {@link #cps(Deque)} does. The old "server lag" line (the "zzz for N.NNs", threshold slider
  * and all) is gone - killer560 (2026-09-27): "instead of server lag make it tps" - replaced by a real TPS
  * readout, same windowed-tick-time math as {@code ChatCommandsFeature}'s own "!tps" command.
  *
@@ -164,7 +164,7 @@ public final class LagDisplayFeature {
         rightWasDown = right;
     }
 
-    /** NoammAddons {@code InfoDisplay.getCps}: drop everything older than a second, count what's left. */
+    /** The reference {@code InfoDisplay.getCps}: drop everything older than a second, count what's left. */
     private static int cps(Deque<Long> clicks) {
         long now = System.currentTimeMillis();
         synchronized (clicks) {

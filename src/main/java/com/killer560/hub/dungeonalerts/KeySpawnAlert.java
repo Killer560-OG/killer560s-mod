@@ -12,7 +12,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Key Spawn Alert (Odin {@code DoorHighlight.kt}'s "Wither Key spawned!", from the 2026-10-18 review): a title and a
+ * Key Spawn Alert ('s "Wither Key spawned!", from the 2026-10-18 review): a title and a
  * sound when a Wither Key or Blood Key armor stand appears in the clear. The stand is recognized the way Door Keys
  * recognizes it - an armor stand whose custom name is exactly "Wither Key" / "Blood Key" - and each stand alerts once.
  * The name comes in the entity's data after it spawns, so this looks every few ticks instead of on the spawn event.

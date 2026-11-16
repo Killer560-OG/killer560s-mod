@@ -19,7 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  *        && !entity.hasIndirectPassenger(minecraft.player)) continue;} - so returning false here skips
  * {@code extractEntity} and {@code submit} for that entity this frame and nothing else changes. The entity
  * stays in the world, keeps ticking, keeps its hitbox and stays visible to raycasts, this mod's own ESP/solver
- * entity scans and Hypixel's hit registration - which is exactly why this is used instead of Devonian's
+ * entity scans and Hypixel's hit registration - which is exactly why this is used
  * {@code level.removeEntity(id, DISCARDED)}.
  * <p>
  * An entity carrying the local player is still rendered by vanilla regardless of this hook (the

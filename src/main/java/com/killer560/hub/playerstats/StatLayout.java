@@ -22,9 +22,9 @@ import java.util.Map;
 
 /**
  * The Predefined layout of Health and Mana Bars (killer560, 2026-10-07: "a setting that is predefined spots or fully
- * custom. Then for predefined look at how Skyblocker has their snap-to-area kind of set up and use that").
+ * custom. Then for predefined look at how the reference has their snap-to-area kind of set up and use that").
  * <p>
- * <b>What Skyblocker does</b> (Fancy Status Bars, 6.9.1, read with javap from {@code fancybars.BarPositioner} and
+ * <b>What the reference does</b> (Fancy Status Bars, 6.9.1, read with javap from {@code fancybars.BarPositioner} and
  * {@code FancyStatusBars.updatePositions}): nine anchors, each a point on the screen in GUI pixels - three round the
  * hotbar ({@code HOTBAR_TOP} at the hotbar's left edge, 23 above the screen bottom with its own XP bar on and 35 with
  * the vanilla one, which is the vanilla level number's top; {@code HOTBAR_LEFT}/{@code _RIGHT} 2 px outside the
@@ -38,7 +38,7 @@ import java.util.Map;
  * parked in a column at the screen's left. Everything is in GUI pixels, so it follows the window and GUI scale only.
  * <p>
  * <b>What this builds from it.</b> Four areas round the hotbar plus Hidden ({@link Area}). The two rows above the
- * hotbar are Skyblocker's HOTBAR_TOP as two layers: every readout in a row gets an equal share of the hotbar's width
+ * hotbar are the HOTBAR_TOP as two layers: every readout in a row gets an equal share of the hotbar's width
  * ({@link #GAP} apart, keeping its order), and the rows stack upward from just above the highest vanilla row that is
  * still drawn - hearts (every heart row, vanilla's own row math), armor, hunger, air, the XP bar and its level - so
  * they never cover one, whichever of the hide settings are on. Left and Right of Hotbar stack readouts upward beside
@@ -51,7 +51,7 @@ import java.util.Map;
  * hotbar does. A readout's thickness and its text are drawn at its HUD scale (its own scale times HUD Scale times Auto
  * Scale, {@link HudElementRegistry#resolveScale}), like every other element, and the rows are stacked by those drawn
  * heights, so a scaled readout still never overlaps its neighbor. Text readouts are members of the areas like the
- * bars rather than being glued to one: a bar already carries its own number (Show Value, which is where Skyblocker
+ * bars rather than being glued to one: a bar already carries its own number (Show Value, which is where the reference
  * puts text), three readouts (Overflow Mana, Intelligence, Effective Health) have no bar to follow, and a text stuck
  * to a bar in a two-row stack would have nowhere to go that is not the next row.
  */
@@ -87,7 +87,7 @@ public final class StatLayout {
 
     /** Vanilla's hotbar (and XP bar) width. */
     public static final int HOTBAR_WIDTH = 182;
-    /** Between two readouts in a row, between rows, and between readouts in a column (Skyblocker: 2 in a row, 1 between rows). */
+    /** Between two readouts in a row, between rows, and between readouts in a column (2 in a row, 1 between rows). */
     public static final int GAP = 2;
     /** From the hotbar's end to a side column. */
     public static final int SIDE_GAP = 4;
@@ -176,7 +176,7 @@ public final class StatLayout {
         return null;
     }
 
-    /** The area a readout starts in: health and mana sharing the row above the hotbar (Skyblocker's default too), the
+    /** The area a readout starts in: health and mana sharing the row above the hotbar (the default too), the
      *  other bars on the row above that, health-side texts left of the hotbar and mana-side texts right of it. */
     public static Area defaultArea(Readout r) {
         return switch (r) {
@@ -342,7 +342,7 @@ public final class StatLayout {
             List<Readout> list = new ArrayList<>();
             for (Readout r : orderedCached(cfg, a)) {
                 if (r == exclude || r == moving || !cfg.isReadoutOn(r)) continue;
-                // In game only what has something to show takes room (Skyblocker drops a bar that is not visible
+                // In game only what has something to show takes room (the reference drops a bar that is not visible
                 // the same way); the editor previews every readout that is on.
                 if (!editor && !StatElements.hasValue(r)) continue;
                 list.add(r);

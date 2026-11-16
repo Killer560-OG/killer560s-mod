@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * <p>Render only. The chunk mesher ({@code SectionCompiler.compile}) asks {@link #replace} for each block it draws; while
  * the swap is on, a Dwarven Mines mithril block is drawn with plain stone's model. The world itself is never changed: the
  * client still holds the mithril block, so breaking, collision and every other feature see the real block, and nothing
- * reaches the server. (SkyHanni's Commissions Blocks Color swaps block models the same way, through BlockStateModelSet.)
+ * reaches the server. (the Commissions Blocks Color swaps block models the same way, through BlockStateModelSet.)
  *
  * <p>When it is on: the setting is on, the player is on the Dwarven Mines island and the tab list shows his Commissions.
  * Then each mithril block is decided by the area THE BLOCK is in (killer560, 2026-11-03: "not based off of my location
@@ -29,7 +29,7 @@ import java.util.concurrent.atomic.AtomicLong;
  */
 public final class MithrilStone {
 
-    /** Dwarven Mines mithril: gray and light blue wool, the three prismarines, cyan terracotta (as Skyblocker's
+    /** Dwarven Mines mithril: gray and light blue wool, the three prismarines, cyan terracotta (as the
      *  PickobulusHelper and CarpetHighlighter read them; the hypixelskyblock wiki's Mithril Ore page shows the same). */
     private static final Set<Block> MITHRIL = Set.of(McBlocks.GRAY_WOOL, McBlocks.LIGHT_BLUE_WOOL, Blocks.PRISMARINE,
             Blocks.PRISMARINE_BRICKS, Blocks.DARK_PRISMARINE, McBlocks.CYAN_TERRACOTTA);

@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /** Fast Leap left-click cancel + input blocking (see {@link FastLeapInput}). Targets verified with javap on the 26.1.2
  *  jar: {@code private void onButton(long, MouseButtonInfo, int)}, {@code private void onScroll(long, double, double)},
- *  {@code private void turnPlayer(double)}. Same HEAD-cancel approach as QUOI's own MouseHandlerMixin. */
+ *  {@code private void turnPlayer(double)}. Same HEAD-cancel approach own MouseHandlerMixin. */
 @Mixin(MouseHandler.class)
 public class FastLeapMouseHandlerMixin {
 

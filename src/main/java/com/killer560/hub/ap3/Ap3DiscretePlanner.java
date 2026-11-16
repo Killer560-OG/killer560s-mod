@@ -14,7 +14,7 @@ import java.util.List;
  * {@code a / (1 - f)} of displacement whenever it is pressed (friction is linear), so the rest position of any key
  * sequence is a coarse lattice - 0.42 blocks a sneak tap at his speed - minus the tail the 0.003 zeroing rule cuts
  * off, which is only 0.0036-0.0066. A key sequence therefore lands within a few thousandths at best, exactly what
- * the other key-based mods manage (RSA public ~0.01, SeX5 ~0.005). The free continuous variable is the YAW the keys
+ * the other key-based mods manage (the reference public ~0.01, SeX5 ~0.005). The free continuous variable is the YAW the keys
  * are interpreted at: a W tap at yaw {@code t} slides {@code a / (1 - f)} in direction {@code t}, any direction, and the
  * yaw AP3 sends is already its own bounded-step running value (the walk lock). So the fine phase is: two taps, each
  * of a fixed size (sneak or full, straight key) and a chosen direction, turning at most {@link Model#yawStepCap}

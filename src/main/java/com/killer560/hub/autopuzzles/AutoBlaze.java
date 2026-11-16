@@ -21,14 +21,14 @@ import java.util.List;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Auto Blaze - port of QUOI {@code BlazeSolver.kt}'s {@code auto} (TickEvent.End) logic on top of this mod's
+ * Auto Blaze - port of 's {@code auto} (TickEvent.End) logic on top of this mod's
  * {@link BlazeSolverFeature} kill order. Each tick: wait out the previous shot's arrow travel time (dist/2.5*50ms,
- * or until the target blaze dies); take the next blaze; build QUOI's hitboxes (target 0.35x0.8 half-extents,
+ * or until the target blaze dies); take the next blaze; build the hitboxes (target 0.35x0.8 half-extents,
  * others 0.75x1.45, centered 1 block under the stand); try 7 aim points on the target with the arrow simulation and
  * accept the first whose simulated arrow reaches the target before any other blaze or a block AND whose every arrow
  * (Terminator: the center and both +-5 degree side arrows) misses every other blaze for its whole flight, with the
  * target treated as not there - any one of them may be the one that kills it, and the others fly on; shoot with the held shortbow once the Shoot cooldown
- * allows. With "Etherwarp Reposition" on, it also cycles QUOI's standing spots when there's no clean shot (and on
+ * allows. With "Etherwarp Reposition" on, it also cycles the standing spots when there's no clean shot (and on
  * Higher Blaze below y=75).
  * <p>
  * Miss cooldown removed (killer560, 2026-09-27: "For auto puzzles remove the miss cooldown."): it used to add an
@@ -721,7 +721,7 @@ final class AutoBlaze {
         }
     }
 
-    /** Ticks until a 3.0 / 0.99 drag / 0.05 gravity arrow comes closest to {@code target} - QUOI's own flight model. */
+    /** Ticks until a 3.0 / 0.99 drag / 0.05 gravity arrow comes closest to {@code target} - the flight model. */
     private static int flightTicks(Vec3 from, float yaw, float pitch, Vec3 target) {
         double yawRad = Math.toRadians(yaw);
         double pitchRad = Math.toRadians(pitch);
@@ -946,7 +946,7 @@ final class AutoBlaze {
         return true;
     }
 
-    /** QUOI's check for the center arrow: it reaches the target's box before any other blaze or a block. */
+    /** The check for the center arrow: it reaches the target's box before any other blaze or a block. */
     private static boolean reachesTarget(Minecraft client, LocalPlayer player, Vec3 from, float yaw, float pitch,
                                          List<BlazeHitbox> hitboxes) {
         BlazeHitbox target = null;
@@ -994,12 +994,12 @@ final class AutoBlaze {
     }
 
     /**
-     * Moves to one of QUOI's standing spots that has a clean shot at the next blaze.
+     * Moves to one of the standing spots that has a clean shot at the next blaze.
      *
      * <p>Three faults made this a loop onto the same spot about four times a second (93-solve, 2026-10-04):
      * <ul>
      *   <li>the shot from a candidate spot was judged from {@code spot.getY() + 1.62} - but a spot is the block he
-     *       stands ON, so that eye sat 0.38 below the top of the block, and a bow reposition arrives sneaking (QUOI
+     *       stands ON, so that eye sat 0.38 below the top of the block, and a bow reposition arrives sneaking (the reference
      *       keeps sneak held) with the eye 1.27 over the top. A spot could pass here and fail the very next tick
      *       from the spot itself;</li>
      *   <li>the spot he was already standing on was a candidate, so "warp onto where you stand" counted as a move;</li>
@@ -1025,7 +1025,7 @@ final class AutoBlaze {
         List<BlazeHitbox> hitboxes = hitboxes(blazes, blazes.get(0));
         boolean terminator = AutoPuzzleUtil.hasTerminator(player);
         // First choice: the listed spot one warp away that kills the most blazes in a row from the next one on - fewer
-        // warps over the whole room than the first spot in QUOI's cyclic order with a shot at the next one alone.
+        // warps over the whole room than the first spot in the cyclic order with a shot at the next one alone.
         int bestCover = 0;
         int bestI = -1;
         for (int j = 0; j < spots.length; j++) {
@@ -1114,7 +1114,7 @@ final class AutoBlaze {
                 }
             }
         }
-        // None of QUOI's spots has a shot. Look through the room's own ledges, a few a tick.
+        // None of the spots has a shot. Look through the room's own ledges, a few a tick.
         BlockPos found = searchRoom(client, player, blazes, hitboxes, terminator, higher);
         if (found != null) {
             say("no listed spot has a clean shot at '" + nameOf(blazes.get(0)) + "' - moving to "
@@ -1218,7 +1218,7 @@ final class AutoBlaze {
     /**
      * Any standable block in the room he can etherwarp onto and shoot the next blaze cleanly from.
      *
-     * <p>QUOI's six Lower and four Higher spots were picked for the blazes where QUOI's authors met them. When none
+     * <p>the six Lower and four Higher spots were picked for the blazes where the authors met them. When none
      * of them has a clean shot - in the 93-solve run of 2026-10-04 the fifth blaze of Lower Blaze floated a block
      * over the shaft floor, below the lowest listed spot, and Auto Blaze stood still for 55 s - this walks the room's
      * own standable blocks (solid, two clear above) within 24 blocks of the blaze and 14 below to 24 above it,

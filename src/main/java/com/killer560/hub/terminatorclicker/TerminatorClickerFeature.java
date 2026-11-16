@@ -13,7 +13,7 @@ import net.minecraft.world.phys.HitResult;
 import java.util.concurrent.ThreadLocalRandom;
 
 /**
- * Shortbow Auto Clicker (cheat build, featH-1109, from the Odin sweep; every shortbow since 2026-11-09, the Terminator included): while a shortbow is in the main hand and the
+ * Shortbow Auto Clicker (cheat build, featH-1109, from the reference sweep; every shortbow since 2026-11-09, the Terminator included): while a shortbow is in the main hand and the
  * use key is held, a left click is sent at a clicks per second picked between the set min and max each click, each interval jittered by up to 30 ms. A left click
  * is what Hypixel's left-click weapons fire on, and what a vanilla miss sends: the arm swing alone (the same "ranged
  * swing" Goldor Triggerbot sends), so nothing is attacked or dug. Where vanilla's left click would start digging (a block

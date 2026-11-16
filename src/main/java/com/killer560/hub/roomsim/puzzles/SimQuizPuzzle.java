@@ -1032,10 +1032,10 @@ public final class SimQuizPuzzle {
     // ------------------------------------------------------------------ Oruo (the bound Quiz room, 2026-10-17)
     //
     // killer560: "on main if you do quiz the first time you open it there is a long cooldown till you can answer then a
-    // shorter one after that for a total of 3 answers. Reference noamm, they keep track of it, but build that into our sim."
+    // shorter one after that for a total of 3 answers. Reference another mod, they keep track of it, but build that into our sim."
     //
     // Hypixel's order, from his own logs (26.1.2 (Dungeons), 276 runs, second-resolution timestamps; the most common gap
-    // in brackets) and NoammAddons' QuizSolver.kt for the two locks (220 and 100 server ticks):
+    // in brackets) and for the two locks (220 and 100 server ticks):
     //   walk into the room -> INTRO; "Though I sit..." (+2 s); "Prove your knowledge..." (+4 s); "Answer incorrectly..." (+6 s);
     //   Question #1 (+8 s); answerable 220 ticks after INTRO (answered at +11 s in most runs, never before +10 s).
     //   "NAME answered Question #1 correctly!"; "2 questions left..." (+2 s); Question #2 (+2 s after it); answerable 100
@@ -1046,8 +1046,8 @@ public final class SimQuizPuzzle {
     //
     // WALKING IN STARTS IT (killer560, 2026-10-18: "quiz starts once you walk in and it starts its countdown timer"). No
     // click on Oruo is involved. His logs agree to the second: of 293 intros, the 47 where HE was the one to enter came 0 s
-    // (29) or 1 s (18) after SecretRoutes' "Entered Dungeon Room: Trivia-Room", which goes by the room's cell; the other
-    // 246 had no entry of his before them (a teammate walked in). NoammAddons and Odin only read the chat lines. So the
+    // (29) or 1 s (18) after the "Entered Dungeon Room: Trivia-Room", which goes by the room's cell; the other
+    // 246 had no entry of his before them (a teammate walked in). Other implementations only read the chat lines. So the
     // trigger is a player's feet inside the room's one-tile footprint, checked every server tick while Oruo is idle.
     // After a wrong answer (Oruo back to idle in the sim) it takes leaving the room and walking in again.
     //
@@ -1074,7 +1074,7 @@ public final class SimQuizPuzzle {
     public static final int LINE_GAP_TICKS = 40;
     /** The question comes 2 s after the line before it (intro + 8 s; "2 questions left" + 2 s). */
     public static final int ASK_GAP_TICKS = 40;
-    /** NoammAddons' locks: from the intro, and from each "N questions left" line. */
+    /** The locks: from the intro, and from each "N questions left" line. */
     public static final int FIRST_LOCK_TICKS = 220;
     public static final int LATER_LOCK_TICKS = 100;
 

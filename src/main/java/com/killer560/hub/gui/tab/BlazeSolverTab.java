@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Blaze Solver settings - see {@link com.killer560.hub.puzzlesolvers.BlazeSolverFeature}'s class doc
- *  for the real Odin-ported HP-order logic this is built on. */
+ *  for the real HP-order logic this is built on. */
 public class BlazeSolverTab extends BaseTab {
 
     public BlazeSolverTab() {

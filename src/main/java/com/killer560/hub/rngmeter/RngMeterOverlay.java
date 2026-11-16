@@ -23,7 +23,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * SkyHanni-style overlay: when the player opens Hypixel's own in-game RNG Meter menus, draws the
+ * Overlay: when the player opens Hypixel's own in-game RNG Meter menus, draws the
  * coins-per-meter-point ranking for whatever floor/boss/area is selected directly over the game
  * world next to it - no separate mod screen to open.
  *

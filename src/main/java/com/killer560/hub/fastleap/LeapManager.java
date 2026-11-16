@@ -25,11 +25,11 @@ import java.util.Locale;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Performs a Spirit Leap - port of QUOI {@code utils/skyblock/player/LeapManager.kt} (+ the parts of its
+ * Performs a Spirit Leap - port of (+ the parts of its
  * {@code ContainerManager}/{@code ContainerTask} a leap uses), shared by {@link FastLeapFeature} and
  * {@link I4LeapFeature}.
  * <p>
- * Flow (all on the client thread, driven from START_CLIENT_TICK like QUOI's task runner): resolve the target teammate
+ * Flow (all on the client thread, driven from START_CLIENT_TICK task runner): resolve the target teammate
  * (by name, or first alive teammate of a class) -&gt; if the leap menu is already open click straight away, if another
  * screen is open queue it until the screen closes, else, one step a tick and each through {@link ActionGate} (killer560,
  * 2026-10-13: "swap to your leap, open it, then leap to the person, then swap back to the item you want"): swap to the
@@ -39,10 +39,10 @@ import com.killer560.hub.compat.McCompat;
  * -&gt; PICKUP-click it and close the menu -&gt; on a later tick swap to Return To ({@link FastLeapConfig#getReturnToSlot})
  * when the leap had to swap and the caller asked for it. Every failure says which step in chat and still swaps back.
  * <p>
- * QUOI semantics kept: movement keys are held up for the whole leap (or, in Fast mode, only from the menu opening
+ * The reference semantics kept: movement keys are held up for the whole leap (or, in Fast mode, only from the menu opening
  * until the click); "Block inputs" blocks keyboard/mouse input for the same window (see {@link #blocksInput()});
  * right-click (use) input is suppressed after using the leap until the leap finishes.
- * QUOI's leap cooldown is kept: after a successful leap no new leap uses the item for {@code 48 * mage multiplier}
+ * The leap cooldown is kept: after a successful leap no new leap uses the item for {@code 48 * mage multiplier}
  * ticks ("On cooldown"), so a queued/auto leap never blocks inputs waiting for a menu that can't open.
  * Escape is never blocked (see {@link FastLeapInput}).
  * <p>
@@ -132,7 +132,7 @@ public final class LeapManager {
     private static boolean useInputSuppressed = false;
     private static boolean movementSuppressed = false;
     private static long lastLeapMs = 0L;
-    /** QUOI {@code leapCD}: ticks until the Spirit Leap is usable again ({@code 48 * mage multiplier} after a leap). */
+    /** The reference {@code leapCD}: ticks until the Spirit Leap is usable again ({@code 48 * mage multiplier} after a leap). */
     private static double leapCdTicks = 0.0;
     private static final double LEAP_COOLDOWN_TICKS = 48.0;
     /** Return To still to be done after the leap: the slot to swap to (-1 none) and the leap slot it swaps away from. */
@@ -147,7 +147,7 @@ public final class LeapManager {
 
     // Public API
 
-    /** QUOI {@code LeapManager.leap(name)} - leap to a teammate by name. */
+    /** The reference {@code LeapManager.leap(name)} - leap to a teammate by name. */
     public static void leap(String name, boolean blockInput, boolean fastMode, boolean swapBack) {
         leap(name, null, blockInput, fastMode, swapBack);
     }
@@ -169,7 +169,7 @@ public final class LeapManager {
         submit(new Request(target, fallback, blockInput, fastMode, swapBack));
     }
 
-    /** QUOI {@code LeapManager.leap(clazz)} - leap to the first alive teammate of that class. */
+    /** The reference {@code LeapManager.leap(clazz)} - leap to the first alive teammate of that class. */
     public static void leap(DungeonClass clazz, boolean blockInput, boolean fastMode, boolean swapBack) {
         if (clazz == null || !DungeonState.isInDungeon()) {
             return;
@@ -249,7 +249,7 @@ public final class LeapManager {
         return lastLeapMs;
     }
 
-    /** QUOI {@code ContainerTask.blocksInput}: {@code blockInput && (!fastMode || fastBlockActive)} while a leap runs. */
+    /** The reference {@code ContainerTask.blocksInput}: {@code blockInput && (!fastMode || fastBlockActive)} while a leap runs. */
     public static boolean blocksInput() {
         Active a = active;
         return a != null && a.request.blockInput && (!a.request.fastMode || a.fastBlockActive) && !overdue(a);
@@ -407,7 +407,7 @@ public final class LeapManager {
     }
 
     static void onStartTick(Minecraft client) {
-        // QUOI TickEvent.Server: leapCD -= 1
+        // The reference TickEvent.Server: leapCD -= 1
         if (leapCdTicks > 0) {
             leapCdTicks = Math.max(0.0, leapCdTicks - 1.0);
         }
@@ -444,7 +444,7 @@ public final class LeapManager {
             FastLeapFeature.LOGGER.info("[FastLeap] Queued leap to {} expired unrun", pending.target.name());
             pending = null;
         }
-        // QUOI TickEvent.Server: run a queued leap once no screen/container/task (or Return To swap) is open
+        // The reference TickEvent.Server: run a queued leap once no screen/container/task (or Return To swap) is open
         if (pending != null && active == null && returnTo < 0 && McCompat.screen(client) == null
                 && player.containerMenu == player.inventoryMenu) {
             Request req = pending;
@@ -549,7 +549,7 @@ public final class LeapManager {
     }
 
     private static void startLeap(Minecraft client, Request req) {
-        // QUOI: an already-open menu only counts if its title is exactly "Spirit Leap" (a substring match would also
+        // An already-open menu only counts if its title is exactly "Spirit Leap" (a substring match would also
         // take e.g. a Bazaar/AH page for the item and close it on timeout)
         boolean menuOpen = isExactLeapMenu(McCompat.screen(client));
         if (active == null && pending == null && menuOpen) {
@@ -566,7 +566,7 @@ public final class LeapManager {
         if (active != null) {
             return;
         }
-        // QUOI doLeap: never use the item (and block inputs/movement waiting for a menu that can't open) on cooldown
+        // The reference doLeap: never use the item (and block inputs/movement waiting for a menu that can't open) on cooldown
         // (an already-open menu proves the leap is usable, so the estimate never refuses clicking it)
         if (leapCdTicks > 0 && !preOpened) {
             ModChat.send("Fast Leap", ModChat.bad("Failed to leap! On cooldown: "
@@ -759,7 +759,7 @@ public final class LeapManager {
         return screen instanceof AbstractContainerScreen<?> container && isLeapMenuTitle(container.getTitle().getString());
     }
 
-    /** Exact leap menu titles - QUOI {@code equalsOneOf("Spirit Leap", "Teleport to Player")} (the second is the
+    /** Exact leap menu titles - the reference {@code equalsOneOf("Spirit Leap", "Teleport to Player")} (the second is the
      *  Infinileap title). Exact so a Bazaar/AH page for the item is never hidden or clicked. */
     static boolean isLeapMenuTitle(String title) {
         String t = ChatObserver.strip(title);

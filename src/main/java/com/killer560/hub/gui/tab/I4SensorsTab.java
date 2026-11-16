@@ -169,7 +169,7 @@ public class I4SensorsTab extends BaseTab {
             y += 22;
         }
 
-        // i4 Leap Out (2026-09-15): its own section, independent of the general auto leaps (QUOI AutoLeap port).
+        // i4 Leap Out (2026-09-15): its own section, independent of the general auto leaps (the reference AutoLeap port).
         y += 6;
         y = com.killer560.hub.fastleap.I4LeapSection.build(widgets, contentX, y, contentWidth, requestRebuild);
 

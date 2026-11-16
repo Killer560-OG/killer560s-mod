@@ -14,8 +14,8 @@ import java.util.regex.Pattern;
  * Reads Hypixel's Chocolate Factory menu - one reader for both the legit helper and the cheat Auto Chocolate Factory,
  * so the two can never disagree about which slot is what.
  * <p>
- * The layout is SkyHanni-REPO's {@code constants/HoppityEggLocations.json} (commit ca80e4eb, read 2026-10-11 from
- * killer560's own SkyHanni repo copy): employees 28-34 (+1..+7 raw chocolate per second), prestige 27, barn 35,
+ * The layout is the public {@code constants/HoppityEggLocations.json} table (commit ca80e4eb, read 2026-10-11 from
+ * killer560's own copy of the repo): employees 28-34 (+1..+7 raw chocolate per second), prestige 27, barn 35,
  * hand-baked chocolate 37, <b>Time Tower 38, Rabbit Shrine 39, Coach Jackrabbit 41</b>, production 45, the chocolate
  * itself 13, and "destructive" slots 42, 43, 47-51, 53 (menus, leaderboard, close). The auto clicker was written for
  * the older layout (Time Tower 39, Coach 42), which is why it clicked the chocolate and nothing else worked
@@ -110,7 +110,7 @@ public final class ChocolateFactoryMenu {
             for (Map.Entry<Integer, Integer> e : RABBIT_SLOT_GAINS.entrySet()) {
                 best = add(upgrades, best, slots, e.getKey(), average, (raw + e.getValue()) * baseMult);
             }
-            // The Time Tower adds +0.1x for 1 h of every 8 (QUOI's average); the Coach +0.01x for good.
+            // The Time Tower adds +0.1x for 1 h of every 8 (the average); the Coach +0.01x for good.
             best = add(upgrades, best, slots, tt, average, raw * baseMult + raw * 0.1 / 8.0);
             best = add(upgrades, best, slots, coach, average, raw * (baseMult + 0.01));
         }

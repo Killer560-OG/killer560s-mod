@@ -6,7 +6,7 @@ import com.killer560.hub.util.ConfigJson;
 
 import java.nio.file.Path;
 
-/** Persisted Auto Requeue settings ({@link DungeonQueueFeature}) - the same three options as Odin's
+/** Persisted Auto Requeue settings ({@link DungeonQueueFeature}) - the same three options
  *  {@code DungeonQueue.kt}: Auto Requeue (off), Requeue Delay (2s, 0-30), Disable on leave/kick (on). The Party
  *  Finder Overlay half of the Dungeon Queue tab lives in {@code partyfinder.PartyFinderOverlayConfig}. */
 public final class DungeonQueueConfig {
@@ -15,7 +15,7 @@ public final class DungeonQueueConfig {
             ModPaths.config("killer560smod-dungeonqueue.json");
 
     public static final int MAX_DELAY_SECONDS = 30;
-    public static final int DEFAULT_DELAY_SECONDS = 2; // Odin's default
+    public static final int DEFAULT_DELAY_SECONDS = 2; // The default
 
     private static DungeonQueueConfig instance;
 

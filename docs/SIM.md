@@ -17,7 +17,7 @@ topic on 2026-10-25 when this file passed 3,000 lines. Read the file for the are
 - [SIM-SERVER.md](SIM-SERVER.md): the sim as Hypixel's server - gates and reach, packets and abilities, trap rooms,
   teleports, weapons, mobs and damage, minibosses, live mobs, world rules, tab list and sidebar, per-tick cost.
 - [SIM-BOSS.md](SIM-BOSS.md): the F7/M7 boss in the sim (`bosssim/`) - the room, the phases, P3's stations and
-  terminals, the reference mod ADM and what of it may be used (facts only).
+  terminals, the reference recordings and what of it may be used (facts only).
 - [SIM-MAP.md](SIM-MAP.md): the live map in the sim, the Interactive Map's executor and its etherwarp planning (path
   search, the warp graph, the quick floor graph, the exact search).
 
@@ -71,7 +71,7 @@ capture the cases are cauldrons at y 75 and 79, which is how the camp picks the 
 **Estimated** (refine from real camps' `[BloodCamp] camp census: floor X, N skull trips (M first wave), cleared T game
 ticks after the greeting` line): later trips start move line + 17 then every 53 ticks (logs ranged 16-103); the summon
 line 40 ticks before each trip; kill lines at most every 40 ticks; the pass line 40 ticks after the last kill; which
-greeting each floor says (Odin's list, in order E..F7); the Watcher's spot (room center, 6 up, still); landings aimed
+greeting each floor says (the list, in order E..F7); the Watcher's spot (room center, 6 up, still); landings aimed
 within 4 blocks of the center at floor height; the mob count on Master Mode (same 9 + floor); blood mobs are zombies in
 the skull (Hypixel's are player models).
 
@@ -184,7 +184,7 @@ Code comments cite sections of this file by title. Each old title, and the file 
 ## The Room Recorder was removed (2026-10-04)
 
 killer560: "Remove [the Room Recorder] entirely but remember the code in case we ever need it again." The
-recorder (the dev-only F7 loop and `/killer560 roomrecorder` that captured rooms off Hypixel and Ashfall into
+recorder (the dev-only F7 loop and `/killer560 roomrecorder` that captured rooms off Hypixel and the reference into
 `config/.../killer560smod-rooms`) is gone from the source tree. The sim still loads the shipped captures
 (`assets/killer560smod/rooms`) and any local ones already on disk; `RoomLibrary` is read-only now. The code
 lives at git tag **`room-recorder-last`** (commit 6d4e09f); restore with
@@ -202,7 +202,7 @@ New-tab entry, both HUD/feature registrations, and its FEATURES.md entry. Restor
 
 Lessons that only concerned the recorder, kept here in brief:
 - `captureAt` replaced a room whose footprint changed with an empty one, and `DungeonLayout`'s grouping on an
-  Ashfall line preset merged runs of rooms (up to 11x1), so one scan wrecked 43 good captures. Footprint must
+  the reference line preset merged runs of rooms (up to 11x1), so one scan wrecked 43 good captures. Footprint must
   come from the room database's shape, and a mismatch must REFUSE, not clamp - clamping kept the wrong anchor.
 - `Level.isLoaded(pos)` is false for any y outside the build height. Hypixel's dungeon world starts at y 0, so a
   load check asked at -64 captured nothing on Hypixel from 2026-09-29 to 2026-10-04. Clamp the y first.

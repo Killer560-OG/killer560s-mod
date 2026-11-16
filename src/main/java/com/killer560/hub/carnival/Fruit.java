@@ -1,7 +1,7 @@
 package com.killer560.hub.carnival;
 
 /**
- * What can lie under a Fruit Digging tile (the Skyblock wiki's Fruit Digging table, which SkyHanni's matches): 34 fruits
+ * What can lie under a Fruit Digging tile (the Skyblock wiki's Fruit Digging table, which the matches): 34 fruits
  * of eight kinds, 10 bombs and 5 rums on the 7x7 grid. Points are the base value; Apple and Cherry grow with each one
  * already collected ({@link #value}), Pomegranate and Durian change the next dig's points, Coconut stops the next dig's
  * bomb, Watermelon reveals a neighbor for half its value.
@@ -33,7 +33,7 @@ public enum Fruit {
     }
 
     /** Points this fruit is worth when dug now, before the next-dig multiplier: an Apple is 100 per Apple collected
-     *  counting itself, a Cherry 200 plus 300 per Cherry counting itself (SkyHanni's solver; unverified in game). */
+     *  counting itself, a Cherry 200 plus 300 per Cherry counting itself (the solver; unverified in game). */
     public double value(int applesBefore, int cherriesBefore) {
         return switch (this) {
             case APPLE -> 100.0 * (applesBefore + 1);

@@ -10,13 +10,13 @@ import net.minecraft.client.multiplayer.ServerData;
 import java.util.Locale;
 
 /** When enabled, sends {@code /skyblock} shortly after the client first connects to Hypixel - so
- *  killer560 doesn't have to type it every time he logs on. Modeled on SkyHanni's own
+ *  killer560 doesn't have to type it every time he logs on. Modeled on the
  *  {@code AutoJoinSkyblock} (which fires off the same true rising-edge "just connected to Hypixel"
  *  signal a real login handler gives, not anything scoreboard/chat based, so it can't misfire on
- *  {@code /lobby}, which never re-triggers a login) and quoi's equivalent feature.
+ *  {@code /lobby}, which never re-triggers a login) and another mod's equivalent feature.
  *  <p>
  *  One deliberate improvement over both of those references, per killer560's explicit requirement:
- *  neither of them cancels if the player manually navigates away during the delay window - SkyHanni
+ *  neither of them cancels if the player manually navigates away during the delay window - the reference
  *  just blindly fires {@code /skyblock} after a flat 30s no matter what the player did in the
  *  meantime. Here, any command the player sends themselves during {@link #DELAY_MS} (typing
  *  {@code /lobby} included) cancels the pending auto-join outright - see

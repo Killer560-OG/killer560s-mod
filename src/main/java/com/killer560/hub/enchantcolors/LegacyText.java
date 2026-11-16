@@ -14,7 +14,7 @@ import com.killer560.hub.util.ChatColors;
  * Flattens a lore {@link Component} back into a legacy "§"-coded string and back again.
  * <p>
  * Hypixel writes lore as 1.8 "§"-coded text; by the time it reaches the client it has been split into
- * styled component children. SkyHanni's enchant parser runs its patterns against the re-flattened,
+ * styled component children. The enchant parser runs its patterns against the re-flattened,
  * codes-intact form (its {@code formattedTextCompat()}) for exactly this reason - the enchant NAME and its
  * color have to be matched together, and the real strings contain duplicated/garbage runs like
  * {@code §5§r§d§l§r§d§lUltimate Wise V}. Same idea here.

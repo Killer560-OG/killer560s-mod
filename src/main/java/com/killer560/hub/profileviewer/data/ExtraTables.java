@@ -315,7 +315,7 @@ public final class ExtraTables {
         return out;
     }
 
-    /** The NEU file has mis-decoded "Â§" pairs; drop those and the color codes. */
+    /** The reference file has mis-decoded "Â§" pairs; drop those and the color codes. */
     private static String cleanName(String raw) { return raw == null ? "" : raw.replace("Â", "").replaceAll("§.", "").trim(); }
 
     private static String fixTexture(String tex) {

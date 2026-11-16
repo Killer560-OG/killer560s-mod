@@ -35,14 +35,14 @@ import java.util.regex.Pattern;
 /**
  * Croesus extras (2026-10-25, dungeon-gaps-1025 item 5), all legit - they only drop a click he made or show a number:
  * <ul>
- *   <li>Reroll Protection (NoammAddons {@code ChestProfit.kt} "Reroll Value"): his click on a reward chest's Kismet
+ *   <li>Reroll Protection ("Reroll Value"): his click on a reward chest's Kismet
  *   "Reroll Chest" button (slot 50) is dropped while the chest's profit is above the threshold, or while prices have not
- *   loaded (the chest's worth is then unknown). Ctrl lets it through, as in NoammAddons. One chat line per chest screen.</li>
- *   <li>Kismet Count (SkyHanni {@code CroesusChestTracker.kt} "Kismet Amount"): the Kismet Feathers in his inventory as
+ *   loaded (the chest's worth is then unknown). Ctrl lets it through. One chat line per chest screen.</li>
+ *   <li>Kismet Count ("Kismet Amount"): the Kismet Feathers in his inventory as
  *   the reroll button's stack number. Inventory only: the client is never told what his sacks hold.</li>
- *   <li>Croesus Chests HUD: Hypixel's own tab line {@code " Unclaimed chests: N"} (Odin {@code Croesus.kt}
+ *   <li>Croesus Chests HUD: Hypixel's own tab line {@code " Unclaimed chests: N"} (
  *   {@code unclaimedChestsRegex}) as "N/60", and his Kismet Feathers, outside the menu; a chat warning once N reaches
- *   Chest Warning At (Odin's threshold, 55). Never a guess: the number is the tab's, with its age once it is not in the
+ *   Chest Warning At (the threshold, 55). Never a guess: the number is the tab's, with its age once it is not in the
  *   tab of the world he is in.</li>
  * </ul>
  */

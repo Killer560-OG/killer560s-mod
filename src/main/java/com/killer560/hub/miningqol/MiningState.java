@@ -17,8 +17,8 @@ import java.util.regex.Pattern;
  *
  * <p>The island and the sidebar area come from {@link IslandDetector}, which {@code PathfindingFeature} ticks for everyone
  * four times a second. The commissions come from the tab list's "Commissions:" widget: a header line followed by indented
- * lines such as {@code " Lava Springs Mithril: 45%"} or {@code " Goblin Slayer: DONE"} (the shape Skyblocker's
- * CommissionLabels and SkyHanni's MiningCommissionsBlocksColor read; read for behavior only). The "Pickaxe Ability:"
+ * lines such as {@code " Lava Springs Mithril: 45%"} or {@code " Goblin Slayer: DONE"} (the shape the
+ * CommissionLabels and the MiningCommissionsBlocksColor read; read for behavior only). The "Pickaxe Ability:"
  * widget the same way ({@code " Pickobulus: Available"}). Tab entries are set by the server only, so another player cannot
  * forge one. Re-read twice a second on a mining island; everything here is a snapshot the render thread may read.
  *

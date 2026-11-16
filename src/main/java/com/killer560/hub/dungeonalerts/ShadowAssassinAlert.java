@@ -4,11 +4,11 @@ import com.killer560.hub.secrets.DungeonState;
 import net.minecraft.sounds.SoundEvents;
 
 /**
- * Shadow Assassin Alert - ported from QUOI's {@code module/impl/dungeon/ShadowAssassinAlert.kt}: Hypixel sends a
+ * Shadow Assassin Alert -: Hypixel sends a
  * {@code ClientboundInitializeBorderPacket} (the red world-border flash) when a Shadow Assassin teleports behind
- * you. QUOI (area = Dungeon) fires on every such packet except in the F2/F3 boss fights, showing an empty title
+ * you. The reference (area = Dungeon) fires on every such packet except in the F2/F3 boss fights, showing an empty title
  * with subtitle "§aShadow Assassin!", stay 35 ticks, no fades, and playing {@code BLAZE_HURT} (vol 1, pitch 1 -
- * QUOI's {@code setTitle} defaults). The party-chat variant of this alert was this mod's own optional extra;
+ * The {@code setTitle} defaults). The party-chat variant of this alert was this mod's own optional extra;
  * removed 2026-09-27 (killer560: "remove the party chat alert to shadow assassin").
  */
 final class ShadowAssassinAlert {

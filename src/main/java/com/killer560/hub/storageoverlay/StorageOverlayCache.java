@@ -41,8 +41,8 @@ import java.util.Set;
  *  requirement (simpler and more robust than juggling separate cache files per account).
  *  <p>
  *  Real full-fidelity {@link ItemStack} NBT persistence (correct custom textures/components survive
- *  a restart), not a simplified id/count/name summary - ported directly from NoammAddons'
- *  {@code NBTInventory.kt} per killer560's explicit "really similar to noamm's" request: each stack
+ *  a restart), not a simplified id/count/name summary -
+ *  {@code NBTInventory.kt} per killer560's explicit "really similar to another mod's" request: each stack
  *  encodes via {@code ItemStack.CODEC} + {@code DataComponentPatch.CODEC} through {@link NbtOps},
  *  written compressed via {@link NbtIo}, then Base64'd so it can sit as a plain string in this mod's
  *  existing JSON config style rather than needing a second file format. */
@@ -58,7 +58,7 @@ public final class StorageOverlayCache {
     private final Map<String, String> encoded = new HashMap<>();
     /** Composite keys the "Storage" overview screen has shown exist (a real icon, not one of the
      *  "empty slot" placeholder items) but whose real contents haven't actually been opened/logged
-     *  yet - ported from NoammAddons' own {@code saveOverview}, which discovers backpacks this way
+     *  yet -, which discovers backpacks this way
      *  before you ever open them. A key moves out of this set the moment {@link #put} gives it real
      *  contents. */
     private final Set<String> knownOnly = new HashSet<>();
@@ -174,7 +174,7 @@ public final class StorageOverlayCache {
         }
     }
 
-    /** Per NoammAddons' own overview cleanup: the overview later showing this page as one of the
+    /** Per the overview cleanup: the overview later showing this page as one of the
      *  "empty slot" placeholder items means it was removed (e.g. a backpack slot cleared) - drop it
      *  from the known-but-unopened set. Never touches a key that already has real contents. */
     public void unmarkKnown(String key) {

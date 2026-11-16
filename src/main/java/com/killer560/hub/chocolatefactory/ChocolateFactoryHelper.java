@@ -24,7 +24,7 @@ import java.util.Set;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Chocolate Factory helper - the LEGIT one, "just like SkyHanni's" (killer560, 2026-10-11). It never clicks anything;
+ * Chocolate Factory helper - the LEGIT one (killer560, 2026-10-11). It never clicks anything;
  * while the Chocolate Factory menu is open it:
  * <ul>
  * <li>outlines the best-value upgrade green (cheapest chocolate per extra chocolate-per-second, the same valuation the

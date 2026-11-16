@@ -18,18 +18,18 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Real Hypixel dungeon "Boulder" puzzle solver, ported from Odin's own {@code BoulderSolver.kt}. The
+ * Real Hypixel dungeon "Boulder" puzzle solver. The
  * puzzle's floor is a real 6x7 grid of pressure-plate-sized tiles at y=66 (relative room coordinates
  * z in {24,21,18,15,12,9}, x in {24,21,18,15,12,9,6}) that is either solid or air in one of 8 known real
  * patterns; each pattern maps to a fixed real solution list of {@code [renderX, renderZ, clickX, clickZ]}
- * quadruples at y=65 (bundled verbatim from Odin in {@code assets/killer560smod/puzzles/boulder-solutions.json}).
+ * quadruples at y=65 (bundled verbatim from the reference in {@code assets/killer560smod/puzzles/boulder-solutions.json}).
  * The player must click each listed position in any order; this only ever renders a box around the next
  * (or, if configured, every remaining) BUTTON to click - it never sends any packet or click itself.
  *
  * <p>Room-relative coordinates are translated to real world coordinates via
  * {@link com.killer560.hub.roomdatabase.RoomDatabase#toRealCoord}, the same real corner/rotation transform
  * already proven by Secret Waypoints. That transform's 4 rotation cases were hand-verified to be
- * mathematically identical to Odin's own {@code rotateAroundNorth}, but whether the two independently
+ * mathematically identical to the {@code rotateAroundNorth}, but whether the two independently
  * written mods agree on which physical corner maps to which rotation VALUE is not provable from code
  * alone - see TESTING.md for the real live-test this still needs.
  */
@@ -76,7 +76,7 @@ public final class BoulderSolverFeature {
     private static void tick(Minecraft client) { tickInner(client); }
 
     private static void tickInner(Minecraft client) {
-        // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
+        // Boss check: the reference e42d3316 "reset when entering boss" (2026-09-14 port).
         if (!BoulderSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
             if (!"none".equals(LOG.roomKey)) {
                 LOG.room("none", "solver idle: enabled=" + BoulderSolverConfig.getInstance().isEnabled()
@@ -205,7 +205,7 @@ public final class BoulderSolverFeature {
     /**
      * killer560, 2026-09-20: "highlight the button itself, not the block it sits on". Each solution
      * quadruple's first pair is the boulder tile, the second is the block you actually right-click - the
-     * stone button, the same position {@code AutoBoulder} interacts with and the one NoammAddons' own
+     * stone button, the same position {@code AutoBoulder} interacts with and the one the
      * {@code BoulderSolver} draws ({@code renderBlock(box.click, clickColor)}). We were boxing the first
      * pair, which is the block behind/under the button. Drawing the button's own voxel shape rather than
      * a whole cube keeps the highlight on the button; if the block isn't loaded or has no shape (or the

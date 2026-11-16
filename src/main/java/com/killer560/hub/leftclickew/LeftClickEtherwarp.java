@@ -13,14 +13,14 @@ import org.slf4j.Logger;
 import java.util.Locale;
 
 /**
- * Left Click Etherwarp (cheat build only, off by default; OdinClient's Etherwarp Helper and Nebulune's left click
+ * Left Click Etherwarp (cheat build only, off by default; the Etherwarp Helper and the left click
  * etherwarp, reference-mods-1018 item 3). With an etherwarp-capable item in hand (ethermerge AOTV/AOTE, Etherwarp
  * Conduit: {@link ItemIdentity#isEtherwarpItem}) a left click is an etherwarp: vanilla's attack never runs (no swing, no
  * attack, no dig), and the click is turned into a vanilla RIGHT click ({@code Minecraft.startUseItem}, so exactly the
  * packets a right click sends - the block half first when the crosshair is on a block, then the use) once the server has
  * him sneaking.
  *
- * <p><b>Sneak timing - the minimum the server needs, no random delay.</b> Odin and Nebulune hold the sneak a random 2-4
+ * <p><b>Sneak timing - the minimum the server needs, no random delay.</b> other implementations hold the sneak a random 2-4
  * ticks first; killer560's rule is to match a human's packets, not to add waits. The server applies sneak from the
  * input packet ({@code ServerboundPlayerInputPacket}), which goes out in the player's tick, AFTER {@code handleKeybinds}
  * where the click is read. So:
@@ -30,7 +30,7 @@ import java.util.Locale;
  *   <li>otherwise sneak goes down in this tick's input ({@code mixin/LeftClickEtherwarpInputMixin}), and the right click
  *       goes at the head of the next tick's {@code handleKeybinds}, before that tick's input packet lets the sneak up
  *       again - one tick, the shortest a sneak-then-click can be. Auto Routes' etherwarp makes the same check
- *       ("QUOI ClearExecutor's rule").</li>
+ *       ("the reference ClearExecutor's rule").</li>
  * </ul>
  * Sneak is let up after the use unless he holds it himself (only the forced bit is dropped; his key decides). Nothing
  * writes position, velocity or rotation; the look is his own. Zero Ping Etherwarp sees the use like any other.

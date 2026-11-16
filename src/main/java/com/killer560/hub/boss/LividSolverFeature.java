@@ -28,9 +28,9 @@ import java.util.List;
 import com.killer560.hub.compat.McBlocks;
 
 /**
- * Real Hypixel Floor 5 boss (Livid) solver, ported from Odin's own {@code LividSolver.kt}. Livid spawns
+ * Real Hypixel Floor 5 boss (Livid) solver. Livid spawns
  * 8 real fake copies plus 1 real one, distinguishable only by a real wool block that appears at a fixed
- * real world position ({@code (5, 108, 43)}, with NoammAddons' {@code (5, 108, 40)} as a fallback - the
+ * real world position ({@code (5, 108, 43)}, with the {@code (5, 108, 40)} as a fallback - the
  * boss arena itself is a fixed, non-randomized room, so unlike every dungeon puzzle solver this mod has
  * ported this needs no room-rotation transform at all) the instant the fight starts, whose color maps to
  * one specific real Livid's real display name ("&lt;Color&gt; Livid"). That clue is re-read twice a
@@ -67,17 +67,17 @@ public final class LividSolverFeature {
         }
     }
 
-    // Odin and Devonian both read (5,108,43); NoammAddons reads (5,108,40). Ours was Odin's, checked once
+    // Other implementations both read (5,108,43); the reference reads (5,108,40). Ours was the, checked once
     // and then never again. Both are tried now, primary first, so a run where only the other one carries
     // the clue (and p3sim, which need not place both) still resolves.
     private static final BlockPos[] WOOL_LOCATIONS = {new BlockPos(5, 108, 43), new BlockPos(5, 108, 40)};
     private static final String LIVID_START_LINE =
             "[BOSS] Livid: Welcome, you've arrived right on time. I am Livid, the Master of Shadows.";
 
-    /** 10 ticks = the 0.5s re-check killer560 asked for. NoammAddons re-reads the wool every single tick
-     *  and Odin re-reads it on every block update; a one-shot read was our bug. */
+    /** 10 ticks = the 0.5s re-check killer560 asked for. The reference re-reads the wool every single tick
+     *  and the reference re-reads it on every block update; a one-shot read was our bug. */
     private static final int RESOLVE_INTERVAL_TICKS = 10;
-    /** Livid's opening invulnerability from his welcome line: 390 before SkyBlock 0.27.2, 350 since (NoammAddons 1.2.9
+    /** Livid's opening invulnerability from his welcome line: 390 before SkyBlock 0.27.2, 350 since (the reference 1.2.9
      *  dungeon/solvers/LividSolver.kt, its old "todo: change to 350" applied in the 0.27.2 release). */
     private static final int INVULN_TICKS = 350;
 
@@ -106,7 +106,7 @@ public final class LividSolverFeature {
     public static void register() {
         // Shared solver highlight pipelines must exist before the level renderer precompiles them.
         SolverEspRender.init();
-        // ChatObserver, not Fabric CHAT/GAME: Odin/NoammAddons/Skyblocker can cancel a server line via
+        // ChatObserver, not Fabric CHAT/GAME: other implementations can cancel a server line via
         // ALLOW_GAME and re-add their own copy straight to ChatComponent, which Fabric listeners never see.
         // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which
         // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
@@ -227,7 +227,7 @@ public final class LividSolverFeature {
         }
     }
 
-    /** Ice Spray cue (NoammAddons LividSolver "Ice Spray Livid!"): his opening invulnerability just ran out. */
+    /** Ice Spray cue (the reference LividSolver "Ice Spray Livid!"): his opening invulnerability just ran out. */
     private static void onInvulnEnded(Minecraft client) {
         if (!LividSolverConfig.getInstance().isIceSprayAlert()) {
             return;
@@ -240,7 +240,7 @@ public final class LividSolverFeature {
                 net.minecraft.sounds.SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f, 0.5f));
     }
 
-    /** Announce Color (Skyblocker LividColor's party message): opt-in, sent below the client dispatcher. */
+    /** Announce Color (the reference LividColor's party message): opt-in, sent below the client dispatcher. */
     private static void maybeAnnounce() {
         if (!LividSolverConfig.getInstance().isAnnounceColor() || currentLivid == null || currentLivid == announced
                 || announces >= MAX_ANNOUNCES || stableResolves < ANNOUNCE_STABLE_RESOLVES) {
@@ -255,7 +255,7 @@ public final class LividSolverFeature {
     }
 
     /**
-     * Hide Wrong Livids (NoammAddons/SkyHanni): every Livid player that is not the real one, and the name tags of
+     * Hide Wrong Livids: every Livid player that is not the real one, and the name tags of
      * those clones, are not drawn. Render only: the entities stay in the world, hittable and visible to every scan.
      * Called from the entity render hook ({@code ObjectHiderRenderMixin}) for every entity every frame.
      */

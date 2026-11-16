@@ -11,7 +11,7 @@ import java.nio.file.Path;
 
 /**
  * Persisted M7 Phase 5 settings - Wither Dragons ({@link WitherDragonsFeature}) and King Relics
- * ({@link KingRelicsFeature}). Both masters ship OFF. Sub-option defaults follow Odin's own module defaults
+ * ({@link KingRelicsFeature}). Both masters ship OFF. Sub-option defaults follow the module defaults
  * (WitherDragons.kt / KingRelics.kt). Every GUI change calls {@link #save()}.
  */
 public final class WitherDragonsConfig {
@@ -55,7 +55,7 @@ public final class WitherDragonsConfig {
         public NameStyle previous() { return values()[(values().length + ordinal() - 1) % values().length]; }
     }
 
-    /** NoammAddons "Solo Priority": the class that takes the LATER of two spawning dragons. */
+    /** The reference "Solo Priority": the class that takes the LATER of two spawning dragons. */
     public enum SoloDebuff {
         TANK("Tank"), HEALER("Healer");
         public final String label;
@@ -94,7 +94,7 @@ public final class WitherDragonsConfig {
 
     private static WitherDragonsConfig instance;
 
-    // ---- Wither Dragons (Odin WitherDragons.kt defaults) ----
+    // ---- Wither Dragons (defaults) ----
     private boolean enabled = false;
     private boolean dragonTimer = true;
     private TimerStyle timerStyle = TimerStyle.MILLISECONDS;
@@ -116,7 +116,7 @@ public final class WitherDragonsConfig {
     private boolean firstDragonOnly = true;
     private ClassOverride classOverride = ClassOverride.AUTO;
 
-    // ---- King Relics (Odin KingRelics.kt + NoammAddons M7Relics.kt) ----
+    // ---- King Relics (+) ----
     private boolean relicsEnabled = false;
     private boolean relicSpawnTimer = true;
     private int relicSpawnTicks = 38;
@@ -124,7 +124,7 @@ public final class WitherDragonsConfig {
     private boolean relicTracer = false;
     private boolean relicPlaceTime = true;
     private boolean relicSummary = true;
-    /** Block Wrong Relic (NoammAddons M7Relics.kt "Block Wrong Relic"): a click on another relic's cauldron while
+    /** Block Wrong Relic ("Block Wrong Relic"): a click on another relic's cauldron while
      *  carrying a relic is dropped before it is sent. Off by default. */
     private boolean blockWrongRelic = false;
 

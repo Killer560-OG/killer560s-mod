@@ -10,7 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted P4 Platform Highlight settings - see {@link P4PlatformHighlightFeature}'s class doc for the
- *  real QUOI-ported "highlight the 3x3 you need to mine after Goldor dies" this is built on. Ships
+ *  real "highlight the 3x3 you need to mine after Goldor dies" this is built on. Ships
  *  disabled by default, same as every other new feature in this mod. */
 public final class P4PlatformHighlightConfig {
 

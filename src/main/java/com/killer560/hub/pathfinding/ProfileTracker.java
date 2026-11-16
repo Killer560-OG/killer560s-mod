@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
  * Which Skyblock profile the player is on, so the fairy-soul log is per profile (souls are found per profile, and a
  * second profile starts from zero).
  * <p>
- * Three sources, same ones Skyblocker's {@code utils/Utils} uses: the join message
+ * Three sources, same ones the {@code utils/Utils} uses: the join message
  * "You are playing on profile: Mango", the "Profile ID: &lt;uuid&gt;" line (sent on join, and by {@code /profileid}),
  * and the tab list's "Profile: Mango" line. The key is the Minecraft account UUID plus the profile name, so two
  * accounts on the same PC never share a log.

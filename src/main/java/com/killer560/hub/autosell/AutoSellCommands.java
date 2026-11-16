@@ -103,7 +103,7 @@ public final class AutoSellCommands {
 
     /** {@code "held"} resolves to the identity of whatever's in the main hand right now; anything else is taken
      *  as a raw identity string (a Skyblock id, upper-cased) - lets a real item id be typed straight from a
-     *  wiki/NEU page as well as picked up off the item itself. */
+     *  wiki/the reference page as well as picked up off the item itself. */
     private static String resolveIdentity(String raw) {
         if (raw == null) {
             return null;

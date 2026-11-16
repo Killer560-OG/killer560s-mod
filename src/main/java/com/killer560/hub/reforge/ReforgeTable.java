@@ -16,13 +16,13 @@ import java.util.Map;
 /**
  * The Blacksmith's basic reforges, from {@code assets/killer560smod/reforge/reforges.json}: built by
  * {@code tools/reforge-table/build_reforges.py} from the NotEnoughUpdates-REPO's {@code constants/reforges.json} (the
- * source SkyHanni's Reforge Helper reads too), never typed by hand. Read once, on the first Reforge Item menu.
+ * source the Reforge Helper reads too), never typed by hand. Read once, on the first Reforge Item menu.
  */
 public final class ReforgeTable {
 
     static final String RESOURCE = "/assets/killer560smod/reforge/reforges.json";
 
-    /** One reforge: its name, NBT {@code modifier}, NEU item type ("SWORD/ROD", "ARMOR", ...) and stats per rarity. */
+    /** One reforge: its name, NBT {@code modifier}, the reference item type ("SWORD/ROD", "ARMOR",...) and stats per rarity. */
     public record Reforge(String name, String modifier, String type, Map<String, Map<String, Double>> stats) {
     }
 
@@ -65,8 +65,8 @@ public final class ReforgeTable {
     }
 
     /**
-     * The NEU item types an item of Hypixel lore type {@code category} ("SWORD", "DUNGEON_SWORD" read as "SWORD",
-     * "FISHING_ROD") rolls on: SkyHanni's {@code ReforgeApi.ReforgeType} groups (a gauntlet takes sword and pickaxe
+     * The reference item types an item of Hypixel lore type {@code category} ("SWORD", "DUNGEON_SWORD" read as "SWORD",
+     * "FISHING_ROD") rolls on: the {@code ReforgeApi.ReforgeType} groups (a gauntlet takes sword and pickaxe
      * reforges; Hypixel's old HOE lore is a farming tool).
      */
     static List<String> typesFor(String category) {

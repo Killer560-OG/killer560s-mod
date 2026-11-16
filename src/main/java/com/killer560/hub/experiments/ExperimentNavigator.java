@@ -33,14 +33,14 @@ import java.util.regex.Pattern;
  * the stakes AND starts the game immediately, there is no separate confirmation screen. Any screen
  * with 2+ items named after a known tier is treated as this tier/stakes picker (skipping any that are
  * locked - "Enchanting level too low!"/"Not enough experience!"/"Practice mode has no rewards", the
- * real lock-lore text confirmed via SkyHanni's own {@code ExperimentsAddonsHelper.kt}). The best one
+ * real lock-lore text confirmed via the {@code ExperimentsAddonsHelper.kt}). The best one
  * is picked by matching its own name against {@link #TIER_NAMES} (ordered highest to lowest) rather
  * than by screen position - field-tested (2026-09-06): Superpairs lays all 6 tiers out across TWO
  * rows, unlike Chronomatron/Ultrasequencer's single row, so "furthest right column" doesn't reflect
  * tier rank at all once a game wraps to a second row.
  * <p>
  * There is no known signal for the puzzle's own true completion round - it plays out to a random
- * natural end, confirmed by reading SkyHanni's own source, which doesn't try to predict that either.
+ * natural end, confirmed by reading the source, which doesn't try to predict that either.
  * What IS real and readable up front, straight from the chosen tier's own tooltip, is the round at
  * which the maximum extra Superpairs-click bonus is earned (see {@link #readMaxClickBonusRounds}) -
  * that's what {@link ExperimentsFeature}'s MAX_CLICKS stop strategy actually exits at.
@@ -462,7 +462,7 @@ final class ExperimentNavigator {
     }
 
     /** @return the round at which the max Superpairs-click bonus is reached, per the chosen tier's
-     *  own "Chain of N:"/"Series of N:" lore (real Hypixel text, per SkyHanni), consuming it so it's
+     *  own "Chain of N:"/"Series of N:" lore (real Hypixel text), consuming it so it's
      *  only applied to the very next game that starts - or -1 if none has been seen. */
     int takePendingRoundsNeeded() {
         int value = pendingRoundsNeeded;
@@ -569,11 +569,11 @@ final class ExperimentNavigator {
         return -1;
     }
 
-    /** Real mechanism, ported from SkyHanni's {@code SuperpairsClicksAlert.kt} (misleadingly named -
+    /** Real mechanism (misleadingly named -
      *  its own config description says it's for "Chronomatron or Ultrasequencer"): every tier's own
      *  tooltip lists "Series of N: +M Clicks" lines, one per Superpairs-click bonus tier (e.g. for
      *  Metaphysical: Series of 2/4/6) - these are NOT the puzzle's own completion target (there isn't
-     *  one; it plays out to a random natural end with no advance signal, confirmed from SkyHanni's own
+     *  one; it plays out to a random natural end with no advance signal, confirmed from the
      *  source, which doesn't try to predict it either). The LAST (highest) "Chain of N:"/"Series of
      *  N:" line is the round at which the max extra Superpairs-click bonus has been earned - past that
      *  point, further rounds only add proportional Enchanting XP with no more Superpairs benefit,

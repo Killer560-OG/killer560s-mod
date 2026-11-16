@@ -10,9 +10,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Real Hypixel Skyblock action-bar stat reader, ported from Odin's own {@code PlayerDisplay.kt}. The
+ * Real Hypixel Skyblock action-bar stat reader. The
  * real action bar text embeds current/max Health, Mana, and Defense using real private-use-area icon
- * codepoints from Hypixel's own resource pack (cross-checked against NoammAddons' 26.1.2 ActionBarParser -
+ * codepoints from Hypixel's own resource pack (26.1.2 ActionBarParser -
  * U+E010/U+2764 health, U+E003/U+270E mana, U+E008/U+2748 defense, built here via explicit {@code \\uXXXX} escapes rather
  * than pasting the actual invisible glyphs, so the source stays legible and unambiguous) - without
  * anchoring to the specific icon codepoint, a plain "current/max" pattern can't tell health apart from
@@ -27,7 +27,7 @@ import java.util.regex.Pattern;
  * <p>
  * Renamed "Player Stats" -&gt; "Stat Bars" (killer560, 2026-09-21) and given the ability to hide the
  * vanilla hearts/hunger/armor/air bars it sits alongside - see {@link #registerVanillaSuppression()},
- * ported from Skyblocker's mixin-free {@code fancybars.FancyStatusBars}. Only display strings changed;
+ *  mixin-free {@code fancybars.FancyStatusBars}. Only display strings changed;
  * every persistence key ({@code id()} below, the config file name, every {@code PlayerStatsConfig} JSON
  * key) is untouched so existing HUD positions and settings survive the rename.
  */
@@ -37,18 +37,18 @@ public final class PlayerStatsFeature {
     // private-use characters pasted into the source (so they looked like identical bare "n/n" patterns in
     // most editors/diffs) and only ever accepted the resource-pack icon - an action bar using the classic
     // glyphs never matched at all. Now written as explicit escapes and accepting either form, matching
-    // NoammAddons' 26.1.2 ActionBarParser: health U+E010 or U+2764, defense U+E008 or U+2748, mana U+E003
+    // The 26.1.2 ActionBarParser: health U+E010 or U+2764, defense U+E008 or U+2748, mana U+E003
     // or U+270E. Real format e.g. "(c)1234/1234<heart>     (a)567(a)<defense> Defense     (b)890/890<quill> Mana".
     // Optional section-sign color codes are allowed between the number and its icon.
     private static final String CODES = "(?:\u00A7.)*";
     // Overflow mana (2026-10-04): Hypixel shows it as "(3)200<U+02AC>" right after the mana segment once mana is
-    // past max - the same pattern SkyHanni's ActionBarStatsData reads. It has no max, so it is text only.
+    // past max - the same pattern the ActionBarStatsData reads. It has no max, so it is text only.
     // Its color code is (3), a DIGIT, so a bare "([\\d,]+)" read "(3)200" as 3200 (caught by a scratch run of
     // these patterns against a sample line, 2026-10-04). The match now starts where a number cannot continue
     // and takes the color codes itself. Same guard on OTHER_REGEX below.
     private static final String NUMBER_START = "(?<![\u00A7\\d,])" + CODES;
     // Health, mana and defense start the same way (2026-10-07, killer560: "Whenever I get absorption it breaks the
-    // health one"). With absorption Hypixel colors the health segment GOLD, (6) instead of (c) (SkyHanni's
+    // health one"). With absorption Hypixel colors the health segment GOLD, (6) instead of (c) (the
     // ActionBarStatsData accepts "(c|6)" there), and (6) is a digit: the old bare "([\\d,]+)" read "(6)12,345/10,464"
     // as 612,345, so the bar went almost all absorption color and its number became six digits wide. The same fix the
     // overflow pattern already had; every pattern on this line now uses it.
@@ -235,8 +235,8 @@ public final class PlayerStatsFeature {
     }
 
     /**
-     * Hides the vanilla HUD bars our own Stat Bars line replaces - ported from Skyblocker's
-     * {@code fancybars.FancyStatusBars#init()}, ONE difference from that mixin-free approach: Skyblocker
+     * Hides the vanilla HUD bars our own Stat Bars line replaces -
+     * {@code fancybars.FancyStatusBars#init}, ONE difference from that mixin-free approach: the reference
      * hides the whole bar block at once, ours is per-bar so hearts/hunger/armor/air can each be toggled
      * independently (killer560, 2026-09-21). Uses Fabric's own HUD-element API - the exact same import
      * already proven at {@code hud.HudInGameRenderer.java:3} - and deliberately {@code replaceElement}

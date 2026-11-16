@@ -21,13 +21,13 @@ import java.util.Map;
  * slowest to chat") - how long each player takes to get into the core after the terminals are done, on F7/M7.
  * <p>
  * <b>Start of the clock:</b> the real {@code "The Core entrance is opening!"} line - the same trigger this feature's
- * own {@code FLOOR7} split list already uses for the Goldor segment (Odin {@code SplitsManager}), and the one
+ * own {@code FLOOR7} split list already uses for the Goldor segment, and the one
  * {@code goldorfrenzy/} keys off. Fed in from {@link SplitTimersFeature}'s chat handler, so there is no second chat
  * subscription.
  * <p>
  * <b>Entry detection:</b> Hypixel never announces who entered the core, so entry is a position crossing: the first tick
  * a player stands inside the core itself, the closed room in the middle of the Goldor arena whose entrance opens on that
- * line. The box is NoammAddons' {@code LeapCounter} "in core" check ({@code aabb(68, 106, 54, 42, 155, 119)}: x 42..68,
+ * line. The box is the {@code LeapCounter} "in core" check ({@code aabb(68, 106, 54, 42, 155, 119)}: x 42..68,
  * y 106..155, z 54..119; its {@code INCORE_BOX} leap spot is the {@code CORE_BOX} entrance moved 6 blocks in, at z 55..60,
  * and this mod's own Posmsg "Recore" preset sits at 54.5, 115, 58.5 inside it).
  * <p>
@@ -50,7 +50,7 @@ import java.util.Map;
  */
 final class CoreEntryTimes {
 
-    /** Inside the core (NoammAddons LeapCounter's in-core box): x 42..68, y 106..155, z 54..119. */
+    /** Inside the core (the reference LeapCounter's in-core box): x 42..68, y 106..155, z 54..119. */
     static final double CORE_MIN_X = 42.0, CORE_MAX_X = 68.0;
     static final double CORE_MIN_Y = 106.0, CORE_MAX_Y = 155.0;
     static final double CORE_MIN_Z = 54.0, CORE_MAX_Z = 119.0;

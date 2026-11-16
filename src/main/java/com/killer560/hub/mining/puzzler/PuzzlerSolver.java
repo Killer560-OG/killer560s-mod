@@ -18,9 +18,9 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Puzzler Solver (legit, both builds; Skyblocker's Puzzler): in the Dwarven Mines, the Puzzler's ten arrows are walked
+ * Puzzler Solver (legit, both builds; the Puzzler): in the Dwarven Mines, the Puzzler's ten arrows are walked
  * from his start block (181, 195, 135) - up is +z, down -z, left +x, right -x - and the block they end on gets a box (Show
- * Box) and its coordinates in chat (Chat Coordinates). Skyblocker turns that block into crimson planks in the client's
+ * Box) and its coordinates in chat (Chat Coordinates). The reference turns that block into crimson planks in the client's
  * world; this only draws, so the world stays what the server says. The box moves when he gives new arrows and goes after
  * five minutes or on a world change. Off by default.
  */
@@ -30,7 +30,7 @@ public final class PuzzlerSolver {
             .flag("box", true)
             .flag("chat", true);
 
-    /** Skyblocker's line: exactly ten arrows after the NPC prefix. */
+    /** The line: exactly ten arrows after the NPC prefix. */
     private static final Pattern ARROWS = Pattern.compile("^\\[NPC] Puzzler: ([▲▶◀▼]{10})$");
     private static final int START_X = 181;
     private static final int START_Z = 135;

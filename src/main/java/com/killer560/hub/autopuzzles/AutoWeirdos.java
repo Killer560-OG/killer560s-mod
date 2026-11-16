@@ -30,7 +30,7 @@ import java.util.Set;
 /**
  * Auto Three Weirdos: talks to each weirdo's "CLICK" stand (with Talk To NPCs on), then opens the chest the solver names.
  *
- * <p>QUOI's auto clicked every stand within 5.48 blocks feet to feet, which from the room's middle reaches all three.
+ * <p>the auto clicked every stand within 5.48 blocks feet to feet, which from the room's middle reaches all three.
  * Talking to an NPC is an ENTITY interaction, and the measured limit for one is 3.0 blocks eye to the stand's box
  * (docs/SIM.md), so from where a trip into the room stands him one weirdo is usually out of reach: killer560, 2026-10-15,
  * "on sim it cannot reach the right person for auto three weirdos" - two talked to, the third 3.26 off, and "waiting - no

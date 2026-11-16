@@ -17,7 +17,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Reparty (Skyblocker, Skytils): {@code /rp} or {@code /reparty} lists the party, disbands it, waits the Invite Delay
+ * Reparty: {@code /rp} or {@code /reparty} lists the party, disbands it, waits the Invite Delay
  * and invites everyone back. Only the party leader can disband, so anyone else gets one line saying so and nothing is sent.
  * <p>
  * Auto Rejoin: when another player disbands the party ("X has disbanded the party!") and then invites you

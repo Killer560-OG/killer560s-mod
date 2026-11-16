@@ -37,7 +37,7 @@ import com.killer560.hub.compat.McCompat;
 public final class PetsMenuScanner {
 
     private static final Pattern PETS_TITLE = Pattern.compile("^(?:\\((\\d+)/(\\d+)\\)\\s*)?Pets$");
-    /** Devonian's own compiled pet-name regex confirms this exact bracket format: {@code "[Lvl N] Name"}. */
+    /** The compiled pet-name regex confirms this exact bracket format: {@code "[Lvl N] Name"}. */
     private static final Pattern LEVEL_PREFIX = Pattern.compile("^\\[Lvl (\\d+)]\\s*(.*)$");
     private static final int PLAYER_INVENTORY_SLOTS = 36;
 

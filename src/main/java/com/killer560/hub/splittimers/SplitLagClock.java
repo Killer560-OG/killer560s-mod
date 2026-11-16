@@ -8,8 +8,8 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
  * Lag for Split Timers' "lagless" per-split times and the bottom Total (without lag) / Lag Lost lines - killer560,
  * 2026-09-20: "add in lagless time to the right of each split... so I know what the split was without lag".
  * <p>
- * <b>Counted the way NoammAddons and Odin count (2026-11-03, timers2).</b> Both keep, beside the wall clock, a count of
- * server ticks (Noamm's {@code DualTime(ticks, real)}, Odin's {@code SplitsManager.tickCounter}); lag lost is the wall
+ * <b>Counted the way other implementations count (2026-11-03, timers2).</b> Both keep, beside the wall clock, a count of
+ * server ticks; lag lost is the wall
  * time minus 50 ms per tick. The count is {@link StallLag} (stalls in full, a slow server where the deficit's low rises,
  * never climbing faster than the wall clock), shared with Blood Camp's camp lag since bcstall-1105.
  * <p>

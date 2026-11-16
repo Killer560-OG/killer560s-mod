@@ -32,7 +32,7 @@ import java.util.concurrent.ThreadLocalRandom;
  * ({@code lightsdevice.LightsDeviceFeature}; killer560: "Make lights have its own aura trigger and own triggerbot stuff
  * it should not be impacted by other auras"), so nothing here touches the six Lights levers any more.
  * <p>
- * S2's two section levers (27,124,127) and (23,132,138) are QUOI's (SecretAuraFeature#BOSS_LEVERS, the two inside
+ * S2's two section levers (27,124,127) and (23,132,138) are the (SecretAuraFeature#BOSS_LEVERS, the two inside
  * Floor7Tracker's S2 box x 19..111, z 121..145). Each is flicked while its "Not Activated" stand is above it - once after
  * S2 opens, and optionally once more beforehand ("early"). The stand check stops any re-click after they activated.
  * Section progress is {@link P3SectionTracker}'s, shared with the Lights Device; everything resets on a new run, and
@@ -48,7 +48,7 @@ public final class LeverAuraFeature {
     private static final Logger LOGGER = ModLog.get("killer560smod-leveraura");
     private static final String CHAT_TAG = "In Boss";
 
-    /** QUOI SecretAura.kt boss levers inside Section 2. */
+    /**  boss levers inside Section 2. */
     private static final List<BlockPos> S2_SECTION_LEVERS = List.of(
             new BlockPos(27, 124, 127), new BlockPos(23, 132, 138));
 
@@ -365,7 +365,7 @@ public final class LeverAuraFeature {
         return cfg.getCooldownMs() * (0.9 + ThreadLocalRandom.current().nextDouble() * 0.2);
     }
 
-    /** QUOI isBossBlock / SecretAuraFeature#isBossLeverClickable: a "Not Activated" armor stand just above. */
+    /** The reference isBossBlock / SecretAuraFeature#isBossLeverClickable: a "Not Activated" armor stand just above. */
     private static boolean hasNotActivatedStand(Minecraft client, BlockPos pos) {
         Vec3 above = Vec3.atCenterOf(pos.above());
         AABB box = new AABB(above, above).inflate(1.5);

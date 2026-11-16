@@ -13,7 +13,7 @@ package com.killer560.hub.petwheel;
  * @param tier      rarity token off {@code ExtraAttributes.petInfo}'s {@code tier} field (e.g. "LEGENDARY"),
  *                  or null if the item had no parseable {@code petInfo} that tick.
  * @param level     parsed off the real {@code "[Lvl N]"} prefix Hypixel puts in the pet's display name
- *                  (verified against Devonian's own compiled pet-name regex - see {@link PetsMenuScanner}),
+ *                  (verified against the compiled pet-name regex - see {@link PetsMenuScanner}),
  *                  or -1 if the name didn't have one.
  * @param skinValue base64 {@code textures} property off the item's real {@code minecraft:profile} component,
  *                  used to render the pet's real head texture on the wheel - null falls back to a plain

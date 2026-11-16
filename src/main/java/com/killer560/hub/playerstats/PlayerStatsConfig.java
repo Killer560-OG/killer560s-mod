@@ -11,7 +11,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-/** Persisted Stat Bars settings - see {@link PlayerStatsFeature}'s class doc for the real Odin-ported
+/** Persisted Stat Bars settings - see {@link PlayerStatsFeature}'s class doc for the real
  *  action-bar parsing this is built on. Ships disabled by default, same as every other new feature in
  *  this mod.
  *  <p>
@@ -84,7 +84,7 @@ public final class PlayerStatsConfig {
     private int absorptionColor = DEFAULT_ABSORPTION_COLOR;
     private int barBackground = DEFAULT_BAR_BACKGROUND;
     private boolean textShadow = true;
-    // --- Bar look (2026-10-12, killer560: "work on the custom bars more. Look at how skyblocker does theirs with how they
+    // --- Bar look (2026-10-12, killer560: "work on the custom bars more. Look at how another mod does theirs with how they
     // actually look custom and try to make your own type of style of it"). Drawn by BarPainter. Classic (the old flat bar)
     // was removed on 2026-10-12, killer560: "Please remove the classic option have the default of it be bold." ---
     /** A deep royal blue (2026-10-12): the first default, a pale 0xFF9FE6FF, left the white number on the overflow layer
@@ -109,7 +109,7 @@ public final class PlayerStatsConfig {
     private int overflowManaColor = DEFAULT_OVERFLOW_MANA_COLOR;
     /**
      * Layout: Predefined (true) or Custom (false) - killer560, 2026-10-07: "a setting that is predefined spots or fully
-     * custom ... look at how Skyblocker has their snap-to-area kind of set up and use that." Predefined puts every
+     * custom... look at how the reference has their snap-to-area kind of set up and use that." Predefined puts every
      * readout in one of {@link StatLayout.Area}'s areas around the hotbar, laid out by {@link StatLayout}; Custom is
      * each readout's own HUD-editor position. The two never share a value: switching back to Custom finds every
      * readout's saved position exactly as it was, because Predefined never writes one.

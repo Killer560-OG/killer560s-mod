@@ -12,7 +12,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Rare Drop Alerts (Devonian RareDungeonMobDropAlert; featB-1108): a title and a sound when an Ice Spray Wand or a Skeleton
+ * Rare Drop Alerts (the reference RareDungeonMobDropAlert; featB-1108): a title and a sound when an Ice Spray Wand or a Skeleton
  * Master Chestplate drops, read off the dropped item's name tag (an armor stand or the item entity, whose custom name is
  * the item's name). The name arrives in the entity data after it spawns, so this looks every 5 ticks, only in a dungeon with
  * the switch on, and each entity alerts once.

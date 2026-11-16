@@ -24,22 +24,22 @@ import java.util.Locale;
  * the device, and the i4 timeline counted from Storm's death line. (This class used to also be a wide sensor
  * logger built for sim testing; that logging was removed once Auto i4 shipped.)
  * <p>
- * Real device layout now CONFIRMED from NoammAddons' own {@code I4Helper.kt}/{@code AutoI4.kt} (cloned
- * reference at a local NoammAddons checkout): a 3x3 wall of target blocks at z=50, x in {68,66,64}, y in
+ * Real device layout now CONFIRMED from the {@code I4Helper.kt}/{@code AutoI4.kt} (cloned
+ * reference at a local the reference checkout): a 3x3 wall of target blocks at z=50, x in {68,66,64}, y in
  * {130,128,126}; a lit target is {@code EMERALD_BLOCK}, a hit one turns {@code BLUE_TERRACOTTA}; the player
- * stands on the device at y~127, x 62-65, z 34-37 and shoots them with a bow. Noamm times its rod swap /
+ * stands on the device at y~127, x 62-65, z 34-37 and shoots them with a bow. The reference times its rod swap /
  * mask swap / leap off server ticks counted from Storm's death line (174 / 244 / 307; since 1.2.9 from Goldor's
  * "Who dares trespass" line, 70 / 140 / 203 - the same moments, minus its old 104-tick gap) and treats an armor
  * stand renamed "Active" or the "completed a device!" chat line as completion. The original version of this
- * class only diffed the standing platform (QUOI's pre4Box) and never watched the target wall at all.
+ * class only diffed the standing platform (the pre4Box) and never watched the target wall at all.
  * <p>
  * Nothing here clicks, rotates, or changes anything. It is always on (no toggle) whenever the player is near
  * the device on hypixel.net or p3sim.net. The i4 timeline counts client ticks since Storm's death line, so it lines
- * up directly with Noamm's server-tick timings.
+ * up directly with the server-tick timings.
  */
 public final class I4SensorsFeature {
 
-    // Real target wall from NoammAddons' I4Helper.devBlocks - index = row * 3 + col, row 0 = top (y 130),
+    // Real target wall from the I4Helper.devBlocks - index = row * 3 + col, row 0 = top (y 130),
     // col 0 = x 68.
     static final List<BlockPos> DEV_BLOCKS = List.of(
             new BlockPos(68, 130, 50), new BlockPos(66, 130, 50), new BlockPos(64, 130, 50),
@@ -50,7 +50,7 @@ public final class I4SensorsFeature {
     /** P3's real start. Exact line, as in TickTimersFeature / Floor7Tracker. */
     private static final String GOLDOR_START_LINE = "[BOSS] Goldor: Who dares trespass into my domain?";
     /** Storm's death line to Goldor's (P3's start) since SkyBlock 0.27.2: 64 server ticks, shared with Tick Timers'
-     *  Goldor "Start:" (482 runs in his logs, 3.26 s on average; NoammAddons 1.2.9's 17 did not fit, tickfix2-1104).
+     *  Goldor "Start:" (482 runs in his logs, 3.26 s on average; the reference 1.2.9's 17 did not fit, tickfix2-1104).
      *  Before 0.27.2 it was 104 ticks. */
     static final long STORM_TO_GOLDOR_MS = com.killer560.hub.ticktimers.TickTimersFeature.GOLDOR_START_TICKS * 50L;
 
@@ -69,7 +69,7 @@ public final class I4SensorsFeature {
 
     public static void register() {
         // Real bug found and fixed (2026-09-14, real Hypixel F7 log): Fabric's CHAT/GAME events never fired for a
-        // line another mod cancels via ALLOW_GAME and re-adds straight to ChatComponent (Odin's Terminal Splits
+        // line another mod cancels via ALLOW_GAME and re-adds straight to ChatComponent (the Terminal Splits
         // does this to "completed a device!"), so this always-on chat logging stayed silent for it. ChatObserver
         // sees both paths, de-duplicated, non-overlay only.
         ChatObserver.subscribe(message -> onChatMessage(message, false));
@@ -143,7 +143,7 @@ public final class I4SensorsFeature {
         return stormDeathAtMs;
     }
 
-    /** Noamm's own isOnDev(): |y - 127| &lt; 0.5, x in [62, 65], z in [34, 37]. */
+    /** The isOnDev: |y - 127| &lt; 0.5, x in [62, 65], z in [34, 37]. */
     static boolean isOnDevice(Vec3 p) {
         return Math.abs(p.y - 127.0) < 0.5 && p.x >= 62.0 && p.x <= 65.0 && p.z >= 34.0 && p.z <= 37.0;
     }

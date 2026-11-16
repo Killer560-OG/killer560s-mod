@@ -10,7 +10,7 @@ import java.util.List;
 
 /** Inventory Search settings - see
  *  {@link com.killer560.hub.inventorysearch.InventorySearchFeature}'s class doc for the real
- *  Noamm-ported Ctrl+F search-and-highlight this is built on. Explanatory text moved into tooltips
+ *  Ctrl+F search-and-highlight this is built on. Explanatory text moved into tooltips
  *  per the mod-wide "no in-panel paragraphs" rule - hover each control. */
 public class InventorySearchTab extends BaseTab {
 

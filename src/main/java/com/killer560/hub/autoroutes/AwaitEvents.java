@@ -53,7 +53,7 @@ public final class AwaitEvents {
     private static final Logger LOGGER = ModLog.get("killer560smod-autoroutes");
 
     /** A new secret bat closer than this (blocks, player to bat when it first appears) is one secret. */
-    public static final double BAT_SPAWN_RANGE = 10.0; // QUOI AwaitArgument uses 10 (killer560, 2026-10-06)
+    public static final double BAT_SPAWN_RANGE = 10.0; // The reference AwaitArgument uses 10 (killer560, 2026-10-06)
     /** A crypt / prince kill counts as ours when one of our weapon uses was at most this many ticks before it. The
      *  tab list's crypt line refreshes about once a second (the sim's every 20 ticks), so this is three of those. */
     public static final int CRYPT_WINDOW = 60;
@@ -360,7 +360,7 @@ public final class AwaitEvents {
         }
         Vec3 c = Vec3.atCenterOf(mimicChest);
         for (Entity e : client.level.entitiesForRendering()) {
-            // The score calculator's mimic: a baby zombie dying (Odin Mimic.kt) - here, next to the chest we opened.
+            // The score calculator's mimic: a baby zombie dying - here, next to the chest we opened.
             if (e instanceof Zombie z && z.isBaby() && z.isDeadOrDying() && !zombiesBefore.contains(z.getId())
                     && z.position().distanceTo(c) <= MIMIC_RANGE) {
                 mimicKilledAt = ticks;
@@ -632,8 +632,8 @@ public final class AwaitEvents {
     }
 
     /**
-     * Whether a key has gone in at this node: the redstone block is gone (the sim, RSA's "block changed"), a key head
-     * stands on it (the testkit's server, Skyblocker's pos.above()), or an armor stand wearing the key is at it (RSA).
+     * Whether a key has gone in at this node: the redstone block is gone (the sim, the "block changed"), a key head
+     * stands on it (the testkit's server, the pos.above), or an armor stand wearing the key is at it.
      */
     private static boolean keyPutIn(Minecraft client, BlockPos node) {
         if (client.level.getBlockState(node).getBlock() != Blocks.REDSTONE_BLOCK
@@ -725,7 +725,7 @@ public final class AwaitEvents {
     /**
      * Why a picked-up item is no item secret, or null when it is one (killer560, 2026-11-01, Secret Counter HUD: "I think an
      * item came out of a chest and it counted that dropped item as an item secret"): an item that is none of the dungeon's
-     * secret drops (Noamm's {@code dungeonItemDrops}, as Secret Sound), or one that came out of a chest he opened - made
+     * secret drops (as Secret Sound), or one that came out of a chest he opened - made
      * after his click on it, beside it. An item already gone from his world is counted as before.
      */
     static String notASecretItem(Entity item) {
@@ -841,7 +841,7 @@ public final class AwaitEvents {
                 bat.blockPosition().toShortString(), ticks, bats - 1, bats, String.format(Locale.ROOT, "%.1f", d), ago);
         pending.add("await bat " + bats + ": secret bat killed at " + bat.blockPosition().toShortString()
                 + String.format(Locale.US, " (%.1f blocks from you, your weapon use %d tick(s) earlier)", d, ago));
-        // The kill is also a SECRET for an await (QUOI: a bat's hurt/death sound calls onSecret on the waiting node),
+        // The kill is also a SECRET for an await (a bat's hurt/death sound calls onSecret on the waiting node),
         // unless this bat's appearance was already counted this run - one bat, one secret. killer560's Spider, Mod Only
         // Test 2026-10-19 15:33 and 15:36: the bat was alive before the route began (so its appearance was never
         // counted), #1 BAT killed it, and #2 PATH "await 2" (the chest and that bat) sat at 1/2 until he left-clicked.
@@ -885,7 +885,7 @@ public final class AwaitEvents {
         return ticks;
     }
 
-    /** Hypixel's secret bats carry Skyblock health (QUOI {@code AwaitArgument}: 100/200/400/800); a vanilla bat - and a
+    /** Hypixel's secret bats carry Skyblock health (100/200/400/800); a vanilla bat - and a
      *  Spirit Sceptre's - has 6. */
     public static boolean isSecretBat(Bat bat) {
         float max = bat.getMaxHealth();

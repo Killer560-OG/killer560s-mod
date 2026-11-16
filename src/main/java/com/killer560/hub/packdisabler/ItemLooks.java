@@ -109,7 +109,7 @@ public final class ItemLooks {
         return o.has(key) && !o.get(key).isJsonNull() ? o.get(key).getAsString() : null;
     }
 
-    /** The row for a SkyBlock id ({@code "INK_SACK:3"} or NEU's {@code "INK_SACK-3"}), or null. */
+    /** The row for a SkyBlock id ({@code "INK_SACK:3"} or the {@code "INK_SACK-3"}), or null. */
     public static Look get(String skyblockId) {
         if (skyblockId == null || skyblockId.isEmpty()) return null;
         ensureLoaded();

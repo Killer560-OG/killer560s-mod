@@ -181,7 +181,7 @@ public final class TerminalSolverConfig {
     // the 2-tier reveal is the one already confirmed working.
     private boolean numbersThreeTierReveal = false;
 
-    // Auto Terminals (2026-09-09) - ported from NoammAddons' own AutoTerminal, cross-checked against
+    // Auto Terminals (2026-09-09) - own AutoTerminal, cross-checked against
     // its real click-sending/timing logic (decompiled 2026-09-09) rather than guessed. Master toggle
     // gates every type below it, same collapse pattern Full Block's own master toggle uses.
     private boolean autoTerminalsEnabled = false;
@@ -192,8 +192,8 @@ public final class TerminalSolverConfig {
     private boolean autoSelectEnabled = false;
     private boolean autoMelodyEnabled = false;
     // Per killer560's explicit "give it a min and max delay and randomly pick between the two" request
-    // (2026-09-09) - matches NoammAddons' own real Random Delay feature (min/max, picks a fresh random
-    // value in that range per click) rather than one fixed interval. Defaults match NoammAddons' own
+    // (2026-09-09) - matches the real Random Delay feature (min/max, picks a fresh random
+    // value in that range per click) rather than one fixed interval. Defaults match the
     // proven-safe range.
     private int autoClickMinDelayMs = 120;
     private int autoClickMaxDelayMs = 200;
@@ -204,7 +204,7 @@ public final class TerminalSolverConfig {
      *  and no cursor is ever drawn (Hide Mouse Cursor may hide the real one). Replaces the 2026-10-26 Fake Cursor toggle. */
     private boolean autoStreamSafe = false;
     private ClickOrder autoClickOrder = ClickOrder.FIRST;
-    /** Queue Terms (Nebulune, cheat): your own clicks on right slots wait for the server's answer to the click before and go one per update. */
+    /** Queue Terms (cheat): your own clicks on right slots wait for the server's answer to the click before and go one per update. */
     private boolean queueTerms = false;
     /** First Click Delay (killer560, 2026-11-03): ms Auto Terminals waits after a terminal stabilizes before its first click (replaces the old fixed 500 ms settle). */
     private int firstClickDelayMs = 300;
@@ -269,7 +269,7 @@ public final class TerminalSolverConfig {
         ALL, EDGES
     }
 
-    /** Which highlighted slot Auto Terminals clicks next (Nebulune / NoammAddons click order; Numbers keeps its fixed order,
+    /** Which highlighted slot Auto Terminals clicks next (other implementations click order; Numbers keeps its fixed order,
      *  Stream Safe its own human order). Closest and Furthest measure from the slot clicked last (the top-left corner before
      *  the first click). */
     public enum ClickOrder {

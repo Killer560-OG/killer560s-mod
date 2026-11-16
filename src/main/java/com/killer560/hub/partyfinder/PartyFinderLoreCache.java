@@ -13,7 +13,7 @@ import java.util.Map;
  * The lore the SERVER sent for each Party Finder slot, kept as the server sent it.
  *
  * <p>Why this exists. Party Finder's parser reads the head's lore to find who is in a party, what class they
- * are and their personal best. Another mod on killer560's client - Devonian's Party Finder Overview - restyles
+ * are and their personal best. Another mod on killer560's client - the Party Finder Overview - restyles
  * that same lore every tick, rewriting the lines in place on the client's own {@link ItemStack}. Reading the
  * live stack therefore reads whatever that mod last wrote, which is why this overlay went blank with it
  * installed: no members, "Missing:" listing every class, and no personal bests, with nothing wrong in this

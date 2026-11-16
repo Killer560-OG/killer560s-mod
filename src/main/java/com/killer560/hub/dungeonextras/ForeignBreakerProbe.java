@@ -35,12 +35,12 @@ import java.util.Set;
  *   <li>OURS - Breaker Aura sent it this tick (it says so through {@link #ours()}).</li>
  *   <li>HAND - the attack key is physically down, so it is him mining.</li>
  *   <li>FOREIGN - neither. Our aura did not send it and he is not holding the button, so another mod did. That is
- *       the RSA column.</li>
+ *       the reference column.</li>
  * </ul>
  * <p>
  * What it measures is chosen to answer the questions replication actually needs: how many breaks land on ONE tick,
  * how far the furthest one was (to the block's box AND to its center, because different mods measure differently -
- * QUOI uses center-from-feet, we use box-from-eye), whether line of sight was required, and whether it swings or
+ * The reference uses center-from-feet, we use box-from-eye), whether line of sight was required, and whether it swings or
  * swaps the hotbar. Read-only throughout: nothing here sends, cancels or alters a packet.
  */
 public final class ForeignBreakerProbe {
@@ -237,7 +237,7 @@ public final class ForeignBreakerProbe {
         return dx * dx + dy * dy + dz * dz;
     }
 
-    /** Is the block actually visible from the eye? QUOI's breaker requires this; whether RSA's does is the question. */
+    /** Is the block actually visible from the eye? The breaker requires this; whether the reference does is the question. */
     private static boolean lineOfSight(Minecraft mc, LocalPlayer p, BlockPos pos) {
         try {
             BlockHitResult hit = mc.level.clip(new ClipContext(p.getEyePosition(), Vec3.atCenterOf(pos),

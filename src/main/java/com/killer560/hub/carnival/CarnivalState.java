@@ -19,11 +19,11 @@ import java.util.regex.Pattern;
 /**
  * Where the Carnival features stand (carnival-1110): whether the player is in the Hub's Carnival, which of its
  * three minigames he is playing, and the sidebar's Carnival lines (tokens, score, catch streak, fruits, accuracy, kills,
- * time left). The minigame comes from the sidebar's bold game line or its game-only stat line (SkyHanni's
- * {@code ScoreboardPattern} carnival lines), and from the NPC's start line (SkyHanni's "Good luck, matey!" and "Good
+ * time left). The minigame comes from the sidebar's bold game line or its game-only stat line (the
+ * {@code ScoreboardPattern} carnival lines), and from the NPC's start line (the "Good luck, matey!" and "Good
  * luck, pal!"), until the centered end-of-game title. Read four times a second, only while a Carnival feature is on.
  *
- * <p>Unverified in game (taken from SkyHanni): every sidebar line shape, the two start lines, and the end title being a
+ * <p>Unverified in game: every sidebar line shape, the two start lines, and the end title being a
  * centered line holding only the game's name. Catch a Fish's start line ("Good luck, friend!") is from his 11-14 log.
  */
 public final class CarnivalState {

@@ -26,7 +26,7 @@ import java.util.regex.Pattern;
  * Where Attack Speed comes from (atkspeed-1103; killer560, 2026-11-03: "The weapon shouldn't be on cooldown that long I
  * don't think. Have it read attack speed. Most of the time they will be at max attack speed. Don't ignore it but fire it
  * as soon as possible"): the tab list's stats line ("Attack Speed: ⚔45", the Stats widget and the dungeon's Skills and
- * Stats widget; on newer Hypixel the icon is a private-use glyph), the same source SkyHanni's SkyblockStat reads. The
+ * Stats widget; on newer Hypixel the icon is a private-use glyph), the same source the SkyblockStat reads. The
  * last value seen there is remembered for the session, so a tab list without the widget (a dungeon's early tab, a
  * reconnect) keeps it. With no reading at all he is taken to be at the cap ({@link #MAX_ATTACK_SPEED}, 5 ticks): most
  * players are, and on Hypixel the window is the HIT MOB's immunity (the wiki: Attack Speed works "by reducing the damage

@@ -21,8 +21,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Hypixel dungeon "Ice Path" (silverfish) solver, ported from QUOI {@code puzzlesolvers/impl/IcePathSolver.kt}
- * (modified Skyblocker {@code IcePath.java}). The 17x17 board is read every tick at room-relative y=67
+ * Hypixel dungeon "Ice Path" (silverfish) solver
+ * (modified). The 17x17 board is read every tick at room-relative y=67
  * ({@code (23 - col, 67, 24 - row)}, non-air = wall). Whenever the silverfish (searched in a 16-block box around
  * relative (15,66,16)) comes to rest on a new cell, or the board changes, a BFS over "slide until blocked" moves finds
  * the shortest push sequence to the exit (row 0, col 7..9). The path is drawn as a green line and the next stop is
@@ -256,7 +256,7 @@ public final class IcePathSolverFeature {
                 }
             }
         }
-        // QUOI keeps the previous path when no solution exists.
+        // The reference keeps the previous path when no solution exists.
         sayOnce("no route from row " + start[0] + " col " + start[1] + " to the exit - the board read "
                 + countWalls() + " wall(s) at relative y 67. A board that reads 0 or 289 is not being read at all.");
     }

@@ -16,7 +16,7 @@ import java.util.Locale;
 /**
  * Persisted Custom Scoreboard settings - see {@link CustomScoreboardFeature}. Every field survives a restart,
  * including which lines, events and chunked stats are on the board and their order ({@link EntryOrder}). Position/scale live in {@code HudConfig}
- * under {@link CustomScoreboardFeature#ELEMENT_ID}. Defaults mirror SkyHanni's CustomScoreboardConfig/DisplayConfig/
+ * under {@link CustomScoreboardFeature#ELEMENT_ID}. Defaults mirror the CustomScoreboardConfig/DisplayConfig/
  * BackgroundConfig/InformationFilteringConfig (plus a few SkyBlock Custom Scoreboard options), with the colors swapped
  * to this mod's orange theme. Cached game data (Maxwell, cookie buff, quiver, mayor) lives in
  * {@link ScoreboardExtraData}'s own file.
@@ -75,7 +75,7 @@ public final class CustomScoreboardConfig {
         }
     }
 
-    /** SkyHanni's CustomScoreboardUtils.NumberDisplayFormat. */
+    /** The CustomScoreboardUtils.NumberDisplayFormat. */
     public enum NumberDisplayFormat {
         TEXT_COLOR_NUMBER("§fPurse: §6123"),
         COLOR_TEXT_NUMBER("§6Purse: 123"),
@@ -100,7 +100,7 @@ public final class CustomScoreboardConfig {
         }
     }
 
-    /** SkyHanni/SkyBlock Custom Scoreboard's DateFormat (used by the Lobby Code line). */
+    /** SkyBlock Custom Scoreboard's DateFormat (used by the Lobby Code line). */
     public enum DateFormat {
         US_SLASH_MMDDYY("MM/dd/yy"),
         US_SLASH_MMDDYYYY("MM/dd/yyyy"),
@@ -125,7 +125,7 @@ public final class CustomScoreboardConfig {
         public String today() { return LocalDate.now().format(formatter); }
     }
 
-    /** SkyHanni's DisplayConfig.PowderDisplay. */
+    /** The DisplayConfig.PowderDisplay. */
     public enum PowderDisplay {
         AVAILABLE("Available"), TOTAL("Total"), BOTH("Available/Total");
 
@@ -192,7 +192,7 @@ public final class CustomScoreboardConfig {
     private Align footerAlignment = Align.LEFT;
     private boolean textShadow = true;
     private int lineSpacing = 1;
-    /** Before 2026-10-15 the board was placed by SkyHanni's snap (Snap X / Snap Y / Screen Margin) or, once dragged,
+    /** Before 2026-10-15 the board was placed by the snap (Snap X / Snap Y / Screen Margin) or, once dragged,
      *  by an absolute HudConfig x. Read only to convert an old save into the anchor below; never written again. */
     private HorizontalSnap horizontalSnap = HorizontalSnap.RIGHT;
     private VerticalSnap verticalSnap = VerticalSnap.CENTER;
@@ -221,7 +221,7 @@ public final class CustomScoreboardConfig {
     private boolean showPartyEverywhere = false;
     private int maxPartyMembers = 4;
     private boolean showAllActiveEvents = true;
-    // general (SkyHanni DisplayConfig / CustomScoreboardConfig + SkyBlock Custom Scoreboard Config)
+    // general (the reference DisplayConfig / CustomScoreboardConfig + SkyBlock Custom Scoreboard Config)
     private boolean hideWhenTab = false;
     private boolean hideWhenChat = false;
     /** Hide the board whenever any menu or screen is open (killer560, 2026-10-18): on by default. */

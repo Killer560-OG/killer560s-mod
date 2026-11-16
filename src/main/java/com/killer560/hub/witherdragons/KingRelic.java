@@ -10,10 +10,9 @@ import net.minecraft.world.item.ItemStack;
 import java.util.Locale;
 
 /**
- * The five Corrupted King Relics. Skyblock item ids and cauldron positions from Odin's {@code KingRelics.Relic}
- * (https://github.com/odtheking/Odin/blob/main/src/main/kotlin/com/odtheking/odin/features/impl/boss/KingRelics.kt);
- * item names ("Corrupted Red Relic") and the placed-relic armor-stand x/z ({@code coords}) from NoammAddons'
- * {@code WitherRelic.kt} (local copy a local NoammAddons checkout, utils/dungeons/enums). Both sources agree
+ * The five Corrupted King Relics. Skyblock item ids and cauldron positions from the {@code KingRelics.Relic} table;
+ * item names ("Corrupted Red Relic") and the placed-relic armor-stand x/z ({@code coords}) from the
+ * {@code WitherRelic} table. Both sources agree
  * on all five cauldron positions.
  */
 public enum KingRelic {
@@ -43,10 +42,10 @@ public enum KingRelic {
 
     public String colored() { return "§" + colorCode + colourName; }
 
-    /** "Corrupted Red Relic" (NoammAddons formalName). */
+    /** "Corrupted Red Relic" (the reference formalName). */
     public String itemName() { return "Corrupted " + colourName + " Relic"; }
 
-    /** By Skyblock id first (Odin), then by item name color (NoammAddons) - e.g. on p3sim, where items may
+    /** By Skyblock id first, then by item name color - e.g. on p3sim, where items may
      *  not carry Hypixel's custom data. */
     public static KingRelic fromStack(ItemStack stack) {
         if (stack == null || stack.isEmpty()) return null;

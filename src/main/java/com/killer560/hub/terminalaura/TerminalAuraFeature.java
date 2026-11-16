@@ -24,7 +24,7 @@ import com.killer560.hub.compat.McCompat;
 
 /**
  * Terminal Aura - opens P3 terminals by itself when you walk past one, cheat build only, default OFF.
- * A port of QUOI's {@code TerminalAura} (credited there to Kyleen), asked for by killer560 2026-09-16:
+ * A port of the {@code TerminalAura} (credited there to Kyleen), asked for by killer560 2026-09-16:
  * "it should be just like every other aura that you have implemented just for terminals".
  * <p>
  * This only <i>opens</i> a terminal - it right-clicks the "Inactive Terminal" armor stand. Solving what
@@ -282,7 +282,7 @@ public final class TerminalAuraFeature {
                 st -> eyes.distanceToSqr(TerminalStands.center(st))));
         for (ArmorStand stand : stands) {
             Vec3 center = TerminalStands.center(stand);
-            // Since Hypixel's 2026 terminal update a terminal does not open from below: QUOI (jcnlk's fork,
+            // Since Hypixel's 2026 terminal update a terminal does not open from below: the reference (another mod's fork,
             // 077adbe/44eac98, 2026-10-07) skips any stand whose feet are above your EYES, not your feet.
             if (eyes.y < stand.getY()) continue;
             if (!fullCircle && center.subtract(eyes).normalize().dot(look) < minFovDot) continue;

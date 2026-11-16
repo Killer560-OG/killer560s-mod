@@ -14,12 +14,12 @@ import java.util.List;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Auto Ice Path - port of QUOI {@code IcePathSolver.kt}'s {@code auto(...)} on top of {@link IcePathSolverFeature}.
+ * Auto Ice Path - port of 's {@code auto(...)} on top of {@link IcePathSolverFeature}.
  * Standing on the silverfish's cell (x/z of the silverfish, the ice's y), it shoots straight down (pitch 90) with the
  * yaw of the board direction toward the next stop, so the arrow knocks the silverfish that way, paced by the Shoot
  * cooldown. While the silverfish slides it waits. With "Etherwarp Reposition" on it also warps onto the silverfish's
- * cell (and, while it slides, onto the next stop) like QUOI; with it off you stand there yourself.
- * Safety addition: only fires while holding a shortbow (QUOI relied on its reposition having swapped to one).
+ * cell (and, while it slides, onto the next stop); with it off you stand there yourself.
+ * Safety addition: only fires while holding a shortbow (the reference relied on its reposition having swapped to one).
  * <p>
  * Miss cooldown removed (killer560, 2026-09-27: "For auto puzzles remove the miss cooldown."): it used to hold
  * every shot for an extra {@code missCooldownMs} on top of the Shoot cooldown in case that shot missed and the
@@ -252,7 +252,7 @@ final class AutoIcePath {
     /**
      * Gets him onto the silverfish's cell, the one spot the straight-down shot works from.
      *
-     * <p>QUOI only ever etherwarped there directly, and gave up (silently, until 2026-10-04) whenever that cell's top
+     * <p>the reference only ever etherwarped there directly, and gave up (silently, until 2026-10-04) whenever that cell's top
      * face could not be seen. From the board itself it often cannot: the eye is 1.27 above the ice, so the ray to a
      * cell more than a few blocks off runs along the maze's own one-block pillars - the 93-solve run of 2026-10-04
      * stood at the room's spawn, six cells from the fish, and never moved. Three ways on, best first:

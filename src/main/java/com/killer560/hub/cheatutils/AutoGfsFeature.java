@@ -17,18 +17,18 @@ import java.util.Set;
 /**
  * Auto GFS - refills sack items with {@code /gfs <sack_id> <amount>} on Hypixel Skyblock only (p3sim has no /gfs;
  * every send goes through {@link SackCommands}, which waits for the answer). Command syntax is
- * identical in both references: NoammAddons {@code AutoGFS.kt} ({@code "gfs $id $count"}, e.g.
- * {@code gfs ender_pearl 12}) and QUOI {@code PlayerUtils.fillItemFromSack} ({@code "gfs $sackName $missing"}).
+ * identical in both references: ({@code "gfs $id $count"}, e.g.
+ * {@code gfs ender_pearl 12}) and the reference {@code PlayerUtils.fillItemFromSack} ({@code "gfs $sackName $missing"}).
  * <ul>
  * <li>Counts inventory stacks by Skyblock id (ENDER_PEARL / SPIRIT_LEAP / SUPERBOOM_TNT / INFLATABLE_JERRY,
  * max 16/16/64/64 - both refs).
- * <li>Refills when count &lt; threshold% of max (QUOI "Amount" mode), pulling {@code max - count} (both refs).
- * Noamm's {@code needed >= 4} floor and {@code current == 0 -> skip} are kept (the latter as a toggle).
- * <li>Checked every N seconds (Noamm "Check Delay", default 20s); commands spaced &gt;= 3s apart (Noamm's
+ * <li>Refills when count &lt; threshold% of max (the reference "Amount" mode), pulling {@code max - count} (both refs).
+ * The {@code needed >= 4} floor and {@code current == 0 -> skip} are kept (the latter as a toggle).
+ * <li>Checked every N seconds (the reference "Check Delay", default 20s); commands spaced &gt;= 3s apart (the
  * {@code sendCommand(..., 3000)} queue spacing). Never with a container screen open (both refs).
- * <li>"You have no X in your Sacks!" (QUOI) marks that item empty until world change.
+ * <li>"You have no X in your Sacks!" marks that item empty until world change.
  * <li>killer560 (2026-09-20): "make an option to only work in dungeons/kuudra" - {@code gfsDungeonKuudraOnly}
- * (off by default) gates on {@link ScoreboardData#inIsland}, mirroring Odin's own {@code AutoGFS} which keeps
+ * (off by default) gates on {@link ScoreboardData#inIsland}, mirroring the {@code AutoGFS} which keeps
  * separate {@code inSkyblock}/{@code inKuudra}/{@code inDungeon} toggles rather than one hardcoded location.
  * </ul>
  */

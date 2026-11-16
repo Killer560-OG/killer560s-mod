@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Ability Keybinds settings - see {@link com.killer560.hub.abilitykeybinds.AbilityKeybindsFeature}'s
- *  class doc for the real Noamm-ported ability-trigger this is built on. {@code capturing}: 0 none,
+ *  class doc for the real ability-trigger this is built on. {@code capturing}: 0 none,
  *  1 ability key, 2 ultimate key. */
 public class AbilityKeybindsTab extends BaseTab implements KeyCaptureTab {
 

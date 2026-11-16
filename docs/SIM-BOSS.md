@@ -1,12 +1,12 @@
 # Dungeon Sim - the F7 boss (bosssim/)
 
-Built 2026-11-01 (branch doc-adm-boss-1101) from the to-do Doc item "NEW REFRENCE MOD - undonecoffee/adm ... their boss
+Built 2026-11-01 (branch doc-boss-1101) from the to-do Doc item "NEW REFRENCE MOD ... their boss
 stuff". Owner decision: all F7 phases together. Code: `com.killer560.hub.bosssim`, its own package; roomsim is touched
 only by the sim menu's "F7 Boss" entry (`SimMenuNav`).
 
 ## The reference mod and its license
 
-ADM (github.com/undonecoffee/adm, cloned read-only at `C:\Users\Hunter\ref-adm\adm`) declares
+The reference recordings declare
 `"license": "All-Rights-Reserved"` in its fabric.mod.json and ships no license file. Nothing of its code or assets is
 used. What was taken is FACTS about Hypixel's boss it measured: the [BOSS] lines and their tick spacing, the station
 coordinates and stand heights, the terminal titles, window sizes and slot layouts, the Storm pillars and pads, the lava
@@ -70,7 +70,7 @@ between the two captures: Hypixel seems to shuffle such blocks per run). The sim
 
 ## The fight
 
-`BossFight`, one server tick at a time, every boss moving and timed as ADM measured Hypixel after its 2026-10-05/06 boss
+`BossFight`, one server tick at a time, every boss moving and timed as Hypixel was measured after its 2026-10-05/06 boss
 update (bossparity-1103 brought it in line; the item-by-item comparison is killer560s-mod-logs\bossparity-1103.md).
 Every boss is a no-AI wither moved by the fight (`BossMob.moveTo(pos, look)`, yaw = atan2(-dx, dz)).
 
@@ -85,7 +85,7 @@ Every boss is a no-AI wither moved by the fight (`BossMob.moveTo(pos, look)`, ya
   pillar that stepped in the last 60 ticks. Crush 1 pins him (median 10), crush 2 kills him (death line median 6 later).
   The drop to S1 is under the Red pillar, 24-30 ticks after Goldor's line.
 - **P3 Goldor**: walks his loop round the sections (0.048, then 0.06; a 0.6 sprint to the next corner when a door opens
-  with him still in its section), flies into the core (0.8) once everyone is in it; one hit there kills him (ADM's kill is a
+  with him still in its section), flies into the core (0.8) once everyone is in it; one hit there kills him (that kill is a
   timer standing in for a party's damage); his "...." queues behind his lines; the core's floor goes 2 ticks before
   Necron's line. Death-tick and Frenzy LINES only (the sim deals no damage).
 - **Necron's pull** (necronpull-1111, killer560 2026-11-11): as the core floor goes, Necron pulls every player (co-op
@@ -146,7 +146,7 @@ start button resets a running device, a wrong press stops it), Lights (20 levers
 neighbour's), Arrows (frames on one of `ArrowAlignFeature.solutions()`; as on Hypixel two more frames hold wool, lime where the path starts and red where it ends: an end is an empty cell an arrow points into, a start the empty cell behind an arrow no other points into, else a free neighbor; rotation 1/5 = -z/+z and 3/7 = down/up, the one mapping that keeps all nine layouts on the wall; the wool frames never turn), Target (9 targets, lit only while someone is on
 the plate (63, 126, 35), an arrow in the lit one turns it blue terracotta, 9 hits; off the plate the attempt resets).
 
-Simon Says runs on round TASKS, as ADM measured Hypixel's (bossfix3-1105): a start press while stopped draws a pattern and
+Simon Says runs on round TASKS, as Hypixel's were measured (bossfix3-1105): a start press while stopped draws a pattern and
 queues a round task 4 ticks on; a start press while started resets (round 0, lamps off, buttons gone) but never cancels a
 queued task or a running show. A task adds a round and shows it with the pattern as it is then: every button gone, lamp j
 at 8j takes its own button and goes out 8 later, the buttons back at 8n+10 except under lit lamps, presses count from then;
@@ -197,8 +197,8 @@ point, flight, Terminator kill on Red, melee kill on Orange, Wither Dragons read
 - A vanilla stone button stays pressed 20 ticks; Hypixel's Simon Says buttons come back up in 2 (start) and 3 (grid)
   ticks, so a reset press 15 ticks after the start press was invisible to the edge check (1103-boss-rules read INPUT
   where IDLE was due, 2026-11-03). `BossDevices.popUp` raises them on Hypixel's timing.
-- Read the reference's own line before changing a behavior from a summary of it: a summary of ADM said the timed gate
-  opens without "The gate has been destroyed!", but ADM's auto gate calls the same blow path with no player, which sends
+- Read the reference's own line before changing a behavior from a summary of it: a summary said the timed gate
+  opens without "The gate has been destroyed!", but the auto gate calls the same blow path with no player, which sends
   it (GoldorPhase.kt blowGate), and the mod's P3 trackers depend on that line (bossparity-1103).
 - Maxor's stun used to come 60 ticks after both crystals wherever he was, so a test could "stun" him with nobody near the
   beam. Hypixel's needs him in the beam: a P1 test has to lure him (stand on the strip south of it, 73.5 225 76.5).

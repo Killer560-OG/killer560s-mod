@@ -11,7 +11,7 @@ import net.minecraft.util.Util;
 import java.util.function.BooleanSupplier;
 
 /**
- * Real round-trip ping, measured the way Odin and Skyblocker do it: send vanilla's own
+ * Real round-trip ping, measured the way other implementations do it: send vanilla's own
  * {@link ServerboundPingRequestPacket} carrying {@code Util.getMillis()}, and on the matching
  * {@code ClientboundPongResponsePacket} take {@code now - time}. It is the packet pair vanilla's F3 ping chart
  * ({@code PingDebugMonitor}) sends every tick while that chart is open, so one a second is ordinary traffic.

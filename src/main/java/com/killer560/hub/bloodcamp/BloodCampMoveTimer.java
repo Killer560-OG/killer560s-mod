@@ -24,26 +24,26 @@ import java.util.regex.Pattern;
  * {@link #BLOOD_OPEN} when the blood door opens, and says {@link #BLOOD_MOVE} ("Let's see how you can handle this.")
  * when he sends the last wave out. From the gap between those two lines the moment he MOVES can be predicted, and
  * killing the remaining mobs on that moment is what skips his closing dialogue. The bucket table below is the same
- * one SkyHanni's own {@code features/dungeon/BloodTimer} and Odin's own {@code dungeon/BloodCamp} use (both
+ * one the {@code features/dungeon/BloodTimer} and the {@code dungeon/BloodCamp} use (both
  * javap-read on the real jars, 2026-09-21, and they agree constant for constant):
  * <pre>
  *   gap 31-34s -&gt; he moves 36s after the greeting     gap 25-28s -&gt; 30s
  *   gap 28-31s -&gt; 33s                                 gap 22-25s -&gt; 27s
- *   gap  1-22s -&gt; 24s                                 anything else -&gt; gap + 3s (Odin's generalization)
+ *   gap 1-22s -&gt; 24s anything else -&gt; gap + 3s (the generalization)
  * </pre>
- * i.e. the move lands on the next 3-second boundary a couple of seconds after the last wave goes out. SkyHanni fires
+ * i.e. the move lands on the next 3-second boundary a couple of seconds after the last wave goes out. The reference fires
  * its own "Kill Blood" title 150 ms (3 ticks) before that instant; that lead is {@link BloodCampConfig#getKillPopupLeadTicks()}
  * here so killer560 can tune it against his own ping instead of living with a hardcoded number.
  * <b>The table is no longer used</b> (bctrig-1104): since SkyBlock 0.27.2 every Watcher moves at a fixed time per floor
  * after his greeting whatever the gap ({@link #fastWatcherMoveTicks}), timed on {@link #elapsedSinceGreeting}.
  * <p>
  * Timed in {@code ClientLevel#getGameTime()} ticks, not wall clock, for the same reason the rest of this feature is:
- * it is the one clock the Watcher and this mod share. Unlike SkyHanni there is no separate server-time mark to take a
+ * it is the one clock the Watcher and this mod share. Unlike the reference there is no separate server-time mark to take a
  * client/server drift correction from, so the prediction carries whatever drift the tick clock has - flagged, not
  * fixed, because it cannot be checked without a live blood room.
  * <p>
  * Also owns {@link #isFirstSpawns()}: the Watcher's first wave settles 40 ticks slower than every later one, and that
- * "first" state ends exactly on the {@link #BLOOD_MOVE} line (Odin sets its own {@code firstSpawns = false} on that
+ * "first" state ends exactly on the {@link #BLOOD_MOVE} line (the reference sets its own {@code firstSpawns = false} on that
  * same line). {@link BloodCampFeature} used to clear its own copy after the first tracked mob instead, which made
  * every other mob of the first wave count down two seconds early.
  */
@@ -51,7 +51,7 @@ public final class BloodCampMoveTimer {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-bloodcamp");
 
-    /** The Watcher's greeting when the blood door opens - verbatim from Odin's own {@code BLOOD_START_REGEX}
+    /** The Watcher's greeting when the blood door opens - verbatim from the {@code BLOOD_START_REGEX}
      *  (the same list {@code splittimers.SplitTimersFeature} already matches on). */
     private static final Pattern BLOOD_OPEN = Pattern.compile(
             "^\\[BOSS] The Watcher: (Congratulations, you made it through the Entrance\\.|Ah, you've finally arrived\\.|"
@@ -60,23 +60,23 @@ public final class BloodCampMoveTimer {
                     + "I'm starting to get tired of seeing you around here\\.\\.\\.|Oh\\.\\. hello\\?|"
                     + "Things feel a little more roomy now, eh\\?)$");
 
-    /** Any Watcher line. NoammAddons 1.2.9 {@code DungeonListener} takes the FIRST of these in a run as the blood
+    /** Any Watcher line. The reference 1.2.9 {@code DungeonListener} takes the FIRST of these in a run as the blood
      *  opening ({@code watcherMessageRegex}, which posts its new {@code BloodOpenEvent}), so a greeting text this list
      *  does not know yet - 0.27.2 already changed one - still starts the clock. */
     private static final Pattern WATCHER_ANY = Pattern.compile("^\\[BOSS] The Watcher: .+$");
 
-    /** The last wave going out - Odin's own {@code BLOOD_MOVE_REGEX}. */
+    /** The last wave going out - the {@code BLOOD_MOVE_REGEX}. */
     private static final Pattern BLOOD_MOVE =
             Pattern.compile("^\\[BOSS] The Watcher: Let's see how you can handle this\\.$");
 
-    /** How long "KILL" stays up once the window opens - SkyHanni's own title length. */
+    /** How long "KILL" stays up once the window opens - the title length. */
     private static final int KILL_HOLD_TICKS = 30;
     /** The countdown only appears this close to the move, so the popup is not a permanent fixture. */
     private static final int COUNTDOWN_SHOW_TICKS = 200;
 
     private static long bloodOpenTick = -1L;
     /** {@code util.PerTickServerClock} at the greeting: every timing below counts server ticks since it, stalls left out
-     *  (2026-11-01, NoammAddons times its move timer in server ticks too). */
+     *  (2026-11-01, the reference times its move timer in server ticks too). */
     private static long[] bloodOpenMark;
     private static long bloodOpenClock;
     /** Lag-free ticks after the greeting at which the Watcher moves, or -1 with no prediction. */
@@ -89,7 +89,7 @@ public final class BloodCampMoveTimer {
     }
 
     static void register() {
-        // ChatObserver, not Fabric's CHAT/GAME: Odin/NoammAddons/Skyblocker cancel and re-add boss lines, which
+        // ChatObserver, not Fabric's CHAT/GAME: other implementations cancel and re-add boss lines, which
         // skips Fabric's events for everyone else (see ChatObserver's class doc).
         ChatObserver.subscribe(BloodCampMoveTimer::onChat);
     }
@@ -212,14 +212,14 @@ public final class BloodCampMoveTimer {
         }
     }
 
-    /** Kill time for a floor this cannot read, in ticks after the Watcher's first line: NoammAddons 1.2.9
-     *  {@code dungeon/BloodCamp.kt} dropped the gap table (SkyHanni/Odin's, which this class's doc describes) and applies
+    /** Kill time for a floor this cannot read, in ticks after the Watcher's first line: the reference 1.2.9
+     *  {@code dungeon/BloodCamp.kt} dropped the gap table (which this class's doc describes) and applies
      *  its per-floor time to every run. Since bctrig-1104 so does this class: the old table's long-gap buckets put KILL
      *  60 ticks after the Watcher had moved (see onChat). */
     static final int FAST_WATCHER_MOVE_TICKS = 400;
 
     /**
-     * NoammAddons' per-floor move times (its BloodCamp.kt {@code moveTimes}, "feat(BloodCamp): Watcher Move Timer",
+     * The per-floor move times (its BloodCamp.kt {@code moveTimes}, "feat(BloodCamp): Watcher Move Timer",
      * 2026-10-16, CC0): server ticks after the first Watcher line, indexed by floor number - Entrance 480, F1 600, F2-F4
      * 500, F5-F6 470, F7 420 (Master Mode by the same number). It replaced the flat 400 ("watcher always moves after 400
      * server ticks", 2026-10-05) this class had copied. A floor this cannot read keeps 400.
@@ -250,7 +250,7 @@ public final class BloodCampMoveTimer {
         return FAST_WATCHER_MOVE_TICKS;
     }
 
-    /** "That will be enough for now." - the Watcher's last summon (NoammAddons' DungeonListener reads the same line). */
+    /** "That will be enough for now." - the Watcher's last summon (the DungeonListener reads the same line). */
     private static final Pattern SPAWNING_DONE =
             Pattern.compile("^\\[BOSS] The Watcher: That will be enough for now\\.$");
     /** "You have proven yourself. You may pass." - the Blood Room is cleared. */

@@ -23,17 +23,17 @@ import java.util.regex.Pattern;
 /**
  * Values dungeon reward chests. Every fact about the menus comes from reference mods, not guesses:
  * <ul>
- *   <li>Menu titles - {@code "(1/2) Croesus"}, {@code "[Master ]Catacombs - Floor VII"} (NoammAddons also
+ *   <li>Menu titles - {@code "(1/2) Croesus"}, {@code "[Master ]Catacombs - Floor VII"} (the reference also
  *   accepts the truncated {@code "Master Catacombs - Flo"}), chest screens {@code "Bedrock[ Chest]"}:
- *   NoammAddons ChestProfit.kt, Odin Croesus.kt, quoi AutoCroesus.kt.</li>
+ *   (the sources agree).</li>
  *   <li>Chest lore - {@code Contents} / item lines / blank / {@code Cost} / {@code "1,000,000 Coins"} or
- *   {@code FREE} / optional {@code Dungeon Chest Key} / {@code Already opened!}: quoi AutoCroesusParser.kt,
- *   Odin Croesus.kt; {@code Can't open another chest!}: Odin KuudraTracker.kt.</li>
+ *   {@code FREE} / optional {@code Dungeon Chest Key} / {@code Already opened!};
+ *   {@code Can't open another chest!}.</li>
  *   <li>Reward line formats - {@code "Enchanted Book (Ultimate Wise V)"}, {@code "Wither Essence x20"},
  *   {@code "[Lvl 1] Spirit"}, {@code "... Shard"}, {@code "Shiny "} prefix, and the display-name -> id
- *   replacement table: Odin Croesus.kt + quoi AutoCroesusParser.kt + NoammAddons ChestProfit.kt.</li>
+ *   replacement table.</li>
  *   <li>In an open chest screen the claim button is slot 31 (a real chest item whose lore holds "Cost"):
- *   NoammAddons ChestProfit.kt (items[31]) + quoi (clicks 31); rewards live in slots 0-40: Odin.</li>
+ *    (items[31]) + another mod (clicks 31); rewards live in slots 0-40: the reference.</li>
  * </ul>
  * Prices come ONLY from {@link RngMeterEngine#PRICES} (Bazaar first, AH lowest-BIN fallback).
  */
@@ -100,11 +100,11 @@ public final class DungeonChestValuer {
     private static final Pattern FORMATTING = Pattern.compile("§.");
 
     public static final int CLAIM_BUTTON_SLOT = 31;
-    /** The Kismet "Reroll Chest" button in an open chest screen - quoi AutoCroesus.kt reads {@code slots[50]}. */
+    /** The Kismet "Reroll Chest" button in an open chest screen - reads {@code slots[50]}. */
     public static final int REROLL_BUTTON_SLOT = 50;
-    /** The Croesus run head lore line that marks a run with nothing claimed yet (quoi AutoCroesus.kt). */
+    /** The Croesus run head lore line that marks a run with nothing claimed yet. */
     public static final String RUN_UNOPENED_LORE = "No chests opened yet!";
-    /** Where the Croesus menu puts its run heads (quoi AutoCroesus.kt) - shared by Auto Croesus and the
+    /** Where the Croesus menu puts its run heads - shared by Auto Croesus and the
      *  claimed/unclaimed highlight so the two can never disagree about which slots are runs. */
     public static final int[] RUN_HEAD_SLOTS = {
             10, 11, 12, 13, 14, 15, 16, 19, 20, 21, 22, 23, 24, 25,
@@ -112,15 +112,15 @@ public final class DungeonChestValuer {
     };
     public static final String DUNGEON_CHEST_KEY_ID = "DUNGEON_CHEST_KEY";
     private static final String REROLL_BUTTON_NAME = "Reroll Chest";
-    /** Reroll button lore when you are carrying no Kismet Feather (quoi AutoCroesus.kt). */
+    /** Reroll button lore when you are carrying no Kismet Feather. */
     private static final String REROLL_NEEDS_KISMET = "Bring a Kismet Feather";
-    /** Reroll button lore once this run's one reroll has been spent (quoi AutoCroesus.kt). */
+    /** Reroll button lore once this run's one reroll has been spent. */
     private static final String REROLL_ALREADY_USED = "You already rerolled a chest";
 
-    /** Display name -> id where the name doesn't map mechanically - merged from Odin Croesus.kt's
-     *  itemReplacements and quoi AutoCroesusParser.kt's itemReplacements. */
+    /** Display name -> id where the name doesn't map mechanically - merged from 's
+     *  itemReplacements and itemReplacements. */
     private static final Map<String, String> REPLACEMENTS = new HashMap<>();
-    /** Unsellable/near-worthless ids valued at 0 - quoi AutoCroesusData.kt defaultAutoCroesusWorthless. */
+    /** Unsellable/near-worthless ids valued at 0 - defaultAutoCroesusWorthless. */
     private static final Set<String> WORTHLESS_PREFIXES = Set.of(
             "DUNGEON_DISC_", "MAXOR_THE_FISH", "STORM_THE_FISH", "GOLDOR_THE_FISH",
             "ENCHANTMENT_ULTIMATE_NO_PAIN_NO_GAIN_", "ENCHANTMENT_ULTIMATE_COMBO_", "ENCHANTMENT_ULTIMATE_BANK_",
@@ -209,7 +209,7 @@ public final class DungeonChestValuer {
                 continue;
             }
             if (line.equals("Dungeon Chest Key")) {
-                // quoi AutoCroesusParser.kt: a key requirement adds the key's own price to the cost.
+                //: a key requirement adds the key's own price to the cost.
                 requiresKey = true;
                 Long key = dungeonChestKeyPrice();
                 if (key != null) {
@@ -243,8 +243,8 @@ public final class DungeonChestValuer {
         return key == null ? chest.profit() : chest.profit() - key;
     }
 
-    /** Values an opened chest screen: real reward stacks in slots 0-40 (Odin), cost/opened state from the
-     *  slot-31 button's lore (NoammAddons). Falls back to the button's own "Contents" lore when no real
+    /** Values an opened chest screen: real reward stacks in slots 0-40, cost/opened state from the
+     *  slot-31 button's lore. Falls back to the button's own "Contents" lore when no real
      *  reward stack could be identified. */
     public static ChestValue fromChestScreen(ChestType type, List<ItemStack> containerStacks) {
         ItemStack button = containerStacks.size() > CLAIM_BUTTON_SLOT ? containerStacks.get(CLAIM_BUTTON_SLOT) : ItemStack.EMPTY;
@@ -272,12 +272,12 @@ public final class DungeonChestValuer {
                 && strip(button.getHoverName().getString()).trim().equals(REROLL_BUTTON_NAME);
     }
 
-    /** True when the reroll button says you aren't carrying a Kismet Feather (quoi AutoCroesus.kt). */
+    /** True when the reroll button says you aren't carrying a Kismet Feather. */
     public static boolean rerollNeedsKismet(ItemStack button) {
         return loreContains(button, REROLL_NEEDS_KISMET);
     }
 
-    /** True when this run's single reroll has already been spent (quoi AutoCroesus.kt). */
+    /** True when this run's single reroll has already been spent. */
     public static boolean rerollAlreadyUsed(ItemStack button) {
         return loreContains(button, REROLL_ALREADY_USED);
     }
@@ -415,7 +415,7 @@ public final class DungeonChestValuer {
             }
         }
         if (id == null) {
-            // Odin Croesus.kt's last-resort: uppercase, drop apostrophes and " -", spaces -> underscores.
+            // 's last-resort: uppercase, drop apostrophes and " -", spaces -> underscores.
             id = name.toUpperCase(Locale.US).replace("'", "").replace(" -", "").replace(" ", "_");
         }
         return priced(line, id, Math.max(1, amount));

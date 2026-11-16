@@ -73,7 +73,7 @@ public final class SimTerminator {
     /**
      * Degrees either side of the look for the two outer arrows.
      *
-     * <p>5, not 8: 5 is the angle QUOI's Auto Blaze (and this mod's port of it) checks the side arrows against,
+     * <p>5, not 8: 5 is the angle the Auto Blaze (and this mod's port of it) checks the side arrows against,
      * written for Hypixel's Terminator. At 8 the sim's side arrows flew where the auto had not looked, so a shot
      * it had cleared as safe could still kill a neighboring blaze out of order (2026-10-04).
      */

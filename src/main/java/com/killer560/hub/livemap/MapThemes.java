@@ -36,10 +36,10 @@ public final class MapThemes {
 
     /**
      * The default map colors (theme "Real Map", saved as {@code REAL}). killer560, 2026-10-19: "I love how their map
-     * looks and ours should essentially match that style" - these are NoammAddons' {@code MapConfig.kt} defaults
+     * looks and ours should essentially match that style" - these are defaults
      * (lines 59-71: normal 121,70,0; entrance 0,255,0; puzzle 123,0,123; trap 255,130,0; miniboss 255,200,0; fairy
      * 227,155,226; rare 178,178,178; unopened 65,65,65; wither door 16,16,16). Blood stays our #FF0000, which he asked for
-     * on 2026-10-19 (NoammAddons' is 178,0,0). Until then this was {@link #HYPIXEL_ITEM}. The wither door is plain black
+     * on 2026-10-19 (the reference is 178,0,0). Until then this was {@link #HYPIXEL_ITEM}. The wither door is plain black
      * since 2026-11-01 (to-do Doc: "the wither doors should be black ... That is the default").
      */
     static final int[] REAL = {0xFF794600, 0xFF00FF00, 0xFF7B007B, 0xFFFF8200, 0xFFFFC800, 0xFFE39BE2, 0xFFFF0000,

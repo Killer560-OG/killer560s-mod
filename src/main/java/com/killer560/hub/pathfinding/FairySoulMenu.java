@@ -24,7 +24,7 @@ import com.killer560.hub.compat.McCompat;
  * <p>
  * The menu is the "Fairy Souls Guide" chest (SkyBlock Menu -&gt; Quest Log -&gt; Fairy Souls, also reachable from Tia
  * the Fairy): one item per island, named exactly as the island is named ("Hub", "The Farming Islands", "Spider's Den",
- * ...), whose lore carries a "Fairy Souls: found/total" line. Those two strings are the same ones SkyHanni matches in
+ * ...), whose lore carries a "Fairy Souls: found/total" line. Those two strings are the same ones the reference matches in
  * {@code features/misc/FastFairySoulsPathfinder.kt} (inventory name {@code "Fairy Souls Guide"}, lore pattern
  * {@code "Fairy Souls: (?<found>.*)/(?<total>.*)"}), read with {@code IslandType.getByNameOrNull(stack.cleanName)}.
  * <p>
@@ -40,7 +40,7 @@ public final class FairySoulMenu {
 
     private static final String CHAT = "Fairy Souls";
     private static final Pattern LORE_COUNT = Pattern.compile("Fairy Souls:\\s*(\\d+)\\s*/\\s*(\\d+)");
-    /** SkyHanni matches exactly "Fairy Souls Guide"; this also accepts any other menu whose title mentions Fairy
+    /** The reference matches exactly "Fairy Souls Guide"; this also accepts any other menu whose title mentions Fairy
      *  Souls, since the island-name + "Fairy Souls: x/y" lore check below is what actually identifies the items. */
     private static final String MENU_TITLE = "Fairy Soul";
 

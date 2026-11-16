@@ -28,7 +28,7 @@ import java.util.Set;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Interactive Map - port of QUOI's {@code InteractiveMap} module (plus NoammAddons/Odin map UX): keybinds, the HUD peek,
+ * Interactive Map - port of the {@code InteractiveMap} module (plus other implementations map UX): keybinds, the HUD peek,
  * clicking the HUD map from chat, per-room "cleared by" tracking and the player marker list the
  * {@link InteractiveMapScreen} draws. Teleport pathing ({@code livemap.autoclear}) and Auto Blood Rush are cheat-gated.
  */
@@ -74,7 +74,7 @@ public final class InteractiveMapFeature {
         peeking = hasWindow && cfg.isEnabled() && cfg.getPeekKeyCode() != com.killer560.hub.util.KeyUtil.NONE && McCompat.screen(client) == null
                 && com.killer560.hub.util.KeyUtil.isKeyDown(client.getWindow(), cfg.getPeekKeyCode());
 
-        // QUOI open key: press opens (only from no screen); Release closes on release, Repress closes on the next press.
+        // The reference open key: press opens (only from no screen); Release closes on release, Repress closes on the next press.
         // killer560: "I should be able to set keybinds to mouse buttons as well" - isBindDown polls either a
         // keyboard key or a mouse button, whichever this code encodes (see KeyUtil).
         boolean openDown = hasWindow && cfg.getOpenKeyCode() != com.killer560.hub.util.KeyUtil.NONE
@@ -95,7 +95,7 @@ public final class InteractiveMapFeature {
         openWasDown = openDown;
         mapOpen = McCompat.screen(client) instanceof InteractiveMapScreen;
 
-        // QUOI start / locked door keys only act while the map is open. killer560: "The button prebound as
+        // The reference start / locked door keys only act while the map is open. killer560: "The button prebound as
         // lmb and rmb should be customizable in settings, those are the ones currently under start key and
         // locked door key" - both now poll isBindDown so either one can be set to a mouse button too.
         //
@@ -557,7 +557,7 @@ public final class InteractiveMapFeature {
     }
 
     /** Self first, then teammates: loaded player entities are exact; the rest come from the map item's markers in
-     *  Hypixel's order (QUOI/NoammAddons assign non-self decorations to living teammates in tab order).
+     *  Hypixel's order (other implementations assign non-self decorations to living teammates in tab order).
      *  killer560: "on the map it still shows heads for mobs/things besides teammates which it shouldn't." -
      *  {@link LeapMenuFeature#currentPartyMembers()} returns every {@code Player}-typed entity in the level
      *  except yourself, with no check at all; several dungeon mobs (and, on p3sim, other real people sharing
@@ -610,7 +610,7 @@ public final class InteractiveMapFeature {
 
     /**
      * A teammate drawn from a map marker glides to each new marker position over {@link #GLIDE_MS} instead of jumping.
-     * Hypixel moves the markers a few times a second, so a far-away teammate hopped across the map in steps; NoammAddons
+     * Hypixel moves the markers a few times a second, so a far-away teammate hopped across the map in steps; the reference
      * eases its heads to each new marker the same way (350 ms, yaw the short way round). A teammate whose entity is
      * loaded is drawn from the entity and never goes through here. Display only: the marker itself is unchanged.
      */

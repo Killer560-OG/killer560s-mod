@@ -15,7 +15,7 @@ import java.util.Set;
  * level, and every other attribute the item carries equal too (only the per-item {@code uuid}/{@code timestamp}/
  * {@code originTag} are allowed to differ, because no two real books share those). Display names are never read.
  * <p>
- * <b>Books with more than one enchantment are skipped entirely</b>, as QUOI does. Combining two identical multi-enchant
+ * <b>Books with more than one enchantment are skipped entirely</b>. Combining two identical multi-enchant
  * books would raise each enchant only where the anvil allows it, so the result could be partly upgraded and partly
  * not, and there is no level-by-level cap check that covers that safely. Single-enchant books are what the anvil's
  * book-leveling is for.

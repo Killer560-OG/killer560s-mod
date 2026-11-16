@@ -29,9 +29,9 @@ import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.compat.McEntities;
 
 /**
- * Maxor's Crystals (F7/M7 Phase 1) - a port of NoammAddons'
+ * Maxor's Crystals (F7/M7 Phase 1) - a port of the
  * {@code src/main/kotlin/com/github/noamm9/features/impl/floor7/MaxorsCrystals.kt} (local copy at
- * a local NoammAddons checkout). Everything is default OFF ({@link MaxorConfig}).
+ * a local the reference checkout). Everything is default OFF ({@link MaxorConfig}).
  *
  * <h2>Ported exactly, with its source line</h2>
  * <ul>
@@ -42,20 +42,20 @@ import com.killer560.hub.compat.McEntities;
  * name (lines 23, 38-41); the stopwatch stops when an END_CRYSTAL entity appears at {@code y == 224} within
  * 5 blocks (2D) of you (lines 50-62), and the time is printed to chat, with a personal best (lines 64-70).</li>
  * <li><b>Place alert</b> - in F7 phase 1, if hotbar slot 8 holds an item named "Energy Crystal" (lines 79-83),
- * the warning line is drawn (Noamm's text: "⚠ Crystal ⚠").</li>
- * <li><b>Crystals active counter</b> - {@code "^(\\d)/(\\d) Energy Crystals are now active!$"}, NoammAddons
+ * the warning line is drawn (the text: "⚠ Crystal ⚠").</li>
+ * <li><b>Crystals active counter</b> - {@code "^(\\d)/(\\d) Energy Crystals are now active!$"}, the reference
  * {@code features/impl/floor7/F7Titles.kt} line 34.</li>
  * </ul>
  *
  * <h2>Deliberately NOT ported / not invented</h2>
- * No crystal pad COORDINATES exist in any consulted source (NoammAddons' file has none, and this repo's
+ * No crystal pad COORDINATES exist in any consulted source (the file has none, and this repo's
  * {@code f7spots} only ships P2 pad boxes), so no crystal spots are shipped: the optional highlight boxes
  * the END_CRYSTAL entities that are really in the world, and nothing is drawn from a hardcoded position.
  * The place-time personal best is stored in this feature's own config ({@code bestPlaceMs}) because the repo
  * has no {@code PersonalBest} store.
  *
  * <h2>One-tick caveat</h2>
- * NoammAddons stops the stopwatch inside the {@code ClientboundAddEntityPacket} handler; this port sees the
+ * The reference stops the stopwatch inside the {@code ClientboundAddEntityPacket} handler; this port sees the
  * crystal on the next client tick instead (no new packet hook), so a placement time can read up to ~50 ms high.
  * If exact parity matters, forward the existing {@code WitherDragonsPackets.onAddEntity} entity to
  * {@link #onCrystalEntity(Entity)} - it is written to be callable from there unchanged.
@@ -64,12 +64,12 @@ public final class MaxorCrystalsFeature {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-maxor");
 
-    /** NoammAddons MaxorsCrystals.kt line 23. */
+    /**  line 23. */
     private static final Pattern PICKUP = Pattern.compile("^(\\w+) picked up an Energy Crystal!");
-    /** NoammAddons MaxorsCrystals.kt line 24. */
+    /**  line 24. */
     private static final Pattern SPAWN = Pattern.compile(
             "^\\[BOSS] Maxor: THAT BEAM! IT HURTS! IT HURTS!!$|^\\[BOSS] Maxor: YOU TRICKED ME!$");
-    /** NoammAddons F7Titles.kt line 34. */
+    /**  line 34. */
     private static final Pattern ACTIVE = Pattern.compile("^(\\d)/(\\d) Energy Crystals are now active!$");
 
     /** MaxorsCrystals.kt line 46. */
@@ -98,7 +98,7 @@ public final class MaxorCrystalsFeature {
      * Server ticks left before the "Active" counter gives up waiting for the next set and drops to 0 on its own; -1 when
      * no laser line is pending. Armed by the stun line whatever the Respawn Timer switch says. The real signal is the
      * next set's first crystal appearing on a tower ({@link #watchNextSet}); this is only the backstop for a client that
-     * never sees that entity, so it runs {@link #NEXT_SET_SLACK_TICKS} past Noamm's 34-tick respawn and cannot beat it.
+     * never sees that entity, so it runs {@link #NEXT_SET_SLACK_TICKS} past the 34-tick respawn and cannot beat it.
      */
     private static int nextSetTicks = -1;
     private static final int NEXT_SET_SLACK_TICKS = 10;

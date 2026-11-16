@@ -36,19 +36,19 @@ import com.killer560.hub.compat.McCompat;
  * with the same Rotate / No Rotate split Simon Says has ("for i4 again it needs a rotate and no rotate
  * setting"). Cheat build only (see {@link I4SensorsConfig#isAutoI4Enabled}).
  * <p>
- * Device logic ported from NoammAddons' own confirmed {@code AutoI4.kt}/{@code I4Helper.kt} (cloned at
- * a local NoammAddons checkout), not guessed: while standing on the device (Noamm's isOnDev) holding a bow,
+ * Device logic own confirmed {@code AutoI4.kt}/{@code I4Helper.kt} (cloned at
+ * a local the reference checkout), not guessed: while standing on the device (the isOnDev) holding a bow,
  * whenever one of the 9 wall targets ({@link I4SensorsFeature#DEV_BLOCKS}) turns {@code EMERALD_BLOCK},
- * aim at Noamm's own per-column aim point (x 67.5 / 65.5 - between columns, so a Terminator's side arrow
+ * aim at the per-column aim point (x 67.5 / 65.5 - between columns, so a Terminator's side arrow
  * catches the neighbor - y = 131 - 2*row, z 50) and shoot. With Predictions on, immediately follows up with
- * a shot at a likely next target (Noamm's getPredictionTarget - prefers horizontally adjacent pairs of still-
+ * a shot at a likely next target (the getPredictionTarget - prefers horizontally adjacent pairs of still-
  * unhit blocks) so the arrow is already in the air when it lights. A target that stays lit 1s after the last
- * shot gets re-shot (Noamm's watchdog). A target turning {@code BLUE_TERRACOTTA} is done. Stops on the
+ * shot gets re-shot (the watchdog). A target turning {@code BLUE_TERRACOTTA} is done. Stops on the
  * player's own "completed a device!" line or an armor stand near the wall renamed "Active".
  * <p>
- * Rotate: eases the real camera to the aim point over Rotation Time (Noamm's easeInOutCubic) every render
+ * Rotate: eases the real camera to the aim point over Rotation Time (the easeInOutCubic) every render
  * frame, then fires - the slider is used even with Predictions on (2026-09-14, killer560: "Add a slider to
- * adjust how fast it rotates"; Noamm's forced 170ms is gone). No Rotate: turns the body to the aim (util/TurnFirst)
+ * adjust how fast it rotates"; the forced 170ms is gone). No Rotate: turns the body to the aim (util/TurnFirst)
  * and shoots once a movement packet has carried the turn - the camera never moves. Per this mod's standing rotation rule, yaw is never
  * wrapped/clamped: every target yaw is the current running yaw plus the wrapped difference.
  * <p>
@@ -59,7 +59,7 @@ import com.killer560.hub.compat.McCompat;
  * <p>
  * Weapon (2026-09-14): Terminator = the above (3-arrow spread, between-column aim points, predictions).
  * Machine Gun Shortbow (Skyblock id MACHINE_GUN_BOW) fires a single arrow, so it aims at the lit block's own
- * x center (x + 0.5) with Noamm's same arrow-drop height (y = 131 - 2*row, i.e. 0.5 above the block center)
+ * x center (x + 0.5) with the same arrow-drop height (y = 131 - 2*row, i.e. 0.5 above the block center)
  * and never predicts. Its "Rapid Fire" ability (hypixelskyblock.minecraft.wiki: LEFT CLICK, 5 arrows/s for
  * 8s, 100s cooldown) is activated with a left click (arm swing) when the attempt's first target lights, and
  * for its duration nothing swaps away ({@link #isAbilityHoldActive()} - {@link I4AutoMask} waits).
@@ -67,7 +67,7 @@ import com.killer560.hub.compat.McCompat;
  * Auto Swap To Bow: while on the device, swaps the hotbar to the selected weapon (Skyblock id, display-name
  * fallback) - not during a menu mask swap, not within 400ms of a hotbar change made by something else (so a
  * manual/other-mod swap gets its moment), and never after completion (so Auto Leap's swap isn't fought).
- * Not ported (not asked for): Noamm's rod swap and timed leap. Solver: {@link I4SolverFeature}.
+ * Not ported (not asked for): the rod swap and timed leap. Solver: {@link I4SolverFeature}.
  */
 public final class AutoI4Feature {
 
@@ -87,7 +87,7 @@ public final class AutoI4Feature {
     private static final int MAX_UNSEEN_AIMED_CLICKS = 3;
     private static final double ARROW_DIRECTION_TOLERANCE_DEG = 3.0;
     private static final double ARROW_SEEN_RANGE = 6.0;
-    // Never two shots closer than this - Noamm's own effective cadence (it forces 170ms of rotation per shot
+    // Never two shots closer than this - the effective cadence (it forces 170ms of rotation per shot
     // with Predictions on), and stops No Rotate from firing a target + its prediction in the same tick.
     // Click cadence (2026-09-14, killer560's own request): replaces the old fixed minimum shot gap. When the device
     // starts, a base CPS is picked uniformly from the configured range; every click then rolls base +-2 CPS, so clicks
@@ -108,14 +108,14 @@ public final class AutoI4Feature {
     private static final Set<BlockPos> doneTargets = new HashSet<>();
     private static final Map<BlockPos, BlockState> lastWall = new HashMap<>();
     private static final Map<BlockPos, Integer> predictionCounts = new HashMap<>();
-    // NoammAddons 1.2.9 (328e3444, "better prediction logic"): the lit target's aim point and its prediction's are
+    // The reference 1.2.9 (328e3444, "better prediction logic"): the lit target's aim point and its prediction's are
     // decided once per light (I4Helper.targetAim / predictionAim) and the shots reuse them, and a prediction whose aim
     // point equals the target's - one arrow already covers both - is re-rolled up to 3 times, excluding each one tried.
     // Without pinning, the middle column's coin-flip aim was re-drawn at every shot, so "same aim" was not a fixed fact.
     private static final Map<BlockPos, Vec3> pinnedAims = new HashMap<>();
     private static final int MAX_PREDICTION_REROLLS = 3;
     // Continuous prefire (2026-09-14, killer560: "for i4 can you make it prefire more it doesnt really prefire much"):
-    // Noamm only fires ONE prediction per newly lit target, then idles until the next one lights. Once the device has
+    // The reference only fires ONE prediction per newly lit target, then idles until the next one lights. Once the device has
     // started (first target lit this attempt), any moment nothing is lit/queued/aiming, it now keeps prefiring the
     // remaining unhit spots at the normal shot cadence, least-prefired spot first - so arrows are already in the air
     // wherever the next light can appear. Lit targets and the watchdog re-shoot always take priority (they're queued
@@ -193,7 +193,7 @@ public final class AutoI4Feature {
         // Real bug found and fixed (2026-09-14, real Hypixel F7 log): Fabric's CHAT/GAME events never fired for
         // the real "completed a device!" line with Odin's Terminal Splits installed (it cancels the line via
         // ALLOW_GAME and re-adds its own copy straight to ChatComponent), so completion-by-chat never worked.
-        // ChatObserver sees both paths, de-duplicated. (DEVICE_DONE has no end-anchor, so Odin's suffix is fine.)
+        // ChatObserver sees both paths, de-duplicated. (DEVICE_DONE has no end-anchor, so the suffix is fine.)
         ChatObserver.subscribe(AutoI4Feature::onChat);
     }
 
@@ -274,7 +274,7 @@ public final class AutoI4Feature {
         tickAbility(cfg, player);
 
         long now = System.currentTimeMillis();
-        // Re-shoot a target that's still lit well after the last shot at it (Noamm's watchdog).
+        // Re-shoot a target that's still lit well after the last shot at it (the watchdog).
         if (activeTarget != null && currentShot == null && shotQueue.isEmpty()
                 && now - lastShotAtActiveMs >= RESHOOT_AFTER_MS && isLit(client, activeTarget)) {
             shotQueue.add(activeTarget);
@@ -390,8 +390,8 @@ public final class AutoI4Feature {
         // was already aimed at a spot that covers the new target (a Terminator aim point hits both columns beside it).
         // Keep that shot and let it fire; it now counts as the shot at the new target.
         boolean keepPrefire = currentShot != null && currentShot.prediction && covers(currentShot.aimPoint, pos);
-        // A freshly lit target otherwise takes priority over whatever was being aimed at (Noamm's getEmerald
-        // retarget), and gets a fresh prediction after it. Aims are decided afresh for this light (Noamm 1.2.9).
+        // A freshly lit target otherwise takes priority over whatever was being aimed at (the getEmerald
+        // retarget), and gets a fresh prediction after it. Aims are decided afresh for this light (the reference 1.2.9).
         shotQueue.clear();
         pinnedAims.clear();
         pinnedAims.put(pos, aimPointFor(pos));
@@ -412,9 +412,9 @@ public final class AutoI4Feature {
     }
 
     /**
-     * A prediction for {@code lit} (null = none lit) with NoammAddons 1.2.9's re-roll: a candidate whose aim point is the
+     * A prediction for {@code lit} (null = none lit) with the reference 1.2.9's re-roll: a candidate whose aim point is the
      * lit target's own is set aside and another drawn, at most {@link #MAX_PREDICTION_REROLLS} times; after that the
-     * last draw stands, and running out of candidates means no prediction (both as Noamm's I4Helper does). The chosen
+     * last draw stands, and running out of candidates means no prediction (both I4Helper does). The chosen
      * block's aim is pinned for its shot and it counts once toward the least-prefired rotation.
      */
     private static BlockPos choosePrediction(BlockPos lit) {
@@ -576,8 +576,8 @@ public final class AutoI4Feature {
 
     // Aiming and firing
 
-    /** Terminator: Noamm's getTargetVector - aim between columns so the 3-arrow spread covers the neighbor too.
-     *  Machine Gun Shortbow (one arrow): the block's own x center, same drop-compensated y and z as Noamm. */
+    /** Terminator: the getTargetVector - aim between columns so the 3-arrow spread covers the neighbor too.
+     *  Machine Gun Shortbow (one arrow): the block's own x center, same drop-compensated y and z. */
     private static Vec3 aimPointFor(BlockPos pos) {
         int i = Math.max(0, indexOf(pos));
         int col = i % 3;
@@ -788,7 +788,7 @@ public final class AutoI4Feature {
         }
     }
 
-    /** Noamm's getPredictionTarget: prefer one of a horizontally adjacent pair of still-unhit blocks, avoid
+    /** The getPredictionTarget: prefer one of a horizontally adjacent pair of still-unhit blocks, avoid
      *  predicting the same block more than twice; {@code exclude} is 1.2.9's re-roll list. Counting the pick is
      *  {@link #choosePrediction}'s job, so a re-rolled draw does not count. */
     private static BlockPos predictNext(BlockPos lastLit, Set<BlockPos> exclude) {

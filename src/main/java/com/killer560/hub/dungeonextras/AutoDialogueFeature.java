@@ -14,7 +14,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Auto Dialogue (cheat build) - port of QUOI's {@code AutoDialogue.kt} (also used verbatim by NoammAddons'
+ * Auto Dialogue (cheat build) - port of (also used verbatim by the
  * {@code ChatFeatures.kt}, origin/26.1.2): when a chat line's plain text starts with {@code "Select an option: "}
  * and does not contain {@code "[BARBARIANS] [MAGES]"}, run the {@link ClickEvent.RunCommand} of its first sibling
  * (the first option). Extra safety on top of the reference: a configurable delay, every NPC (the NPC-name allow-list was removed 2026-11-09), a purchase/trade keyword block-list

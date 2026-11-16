@@ -13,7 +13,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /** Persisted Loadout Keybinds settings - see {@link LoadoutKeybindsFeature}'s class doc for the real
- *  Odin-ported loadout-navigation this is built on. Ships disabled by default, same as every other new
+ *  loadout-navigation this is built on. Ships disabled by default, same as every other new
  *  feature in this mod. */
 public final class LoadoutKeybindsConfig {
 
@@ -29,7 +29,7 @@ public final class LoadoutKeybindsConfig {
     private int openKey = -1;
     /** Highlight Selected Loadout (killer560, 2026-11-03: "also in loadout if one is selected have it highlighted"). */
     private boolean highlightSelected = true;
-    // Real default keys ported from Odin's own: 1-9, 0, minus, equals - matching a real vanilla keyboard
+    // Real default keys own: 1-9, 0, minus, equals - matching a real vanilla keyboard
     // row's natural left-to-right order for slots 1-12.
     private final int[] slotKeys = {
             Keys.NUM_1, Keys.NUM_2, Keys.NUM_3, Keys.NUM_4,

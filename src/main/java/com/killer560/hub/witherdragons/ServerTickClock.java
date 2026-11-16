@@ -7,9 +7,8 @@ import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * Server-tick clock - Odin's {@code TickEvent.Server}. Odin's {@code ConnectionMixin} posts one server tick per
- * {@code ClientboundPingPacket} whose id is non-zero (Hypixel sends one every server tick), source:
- * https://github.com/odtheking/Odin/blob/main/src/main/java/com/odtheking/mixin/mixins/ConnectionMixin.java
+ * Server-tick clock - the {@code TickEvent.Server}. The {@code ConnectionMixin} posts one server tick per
+ * {@code ClientboundPingPacket} whose id is non-zero (Hypixel sends one every server tick).
  * <p>
  * Here {@code WitherDragonsPingMixin} feeds {@link #onPing(int)} on the client thread (right after
  * {@code ensureRunningOnSameThread}, so listeners never run on the netty thread).

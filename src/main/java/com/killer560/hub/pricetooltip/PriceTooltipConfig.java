@@ -34,9 +34,9 @@ public final class PriceTooltipConfig {
      * 7M under NETWORTH while the Bazaar sold it for 9M).
      */
     public enum ValueMode {
-        /** Everything at its full market price, as SkyHanni's Estimated Item Value shows it. */
+        /** Everything at its full market price Estimated Item Value shows it. */
         FULL("Full Price"),
-        /** SkyHelper-style application worth (a Recombobulator counts 80%, an Art of War 60%...), as Skyblocker shows it. */
+        /** SkyHelper-style application worth (a Recombobulator counts 80%, an Art of War 60%...) shows it. */
         NETWORTH("Networth");
 
         public final String label;

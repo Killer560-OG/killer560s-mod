@@ -28,7 +28,7 @@ import java.util.regex.Pattern;
  * Who is in your party, in the order Hypixel lists them, plus each teammate's dungeon class when known.
  * Used by the Leap Order editor (which needs names even outside a dungeon) and the custom leap menu.
  * <ul>
- * <li>Inside a dungeon the tab list is authoritative: "[lvl] Name (Class ...)" entries, same regex as NoammAddons'
+ * <li>Inside a dungeon the tab list is authoritative: "[lvl] Name (Class...)" entries, same regex
  * DungeonListener (see {@code dungeonalerts/ClassColors}).
  * <li>Anywhere else, Hypixel's party chat lines: the "/party list" block, joins, leaves, kicks, disbands, Party
  * Finder joins and party-chat senders.
@@ -55,7 +55,7 @@ public final class PartyTracker {
     private static final Pattern PARTY_CHAT = Pattern.compile("^Party > " + NAME + ": .*$");
     private static final Pattern LEFT = Pattern.compile("^" + NAME + " (?:has left the party\\.|has been removed from the party\\.|was removed from your party because they disconnected\\.?)$");
     private static final Pattern KICKED_OFFLINE = Pattern.compile("^Kicked " + NAME + " because they were offline\\.$");
-    // Odin/NoammAddons/QUOI PartyUtils transferLeave: the old leader left (no separate "has left the party." line).
+    // Other implementations PartyUtils transferLeave: the old leader left (no separate "has left the party." line).
     private static final Pattern TRANSFER_LEAVE = Pattern.compile("^The party was transferred to " + NAME + " because " + NAME + " left$");
     // Names anchored like everywhere else: ".+ has disbanded the party!" let ANY player wipe the member list by
     // typing that line in any chat (found by the testkit logic suite, 2026-10-04).
@@ -261,7 +261,7 @@ public final class PartyTracker {
             } else {
                 DEAD.remove(name.toLowerCase(Locale.US));
             }
-            // "DEAD" / "EMPTY" keep whatever class was known before (same as NoammAddons).
+            // "DEAD" / "EMPTY" keep whatever class was known before.
             DungeonClass c = parseClass(m.group(2));
             if (c != null) {
                 CLASSES.put(name.toLowerCase(Locale.US), c);

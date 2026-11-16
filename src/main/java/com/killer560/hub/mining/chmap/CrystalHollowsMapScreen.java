@@ -30,7 +30,7 @@ import java.util.Locale;
  *   <li>The current zone name (top-left) is read live from the sidebar via
  *   {@link IslandDetector#scoreboardArea()} - the same "Area:"/sidebar read {@code IslandDetector} already
  *   uses to tell Dwarven Mines from Glacite Tunnels.</li>
- *   <li>Zones (Show Zones): the four quadrants split at x/z 513 around the Nucleus box, as SkyHanni's Area Walls
+ *   <li>Zones (Show Zones): the four quadrants split at x/z 513 around the Nucleus box Area Walls
  *   draw them in the world - see {@link ChMapRenderer}. Magma Fields is a height (below y 65), not a quadrant, so
  *   the live zone-name label is what names it.</li>
  * </ul>
@@ -54,7 +54,7 @@ public class CrystalHollowsMapScreen extends Screen {
      * the Crystal Hollows facts against hypixelskyblock.minecraft.wiki.
      *
      * <p>Corroborated rather than swapped on one source's say-so: the cave's own bounds are x/z 202..823
-     * (Skyblocker and QUOI both hardcode that pair, and it reproduces the wiki's stated 621x157x621 exactly),
+     * (other implementations both hardcode that pair, and it reproduces the wiki's stated 621x157x621 exactly),
      * whose midpoint is 512.5. The Nucleus sits at the centre of the Crystal Hollows, so 512 is where it has
      * to be and 495.5 cannot have been.
      *

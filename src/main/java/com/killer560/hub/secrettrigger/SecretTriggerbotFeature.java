@@ -32,23 +32,23 @@ import java.util.UUID;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Secret Triggerbot - ported from QUOI {@code dungeon/secrets/impl/SecretTriggerbot.kt}: when the crosshair
+ * Secret Triggerbot -: when the crosshair
  * ({@code mc.hitResult}, so already within vanilla reach) is on a secret, wait the delay, optionally swap to a
  * hotbar slot, click that exact hit once ({@code gameMode.useItemOn} + swing), optionally swap back.
  * <ul>
- * <li>Secret = QUOI {@code Dungeon.isSecret}: chest / trapped chest / lever / Wither Essence or Redstone Key skull.
- * <li>Never while a screen is open or in boss (QUOI); Water Board skipped entirely (QUOI). Also skipped, from
+ * <li>Secret = the reference {@code Dungeon.isSecret}: chest / trapped chest / lever / Wither Essence or Redstone Key skull.
+ * <li>Never while a screen is open or in boss; Water Board skipped entirely. Also skipped, from
  * {@link SecretAuraFeature}'s room rules: Three Weirdos (a wrong chest fails the puzzle) and levers in Tic Tac Toe.
- * <li>Each position is clicked at most once per world (QUOI {@code clickedBlocks}); secrets
+ * <li>Each position is clicked at most once per world; secrets
  * {@link SecretAuraFeature} already marked done are never clicked, and a confirmed loot (chest opened / chest GUI
  * opened / lever flipped, by anyone) is shared back to it so Secret Aura won't re-click it either.
- * <li>If the crosshair left the block when the delay ends, the click is dropped without swapping (QUOI swaps anyway
+ * <li>If the crosshair left the block when the delay ends, the click is dropped without swapping (the reference swaps anyway
  * and only skips the click).
  * </ul>
  */
 public final class SecretTriggerbotFeature {
 
-    /** Same skin id as {@code dungeonalerts.SecretSound} / QUOI {@code Dungeon.REDSTONE_KEY}. */
+    /** Same skin id as {@code dungeonalerts.SecretSound} / the reference {@code Dungeon.REDSTONE_KEY}. */
     private static final UUID REDSTONE_KEY_ID = UUID.fromString("fed95410-aba1-39df-9b95-1d4f361eb66e");
     private static final Set<String> SKIP_ROOMS = Set.of("Water Board", "Three Weirdos");
     private static final Set<String> NO_LEVER_ROOMS = Set.of("Tic Tac Toe");
@@ -114,7 +114,7 @@ public final class SecretTriggerbotFeature {
             gate = "skipped room " + roomName;
         }
         if (gate != null) {
-            // QUOI: Water Board drops the pending trigger; screen/boss just pause it. Dropping is the safe superset.
+            // Water Board drops the pending trigger; screen/boss just pause it. Dropping is the safe superset.
             dropPending(cfg);
             return;
         }
@@ -153,7 +153,7 @@ public final class SecretTriggerbotFeature {
                     originalSlot = selected;
                 }
                 swapTo(player, slot);
-                return; // click next tick, like QUOI's await-swap step
+                return; // click next tick await-swap step
             }
         }
 
@@ -210,7 +210,7 @@ public final class SecretTriggerbotFeature {
         }
     }
 
-    /** QUOI {@code Dungeon.isSecret} plus the room lever rule. */
+    /** The reference {@code Dungeon.isSecret} plus the room lever rule. */
     private static boolean isSecret(Minecraft client, BlockPos pos, BlockState state, String roomName) {
         Block block = state.getBlock();
         if (isChest(block)) return true;

@@ -23,16 +23,16 @@ import java.util.regex.Pattern;
 
 /**
  * "Enchant Colors" - killer560, 2026-09-16: "Skyhanni custom enchant colors."; rewritten 2026-09-20 after
- * killer560 reported it "didn't work in the first place anyways" and asked for it to actually match SkyHanni:
+ * killer560 reported it "didn't work in the first place anyways" and asked for it to actually match the reference:
  * "the color is based off of tier not enchant."
  * <p>
  * Recolors the enchantment names in Hypixel item lore so the enchants that matter stand out instead of a
- * maxed item being thirty identical blue lines. Ported in behavior (not code) from SkyHanni's <b>Enchant
+ * maxed item being thirty identical blue lines. Ported in behavior (not code) from the <b>Enchant
  * Parsing</b> feature ({@code inventory.enchantParsing}, {@code features/misc/items/enchants/EnchantParser}),
  * which is itself a port of SkyblockAddons' {@code EnchantManager} - credited here the same way this repo
- * credits QUOI, Odin, NoammAddons and Devonian.
+ * credits other implementations.
  * <p>
- * <b>What was taken from SkyHanni</b>
+ * <b>What was</b>
  * <ul>
  *   <li>The NBT ground truth: nothing is recolored unless Hypixel's own {@code ExtraAttributes.enchantments}
  *       compound is present on the stack. That single check is what makes lore matching safe - a random line
@@ -44,24 +44,24 @@ import java.util.regex.Pattern;
  *       stripped - see {@link LegacyText}.</li>
  *   <li>Tolerating both roman and arabic levels, multiple comma-separated enchants per line, and the
  *       trailing {@code §8<number>} stacking-enchant counter.</li>
- *   <li>A whole-lore cache: SkyHanni's own comment says continuous hover ran at "1 fps" without one, and
+ *   <li>A whole-lore cache: the comment says continuous hover ran at "1 fps" without one, and
  *       this runs on the same per-frame path ({@code Screen#getTooltipFromItem}).</li>
- *   <li><b>Color by tier, not by enchant.</b> Decompiled (javap) from SkyHanni-7.48.0-mc26.1.jar's
+ *   <li><b>Color by tier, not by enchant.</b> Decompiled (javap) from the original jar's
  *       {@code Enchant.getStyle}: {@code level >= maxLevel} -&gt; Perfect; {@code goodLevel < level <
  *       maxLevel} -&gt; Great; {@code level == goodLevel} -&gt; Good; {@code level < goodLevel} -&gt; Poor.
- *       {@code goodLevel}/{@code maxLevel} per enchant are copied from SkyHanni's own repo data - see
+ *       {@code goodLevel}/{@code maxLevel} per enchant are own repo data - see
  *       {@link EnchantColorsDefaults}.</li>
  *   <li>Ultimates are always distinct and always the ultimate color regardless of level - decompiled from
  *       {@code Enchant$Ultimate.getStyle}, which never reads goodLevel/maxLevel - detected from the
- *       {@code ultimate_} NBT id prefix, the same signal SkyHanni's Ultimate Enchant Star uses.</li>
+ *       {@code ultimate_} NBT id prefix, the same signal the Ultimate Enchant Star uses.</li>
  * </ul>
  * <b>Where this deliberately diverges</b>
  * <ul>
  *   <li>No reordering, compressing or stacking of the enchant block, and no stacking-progress footer.
- *       SkyHanni rebuilds the block from a sorted set; this only ever recolors text in place, so it can't
+ *       the reference rebuilds the block from a sorted set; this only ever recolors text in place, so it can't
  *       fight any other lore feature and can't lose a line. Stacking enchants (Absorb, Compact, ...) still
  *       get tier colors from their own goodLevel/maxLevel, just no footer.</li>
- *   <li>No "hide vanilla enchants" (SkyHanni cancels {@code ItemStack#addToTooltip} for the ENCHANTMENTS
+ *   <li>No "hide vanilla enchants" (the reference cancels {@code ItemStack#addToTooltip} for the ENCHANTMENTS
  *       component). Worth adding later, but it is a separate mixin on a separate target.</li>
  *   <li>Full RGB colors rather than the 16 legacy chat colors, since this repo already has a real color
  *       picker. The recolored segment is rebuilt as a styled {@link Component}, not a "§" code.</li>
@@ -79,7 +79,7 @@ public final class EnchantColorsFeature {
     private static final ChromaWave.Spec PERFECT_CHROMA = ChromaWave.rainbowSpec(EnchantColorsDefaults.PERFECT);
 
     /** Gate: the whole line is nothing but {@code Name Level} entries, optionally comma-separated, optionally
-     *  with a trailing {@code §8<number>} stacking counter. Adapted from SkyHanni's
+     *  with a trailing {@code §8<number>} stacking counter. Adapted from the
      *  {@code enchantmentExclusivePattern}. Must NOT match e.g. {@code §7by §c10% §7per hit, capped at}. */
     private static final Pattern ENCHANT_LINE = Pattern.compile(
             "^(?:(?:§.)*[A-Za-z][A-Za-z '-]+ (?:[IVXLCDM]+|[0-9]+)"
@@ -87,7 +87,7 @@ public final class EnchantColorsFeature {
 
     /** Extractor, run only on lines the gate accepted. The name class {@code [A-Za-z][A-Za-z '-]+} covers
      *  "Bane of Arthropods", "Counter-Strike" and "Bobbin' Time"; the level is roman or arabic because
-     *  Hypixel uses both. Adapted from SkyHanni's {@code enchants.new} pattern. */
+     *  Hypixel uses both. Adapted from the {@code enchants.new} pattern. */
     private static final Pattern ENCHANT = Pattern.compile(
             "(?<codes>(?:§.)*)(?<enchant>[A-Za-z][A-Za-z '-]+) (?<level>[IVXLCDM]+|[0-9]+)");
 
@@ -99,7 +99,7 @@ public final class EnchantColorsFeature {
 
     /** NBT enchant id (lowercase) -&gt; the lore-normalized name Hypixel actually prints, for every id whose
      *  display name doesn't match the "id with underscores as spaces" guess. Sourced the same place
-     *  {@link EnchantColorsDefaults#TIERS} is: SkyHanni's own repo constants (nbtName -&gt; loreName). Without
+     *  {@link EnchantColorsDefaults#TIERS} is: the repo constants (nbtName -&gt; loreName). Without
      *  this, e.g. the {@code dragon_hunter} enchant (prints as "Gravity") would build the guessed name
      *  "dragon hunter", which never appears in real lore text, so it would never match and never get tiered -
      *  that was a real, confirmed bug in the old per-enchant table this file replaces. */
@@ -221,7 +221,7 @@ public final class EnchantColorsFeature {
         CompoundTag tag = data.copyTag();
         // Hypixel's ExtraAttributes arrives as the item's custom-data root (same place ItemRarityFeature
         // reads "id" and "petInfo" from, and DungeonChestValuer reads "enchantments" from). No enchantments
-        // compound means this item simply has no enchants, and SkyHanni bails at exactly the same point
+        // compound means this item simply has no enchants, and the reference bails at exactly the same point
         // rather than guessing from text.
         CompoundTag enchants = tag.getCompoundOrEmpty("enchantments");
         if (enchants.isEmpty()) {
@@ -381,7 +381,7 @@ public final class EnchantColorsFeature {
                     // quietly mis-tiering something.
                     boolean perfect = cfg.isTrueMaxDetection() && nbtLevel >= maxLevel;
                     if (perfect && cfg.isPerfectChroma()) {
-                        // killer560, 2026-09-27: SkyHanni's real Perfect default is an animated rainbow, not
+                        // killer560, 2026-09-27: the real Perfect default is an animated rainbow, not
                         // a fixed color - see EnchantColorsDefaults' class doc. cfg.getPerfectColor() is
                         // only used as the static fallback while this toggle is off.
                         color = EnchantColorsDefaults.PERFECT;

@@ -28,7 +28,7 @@ import java.util.List;
  *  shape choice, plus two further optional restriction toggles (also killer560's explicit follow-up
  *  request, 2026-09-09): Dungeons Only (all 4 types) and Boss Only (Levers/Buttons only, restricts to the
  *  real F7/M7 boss fight). See {@link com.killer560.hub.secrets.SecretsFeature} for the real mechanic
- *  (ported from and cross-checked against both quoi's and NoammAddons' own reference implementations) and
+ *  (ported from and cross-checked against both another mod's and the reference implementations) and
  *  {@link com.killer560.hub.secrets.DungeonState} for how the two restriction toggles are really
  *  detected. */
 public class FullBlockTab extends BaseTab {

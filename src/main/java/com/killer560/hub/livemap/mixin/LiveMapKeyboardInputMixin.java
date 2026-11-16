@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** QUOI ClearExecutor {@code KeyEvent.Input}: holds sneak while an etherwarp hop is current or next. */
+/** The reference ClearExecutor {@code KeyEvent.Input}: holds sneak while an etherwarp hop is current or next. */
 @Mixin(KeyboardInput.class)
 public abstract class LiveMapKeyboardInputMixin {
 

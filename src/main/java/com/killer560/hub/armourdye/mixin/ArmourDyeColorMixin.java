@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * The dye half of Armor Recolor, and the single highest-value hook in the whole feature - this is the same place
- * Skyblocker hooks ({@code mixins/DyedItemColorMixin}, credited in {@link ArmourDye}).
+ * The reference hooks ({@code mixins/DyedItemColorMixin}, credited in {@link ArmourDye}).
  * <p>
  * {@code DyedItemColor.getOrDefault(stack, fallback)} is what BOTH render paths ask for the leather tint:
  * {@code EquipmentLayerRenderer#renderLayers} calls it for the armor painted on the body, and

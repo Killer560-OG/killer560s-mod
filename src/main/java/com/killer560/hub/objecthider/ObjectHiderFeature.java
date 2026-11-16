@@ -64,7 +64,7 @@ import com.killer560.hub.compat.McEntities;
  * ({@link ObjectHiderConfig}).
  *
  * <h2>Design rule: cancel at render level, never remove entities</h2>
- * The reference implementations this is ported from ({@code Devonian}) mostly call
+ * The implementations this is ported from mostly call
  * {@code level.removeEntity(id, DISCARDED)} from a packet handler. This port deliberately does NOT: an entity that
  * is gone from the client world desyncs raycasts, interaction, this mod's own ESP/solver scans and Hypixel's own
  * hit registration. Instead every entity hider is a pure predicate evaluated from
@@ -78,104 +78,104 @@ import com.killer560.hub.compat.McEntities;
  *
  * <h2>Per-hider sources and exact predicates</h2>
  * <ul>
- * <li><b>Healer Fairy</b> - Devonian {@code features/dungeons/HideFairy.kt}: an {@code ARMOR_STAND} whose
+ * <li><b>Healer Fairy</b> -: an {@code ARMOR_STAND} whose
  *     {@code MAINHAND} item carries {@code DataComponents.PROFILE} with partial-profile id
  *     {@code 93c42dbb-15e2-3d18-8a89-770e440e97d2}.</li>
- * <li><b>Power Orbs</b> - Devonian {@code features/dungeons/HideHealerOrbs.kt}: an {@code ARMOR_STAND} whose
+ * <li><b>Power Orbs</b> -: an {@code ARMOR_STAND} whose
  *     {@code HEAD} item's ExtraAttributes id is one of {@code DUNGEON_BLUE_SUPPORT_ORB} /
  *     {@code DUNGEON_RED_SUPPORT_ORB} / {@code DUNGEON_GREEN_SUPPORT_ORB}, plus the orb's separate floating
  *     label stand whose name starts with {@code "ABILITY DAMAGE"} / {@code "DAMAGE"} / {@code "DEFENSE"}. The
  *     orb's own dust cloud is a {@code ClientboundLevelParticlesPacket} with
  *     {@code particle.type == ParticleTypes.DUST}, {@code count == 0}, {@code isOverrideLimiter()} and
  *     {@code alwaysShow()}, within 8 blocks on each axis of {@code (orb.x, orb.y + 2, orb.z)} - all four flags
- *     are Devonian's, verbatim. (SkyHanni {@code features/misc/LesserOrbHider.kt} does the same thing with a
+ *     are the, verbatim. (does the same thing with a
  *     4-block radius and a skull-texture match instead of the item id.)</li>
  * <li><b>Keep Nearby Orbs</b> - NOT in any reference mod; this mod's own option for "keep your own orbs". There
  *     is no client-side way to tell who dropped an orb, so the closest useful meaning is "keep the orb I'm
  *     standing in", i.e. don't hide an orb (or its dust) within the configured radius of the player.</li>
- * <li><b>Soulweaver Skulls</b> - Devonian {@code features/dungeons/HideSoulweaverSkulls.kt}: an
+ * <li><b>Soulweaver Skulls</b> -: an
  *     {@code ARMOR_STAND} whose {@code HEAD} item profile id is
  *     {@code 2134ab1c-7c78-30e1-8513-a6346c2344fd}.</li>
- * <li><b>Archer Passive</b> - Devonian {@code features/dungeons/HideArcherPassive.kt}: a dropped item entity
+ * <li><b>Archer Passive</b> -: a dropped item entity
  *     whose stack is {@code Items.BONE_MEAL} ("bonemeal go spin").</li>
- * <li><b>Sheep</b> - Devonian {@code features/dungeons/HideSheeps.kt}: {@code entity instanceof Sheep}.</li>
- * <li><b>Wither Cloak Creepers</b> - Devonian {@code features/misc/hiders/HideCloakCreepers.kt}: a
+ * <li><b>Sheep</b> -: {@code entity instanceof Sheep}.</li>
+ * <li><b>Wither Cloak Creepers</b> -: a
  *     {@link Creeper} that {@code isInvisible() && isPowered() && health == 20f}.</li>
  * <li><b>Witherborn Wither</b> - killer560, 2026-11-01: "When wearing full f7 armor of some sort it can have this wither.
  *     I want an option to hide it and the particles it makes as well." The full set bonus (Witherborn: "Spawns a wither
  *     minion every 30 seconds up to a maximum of 1 wither", hypixelskyblock.minecraft.wiki) is a {@link WitherBoss} that
- *     sits at {@code getInvulnerableTicks() == 800} - SkyHanni {@code MobFilter} names exactly that wither "Mini Wither",
- *     and NoammAddons' boss ESP excludes it from the four F7 bosses on the same test, so the bosses are never hidden. Its
+ *     sits at {@code getInvulnerableTicks == 800} - the reference {@code MobFilter} names exactly that wither "Mini Wither",
+ *     and the boss ESP excludes it from the four F7 bosses on the same test, so the bosses are never hidden. Its
  *     particles are not packets: {@code WitherBoss.aiStep} spawns the smoke from its heads and the swirls of its spawning
  *     shield client side (javap 26.3/26.2: three {@code Level.addParticle} calls), so {@code ObjectHiderWitherMixin}
  *     drops those for a hidden wither.</li>
- * <li><b>Wither Shield Hearts</b> - Devonian {@code features/misc/hiders/HideHypeHearts.kt}: a
+ * <li><b>Wither Shield Hearts</b> -: a
  *     {@code ClientboundLevelParticlesPacket} of {@code ParticleTypes.HEART} with {@code count == 3},
  *     {@code alwaysShow()} and {@code isOverrideLimiter()}.</li>
- * <li><b>Grounded Arrows</b> - Devonian {@code features/misc/hiders/HideGroundedArrows.kt}: an
+ * <li><b>Grounded Arrows</b> -: an
  *     {@link AbstractArrow} whose (protected) {@code isInGround()} is true - reached through
- *     {@link AbstractArrowInGroundAccessor}, the same {@code @Invoker} trick Devonian's
+ *     {@link AbstractArrowInGroundAccessor}, the same {@code @Invoker} trick the
  *     {@code AbstractArrowAccessor} uses.</li>
- * <li><b>Blindness</b> - Devonian {@code features/misc/hiders/DisableBlindness.kt}: cancel
+ * <li><b>Blindness</b> -: cancel
  *     {@link ClientboundUpdateMobEffectPacket} when {@code entityId == player.id} and the effect is
  *     {@code MobEffects.BLINDNESS}. This is the one hider that is not render-level (there is no render hook for
  *     "pretend I don't have this effect"); it drops one client-side effect application for the local player only.</li>
- * <li><b>Death Animations</b> - Devonian {@code features/misc/hiders/NoDeathAnimation.kt}: a {@link LivingEntity}
+ * <li><b>Death Animations</b> -: a {@link LivingEntity}
  *     that is not an {@link EnderDragon} and is {@code !isAlive() || health <= 0}, except entities named
  *     {@code ^\w+ Livid$} (Livid's clones must stay visible). The optional "Hide Dead Nametags" half reproduces
- *     Devonian's id-offset trick: Hypixel's nametag stand for a dying mob is {@code mobId + 1}
+ *     the id-offset trick: Hypixel's nametag stand for a dying mob is {@code mobId + 1}
  *     ({@code + 3} for Withermancers, whose wither skulls take the ids in between).</li>
- * <li><b>Block Break / Explosion / Smoke Particles</b> - Devonian {@code features/misc/hiders/RemoveParticles.kt}
+ * <li><b>Block Break / Explosion / Smoke Particles</b> - 
  *     ({@code RemoveBlockBreakParticle}, {@code RemoveExplosionParticle}, {@code RemoveSmokeParticle}):
  *     {@code particle instanceof TerrainParticle / HugeExplosionParticle / SmokeParticle}.</li>
- * <li><b>Dying Dragons (P5)</b> - Devonian {@code features/dungeons/m7/HideDyingDragons.kt}:
+ * <li><b>Dying Dragons (P5)</b> -:
  *     {@code entity instanceof EnderDragon && dragonDeathTime > 0}.</li>
- * <li><b>Wither King Model</b> - Devonian {@code features/dungeons/m7/HideWitherKing.kt}: on M7, an
+ * <li><b>Wither King Model</b> -: on M7, an
  *     {@code ARMOR_STAND} with {@code y in 9.0..25.0} and {@code z <= 45.0} (the arena box the King's model
- *     stands are built from), plus {@code ParticleTypes.WITCH} packets in the same box. Devonian keys off the
+ *     stands are built from), plus {@code ParticleTypes.WITCH} packets in the same box. The reference keys off the
  *     spawn packet's coordinates; this port reads the live entity position, which is equivalent for these
  *     static stands.</li>
- * <li><b>Boss Damage Splash</b> - SkyHanni {@code features/dungeon/DungeonBossHideDamageSplash.kt} +
+ * <li><b>Boss Damage Splash</b> - +
  *     {@code features/combat/damageindicator/DamageIndicatorManager.isDamageSplash}: in the boss room, an
  *     {@link ArmorStand} with {@code tickCount <= 300}, a custom name, whose comma-stripped clean name fully
  *     matches {@code [✧✯]?(\d+[⚔+✧❤♞☄✷ﬗ✯]*)}.</li>
- * <li><b>Clean End</b> - SkyHanni {@code features/dungeon/DungeonCleanEnd.kt}: once the boss is dead, hide every
+ * <li><b>Clean End</b> -: once the boss is dead, hide every
  *     entity except the local player, and cancel every particle. After the chests spawn, nameless armor stands
  *     and other players come back so the end-of-run screen and the chest room are usable again. Optional
- *     F3/M3 exception: keep guardians visible while sneaking. SkyHanni triggers on its damage indicator's final
+ *     F3/M3 exception: keep guardians visible while sneaking. The reference triggers on its damage indicator's final
  *     boss dropping to {@code <= 0.5} health; this mod has no damage-indicator subsystem, so the trigger here is
  *     the {@code ☠ Defeated <boss> in <time>} chat line (the same line
  *     {@code com.killer560.hub.splittimers.SplitTimersFeature} already ends its run on) and "chests spawned" is
- *     SkyHanni's own {@code dungeon.end.chests.spawned} pattern, the re-printed
- *     {@code (Master Mode )?The Catacombs - Floor X} header. SkyHanni additionally mutes note-block sounds until
+ *     the {@code dungeon.end.chests.spawned} pattern, the re-printed
+ *     {@code (Master Mode)?The Catacombs - Floor X} header. The reference additionally mutes note-block sounds until
  *     the chests spawn; that half is NOT ported (no sound-cancel hook exists in this repo yet).</li>
  * </ul>
  */
 public final class ObjectHiderFeature {
 
-    /** Devonian {@code HideFairy.kt}: the healer fairy's skull profile id. */
+    /** : the healer fairy's skull profile id. */
     private static final UUID FAIRY_SKULL = UUID.fromString("93c42dbb-15e2-3d18-8a89-770e440e97d2");
-    /** Devonian {@code HideSoulweaverSkulls.kt}: the soulweaver-gloves skull profile id. */
+    /** : the soulweaver-gloves skull profile id. */
     private static final UUID SOULWEAVER_SKULL = UUID.fromString("2134ab1c-7c78-30e1-8513-a6346c2344fd");
 
-    /** Devonian {@code HideHealerOrbs.kt} - the three dungeon support orbs, by ExtraAttributes id. */
+    /**  - the three dungeon support orbs, by ExtraAttributes id. */
     private static final Set<String> ORB_ITEM_IDS = Set.of(
             "DUNGEON_BLUE_SUPPORT_ORB", "DUNGEON_RED_SUPPORT_ORB", "DUNGEON_GREEN_SUPPORT_ORB");
-    /** Devonian {@code HideHealerOrbs.kt} - the orb's floating label stand, matched by name prefix. */
+    /**  - the orb's floating label stand, matched by name prefix. */
     private static final List<String> ORB_LABEL_PREFIXES = List.of("ABILITY DAMAGE", "DAMAGE", "DEFENSE");
 
-    /** Devonian {@code NoDeathAnimation.kt} - Livid's clones keep rendering while "dead". */
+    /**  - Livid's clones keep rendering while "dead". */
     private static final Pattern LIVID_NAME = Pattern.compile("^\\w+ Livid$");
-    /** SkyHanni {@code DamageIndicatorManager.damagePattern}, matched against the comma-stripped clean name. */
+    /** The reference {@code DamageIndicatorManager.damagePattern}, matched against the comma-stripped clean name. */
     private static final Pattern DAMAGE_SPLASH = Pattern.compile("[✧✯]?(\\d+[⚔+✧❤♞☄✷ﬗ✯]*)");
 
     /** SplitTimers' own end-of-run line: "  ☠ Defeated Necron in 12m 3s" (optionally "(NEW RECORD!)"). */
     private static final Pattern BOSS_DEFEATED = Pattern.compile("^\\s*☠ Defeated .+ in .+$");
-    /** SkyHanni {@code dungeon.end.chests.spawned}, formatting-stripped. */
+    /** The reference {@code dungeon.end.chests.spawned}, formatting-stripped. */
     private static final Pattern CHESTS_SPAWNED = Pattern.compile("^\\s*(?:Master Mode )?The Catacombs - Floor .*$");
 
-    // --- QUOI Chat Replacements patterns (2026-09-20) - real, generic Hypixel broadcast/system text, not
-    // QUOI's own regex source; see ObjectHiderTab's "Needs his answer" note for the 3 QUOI entries this pack
+    // --- the reference Chat Replacements patterns (2026-09-20) - real, generic Hypixel broadcast/system text, not
+    // The regex source; see ObjectHiderTab's "Needs his answer" note for the 3 the reference entries this pack
     // does NOT attempt (Cleaner Dungeons / Cleaner PF / Hide Even More Useless Messages) because their exact
     // scope isn't pinned down anywhere in the research pass. ---
     /** "Hide useless messages" - Hypixel's own dungeon pathing spam and the debug profile-id line. */
@@ -195,7 +195,7 @@ public final class ObjectHiderFeature {
     private static final Pattern NON_RANK_INVITE =
             Pattern.compile("^(?!\\[)(\\w{1,16}) has invited you to join their party!$");
 
-    /** Devonian {@code NoDeathAnimation.kt}: nametag-stand ids derived from a dying mob's id. */
+    /** : nametag-stand ids derived from a dying mob's id. */
     private static final Set<Integer> deadTags = ConcurrentHashMap.newKeySet();
 
     /** Live orb stand positions (x, y + 2, z), refreshed each client tick; read by the particle-packet hook. */
@@ -220,7 +220,7 @@ public final class ObjectHiderFeature {
         ScreenEvents.AFTER_INIT.register(ObjectHiderFeature::onScreenInit);
     }
 
-    // QUOI Chat Replacements (2026-09-20) - see the pattern block's own comment for scope
+    // The reference Chat Replacements (2026-09-20) - see the pattern block's own comment for scope
 
     /** @return false to drop a real chat-channel line (ALLOW_CHAT - party/guild/private/coop/global chat). */
     private static boolean allowsChatLine(Component message) {
@@ -236,7 +236,7 @@ public final class ObjectHiderFeature {
     private static boolean allowsGameLine(Component message, boolean overlay) {
         try {
             if (overlay) {
-                // "Hide actionbar" - QUOI ChatReplacements.kt:20, all action-bar text, no content check needed.
+                // "Hide actionbar" -:20, all action-bar text, no content check needed.
                 return !com.killer560.hub.chattidy.ChatTidyConfig.getInstance().isHideActionbar();
             }
             return allowsLine(message);
@@ -323,7 +323,7 @@ public final class ObjectHiderFeature {
         return any;
     }
 
-    // QUOI Render Optimizer "Hide recipe book" (2026-09-20) - no mixin, Fabric screen-widget API
+    // The reference Render Optimizer "Hide recipe book" (2026-09-20) - no mixin, Fabric screen-widget API
 
     private static void onScreenInit(Minecraft client, Screen screen, int scaledWidth, int scaledHeight) {
         if (!ObjectHiderConfig.getInstance().isHideRecipeBookButton()) return;
@@ -369,7 +369,7 @@ public final class ObjectHiderFeature {
         List<double[]> found = new ArrayList<>();
         for (Entity entity : client.level.entitiesForRendering()) {
             if (entity instanceof ArmorStand stand && isOrbStand(stand)) {
-                // Devonian records the orb's particle origin as the stand position raised by 2 blocks.
+                // The reference records the orb's particle origin as the stand position raised by 2 blocks.
                 found.add(new double[] {stand.getX(), stand.getY() + 2.0, stand.getZ()});
             }
         }
@@ -405,7 +405,7 @@ public final class ObjectHiderFeature {
                 && creeper.isInvisible() && creeper.isPowered() && creeper.getHealth() == 20.0f) {
             return true;
         }
-        // QUOI 1.1.1 HidePlayers.class - other players' models, optionally scoped to dungeon/boss and a
+        // The reference 1.1.1 HidePlayers.class - other players' models, optionally scoped to dungeon/boss and a
         // max distance. "Click Through" is deliberately not ported: that changes which entity your clicks
         // hit, i.e. interaction/raycasting, not rendering - out of scope for a client-side render hider.
         if (entity instanceof RemotePlayer && cfg.isHidePlayers()
@@ -434,7 +434,7 @@ public final class ObjectHiderFeature {
         return cfg.isHideBossDamageSplash() && LiveMapFeature.isInBoss() && isDamageSplash(stand);
     }
 
-    /** SkyHanni {@code DungeonCleanEnd.onCheckRender}, minus its {@code lastBossId} guard (no damage indicator here). */
+    /** The reference {@code DungeonCleanEnd.onCheckRender}, minus its {@code lastBossId} guard (no damage indicator here). */
     private static boolean cleanEndHides(Entity entity, ObjectHiderConfig cfg, Minecraft client) {
         if (cfg.isCleanEndKeepGuardians() && entity instanceof Guardian && isFloorThree()
                 && client.player != null && client.player.isShiftKeyDown()) {
@@ -480,18 +480,18 @@ public final class ObjectHiderFeature {
         ObjectHiderConfig cfg = ObjectHiderConfig.getInstance();
         Object type = McPackets.particle(packet).getType();
 
-        // Devonian HideHypeHearts.kt - wither-shield healing hearts.
+        //  - wither-shield healing hearts.
         if (cfg.isHideHypeHearts() && type == ParticleTypes.HEART
                 && McPackets.particleCount(packet) == 3 && packet.alwaysShow() && McPackets.particleOverrideLimiter(packet)) {
             return true;
         }
         if (!DungeonState.isInDungeon()) return false;
-        // Devonian HideWitherKing.kt - the King's witch particles, inside the same arena box as his model.
+        //  - the King's witch particles, inside the same arena box as his model.
         if (cfg.isHideWitherKing() && type == ParticleTypes.WITCH
                 && isWitherKingArea(McPackets.particleY(packet), McPackets.particleZ(packet)) && isMasterSeven()) {
             return true;
         }
-        // Devonian HideHealerOrbs.kt - the orb's dust cloud, by flags + proximity to a tracked orb stand.
+        //  - the orb's dust cloud, by flags + proximity to a tracked orb stand.
         if (cfg.isHideHealerOrbs() && type == ParticleTypes.DUST
                 && McPackets.particleCount(packet) == 0 && McPackets.particleOverrideLimiter(packet) && packet.alwaysShow()) {
             double[][] orbs = orbPositions;
@@ -506,14 +506,14 @@ public final class ObjectHiderFeature {
         return false;
     }
 
-    /** QUOI 1.1.1 {@code HidePlayers.class} "Distance" - 0 means no cap (hide regardless of range). */
+    /** The reference 1.1.1 {@code HidePlayers.class} "Distance" - 0 means no cap (hide regardless of range). */
     private static boolean withinHidePlayersDistance(Entity entity, ObjectHiderConfig cfg, Minecraft client) {
         int distance = cfg.getHidePlayersDistance();
         if (distance <= 0 || client.player == null) return true;
         return client.player.distanceToSqr(entity) <= (double) distance * distance;
     }
 
-    /** QUOI {@code RenderOptimiser.kt} "Hide falling blocks" / "Hide lightning" - drop the spawn packet before
+    /**  "Hide falling blocks" / "Hide lightning" - drop the spawn packet before
      *  the entity exists at all, cheaper than canceling its render every frame afterward. Both are pure
      *  client-render cosmetics; nothing about what's sent to the server changes. */
     public static boolean shouldCancelAddEntity(ClientboundAddEntityPacket packet) {
@@ -525,7 +525,7 @@ public final class ObjectHiderFeature {
         return cfg.isHideLightning() && type == McEntities.LIGHTNING_BOLT;
     }
 
-    /** Devonian {@code DisableBlindness.kt} - drop the local player's blindness application. */
+    /**  - drop the local player's blindness application. */
     public static boolean shouldCancelMobEffect(ClientboundUpdateMobEffectPacket packet) {
         if (packet == null || !ObjectHiderConfig.getInstance().isDisableBlindness()) return false;
         Minecraft client = Minecraft.getInstance();
@@ -606,7 +606,7 @@ public final class ObjectHiderFeature {
         return client.player.distanceToSqr(x, y, z) <= r * r;
     }
 
-    /** SkyHanni {@code DamageIndicatorManager.isDamageSplash}. */
+    /** The reference {@code DamageIndicatorManager.isDamageSplash}. */
     private static boolean isDamageSplash(ArmorStand stand) {
         if (stand.tickCount > 300 || !stand.hasCustomName()) return false;
         net.minecraft.network.chat.Component custom = stand.getCustomName();
@@ -621,7 +621,7 @@ public final class ObjectHiderFeature {
         return splash;
     }
 
-    /** Devonian {@code NoDeathAnimation.shouldHide}. */
+    /** The reference {@code NoDeathAnimation.shouldHide}. */
     private static boolean isDeadAndHidden(LivingEntity entity, ObjectHiderConfig cfg) {
         if (entity instanceof EnderDragon) return false;
         if (cfg.isHideDeadNametags() && entity instanceof ArmorStand && deadTags.contains(entity.getId())) return true;
@@ -634,7 +634,7 @@ public final class ObjectHiderFeature {
         return true;
     }
 
-    /** Devonian {@code HideWitherKing.kt} - the arena box the King's armor stands / witch particles live in. */
+    /**  - the arena box the King's armor stands / witch particles live in. */
     private static boolean isWitherKingArea(double y, double z) {
         // The sim shifts the whole floor vertically (SimAltitude), so the box moves with it.
         double rel = y - com.killer560.hub.livemap.DungeonLayout.simYOffset();
@@ -643,7 +643,7 @@ public final class ObjectHiderFeature {
 
     private static boolean isMasterSeven() { return "M7".equals(DungeonState.getFloor()); }
 
-    /** SkyHanni's {@code DungeonApi.isOneOf("F3", "M3")} for the Clean End guardian exception. */
+    /** The {@code DungeonApi.isOneOf("F3", "M3")} for the Clean End guardian exception. */
     private static boolean isFloorThree() {
         String floor = DungeonState.getFloor();
         return "F3".equals(floor) || "M3".equals(floor);

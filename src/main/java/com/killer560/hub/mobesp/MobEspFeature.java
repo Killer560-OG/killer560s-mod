@@ -38,14 +38,14 @@ import java.util.Set;
  * Dungeon ESP - highlights four kinds of dungeon target, each with its own color ({@link MobEspConfig}):
  * <ul>
  * <li><b>Starred mobs</b> (dungeon clear, not boss). Hypixel puts the "✯ ... ❤" name on a separate invisible
- * armor stand, never on the mob, so each starred stand is mapped to its real mob the way NoammAddons 26.1.2
- * {@code StarMobESP.checkStarMob} and QUOI {@code DungeonESP.handleStand} both do: the mob is the entity with id
+ * armor stand, never on the mob, so each starred stand is mapped to its real mob the way the reference 26.1.2
+ * {@code StarMobESP.checkStarMob} and the reference {@code DungeonESP.handleStand} both do: the mob is the entity with id
  * {@code standId - 1} (Withermancers {@code - 3}: the ids between are their wither skulls); if that isn't a real
  * mob, the first valid entity inside the stand's bounding box shifted 1 block down. Player-model minibosses
- * (Shadow Assassin, Lost/Frozen Adventurer, Diamond Guy, King Midas) are matched by name like Noamm/QUOI/Devonian
+ * (Shadow Assassin, Lost/Frozen Adventurer, Diamond Guy, King Midas) are matched by name
  * do, v2-UUID NPCs only.
- * <li><b>Bats</b> (dungeon clear, not boss): Hypixel's secret bats have Skyblock health (QUOI: 100/200/400/800,
- * Devonian: anything but vanilla's 6) - so a visible, alive, non-passenger {@link Bat} whose max health isn't 6.
+ * <li><b>Bats</b> (dungeon clear, not boss): Hypixel's secret bats have Skyblock health (100/200/400/800,
+ * Anything but vanilla's 6) - so a visible, alive, non-passenger {@link Bat} whose max health isn't 6.
  * <li><b>Wither Highlight</b> (F7/M7 boss, P1-P4, both builds): the same real withers, but never through walls -
  * Glow Hitbox or Hitbox Fill ({@link MobEspConfig.WitherStyle}).
  * <li><b>Wither ESP</b> (F7/M7 boss, P1-P4): {@link WitherEspFeature#isRealWither} (not Hypixel's invisible /
@@ -56,7 +56,7 @@ import java.util.Set;
  * </ul>
  * Styles: Outline Box / Filled Box ({@link EspRenderer}) or Glow - vanilla's entity outline, forced through
  * {@code Minecraft#shouldEntityAppearGlowing} and colored through {@code Entity#getTeamColor} by the
- * cheatutils {@code WitherGlow*Mixin}s (NoammAddons' two hooks), so no entity data is ever mutated.
+ * cheatutils {@code WitherGlow*Mixin}s (the two hooks), so no entity data is ever mutated.
  * <p>
  * Legit (the default, and the only option on the legit jar): a target is only highlighted while there is a clear
  * line of sight to it (a real {@code Level#clip} raycast from the camera) and boxes are depth-tested. Through Walls
@@ -85,7 +85,7 @@ public final class MobEspFeature {
      *  {@link #boxTargets} because a tracer has to be drawn for the Glow style too, and because nothing in the box
      *  map records which of its entries is a wither. */
     private static volatile Map<Integer, Integer> tracerTargets = Map.of();
-    /** Starred name-tag armor stand id -> resolved real mob id (resolved once, like Noamm's own cache). */
+    /** Starred name-tag armor stand id -> resolved real mob id (resolved once own cache). */
     private static final Map<Integer, Integer> standToMob = new HashMap<>();
     private static Object lastLevel = null;
 
@@ -312,7 +312,7 @@ public final class MobEspFeature {
                 if (mob != null) {
                     rememberStarred(mob);
                 }
-                // Starred mobs ignore Range and Room Scoped, as QUOI's starred ESP does: every starred mob in the dungeon is
+                // Starred mobs ignore Range and Room Scoped starred ESP does: every starred mob in the dungeon is
                 // drawn until it dies, wherever it is (2026-10-22). Line of sight still applies.
                 if (wantStars && mob != null && accept(client, eye, mob, Double.MAX_VALUE, null, throughWalls, glow, filled,
                         throughWalls, foundBoxes, foundGlows, cfg.getStarredColor())) {

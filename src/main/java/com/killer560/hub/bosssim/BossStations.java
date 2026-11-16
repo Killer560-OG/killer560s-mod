@@ -19,7 +19,7 @@ import java.util.List;
  * Hypixel shows them: a terminal is an invisible stand named "Inactive Terminal" over one named "CLICK HERE", a lever has
  * one marker stand "Not Activated" over it, a device "Inactive" over "Device". Done, they read "Terminal Active",
  * "Activated", "Device"/"Active". Positions are Hypixel's (the same ones the mod's Terminal ESP, Lever Aura and Secret
- * Aura read; ADM's recordings agree to the block).
+ * Aura read; recordings agree to the block).
  *
  * <p>Completion lines are Hypixel's: {@code "<name> activated a terminal! (n/m)"}, {@code "... activated a lever! ..."},
  * {@code "... completed a device! ..."}, each also sent as a subtitle (what Terminal Titles and the QOL mixin read).
@@ -82,7 +82,7 @@ public final class BossStations {
 
     // ---- per-fight state -----------------------------------------------------------------------------------------
 
-    /** Hypixel's stand heights relative to the station (after the first position sync), from ADM's recordings. */
+    /** Hypixel's stand heights relative to the station (after the first position sync), from recordings. */
     private static final double TOP_DY = 0.02, BOTTOM_DY = -0.355;
     static final String INACTIVE = "§cInactive Terminal";
     static final String CLICK_HERE = "§e§lCLICK HERE";

@@ -16,9 +16,9 @@ import net.minecraft.world.phys.shapes.VoxelShape;
 import java.util.Set;
 
 /**
- * Java port of QUOI's {@code TeleportUtils} (etherwarp voxel traversal, transmission prediction), the parts of
+ * Java port of the {@code TeleportUtils} (etherwarp voxel traversal, transmission prediction), the parts of
  * {@code VecUtils} it uses ({@code getLook}, {@code getDirection}, {@code getVisiblePoint}), {@code WorldUtils.etherwarpable}
- * and {@code CachedSphere}. Pure world reads - safe from the pathfinder worker threads the same way QUOI reads them.
+ * and {@code CachedSphere}. Pure world reads - safe from the pathfinder worker threads the same way the reference reads them.
  */
 public final class TeleportUtils {
 
@@ -30,11 +30,11 @@ public final class TeleportUtils {
     private TeleportUtils() {
     }
 
-    /** QUOI {@code Direction}: yaw/pitch in wrapped degrees plus distance. */
+    /** The reference {@code Direction}: yaw/pitch in wrapped degrees plus distance. */
     public record Rotation(float yaw, float pitch, double distance) {
     }
 
-    /** QUOI {@code RaycastResult}. */
+    /** The reference {@code RaycastResult}. */
     public record RaycastResult(boolean succeeded, BlockPos pos, BlockState state) {
         public static final RaycastResult NONE = new RaycastResult(false, null, null);
     }
@@ -43,7 +43,7 @@ public final class TeleportUtils {
     public static final double SNEAK_EYE = 1.27;
     /**
      * Minecraft 1.8.9's sneaking eye height: {@code EntityPlayer.getEyeHeight()} is {@code 1.62F}, minus {@code 0.08F}
-     * while sneaking (MCP 9.19, Marcelektro/MCP-919 @1717f759 EntityPlayer.java:2326-2340; OdinLegacy's
+     * while sneaking (MCP 9.19, Marcelektro/MCP-919 @1717f759 EntityPlayer.java:2326-2340; the usual
      * {@code fastEyeHeight} uses the same 1.54). p3sim.net casts its etherwarp from it (killer560, 2026-10-08: "p3sim's
      * etherwarp is slightly off from main"), so on p3sim, and only there, every etherwarp prediction casts from 1.54.
      */
@@ -143,7 +143,7 @@ public final class TeleportUtils {
         return Minecraft.getInstance().level;
     }
 
-    /** QUOI {@code WorldUtils.etherwarpable}. */
+    /** The reference {@code WorldUtils.etherwarpable}. */
     public static boolean etherwarpable(BlockPos pos) {
         Level level = level();
         if (level == null) {
@@ -188,10 +188,10 @@ public final class TeleportUtils {
     }
 
     /**
-     * QUOI {@code getEtherwarpDirection} (Aton), made to aim where it will actually land.
+     * The reference {@code getEtherwarpDirection} (Aton), made to aim where it will actually land.
      *
      * <p>killer560 (2026-10-04): "sometimes it doesn't aim at the right block so it ends up off one or so."
-     * QUOI's version returned the direction to the first of {@link #VISIBLE_OFFSETS} a ray could reach, and
+     * The version returned the direction to the first of {@link #VISIBLE_OFFSETS} a ray could reach, and
      * those are mostly points 0.001 from a block's EDGE - and its top-center point sits exactly on the top face,
      * which the voxel walk files under the AIR block above, so from above it never matched and the edge points
      * were what got used. A ray grazing an edge is a coin toss: a twentieth of a block of eye height or one
@@ -337,7 +337,7 @@ public final class TeleportUtils {
             {0.001, 1.0, 0.001}, {0.001, 1.0, 0.999}, {0.999, 1.0, 0.001}, {0.999, 1.0, 0.999}
     };
 
-    /** QUOI {@code getVisiblePoint}: first of 30 sample points on the block the etherwarp ray actually lands on. */
+    /** The reference {@code getVisiblePoint}: first of 30 sample points on the block the etherwarp ray actually lands on. */
     public static Vec3 getVisiblePoint(Vec3 from, BlockPos to) {
         for (double[] o : VISIBLE_OFFSETS) {
             double tx = to.getX() + o[0];
@@ -351,7 +351,7 @@ public final class TeleportUtils {
         return null;
     }
 
-    /** QUOI {@code traverseVoxels} (unclambomb6): first solid block along the ray with etherwarp head/feet clearance. */
+    /** The reference {@code traverseVoxels} (unclambomb6): first solid block along the ray with etherwarp head/feet clearance. */
     public static RaycastResult traverseVoxels(double x0, double y0, double z0, double x1, double y1, double z1, boolean etherwarp) {
         return traverseVoxels(level(), x0, y0, z0, x1, y1, z1, etherwarp);
     }
@@ -444,7 +444,7 @@ public final class TeleportUtils {
         return RaycastResult.NONE;
     }
 
-    /** QUOI {@code predictTransmission} (NoammAddons InstantTransmissionHelper / rsm EtherUtils / soshimee zph). */
+    /** The reference {@code predictTransmission} (the reference InstantTransmissionHelper / rsm EtherUtils / soshimee zph). */
     public static RaycastResult predictTransmission(double x0, double y0, double z0, double dx, double dy, double dz, double distance) {
         Level level = level();
         if (level == null) {
@@ -575,7 +575,7 @@ public final class TeleportUtils {
     private static final int SPHERE_RADIUS = 25;
     private static volatile long[] sphere;
 
-    /** QUOI {@code BlockPos.nearbyBlocks(25f) { it.etherwarpable }.firstOrNull()}: closest etherwarpable block. */
+    /** The reference {@code BlockPos.nearbyBlocks(25f) { it.etherwarpable }.firstOrNull}: closest etherwarpable block. */
     public static BlockPos nearestEtherwarpable(BlockPos center) {
         long[] table = sphere;
         if (table == null) {

@@ -6,7 +6,7 @@ import net.fabricmc.fabric.api.client.screen.v1.ScreenKeyboardEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 
-/** "Close On Any Key" of Auto Close Chest (Nebulune / Devonian CloseChestOnKey, featE-1108), in every build: a dungeon secret
+/** "Close On Any Key" of Auto Close Chest (other implementations CloseChestOnKey, featE-1108), in every build: a dungeon secret
  *  chest stays open so the loot can be read, and the first key or mouse press closes it. The press is eaten, so it
  *  does not also take an item or act as a hotbar key. */
 public final class AutoCloseChestClick {

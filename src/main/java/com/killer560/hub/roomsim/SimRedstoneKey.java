@@ -45,14 +45,14 @@ import java.util.concurrent.ConcurrentHashMap;
  *       another secret. Since 0.18.4 (May 2023) it is no longer an item: "Any player can use the Redstone Key once
  *       found". Three 1x1 rooms use it.</li>
  *   <li><b>How the client sees it</b>, from the shallow clones in killer560s-mod-logs (read, not copied): the key is a
- *       {@code player_head} whose profile id is {@code fed95410-aba1-39df-9b95-1d4f361eb66e} (Odin, NoammAddons, RSA,
- *       and this mod's own {@code SecretsFeature.isRedstoneKey}); picking it up turns that head to AIR (RSA watches
+ *       {@code player_head} whose profile id is {@code fed95410-aba1-39df-9b95-1d4f361eb66e} (
+ *       and this mod's own {@code SecretsFeature.isRedstoneKey}); picking it up turns that head to AIR (the reference watches
  *       exactly that block change to know the key was found); the node is a {@code redstone_block} that is clicked
- *       (QUOI and RSA click a REDSTONE_BLOCK once the key is found); when the key goes in, the node block changes
- *       (RSA marks it done on that change) and an ARMOR STAND wearing the key's head appears with its block position
- *       two below the node (RSA, equipment packet, {@code entity.getBlockY() + 2}); and RSM counts the node's secret off
+ *       (other implementations click a REDSTONE_BLOCK once the key is found); when the key goes in, the node block changes
+ *       (the reference marks it done on that change) and an ARMOR STAND wearing the key's head appears with its block position
+ *       two below the node (equipment packet, {@code entity.getBlockY + 2}); and the reference counts the node's secret off
  *       a {@code block.piston.contract}/{@code extend} sound.</li>
- *   <li><b>The node positions</b> are RSM's {@code REDSTONE_BLOCK} waypoints ({@code assets/rsm/secrets.json}) turned
+ *   <li><b>The node positions</b> are the {@code REDSTONE_BLOCK} waypoints ({@code assets/rsm/secrets.json}) turned
  *       into capture coordinates by the turn that lands its chests, keys and levers on the capture's own blocks.
  *       Redstone Crypt's and Redstone Key's captures hold a redstone block exactly there. Golden Oasis' capture holds
  *       AIR there (capture (11, 71, 4), a stone-brick ledge in the wall) - killer560's Hypixel shot of 2026-10-15 shows

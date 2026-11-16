@@ -13,7 +13,7 @@ import com.killer560.hub.util.TickAudit;
  *       555: six of killer560's 2026-11-04 Hypixel runs put the lightning line 549-559 wall ticks after the opening line
  *       (median 555; a seventh lagged, 607), and Hypixel ticks at 20/s (goldor2-1104); 560 was read off whole seconds of a 2026-10-30 log.</li>
  *   <li><b>Purple</b>: Storm's lightning line ("ENERGY HEED MY CALL!" / "THUNDER LET ME BE YOUR CATALYST!") switches the
- *       same line to ONE countdown of {@link #PURPLE_TICKS} server ticks to 0 (NoammAddons 1.2.9 TickTimers.kt "PY": 62 ticks
+ *       same line to ONE countdown of {@link #PURPLE_TICKS} server ticks to 0 (the reference 1.2.9 TickTimers.kt "PY": 62 ticks
  *       from that line, read 2026-11-03), then the line goes away ({@link #PURPLE_HOLD} ticks after 0). killer560, 2026-11-03:
  *       "for purple pad timer it should be 1 countdown after lightning not a constant 1s during storm".</li>
  *   <li><b>Yellow</b>: Storm's first crush line ("Oof" / "Ouch, that hurt!") keeps the same cycle going for the yellow pad.</li>

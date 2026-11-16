@@ -69,7 +69,7 @@ public final class SimAbilities {
     private static final double ETHERWARP_RANGE = 57.0;
 
     /**
-     * Where an etherwarp puts the feet: the top of the block landed on, plus this. Hypixel's figure (QUOI's, and
+     * Where an etherwarp puts the feet: the top of the block landed on, plus this. Hypixel's figure (and
      * what the mod's planner predicts with), after which ordinary gravity settles him. The sim used to land at
      * exactly + 1.0, and the planner and executors carried sim branches using 1.0 to match it; one number now.
      */
@@ -583,7 +583,7 @@ public final class SimAbilities {
         // Once the look has driven the travel into something it stays at the height it settled at for the rest
         // of the walk. Null until that happens.
         Double lockedY = null;
-        // HOW FAR A SETTLED WALK MAY RUN: to where the EYE's look meets a block, and no further. QUOI's Auto Ice
+        // HOW FAR A SETTLED WALK MAY RUN: to where the EYE's look meets a block, and no further. The Auto Ice
         // Fill hops one tile at a time by aiming from the eye at the next tile's feet position, which on Hypixel
         // lands exactly there (killer560, 2026-10-02: "auto ice fill tends to start working but then it'll stop
         // after only a few teleports").

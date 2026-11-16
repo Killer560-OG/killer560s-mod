@@ -1,10 +1,10 @@
 package com.killer560.hub.carnival;
 
 /**
- * Chantelle's yearly Carnival Goals (SkyHanni's list; the wiki names the same kinds). Each is found in the "Carnival
+ * Chantelle's yearly Carnival Goals (the list; the wiki names the same kinds). Each is found in the "Carnival
  * Goals" menu by its item (sand, cod or arrow for the game) and the start of its first lore line, and reached when that
  * item's last lore line reads "COMPLETE" or a goal-complete chat line names it. Unverified in game: the lore and chat
- * wording, which is SkyHanni's.
+ * wording, which is the.
  */
 public enum CarnivalGoal {
     FRUIT_PLAY(CarnivalState.Game.FRUIT_DIGGING, "Play 3 games of Fruit Digging.", "Play 3 games"),

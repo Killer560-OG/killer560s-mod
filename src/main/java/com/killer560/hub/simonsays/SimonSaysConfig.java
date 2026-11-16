@@ -38,8 +38,8 @@ public final class SimonSaysConfig {
     private int secondColor = 0xFFFFAA00;
     private int thirdColor = 0xFFFF5555;
     // Not cheat-gated - blocks a real click, doesn't send one, same real-vs-automation distinction
-    // Odin's own "Block Wrong Clicks" toggle makes (it isn't cheat-gated there either). Shift always
-    // overrides it, matching Odin's own real behavior, so a manual override is never fully locked out.
+    // The "Block Wrong Clicks" toggle makes (it isn't cheat-gated there either). Shift always
+    // overrides it own real behavior, so a manual override is never fully locked out.
     private boolean preventMisclicksEnabled = false;
 
     // Chat progress
@@ -65,7 +65,7 @@ public final class SimonSaysConfig {
     // Auto-solve's own pacing: land the WHOLE device attempt (all its rounds: 15 clicks on the old 5-round device, 10 on the 4-round one) within
     // Target ± Variance overall (jittered), rather than a flat per-click delay. Moved here (2026-09-14)
     // from what used to be Auto Start's timer-with-variance model - killer560's own call, since Auto
-    // Start's real trigger/pacing (see below, ported from NoammAddons) doesn't need a target window, but
+    // Start's real trigger/pacing (see below) doesn't need a target window, but
     // Auto Solve pacing its own click-through speed is exactly "the spot where it will be used." Real bug
     // found and fixed the same day: this used to re-arm a fresh window every ROUND instead of once per
     // attempt, so the full target duration got spent on each round's handful of clicks alone (round 1 has
@@ -101,12 +101,12 @@ public final class SimonSaysConfig {
     private int autoSolveMomentum = 0;
 
     private boolean autoStartEnabled = false;
-    // Defaults ported from NoammAddons' own SimonSays.kt ("Start Clicks" default 3, "Start Click Delay"
+    // Defaults ("Start Clicks" default 3, "Start Click Delay"
     // in real TICKS default 3), and since CONFIRMED as real, correct values (2026-09-14) - killer560 did
     // several manual real skip attempts with the new onRealBlockInteractAttempt click logger running; the
     // two that actually got a real skip both showed the exact same real pattern: 3 total clicks on the
     // start button, ~150ms (~3 real ticks) apart. These are no longer just a ported guess. Range widened
-    // to 0-20 (killer560's own explicit ask, both settings shown as drag sliders) - NoammAddons' own real
+    // to 0-20 (killer560's own explicit ask, both settings shown as drag sliders) - the real
     // ranges were narrower (1-10 clicks, 1-25 ticks) but this mod's slider UI needed one shared 0-20 range.
     private int autoStartClicks = 3;
     private int autoStartClickDelayTicks = 3;
@@ -393,7 +393,7 @@ public final class SimonSaysConfig {
 
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - auto-clicking the start
      *  button to set up a "skip", a real macro. Real trigger: SimonSaysFeature fires this itself the
-     *  moment the real Goldor phase-start line is seen (ported from NoammAddons), not from a GUI button. */
+     *  moment the real Goldor phase-start line is seen, not from a GUI button. */
     public boolean isAutoStartEnabled() {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && autoSimonSaysEnabled && autoStartEnabled
                 && com.killer560.hub.util.SkyblockGate.allows();

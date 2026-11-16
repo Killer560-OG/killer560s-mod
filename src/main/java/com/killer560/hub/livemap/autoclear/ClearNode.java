@@ -10,7 +10,7 @@ import net.minecraft.world.phys.Vec3;
 import java.util.List;
 
 /**
- * Port of QUOI's {@code ClearNode} and its three {@code executor/nodes}: a teleport to perform when the (predicted)
+ * Port of the {@code ClearNode} and its three {@code executor/nodes}: a teleport to perform when the (predicted)
  * player position is on {@link #pos}. {@link #execute} swaps to the item, raycasts the landing spot, queues the
  * rotated item use for the next tick and advances the predicted position - so a whole chain runs one hop per tick.
  */
@@ -97,7 +97,7 @@ public abstract class ClearNode {
         return String.format(java.util.Locale.US, "%.1f, %.1f, %.1f", v.x, v.y, v.z);
     }
 
-    /** QUOI {@code ClearEtherNode}: sneaking Aspect of the Void etherwarp. */
+    /** The reference {@code ClearEtherNode}: sneaking Aspect of the Void etherwarp. */
     /** Not final since fairy-souls-1017: Auto Fairy Souls' {@code pathfinding.EtherwarpHopper} warps with whatever
      *  etherwarp item is in the hotbar, and every "is this an etherwarp" test in {@code ClearExecutor} (the forced
      *  sneak above all) is an {@code instanceof EtherNode}. Its own node was a plain {@code ClearNode}, so the sneak was
@@ -119,13 +119,13 @@ public abstract class ClearNode {
 
         @Override
         public boolean execute(double[] playerPos) {
-            // QUOI's block top + 1.05, Hypixel's landing - and the sim's (SimAbilities.ETHERWARP_LANDING_OFFSET).
+            // The block top + 1.05, Hypixel's landing - and the sim's (SimAbilities.ETHERWARP_LANDING_OFFSET).
             return doTeleport(playerPos, items(), true, 1.05,
                     from -> TeleportUtils.getEtherPos(from, yaw, pitch, range()));
         }
     }
 
-    /** QUOI {@code ClearAotvNode}: non-sneaking 12-block instant transmission. */
+    /** The reference {@code ClearAotvNode}: non-sneaking 12-block instant transmission. */
     public static final class AotvNode extends ClearNode {
         public AotvNode(Vec3 pos, float yaw, float pitch, int colour, List<Vec3> points) {
             super(pos, yaw, pitch, colour, points);
@@ -138,7 +138,7 @@ public abstract class ClearNode {
         }
     }
 
-    /** QUOI {@code ClearHypeNode}: 10-block wither-blade teleport. */
+    /** The reference {@code ClearHypeNode}: 10-block wither-blade teleport. */
     public static final class HypeNode extends ClearNode {
         public HypeNode(Vec3 pos, float yaw, float pitch, int colour, List<Vec3> points) {
             super(pos, yaw, pitch, colour, points);
@@ -151,7 +151,7 @@ public abstract class ClearNode {
         }
     }
 
-    /** QUOI {@code TeleportPathNode.toEther()}. */
+    /** The reference {@code TeleportPathNode.toEther}. */
     public static EtherNode toEther(EtherwarpPathfinder.Node node) {
         Vec3 from = new Vec3(node.x, node.y + TeleportUtils.eyeHeight(true), node.z);
         Vec3 look = TeleportUtils.getLook(node.yaw, node.pitch).scale(60.0);

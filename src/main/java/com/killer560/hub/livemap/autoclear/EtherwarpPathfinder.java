@@ -19,11 +19,11 @@ import java.util.List;
  * had "11 leg(s) ... total 94.02 ms, 40 warp(s)" from the room-by-room planner this replaced; on
  * {@code tools/bench/FloorBench} (whole sim-style floors of the shipped captures) the graph takes 40% fewer warps
  * than that planner and a warm click a median of under a millisecond - see docs/SIM.md for the numbers and the
- * method. The room-by-room planner ({@link #legacyDungeonPath}: QUOI's {@code findDungeonPath}, one weighted-A*
+ * method. The room-by-room planner ({@link #legacyDungeonPath}: the {@code findDungeonPath}, one weighted-A*
  * leg per room along {@link DungeonMapPathfinder}'s route) is kept as the fallback for when the graph finds nothing,
  * so no click that used to find a path stops finding one.
  *
- * <p><b>Single searches</b> ({@link #findPath}, the Etherwarp Hopper) are QUOI's {@code EtherwarpPathfinder} in
+ * <p><b>Single searches</b> ({@link #findPath}, the Etherwarp Hopper) are the {@code EtherwarpPathfinder} in
  * behavior - A* whose moves are etherwarp rays from a fixed yaw/pitch fan, then {@code smoothPath} - over
  * {@link EtherSearch} and a byte-per-block {@link LevelEtherGrid}.
  */
@@ -121,11 +121,11 @@ public final class EtherwarpPathfinder {
     private static boolean lastPlanOnFull;
     private static boolean lastPlanNear;
 
-    /** QUOI {@code PathConfig}. {@code timeout} is milliseconds for the whole search. */
+    /** The reference {@code PathConfig}. {@code timeout} is milliseconds for the whole search. */
     public record PathConfig(float yawStep, float pitchStep, double hWeight, long timeout) {
     }
 
-    /** QUOI {@code TeleportPathNode}: where he stands, the block under him, and the aim used FROM here. */
+    /** The reference {@code TeleportPathNode}: where he stands, the block under him, and the aim used FROM here. */
     public static final class Node {
         public final double x;
         public final double y;
@@ -148,7 +148,7 @@ public final class EtherwarpPathfinder {
         }
     }
 
-    /** QUOI {@code findPath}: a single search, no room chaining. {@code layout} is unused and may be null. */
+    /** The reference {@code findPath}: a single search, no room chaining. {@code layout} is unused and may be null. */
     public static List<Node> findPath(Vec3 from, BlockPos to, PathConfig cfg, double dist, boolean withLast,
                                       DungeonLayout layout) {
         Level level = Minecraft.getInstance().level;
@@ -829,7 +829,7 @@ public final class EtherwarpPathfinder {
     }
 
     /**
-     * Rooms an etherwarp cannot be used FROM: the rooms {@link AutoClearUtils#canPath} refuses to start in (QUOI's
+     * Rooms an etherwarp cannot be used FROM: the rooms {@link AutoClearUtils#canPath} refuses to start in (the
      * rule: a maze, Boulder, a trap), which the sim enforces too (SimAbilities: traps, Teleport Maze, Boulder). A
      * path may land in one - the goal can be there - but never warp on from it.
      */
@@ -1137,7 +1137,7 @@ public final class EtherwarpPathfinder {
     private static boolean warmFailureTraced;
 
     /**
-     * The planner before the floor graph, kept as its fallback: QUOI {@code findDungeonPath}, room-by-room legs
+     * The planner before the floor graph, kept as its fallback: the reference {@code findDungeonPath}, room-by-room legs
      * via {@link DungeonMapPathfinder}.
      *
      * <p><b>Every refusal says which one it is.</b> killer560 (2026-10-01): "interactive map fails anytime I
@@ -1372,7 +1372,7 @@ public final class EtherwarpPathfinder {
         EtherSearch.Leg leg = new EtherSearch.Leg();
         leg.fan = EtherSearch.fan(dist, cfg.yawStep(), cfg.pitchStep());
         leg.hWeight = cfg.hWeight();
-        // Block top + 1.05: QUOI's figure for where Hypixel's etherwarp lands the feet, and the dungeon sim's
+        // Block top + 1.05: the figure for where Hypixel's etherwarp lands the feet, and the dungeon sim's
         // server lands there too (SimAbilities.ETHERWARP_LANDING_OFFSET). The sim used to land at + 1.0 and
         // planned with that; one value now.
         leg.standOffset = STAND_OFFSET;

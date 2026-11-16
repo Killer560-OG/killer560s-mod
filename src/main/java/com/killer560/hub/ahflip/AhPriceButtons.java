@@ -42,7 +42,7 @@ import java.util.Optional;
  *   <li><b>Copy LBIN</b>: the lowest BIN of that exact item ({@link AhItemKey}: id, dungeon stars, Recombobulator, a pet's
  *       type/rarity/level) from the last full AH scan ({@link AhMarketIndex}), times the stack, less the Undercut.</li>
  *   <li><b>Copy Average</b>: the 1- or 3-day AVERAGE LOWEST BIN (the Price Tooltip's Average Days, 3 by default) from
- *       Skyblocker's public price API, hysky.de {@code /api/auctions/lowestbins/average?days=N}, via {@link PriceData},
+ *       the public price API, hysky.de {@code /api/auctions/lowestbins/average?days=N}, via {@link PriceData},
  *       times the stack. It is not an average sale price: nothing keyless gives one per item.</li>
  *   <li><b>Copy Estimated Value</b>: the Price Tooltip's Est. Item Value ({@link ItemValueCalc}, its Value Mode) of the
  *       item with its modifiers, times the stack.</li>
@@ -182,7 +182,7 @@ public final class AhPriceButtons {
         if (avg != null && avg > 0) {
             long coins = Math.max(1, Math.round(avg * count));
             out.add(new Quote(Kind.AVERAGE, coins, tip(Kind.AVERAGE, coins,
-                    days + "-day average lowest BIN (Skyblocker's hysky.de",
+                    days + "-day average lowest BIN (the hysky.de",
                     "price list, the Price Tooltip's Average Days): " + DungeonChestValuer.formatCoins(Math.round(avg)) + times),
                     days + "-day average lowest BIN"));
         } else if (!pricesLoaded) {

@@ -27,7 +27,7 @@ import java.util.Set;
  * <p>Red Blue, read off the capture ({@code rooms/Red_Blue.json}, capture = database + 1 in x and z, checked on both of
  * the database's chests: capture 58,70,6 and 40,90,27 are database 57,70,5 and 39,90,26): wall levers facing south at
  * capture 57,70,6 and 60,70,6 (database 56,70,5 and 59,70,5) flank the chest at capture 58,70,6; the real lever is the
- * floor lever at capture 55,69,6 (database 54,69,5), which is also the only Red Blue lever in RSM's secret list
+ * floor lever at capture 55,69,6 (database 54,69,5), which is also the only Red Blue lever in the secret list
  * (center-relative 39,69,-10). Pressure Plates' cauldron levers and Mines' wool lever were added 2026-11-01 (his to-do Doc);
  * add one here and every reader has it.
  *

@@ -11,7 +11,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Loadout Keybinds settings - see {@link com.killer560.hub.loadoutkeybinds.LoadoutKeybindsFeature}'s
- *  class doc for the real Odin-ported loadout-navigation this is built on. Real "(N/M) Loadout" screen
+ *  class doc for the real loadout-navigation this is built on. Real "(N/M) Loadout" screen
  *  only - unrelated to any other menu. {@code capturingIndex}: -1 none, 0-11 slot keys, 12 next page,
  *  13 previous page, 14 the Open Loadouts key. */
 public class LoadoutKeybindsTab extends BaseTab implements KeyCaptureTab {

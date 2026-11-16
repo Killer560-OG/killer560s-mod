@@ -118,9 +118,9 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <h2>2026-10-15: Cobble Wall Pillar and Golden Oasis, both levers PLACED</h2>
  *
- * <p>Neither capture holds the lever; both positions are RSM's {@code LEVER} waypoints ({@code assets/rsm/secrets.json}
+ * <p>Neither capture holds the lever; both positions are the {@code LEVER} waypoints ({@code assets/rsm/secrets.json}
  * in killer560s-mod-logs/rsm-ref, Hypixel-derived), turned into capture coordinates by the turn that lands that
- * room's RSM chests on the capture's chests, and both match his Hypixel shots.
+ * room's the reference chests on the capture's chests, and both match his Hypixel shots.
  * <ul>
  *   <li><b>Cobble Wall Pillar.</b> "there should be a lever here that drops this iron gate": a floor lever in the
  *       one-block nook at {@code (8, 69, 21)} beside the captured redstone wall torch (his shot shows the red torch
@@ -153,7 +153,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *       bridge.</li>
  *   <li><b>Layers.</b> The plank-floor pit lever {@code (6, 76, 3)} - captured ON, so it is turned off at arming -
  *       drops the oak-wood door frame with its bar at {@code x=5..7, y=69..73, z=10} in front of the chest at
- *       {@code (6, 69, 3)}. The second lever is missing from the capture; route and RSM both put it over the three
+ *       {@code (6, 69, 3)}. The second lever is missing from the capture; route and the reference both put it over the three
  *       smooth stone blocks by the torch, and it is PLACED on the middle one, {@code (9, 90, 33)} (the data say
  *       y 91, a block of air above it). It drops the 12 bars at {@code x=46, y=69..72, z=47..49} before the chest at
  *       {@code (48, 69, 48)}, red carpet in front.</li>
@@ -173,7 +173,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *       <b>Redstone Key</b> {@code (6, 70, 28)} the acacia logs of {@code x=25..27, y=69..74, z=11}; <b>Water</b>'s
  *       wall lever {@code (16, 70, 8)} the oak log door {@code x=7..8, y=69..72, z=5..6}; <b>Withermancer</b>
  *       {@code (25, 61, 4)} the bars of {@code x=27, y=111..117, z=15..17} at the chest {@code (30, 111, 16)}.</li>
- *   <li><b>Purple Flags.</b> No lever in the capture; route and RSM agree on {@code (30, 55, 28)}, air with air
+ *   <li><b>Purple Flags.</b> No lever in the capture; route and the reference agree on {@code (30, 55, 28)}, air with air
  *       under it and cobblestone over it, so it is PLACED there hanging from the ceiling. It drops the spruce door
  *       with its two bar windows, {@code x=25..27, y=49..53, z=13}.</li>
  *   <li><b>Supertall</b>, four levers, one floor of the shaft each: {@code (51, 77, 47)} drops the dark oak gate

@@ -12,7 +12,7 @@ import java.util.List;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Chat Keybinds (originally "Command Keybinds", ported from Odin's own {@code CommandKeybinds.kt} - "various
+ * Chat Keybinds (originally "Command Keybinds" - "various
  * keybinds for common skyblock commands"). killer560 (2026-09-20) asked to "let me type my own command or
  * message" instead of only the 8 built-in menu commands, so a bind is now a key (or mouse button) plus the
  * exact line to send: a leading "/" sends it as a command, anything else as a normal chat message.

@@ -3,10 +3,10 @@ package com.killer560.hub.chocolatefactory.egg;
 /**
  * Hoppity's Hunt calendar math, pure (no Minecraft): when each meal's Chocolate Egg last spawned, when the next one
  * spawns, and whether the hunt is on. Our own code; the facts it encodes are from the Skyblock wiki's Hoppity's Hunt
- * page (hypixelskyblock.minecraft.wiki, read 2026-10-19) and Skyblocker's EggFinder (LGPL-3.0, read for facts only):
+ * page (hypixelskyblock.minecraft.wiki, read 2026-10-19) and the EggFinder (LGPL-3.0, read for facts only):
  * <ul>
  * <li>A Skyblock day is 20 real minutes, an hour 50 s, a month 31 days, a year 12 months. The calendar's day 0 began at
- * {@link #EPOCH_MS} (the same constant {@code scoreboard/ScoreboardExtraData} uses, SkyHanni's SkyBlockTime).</li>
+ * {@link #EPOCH_MS} (the same constant {@code scoreboard/ScoreboardExtraData} uses, the SkyBlockTime).</li>
  * <li>The hunt runs from Early Spring 1st to the end of Late Spring: the first 93 days of every year, 3 eggs a day,
  * 279 a year.</li>
  * <li>Three meals: Breakfast at 7:00, Lunch at 14:00, Dinner at 21:00 Skyblock time (real XX:00:50, XX:06:40,

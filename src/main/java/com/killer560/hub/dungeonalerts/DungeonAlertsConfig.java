@@ -45,7 +45,7 @@ public final class DungeonAlertsConfig {
     // Spring Boots Overlay
     public boolean springBootsEnabled = false;
     public boolean springBootsBox = true;
-    /** Height box color (ARGB) and style (killer560, 2026-10-11). The default is Odin's red, outline only. */
+    /** Height box color (ARGB) and style (killer560, 2026-10-11). The default is the red, outline only. */
     public int springBootsColor = DEFAULT_SPRING_BOOTS_COLOR;
     public BoxStyle springBootsBoxStyle = BoxStyle.OUTLINE;
 
@@ -88,7 +88,7 @@ public final class DungeonAlertsConfig {
     public static final int DEFAULT_ROOM_ALERT_COLOR = com.killer560.hub.util.ModChat.LIGHT_ORANGE;
     public static final int DEFAULT_SHADOW_ASSASSIN_COLOR = 0xAA44FF;
 
-    // Teammate Low Health Alert (2026-10-25, SkyHanni LowHealthAlert): OFF; Healer-only and the sound default ON.
+    // Teammate Low Health Alert (2026-10-25, the reference LowHealthAlert): OFF; Healer-only and the sound default ON.
     private boolean lowHealthEnabled = false;
     private boolean lowHealthOnlyHealer = true;
     private boolean lowHealthSound = true;
@@ -101,7 +101,7 @@ public final class DungeonAlertsConfig {
     private boolean secretClickedTakenBox = false;
     private boolean muteChestSounds = false;
     private boolean muteLeverSounds = false;
-    // Key Spawn Alert (2026-10-25, Odin DoorHighlight's "Wither Key spawned!"): OFF.
+    // Key Spawn Alert (2026-10-25, the reference DoorHighlight's "Wither Key spawned!"): OFF.
     private boolean keySpawnAlert = false;
     // Breaker Charges HUD (2026-10-25): OFF.
     private boolean breakerChargesHud = false;

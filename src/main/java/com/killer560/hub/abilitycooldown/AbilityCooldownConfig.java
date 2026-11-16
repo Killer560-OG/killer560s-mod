@@ -34,7 +34,7 @@ public final class AbilityCooldownConfig {
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-abilitycooldown.json");
 
-    /** SkyHanni's own window: a heard ability sound only starts YOUR timer if YOU clicked an item within
+    /** The window: a heard ability sound only starts YOUR timer if YOU clicked an item within
      *  this long, so another player's Hyperion next to you can't start your cooldown
      *  ({@code ItemAbilityCooldown.sound()}: {@code if (ping < 400.milliseconds) activate()}). */
     public static final int MIN_CLICK_WINDOW_MS = 100;
@@ -94,7 +94,7 @@ public final class AbilityCooldownConfig {
                 cfg.actionBarDetection = ConfigJson.getBool(root, "actionBarDetection", cfg.actionBarDetection);
                 cfg.clickWindowMs = clampClickWindow(ConfigJson.getInt(root, "clickWindowMs", cfg.clickWindowMs));
                 cfg.mageReduction = ConfigJson.getBool(root, "mageReduction", cfg.mageReduction);
-                // Migration (2026-09-21): "mageUniqueClass"/"mageClassLevel" used to feed SkyHanni's formula
+                // Migration (2026-09-21): "mageUniqueClass"/"mageClassLevel" used to feed the formula
                 // (50% unique / 25% otherwise, minus 1% per 2 levels) - now replaced by one flat percentage.
                 // A file saved before this change has no "mageCooldownReductionPercent" key yet, so recompute
                 // what it used to work out to and seed the new setting with that, instead of silently

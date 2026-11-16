@@ -16,11 +16,11 @@ import com.killer560.hub.compat.McRender;
  * Box drawing for the P3 navigation aids. Depth-tested boxes go straight through this mod's existing
  * {@link WorldRenderUtils}; through-walls boxes (Terminal ESP, cheat build only) need a pipeline with no
  * depth test, built the same way {@code mobesp/EspRenderer} builds its two - copies of vanilla's LINES /
- * DEBUG_FILLED snippets with {@code withDepthStencilState(Optional.empty())}, which is how NoammAddons'
- * 26.1.2 {@code NoammRenderPipelines} does it. The pipeline ids are p3nav-specific so they can't collide
+ * DEBUG_FILLED snippets with {@code withDepthStencilState(Optional.empty)}, which is how the
+ * 26.1.2 through-walls pipeline set does it. The pipeline ids are p3nav-specific so they can't collide
  * with Dungeon ESP's own registrations.
  * <p>
- * (The vertex layout below is the same Odin-derived one {@code WorldRenderUtils}/{@code EspRenderer} use.
+ * (The vertex layout below is the same one {@code WorldRenderUtils}/{@code EspRenderer} use.
  * If the main session would rather have one shared renderer, {@code EspRenderer.outline}/{@code filled}
  * are identical apart from the fixed 0.35 fill alpha - see the report.)
  */

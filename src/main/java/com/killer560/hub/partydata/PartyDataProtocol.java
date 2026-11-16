@@ -29,14 +29,14 @@ final class PartyDataProtocol {
     static final String KEY_ROOM = "dg.v1.room";
     static final String KEY_DOOR = "dg.v1.door";
     static final String KEY_DRAGON = "dg.v1.dragon";
-    /** Per-player secret total (Devonian's {@code SecretTracker[name, n]}). Documented for forward
+    /** Per-player secret total. Documented for forward
      *  compatibility; nothing in this build PUBLISHES it yet - see {@link PartyDataFeature}'s class doc for
      *  why (no existing SELF-derived "secrets I personally opened" signal to relay honestly). */
     static final String KEY_PLAYER_SECRETS = "dg.v1.playerSecrets";
     /** F7/M7 Melody terminal progress (2026-09-21, {@code com.killer560.hub.melody}) - the sender's own
-     *  reading of their own open terminal, in Odin's own {@code type}/{@code slot} numbering (see
+     *  reading of their own open terminal, in the {@code type}/{@code slot} numbering (see
      *  {@code com.killer560.hub.bridge.BridgeTables}) so one value means the same thing whether it came from
-     *  Odin, this relay, or our own tracker. {@code who} is always the packet's {@code from}, same as
+     *  the reference, this relay, or our own tracker. {@code who} is always the packet's {@code from}, same as
      *  {@link #KEY_PLAYER_SECRETS}. */
     static final String KEY_MELODY = "dg.v1.melody";
 
@@ -250,7 +250,7 @@ final class PartyDataProtocol {
         return o;
     }
 
-    /** @return the melody {@code type} (Odin's own 1/2/5 - clay/purple/pane, see {@code BridgeTables}), or
+    /** @return the melody {@code type} (the 1/2/5 - clay/purple/pane, see {@code BridgeTables}), or
      *  null if missing/not one of those three (0/3/4 are never sent by anything real - see
      *  {@code OdinCodec#decode}'s own doc). */
     static Integer readMelodyType(JsonElement value) {

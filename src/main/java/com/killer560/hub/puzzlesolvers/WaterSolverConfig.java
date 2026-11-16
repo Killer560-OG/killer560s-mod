@@ -7,7 +7,7 @@ import com.killer560.hub.util.ConfigJson;
 import java.nio.file.Path;
 
 /** Persisted Water Board Solver settings - see {@link WaterSolverFeature}'s class doc for the real
- *  Odin-ported lever-timing database this is built on. Ships disabled by default, same as every other
+ *  lever-timing database this is built on. Ships disabled by default, same as every other
  *  new feature in this mod. */
 public final class WaterSolverConfig extends SolverConfigBase {
 
@@ -49,7 +49,7 @@ public final class WaterSolverConfig extends SolverConfigBase {
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
-    /** Odin's real "optimized" lever-timing set - a different, real, equally-valid solve than the
+    /** The real "optimized" lever-timing set - a different, real, equally-valid solve than the
      *  default set, same style-not-correctness distinction as Ice Fill's "hard" path. */
     public boolean isOptimizedPath() { return optimizedPath; }
 

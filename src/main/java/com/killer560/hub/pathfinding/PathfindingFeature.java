@@ -18,7 +18,7 @@ import java.util.Locale;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Pathfinding: "show me the fastest way there" navigation on Hypixel Skyblock islands, built on SkyHanni's public
+ * Pathfinding: "show me the fastest way there" navigation on Hypixel Skyblock islands, built on the public
  * island graph data (see {@link IslandGraph} and {@link GraphRepository} for the data source and license).
  * <p>
  * Registers the tick/render hooks and the HUD element. Everything is off by default.

@@ -14,11 +14,11 @@ package com.killer560.hub.ragaxe;
  * <p>
  * Offsets and their confidence:
  * <ul>
- * <li>{@link #M7_DRAGONS} 3000 ms - reproduces NoammAddons' own M7 alert exactly (its
+ * <li>{@link #M7_DRAGONS} 3000 ms - reproduces the M7 alert exactly (its
  * {@code features/impl/dungeon/Ragnarock.kt} shows "rag" the moment the Wither King line lands, and the
- * channel is 3 s), local copy a local NoammAddons checkout.
+ * channel is 3 s), local copy a local the reference checkout.
  * <li>{@link #M7_DRAGON_SPAWN} 0 - not line-timed at all: it reads the live per-dragon spawn countdown out
- * of {@code com.killer560.hub.witherdragons} (Odin's 100-server-tick particle-burst countdown) and prompts
+ * of {@code com.killer560.hub.witherdragons} (the 100-server-tick particle-burst countdown) and prompts
  * {@code lead} ms before that dragon actually spawns. Tick-accurate, no estimate involved.
  * <li>{@link #M7_NECRON} 8000 ms - ESTIMATE. Necron's entry line fires while he is still descending into the
  * arena; no reference mod times this, so 8 s is this mod's own figure for "line -&gt; Necron is down and
@@ -27,7 +27,7 @@ package com.killer560.hub.ragaxe;
  * <li>{@link #F5_LIVID} 19500 ms - 390 server ticks, the Livid invulnerability window this mod already
  * counts down in {@code com.killer560.hub.boss.LividSolverFeature} (armed on the exact same entry line). So
  * the default prompt lands one channel before Livid can first be damaged, which is the natural rag point on
- * F5/M5 - there is no dedicated "rag here" callout on that floor in Odin, NoammAddons, Skytils or SkyHanni.
+ * F5/M5 - there is no dedicated "rag here" callout on that floor in other implementations.
  * </ul>
  */
 public enum RagAxePrompt {

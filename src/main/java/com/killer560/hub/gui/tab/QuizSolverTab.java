@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Quiz Solver settings - see {@link com.killer560.hub.puzzlesolvers.QuizSolverFeature}'s class doc for
- *  the real Odin-ported trivia-answer database this is built on. */
+ *  the real trivia-answer database this is built on. */
 public class QuizSolverTab extends BaseTab {
 
     public QuizSolverTab() {

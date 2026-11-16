@@ -2,7 +2,7 @@ package com.killer560.hub.partyfinder;
 
 import java.util.List;
 
-/** Dungeon classes with the color codes / short names Devonian's {@code DungeonClass} uses in its Party Finder
+/** Dungeon classes with the color codes / short names the {@code DungeonClass} uses in its Party Finder
  *  tooltip. Color codes use '&amp;' (converted to '§' when rendered). */
 public enum DungeonClass {
     ARCHER("Archer", "Arch", 'A', "&c"),
@@ -12,7 +12,7 @@ public enum DungeonClass {
     TANK("Tank", "Tank", 'T', "&a"),
     UNKNOWN("Unknown", "Unknown", '?', "&7");
 
-    /** Order Hypixel/Devonian list classes in ("Missing: Healer, Tank, Mage, Berserk, Archer"). */
+    /** Order Hypixel/the reference list classes in ("Missing: Healer, Tank, Mage, Berserk, Archer"). */
     public static final List<DungeonClass> PICK_ORDER = List.of(HEALER, TANK, MAGE, BERSERK, ARCHER);
 
     public final String displayName;

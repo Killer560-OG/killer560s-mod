@@ -13,9 +13,9 @@ import java.util.Set;
 import java.util.function.Predicate;
 
 /**
- * One of the Custom Scoreboard's ordered lists (lines, events, chunked stats) in SkyHanni's model: the entries that
+ * One of the Custom Scoreboard's ordered lists (lines, events, chunked stats) in the model: the entries that
  * are ON the board, top to bottom, and an "available" pool of everything else (killer560, 2026-10-07: "draggable to be
- * in order and ... the add and trashcan system SkyHanni uses instead of an individual toggle system"). There is no
+ * in order and... the add and trashcan system the reference uses instead of an individual toggle system"). There is no
  * per-entry on/off flag any more - an entry is drawn exactly when it is in {@link #active()}, in that order; the
  * trash can moves it to the pool and Add puts it back at the end.
  *

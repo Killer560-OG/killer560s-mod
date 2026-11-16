@@ -19,8 +19,8 @@ import java.util.Arrays;
  *
  * <p>Zones (Show Zones): the four named zones are the four quadrants of the cave split at x/z 513, Jungle north-west,
  * Mithril Deposits north-east, Goblin Holdout south-west, Precursor Remnants south-east, around the Nucleus box
- * x 463..560, z 460..563 (SkyHanni's Crystal Hollows Area Walls draw the same split in the world); Magma Fields is
- * everything below y 65, so a top-down map cannot show it. The cave itself is x/z 202..823 (Skyblocker's Crystals HUD
+ * x 463..560, z 460..563 (the Crystal Hollows Area Walls draw the same split in the world); Magma Fields is
+ * everything below y 65, so a top-down map cannot show it. The cave itself is x/z 202..823 (the Crystals HUD
  * maps exactly that square, which is what the HUD shows too).
  */
 public final class ChMapRenderer {
@@ -67,7 +67,7 @@ public final class ChMapRenderer {
     /** Text size of the names in the current layout: the HUD's own slider, 1 on the full screen. */
     private float nameSize = 1f;
 
-    /** @param labels draw names beside the markers (the full screen); the HUD is too small for them, as Skyblocker's is,
+    /** @param labels draw names beside the markers (the full screen); the HUD is too small for them is,
      *  but for the structures' names with Names On HUD. */
     public ChMapRenderer(boolean labels) {
         this.labels = labels;

@@ -131,7 +131,7 @@ public final class Networth {
         Acc pets = new Acc("Pets");
         for (SbProfile.Pet pet : p.pets) {
             // The Price Tooltip's pet value (by level, listing first, candy in Networth) so both always agree; the old
-            // level-blind NEU price only while that table has no price for the pet.
+            // level-blind the reference price only while that table has no price for the pet.
             ItemValueCalc.Result r = ItemValueCalc.pet(pet.info, PriceTooltipConfig.getInstance().getValueMode());
             double v = r.total();
             double skin = 0;

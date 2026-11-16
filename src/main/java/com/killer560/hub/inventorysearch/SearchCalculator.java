@@ -16,23 +16,23 @@ import java.util.Locale;
  * neu for how to do it." Same language as Not Enough Updates' {@code util/Calculator.java}:
  * <ul>
  *   <li>{@code +} {@code -} (lowest), {@code *} {@code x} {@code /}, then {@code ^} / {@code **} (highest); every
- *   binary operator is left-associative like NEU's, so {@code 2^3^2} is {@code (2^3)^2}; unary minus; parentheses.</li>
+ *   binary operator is left-associative, so {@code 2^3^2} is {@code (2^3)^2}; unary minus; parentheses.</li>
  *   <li>Postfix suffixes, any case: {@code k} 1,000, {@code m} 1,000,000, {@code b} 10^9, {@code t} 10^12,
  *   {@code s} 64 (a stack), {@code e} 160 (an enchanted item's worth), {@code %} divides by 100.</li>
- *   <li>{@code .} and {@code ,} are both decimal points ({@code 1,5} is 1.5), as in NEU.</li>
+ *   <li>{@code.} and {@code,} are both decimal points ({@code 1,5} is 1.5).</li>
  *   <li>Implicit multiplication next to brackets (killer560, 2026-10-13: "2(1+1)" did not work): {@code 2(1+1)},
  *   {@code (1+1)(2)}, {@code (1+1)2} and {@code 2k(3)} are products. Two bare numbers side by side ({@code 2 3}) are
  *   still not a sum, so a search for two numbers stays a search. There are no named constants ({@code pi}).</li>
  *   <li>Every step rounds to {@link #PRECISION} decimal places, half up; an exponent must be a whole number from 0
  *   to 999; dividing by zero is an error.</li>
  * </ul>
- * NEU's {@code $VARIABLE} lookups are left out - nothing in this mod supplies variables. A query is only treated as
+ * The {@code $VARIABLE} lookups are left out - nothing in this mod supplies variables. A query is only treated as
  * a sum when it holds at least one operator or suffix and the whole thing parses, so plain text and bare numbers
  * still search normally.
  */
 public final class SearchCalculator {
 
-    /** Decimal places kept - NEU's default {@code calculationPrecision}. */
+    /** Decimal places kept - the default {@code calculationPrecision}. */
     public static final int PRECISION = 5;
     private static final int MAX_LENGTH = 200;
     private static final MathContext MC = MathContext.DECIMAL128;

@@ -21,7 +21,7 @@ import com.killer560.hub.compat.McRender;
  * Real, preloaded per-room secret waypoints - killer560's "preloaded waypoints for each room" request.
  * Every position rendered here comes from the real room database (see {@link com.killer560.hub.roomdatabase})
  * once a room is identified AND its real rotation/corner is found, transformed with the exact same
- * rotate+translate math NoammAddons' own {@code ScanUtils.getRealCoord} uses - not a guess, and not
+ * rotate+translate math the {@code ScanUtils.getRealCoord} uses - not a guess, and not
  * hand-placed.
  *
  * <h2>Cost (2026-09-20 FPS pass)</h2>
@@ -59,7 +59,7 @@ public final class SecretWaypointsFeature {
          *  dropped-item cube every other ITEM secret uses. */
         WITHER,
         /** killer560, 2026-09-27: "it also needs to highlight levers just like it does secrets but only during
-         *  clear" - see the lever scan in {@link #rebuild}. Not part of the room database (NoammAddons has no
+         *  clear" - see the lever scan in {@link #rebuild}. Not part of the room database (the reference has no
          *  lever secret coords), so these are found live rather than preloaded from a room's known positions. */
         LEVER,
         /** killer560, 2026-10-05: crypt and prince waypoints, each behind its own toggle. Found from the room's
@@ -167,7 +167,7 @@ public final class SecretWaypointsFeature {
 
     /**
      * Marks a secret taken. {@code kind == null}: the exact block (a click). ITEM / BAT: the nearest waypoint of
-     * that kind within {@code maxDist} blocks of where it happened - NoammAddons' own radii (items 5, bats 12),
+     * that kind within {@code maxDist} blocks of where it happened - the radii (items 5, bats 12),
      * since an item can be kicked around and a bat flies before it dies.
      */
     private static void markCollected(BlockPos pos, Kind kind, double maxDist) {
@@ -293,7 +293,7 @@ public final class SecretWaypointsFeature {
         NEAR_BATS.putAll(bats);
     }
 
-    /** How far from an ITEM waypoint a picked-up item may have lain (NoammAddons' item radius, as {@link #markCollected}). */
+    /** How far from an ITEM waypoint a picked-up item may have lain (the item radius, as {@link #markCollected}). */
     private static final double ITEM_TAKEN_RADIUS = 5.0;
 
     /**
@@ -892,7 +892,7 @@ public final class SecretWaypointsFeature {
     }
 
     /** killer560, 2026-09-27: "it also needs to highlight levers just like it does secrets but only during
-     *  clear... You can choose the color for levers." NoammAddons' room database has no lever secret coords at
+     *  clear... You can choose the color for levers." the room database has no lever secret coords at
      *  all (levers aren't one of its five secret types), so unlike every other group in {@link #rebuild} these
      *  can't be looked up - they're found by scanning the room's own real footprint for actual
      *  {@code minecraft:lever} blocks.

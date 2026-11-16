@@ -4,14 +4,13 @@ import java.util.List;
 import java.util.regex.Pattern;
 
 /**
- * Regexes ported 1:1 from SkyHanni's {@code features/gui/customscoreboard/ScoreboardPattern.kt} (hannibal002/SkyHanni,
- * beta branch, 2026-09) plus the handful of scoreboard patterns that Custom Scoreboard borrows from other SkyHanni
+ * Regexes ported 1:1 (beta branch, 2026-09) plus the handful of scoreboard patterns that Custom Scoreboard borrows from other
  * APIs ({@code PurseApi.coinsPattern}, {@code BitsApi.bitsScoreboardPattern}, {@code MiningApi.heatPattern/coldPattern},
  * {@code ServerRestartTitle.restartingGreedyPattern}, {@code RiftBloodEffigies.heartsPattern},
  * {@code HypixelData.skyblockAreaPattern}) and the tab-widget headers from {@code data/model/TabWidget.kt}.
  * <p>
  * Every scoreboard pattern is matched with {@link java.util.regex.Matcher#matches()} (whole line) against the
- * sidebar line in legacy {@code §}-formatted form, exactly like SkyHanni's {@code sidebarLinesFormatted}. Tab
+ * sidebar line in legacy {@code §}-formatted form, exactly. Tab
  * patterns are matched against the unformatted tab line.
  */
 public final class ScoreboardPattern {
@@ -47,11 +46,11 @@ public final class ScoreboardPattern {
     public static final Pattern TIME_LEFT = p("(?:§.)*Time Left: (?:§.)*[\\w:,.\\s]+");
 
     public static final Pattern M7_DRAGONS = p("§cNo Alive Dragons|§8- (?:§.)+[\\w\\s]+Dragon§a [\\w,.]+(?:§." + HEALTH_ICON + "?)?");
-    // Looser than SkyHanni's "Keys: §.■ §.[✗✓] §.■ §a.x" (2026-10-07): his dungeon board draws the blood-key mark as an
+    // Looser than the "Keys: §.■ §.[✗✓] §.■ §a.x" (2026-10-07): his dungeon board draws the blood-key mark as an
     // "x", and a wither-key count past 9 is two digits; any color codes may sit between the parts.
     public static final Pattern KEYS = p("(?:§.)*Keys: (?:§.)*■ (?:§.)*[✗✓✘✔xX] (?:§.)*■ (?:§.)*\\d{1,3}x(?:§.)*");
     public static final Pattern CLEARED = p("(?:§.)*Cleared: (?:§.)*(?<percent>[\\w,.]+)% (?:§.)*\\((?:§.)*(?<score>[\\w,.]+)(?:§.)*\\)");
-    // SkyHanni's is the exact "§3§lSolo"; killer560's board on 2026-10-07 showed it bold dark aqua and still reported
+    // The reference is the exact "§3§lSolo"; killer560's board on 2026-10-07 showed it bold dark aqua and still reported
     // "Unknown scoreboard line: Solo", so the codes round it are not exactly those (repeated, or another order). Any
     // codes before or after the word.
     public static final Pattern SOLO = p("(?:§.)*Solo(?:§.)*");
@@ -94,7 +93,7 @@ public final class ScoreboardPattern {
     public static final Pattern MAGMA_BOSS = p("§7Boss: §[c6e]\\d+%");
     public static final Pattern DAMAGE_SOAKED = p("§7Damage Soaked:");
     public static final Pattern KILL_MAGMAS = p("§6Kill the Magmas:");
-    public static final Pattern KILL_MAGMAS_BAR = p("(?:(?:§.)*▎)+.*"); // same language as SkyHanni's "(?:(?:§.)*▎+)+.*" without the nested "+" (polynomial backtracking)
+    public static final Pattern KILL_MAGMAS_BAR = p("(?:(?:§.)*▎)+.*"); // same language "(?:(?:§.)*▎+)+.*" without the nested "+" (polynomial backtracking)
     public static final Pattern REFORMING = p("§cThe boss is (?:re)?forming!");
     public static final Pattern BOSS_HEALTH = p("§7Boss Health:");
     public static final Pattern BOSS_HEALTH_BAR = p("§.[\\w,.]+§f/§a10M§c" + HEALTH_ICON);
@@ -157,7 +156,7 @@ public final class ScoreboardPattern {
 
     public static final Pattern CAPTURED_MOBS = p("Captured Mobs: §e(?<capturedMobs>\\d+)");
 
-    /** Half-updated scoreboard lines SkyHanni swallows instead of reporting as unknown. */
+    /** Half-updated scoreboard lines the reference swallows instead of reporting as unknown. */
     public static final List<Pattern> BROKEN = List.of(
             p("\\s*§.§l⚡ §cRedston"),
             p("\\s*§ce: §e§b\\d+%"),

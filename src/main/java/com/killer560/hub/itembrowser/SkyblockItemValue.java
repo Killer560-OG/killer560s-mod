@@ -10,7 +10,7 @@ import java.util.Locale;
 
 /**
  * Shared "what is this item worth" lookup - killer560 (2026-09-27): "make a whole new setting just like
- * skyhanni that shows the items value on its tooltip and use that info as well [for the item browser's
+ * another mod that shows the items value on its tooltip and use that info as well [for the item browser's
  * sort]." One value source for both features, per the brief ("use that info as well" / item 3's own
  * "use the same value source for the browser's value sort"):
  * <ul>

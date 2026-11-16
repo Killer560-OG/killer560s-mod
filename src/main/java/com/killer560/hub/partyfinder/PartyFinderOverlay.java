@@ -38,7 +38,7 @@ import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.util.ChatColors;
 
 /**
- * Party Finder Overlay - a port of Devonian's Party Finder GUI features:
+ * Party Finder Overlay - a port of the Party Finder GUI features:
  * <ul>
  * <li><b>Highlight</b> ({@code PartyFinderHighlight.kt}): fills each party head green when you can join it and red when
  * you can't (low Catacombs level, low class level, previous floor not completed, or your selected class already in
@@ -48,17 +48,17 @@ import com.killer560.hub.util.ChatColors;
  * secrets and their S/S+ personal best for the party's floor (data from {@link PartyFinderStatsApi}), optionally in a
  * compact or custom format, plus a "Missing:" line listing the classes nobody has picked (yours in green).
  * </ul>
- * Your selected class comes from the Catacombs Gate menu ("Currently Selected: X", as Devonian) or the
+ * Your selected class comes from the Catacombs Gate menu ("Currently Selected: X") or the
  * "You have selected the X Dungeon Class!" chat line.
  * <p>
- * Custom style placeholders (Devonian's {@code /dv pfo help}): {@code $RoleColor $RoleSingle $RoleShort $Role
+ * Custom style placeholders: {@code $RoleColor $RoleSingle $RoleShort $Role
  * $RoleName $NameColor $Name $RoleLevel $Cata $Secrets $SecretsShort $SecretAvg $SecretShortAvg $PB}; '&amp;' is a
  * color code prefix. Style 1 as a custom string:
  * {@code &8[$RoleColor$RoleSingle&8] $NameColor$Name &8[&e$RoleLevel &7| &6$Cata&8] &8[&3$SecretsShort &7| &b$SecretShortAvg&8] &8[$PB&8]}
  */
 public final class PartyFinderOverlay {
 
-    private static final int SCAN_SLOTS = 46; // Devonian: container indices 0..45
+    private static final int SCAN_SLOTS = 46; // container indices 0..45
     private static final int REQUEST_INTERVAL_TICKS = 20;
     private static final Pattern PLACEHOLDER = Pattern.compile("\\$(\\w+)");
 
@@ -440,7 +440,7 @@ public final class PartyFinderOverlay {
         return code.orElse(null);
     }
 
-    /** Devonian {@code StringUtils.shortenNumber}. */
+    /** The reference {@code StringUtils.shortenNumber}. */
     static String shortenNumber(int num) {
         if (num < 0) return "-" + shortenNumber(-num);
         if (num < 1000) return Integer.toString(num);

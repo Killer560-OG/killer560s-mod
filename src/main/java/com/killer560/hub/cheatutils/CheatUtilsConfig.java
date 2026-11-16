@@ -26,7 +26,7 @@ public final class CheatUtilsConfig {
 
     private static CheatUtilsConfig instance;
 
-    // ---- Secret Aura (QUOI SecretAura.kt) ----
+    // ---- Secret Aura ----
     /**
      * 4.5 blocks, measured rather than chosen.
      *
@@ -58,8 +58,8 @@ public final class CheatUtilsConfig {
     public static final double MIN_AURA_RANGE = 2.1;
     public static final double MAX_AURA_RANGE = MEASURED_MAX_REACH;
     /**
-     * Skull range is measured from the eye to the block's CENTER, QUOI's measure for skulls (2026-10-12), not to its
-     * box like every other aura range. QUOI keeps skulls (Wither Essence) at 4.7 to the center against 6.2 for
+     * Skull range is measured from the eye to the block's CENTER, the measure for skulls (2026-10-12), not to its
+     * box like every other aura range. The reference keeps skulls (Wither Essence) at 4.7 to the center against 6.2 for
      * chests and levers, because Hypixel's reach for a skull looks tighter than for a chest; 4.7 to the center is
      * 3.8-4.2 to the box, so it is always inside the 4.5-to-the-box cap ({@link #MEASURED_MAX_REACH}) as well.
      * Until then this was 4.5 to the box, which let a skull be clicked from up to 5.0-5.4 to its center.
@@ -72,25 +72,25 @@ public final class CheatUtilsConfig {
     private boolean auraChests = true;
     private boolean auraLevers = true;
     private boolean auraEssence = true;
-    /** Redstone Key skulls (QUOI clicks them at the skull range too; killer560 said yes 2026-10-12). */
+    /** Redstone Key skulls (the reference clicks them at the skull range too; killer560 said yes 2026-10-12). */
     private boolean auraRedstoneKey = true;
-    /** Once a Redstone Key is found, put it on the room's redstone block (QUOI; killer560 said yes 2026-10-12). */
+    /** Once a Redstone Key is found, put it on the room's redstone block (killer560 said yes 2026-10-12). */
     private boolean auraPlaceRedstoneKey = true;
     /** "In Boss" in the Secret Aura tab: levers in the boss (F7 P3). With Secret Aura on, the aura also clicks the other
      *  F7 P3 levers; the Lever Aura (Lights Device, S2 section levers) works whenever it is on, since the Lever Aura merged
      *  into this tab (2026-10-15; its old switch migrates here, see LeverAuraConfig). The key keeps its old name. */
     private boolean auraBossLevers = false;
-    // Was QUOI's 6.2. Capped at the measured maximum: past 4.5 the server refused the click and the
+    // Was the 6.2. Capped at the measured maximum: past 4.5 the server refused the click and the
     // anticheat flagged the attempt, so the bigger number cost traffic and bought nothing.
     private double auraRange = MEASURED_MAX_REACH;
-    private double auraSkullRange = MAX_AURA_SKULL_RANGE;  // QUOI default, eye to block center
-    private int auraCooldownMs = 150;     // QUOI "Click delay" default
-    private boolean auraSwing = false;    // QUOI "Swing hand" default off
+    private double auraSkullRange = MAX_AURA_SKULL_RANGE;  // The reference default, eye to block center
+    private int auraCooldownMs = 150;     // The reference "Click delay" default
+    private boolean auraSwing = false;    // The reference "Swing hand" default off
     private boolean auraPauseWhileSneaking = true;
     /** Comma-separated; matched case-insensitively against the held item's Skyblock id and display name. */
     private String auraPauseHolding = "";
 
-    // ---- Auto GFS (NoammAddons AutoGFS.kt + QUOI AutoGFS.kt) ----
+    // ---- Auto GFS (+) ----
     public static final int MIN_GFS_THRESHOLD_PERCENT = 5;
     public static final int MAX_GFS_THRESHOLD_PERCENT = 95;
     public static final int MIN_GFS_INTERVAL_SEC = 5;
@@ -101,14 +101,14 @@ public final class CheatUtilsConfig {
     private boolean gfsLeaps = false;
     private boolean gfsSuperbooms = false;
     private boolean gfsJerries = false;
-    private int gfsThresholdPercent = 50; // QUOI "Amount" default
-    private int gfsIntervalSec = 20;      // Noamm "Check Delay" default
-    private boolean gfsSkipIfNone = true; // Noamm: `if (current == 0) return`
+    private int gfsThresholdPercent = 50; // The reference "Amount" default
+    private int gfsIntervalSec = 20;      // The reference "Check Delay" default
+    private boolean gfsSkipIfNone = true; // `if (current == 0) return`
     // killer560 (2026-09-20): "make an option to only work in dungeons/kuudra" - off by default, matching
     // every other "new setting" here, so Auto GFS keeps working anywhere in Skyblock/p3sim until he opts in.
     private boolean gfsDungeonKuudraOnly = false;
 
-    // ---- Auto Ult (NoammAddons Abilities.kt, CHEAT block) ----
+    // ---- Auto Ult (CHEAT block) ----
     private boolean autoUltEnabled = false;
     private boolean ultMaxorEnraged = true;
     private boolean ultGoldorFactory = true;
@@ -120,7 +120,7 @@ public final class CheatUtilsConfig {
     /** Healer: Wish during the clear when a teammate's sidebar health turns red; never while Wish is on cooldown. */
     private boolean wishOnClear = false;
 
-    // ---- Auto Chocolate Factory (QUOI ChocolateFactory.kt, from OdinLegacy) ----
+    // ---- Auto Chocolate Factory ----
     public static final int MIN_CF_DELAY_MS = 50;
     public static final int MAX_CF_DELAY_MS = 1500;
     public static final int MIN_CF_UPGRADE_DELAY_MS = 300;
@@ -131,9 +131,9 @@ public final class CheatUtilsConfig {
     private boolean cfAutoUpgrade = false;
     private boolean cfClaimStrays = false;
     private boolean cfAutoTimeTower = false;
-    private int cfMinDelayMs = 150;       // QUOI "Delay" default
+    private int cfMinDelayMs = 150;       // The reference "Delay" default
     private int cfMaxDelayMs = 250;
-    private int cfUpgradeDelayMs = 500;   // QUOI "Upgrade delay" default
+    private int cfUpgradeDelayMs = 500;   // The reference "Upgrade delay" default
 
     private CheatUtilsConfig() {
     }

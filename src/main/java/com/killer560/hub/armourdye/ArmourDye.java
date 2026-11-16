@@ -28,17 +28,16 @@ import java.util.Map;
 
 /**
  * Custom Items (Armor Recolor until 2026-10-08) - client-side color, armor skin, trim, Look (item model) and
- * head-texture overrides for any item you hold. killer560 (2026-09-16): "add an option from skyblocker where you can
+ * head-texture overrides for any item you hold. killer560 (2026-09-16): "add an option from another mod where you can
  * custom recolor armor, using dyes and armor skin client side"; 2026-10-08: "select an item in your inventory and you
  * can then apply a skin to it or recolor or something". Keyed per item UUID or per Skyblock id (see
  * {@link ArmourDyeEntry}).
  * <p>
- * Ported from Skyblocker's armor customization (github.com/SkyblockerMod/Skyblocker -
- * {@code skyblock/item/custom/CustomArmor{DyeColors,Trims}}, {@code mixins/{DyedItemColor,DataComponentHolder,
- * EquipmentLayerRenderer}Mixin}), credited the same way this mod credits QUOI, Odin, NoammAddons and Devonian.
- * Three deliberate divergences from Skyblocker, all of them killer560's call:
+ * Armor customization: dye colors and trims, hooking {@code DyedItemColor}, {@code DataComponentHolder} and
+ * {@code EquipmentLayerRenderer}.
+ * Three deliberate divergences from the reference, all of them killer560's call:
  * <ol>
- *   <li><b>Keyed on the Skyblock item id, not the item UUID.</b> Skyblocker stores one color per physical item, so
+ *   <li><b>Keyed on the Skyblock item id, not the item UUID.</b> the reference stores one color per physical item, so
  *       a second Necron's Chestplate is a second job. killer560 asked for "every copy of that piece you own looks
  *       the same", so the key is {@code ItemIdentity.of(stack)} - the id this mod already reads for Auto Routes and
  *       Item Protect, with {@code STARRED_}, reforges and stars stripped.</li>
@@ -46,7 +45,7 @@ import java.util.Map;
  *       {@code @ModifyVariable} on {@code EquipmentLayerRenderer#renderLayers}. {@code HumanoidArmorLayer} reads
  *       the asset key off that component before it ever calls the renderer, so one hook does the job and we don't
  *       have to pin a renderer method descriptor that Mojang reshuffles most versions.</li>
- *   <li><b>No animated dyes.</b> Skyblocker has keyframed OkLab dye animation; that is a whole second feature and
+ *   <li><b>No animated dyes.</b> the reference has keyframed OkLab dye animation; that is a whole second feature and
  *       killer560 asked for a recolor, so it isn't here.</li>
  * </ol>
  *
@@ -149,7 +148,7 @@ public final class ArmourDye {
                 return original;
             }
             // Opaque: vanilla's armor-layer tint treats a zero alpha as "invisible", and the picker lets you drag
-            // alpha down. Same call Skyblocker makes (ARGB.opaque).
+            // alpha down. Same call the reference makes (ARGB.opaque).
             return 0xFF000000 | (entry.color & 0x00FFFFFF);
         } catch (Exception e) {
             note(e);

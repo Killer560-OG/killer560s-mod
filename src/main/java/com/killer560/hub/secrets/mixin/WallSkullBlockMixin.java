@@ -20,8 +20,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import java.util.Map;
 
 /** Expands a wall-mounted skull's interaction hitbox to the full block - the wall-mounted counterpart to
- *  {@link SkullBlockMixin} (both share the one "Essence"/Skulls toggle, matching quoi's own real
- *  coverage - NoammAddons only covers the floor variant). Implements
+ *  {@link SkullBlockMixin} (both share the one "Essence"/Skulls toggle, matching another mod's own real
+ *  coverage - the reference only covers the floor variant). Implements
  *  {@link OriginalCollisionShapeProvider} for the same real reason {@link ChestBlockMixin} does - see
  *  {@link BlockBehaviourMixin}'s own doc. Also checks {@link SecretsFeature#isWitherEssence} for the
  *  same real reason {@link SkullBlockMixin} does - see its own doc. */

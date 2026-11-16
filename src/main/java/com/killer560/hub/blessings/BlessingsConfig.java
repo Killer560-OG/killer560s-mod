@@ -29,7 +29,7 @@ public final class BlessingsConfig {
     private boolean romanNumerals = false;
     /** killer560, 2026-11-01: "add a boss only option" - the HUD shows only in a floor's boss room. */
     private boolean bossOnly = false;
-    /** Which blessings appear on the HUD / in announcements. Power and Time default on (NoammAddons'
+    /** Which blessings appear on the HUD / in announcements. Power and Time default on (the
      *  {@code BlessingDisplay.kt} defaults: Power true, Time true, the other three false) - the whole HUD is
      *  still OFF until "Blessings HUD" is switched on. */
     private final Map<Blessing, Boolean> shown = new EnumMap<>(Blessing.class);

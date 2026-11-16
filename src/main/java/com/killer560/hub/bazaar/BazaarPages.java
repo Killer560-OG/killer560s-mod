@@ -14,12 +14,12 @@ import java.util.regex.Pattern;
  * there. Anything else is {@link Kind#UNKNOWN}, and {@code BazaarReskin} leaves that menu to Hypixel's own GUI: a menu
  * we cannot map is never drawn half-right. Sources (read 2026-10-07; all text color-stripped):
  * <ul>
- *   <li>SkyHanni {@code features/inventory/bazaar/BazaarApi.kt} (beta), repo patterns {@code inventory.bazaar}:
+ *   <li>Repo patterns (beta) {@code inventory.bazaar}:
  *       titles {@code Bazaar ➜ .*}, {@code How many do you want?}, {@code How much do you want to pay?},
  *       {@code Confirm Buy Order}, {@code Confirm Instant Buy}, {@code At what price are you selling?},
  *       {@code Confirm Sell Offer}, {@code Order options}, {@code Your Bazaar Orders}, {@code Co-op Bazaar Orders};
  *       product page slot 10 {@code Buy Instantly}; Order options slot 11 name contains {@code Cancel Order}.</li>
- *   <li>Skyblocker {@code skyblock/bazaar/BazaarHelper.java}, {@code BazaarOrderTracker.java} (product page {@code .* ➜ .*},
+ *   <li>, {@code BazaarOrderTracker.java} (product page {@code.* ➜.*},
  *       product at slot 13), {@code ReorderHelper.java} ({@code ^Order options}).</li>
  *   <li>hypixelskyblock.minecraft.wiki {@code Bazaar/UI/General}, {@code /Farming}, {@code /Oddities}: the category page
  *       {@code Bazaar ➜ Farming} (categories Farming, Mining, Combat, Woods &amp; Fishes, Oddities down the left column,
@@ -184,7 +184,7 @@ public final class BazaarPages {
             return unknown(title);
         }
         if (kind == Kind.PRODUCT) {
-            // The product itself (Skyblocker/SkyHanni read it from slot 13) leads, then the four actions.
+            // The product itself (other implementations read it from slot 13) leads, then the four actions.
             content.sort(java.util.Comparator.comparing(BazaarPages::isAction)); // stable: false (the product) first
         }
         return new Page(kind, title, heading(kind, title), List.copyOf(sidebar), List.copyOf(content), List.copyOf(nav));

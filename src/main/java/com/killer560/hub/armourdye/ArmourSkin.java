@@ -9,17 +9,16 @@ import net.minecraft.world.item.equipment.EquipmentAssets;
 import java.util.Locale;
 
 /**
- * The built-in armor "skins" - killer560 (2026-09-16): "an option from skyblocker where you can custom recolor
+ * The built-in armor "skins" - killer560 (2026-09-16): "an option from another mod where you can custom recolor
  * armor, using dyes and armor skin client side."
  * <p>
  * An armor skin is a vanilla {@link EquipmentAsset} key. That key is what
  * {@code EquipmentLayerRenderer} feeds to the {@code EquipmentAssetManager} to decide which armor texture is
- * painted on the body, so swapping it swaps the worn look of the piece without touching the real item. Skyblocker
+ * painted on the body, so swapping it swaps the worn look of the piece without touching the real item. The reference
  * calls the same thing {@code customArmorModel} and swaps the key with a {@code @ModifyVariable} on
  * {@code EquipmentLayerRenderer#renderLayers}; we get the same result one level earlier by rewriting the
  * {@code minecraft:equippable} component's {@code assetId} (see {@code mixin/ArmourDyeComponentMixin}), which is
- * where {@code HumanoidArmorLayer} reads the key from in the first place. Credit: Skyblocker
- * (github.com/SkyblockerMod/Skyblocker), same as QUOI, Odin, NoammAddons and Devonian elsewhere in this mod.
+ * where {@code HumanoidArmorLayer} reads the key from in the first place.
  * <p>
  * Each preset also names the vanilla item whose inventory icon matches, so "Diamond" looks like diamond armor in
  * the inventory as well as on the body. {@code TURTLE} only has a helmet in vanilla, so the other three slots keep

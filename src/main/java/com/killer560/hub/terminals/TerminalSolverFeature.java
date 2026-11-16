@@ -40,7 +40,7 @@ import com.killer560.hub.compat.McItems;
 /** Highlights the correct slot(s) to click in Floor 7 dungeon terminals - Solver Only, per killer560's
  *  explicit "Not auto terminals yet just the solver": this never clicks anything, only draws colored
  *  outlines (plus a number/click-count label where relevant) over the slots the player should click
- *  themselves. Modeled on Odin's own Terminal Solver (decompiled for reference, 2026-09-08) - the exact
+ *  themselves. Modeled on the Terminal Solver (decompiled for reference, 2026-09-08) - the exact
  *  title regexes, item-matching rules, and the Rubix color-cycle math below are all ported from its real
  *  handler classes, not guessed. Ships disabled by default - see {@link TerminalSolverConfig}. */
 public final class TerminalSolverFeature {
@@ -86,7 +86,7 @@ public final class TerminalSolverFeature {
 
     private static int color(TerminalSolverConfig.OverlayColor key) { return TerminalSolverConfig.color(key); }
 
-    // Real Hypixel Rubix mechanic (confirmed via Odin's own RubixHandler): each click on a pane
+    // Real Hypixel Rubix mechanic (confirmed via the RubixHandler): each click on a pane
     // advances it ONE step through this 5-color cycle - no adjacency/neighbor coupling despite the name.
     private static final List<DyeColor> RUBIX_COLOR_ORDER =
             List.of(DyeColor.ORANGE, DyeColor.YELLOW, DyeColor.GREEN, DyeColor.BLUE, DyeColor.RED);
@@ -151,13 +151,13 @@ public final class TerminalSolverFeature {
     // Auto-click's own content-stability gate, separate from the render-only #hasStabilizedOnce: a quick
     // same-type reopen (Hypixel's double-open, see #refreshState) swaps in a fresh container whose items
     // may not have arrived yet, so clicking must re-stabilize against THAT container (and restart the
-    // settle window, same as NoammAddons' TerminalListener restarting its fc delay on every open) without
+    // settle window TerminalListener restarting its fc delay on every open) without
     // blanking the already-drawn Custom GUI panel for a couple of frames.
     private static boolean clickContentStabilized;
     private static List<ItemStack> clickStabilitySnapshot = List.of();
     private static List<ItemStack> previousItemsSnapshot = List.of();
 
-    // --- Auto Terminals (2026-09-09) - real auto-clicking, cheat build only. Ported from NoammAddons'
+    // --- Auto Terminals (2026-09-09) - real auto-clicking, cheat build only. Ported from the
     // own AutoTerminal (decompiled 2026-09-09), adapted onto this class's existing per-frame solve()
     // results instead of re-deriving a second copy of the solving logic. See #tickAutoClick. ---
     // Per killer560's explicit "give it a min and max delay and randomly pick between the two" request
@@ -232,7 +232,7 @@ public final class TerminalSolverFeature {
     // set once another mod's slotClicked mixin has thrown on this terminal - see #invokeSlotClicked.
     // Both click loops stand down for the rest of the terminal rather than re-throwing on every retry.
     private static boolean foreignClickFailed;
-    // 600 not 400 (review pass): Odin/NoammAddons use 500-600ms - a lag spike past a shorter floor re-clicked
+    // 600 not 400 (review pass): other implementations use 500-600ms - a lag spike past a shorter floor re-clicked
     // already-correct Panes back to wrong before the confirm arrived.
     private static final long MIN_RETRY_TIMEOUT_MS = 600;
     private static final long MAX_LATENCY_BASED_RETRY_TIMEOUT_MS = 1500;
@@ -247,7 +247,7 @@ public final class TerminalSolverFeature {
     private static final int CLOSE_CONFIRM_TICKS = 2;
     // Melody's own real-time state - NOT derived from #currentHighlights (Melody has no solving logic
     // there, see #solve) - tracked fresh each frame straight from the real lime/magenta marker panes,
-    // the same real mechanic NoammAddons' own MelodyTerminal#onSlotUpdate uses (decompiled 2026-09-09).
+    // the same real mechanic the MelodyTerminal#onSlotUpdate uses (decompiled 2026-09-09).
     private static Integer melodyButtonRow;
     private static Integer melodyCurrentColumn;
     private static Integer melodyCorrectColumn;
@@ -759,19 +759,19 @@ public final class TerminalSolverFeature {
      *  since it has no solved/correct set at all, unlike the other 5 types which all funnel through the
      *  same {@link #currentHighlights} this class already computes every frame for highlighting - Auto
      *  Terminals just additionally SENDS a real click for whichever slot that highlight says is next,
-     *  instead of only drawing it. Ported from NoammAddons' own AutoTerminal (decompiled 2026-09-09):
+     *  instead of only drawing it. Ported from the AutoTerminal (decompiled 2026-09-09):
      *  same {@code ContainerInput.CLONE} no-op click every other type uses, same real left/right
      *  {@code PICKUP} click Rubix specifically needs.
      *  <p>Scheduling (2026-09-14, "really delayed even at max speed" fix): the rolled Min/Max delay is the
-     *  minimum gap between SENDS (same as NoammAddons, whose delay also runs from its last click); each
+     *  minimum gap between SENDS (whose delay also runs from its last click); each
      *  sent click then stays in {@link #pendingClicks} until the server's response is actually observed
      *  on its slot. Order-free types (Panes, Select, Starts With, Rubix - every Rubix pane cycles
-     *  independently, same as NoammAddons' per-slot RubixTerminal#predict) simply pick another
+     *  independently per-slot RubixTerminal#predict) simply pick another
      *  highlighted, non-pending slot meanwhile, so their cadence is the configured delay, not ping.
-     *  Numbers (strict click order - NoammAddons' NumberTerminal only accepts {@code solution.first()})
+     *  Numbers (strict click order - the NumberTerminal only accepts {@code solution.first})
      *  waits for its one in-order slot to confirm, so the confirm itself releases the next click: cadence
      *  is max(delay, ping), never delay + a guard stall. A click still unconfirmed after
-     *  {@link #retryTimeoutMs} is re-sent. Deliberately still doesn't port NoammAddons' optimistic
+     *  {@link #retryTimeoutMs} is re-sent. Deliberately still doesn't port the optimistic
      *  predict-and-click-the-next-number-before-confirm for Numbers - a dropped click would make every
      *  later click out of order. */
     private static void tickAutoClick(ContainerScreen screen, TerminalType type, List<ItemStack> items) {
@@ -1184,12 +1184,12 @@ public final class TerminalSolverFeature {
      *  {@link #sendTerminalClick} for why), which means it also runs every OTHER installed mod's slot-click
      *  mixins - and one of them threw, taking the whole game down from inside this mod's own call.
      *  <p>
-     *  Root cause, traced through the 26.1.2 jars: Skyblocker's {@code ColorTerminal#onClickSlot}
+     *  Root cause, traced through the 26.1.2 jars: the {@code ColorTerminal#onClickSlot}
      *  dereferences a {@code targetColor} that its own {@code isEnabled()} nulls every time the screen
      *  opens and that only ever gets filled in again from {@code ContainerSolverManager#onExtract} - which
-     *  Skyblocker injects at the HEAD of {@code AbstractContainerScreen#extractTooltip}, the exact method
+     *  the reference injects at the HEAD of {@code AbstractContainerScreen#extractTooltip}, the exact method
      *  {@link com.killer560.hub.terminals.mixin.TerminalSolverSlotMixin} cancels at HEAD while Custom GUI
-     *  is showing. Whichever HEAD handler runs first wins; when this mod's does, Skyblocker's solver stays
+     *  is showing. Whichever HEAD handler runs first wins; when this mod's does, the solver stays
      *  half-initialized for the whole terminal and the first click into it NPEs. Nothing on this side can
      *  fill in another mod's field, and a real mouse click reaches the same code, so the fix is to make the
      *  click path non-fatal: report it, treat the click as never sent, and let the caller stand down.
@@ -1214,7 +1214,7 @@ public final class TerminalSolverFeature {
     }
 
     /** Melody's real-time auto-click - NOT driven by {@link #currentHighlights}/{@link #solve} at all
-     *  (Melody has no solved/correct set - see that method's own doc). Ported from NoammAddons' own
+     *  (Melody has no solved/correct set - see that method's own doc). Ported from the
      *  {@code MelodyTerminal#onSlotUpdate}/{@code AutoTerminal}'s Melody-specific click logic (both
      *  decompiled 2026-09-09), adapted from their per-slot-update-PACKET trigger onto this class's own
      *  per-FRAME full-rescan model: every frame, finds whichever slot currently holds the real moving
@@ -1230,7 +1230,7 @@ public final class TerminalSolverFeature {
      *  </ul>
      *  When {@code current == correct}, the real clickable button for that row (the terracotta found on the
      *  board; 16/25/34/43 on the old layout) is clicked - guarded against re-firing
-     *  for the same row twice in a row (matching NoammAddons' own {@code lastClickedSlot} + 250ms cooldown
+     *  for the same row twice in a row (matching the {@code lastClickedSlot} + 250ms cooldown
      *  pair) since a real match can stay true for several consecutive frames before the indicator moves
      *  on. See {@link #queueMelodyLookaheadClicks} for the optional "click ahead" burst on top of this.
      *  <p>Real bug found and fixed (2026-09-09, round 28) per killer560's "still isnt clicking in melody"
@@ -1409,7 +1409,7 @@ public final class TerminalSolverFeature {
     /** Per killer560's explicit request (2026-09-09): "a configurable amount of first row clicks...
      *  0-4 max" - a real match at {@code matchedRow} gambles that the SAME column stays correct for
      *  however many more rows get queued, clicking them ahead of time instead of waiting for the
-     *  indicator to actually reach each one. Mirrors NoammAddons' own scheduled per-row delay (~1
+     *  indicator to actually reach each one. Mirrors the scheduled per-row delay (~1
      *  tick/50ms further out per additional row) - re-validated against the terminal still being the
      *  current Melody handler right before each one actually fires (see
      *  {@link #fireDueMelodyLookaheadClicks}), since the real board can close or change mid-burst.
@@ -1664,9 +1664,9 @@ public final class TerminalSolverFeature {
      *  <p>Real bug found and fixed (2026-10-05), killer560: "if melody is clicked where it gets a large skip it
      *  no longer draws the moving square". This used to color by DyeColor: the one pane color appearing
      *  EXACTLY ONCE on the board was "the mover". Any board holding a second lime pane - a finished row keeping
-     *  its marker, which is why Odin's MelodyHandler takes the LAST lime pane and the LAST lime terracotta
-     *  (indexOfLast, javap Odin 0.3.1) - has no singleton color, so nothing was drawn as moving until the
-     *  terminal closed. The piece is now found by position the way Odin and NoammAddons find it: the row being
+     *  its marker, which is why the MelodyHandler takes the LAST lime pane and the LAST lime terracotta
+     *  (indexOfLast, javap the reference 0.3.1) - has no singleton color, so nothing was drawn as moving until the
+     *  terminal closed. The piece is now found by position the way other implementations find it: the row being
      *  played is the last row whose button (slot 16/25/34/43) is lime terracotta, and its lime pane is the
      *  piece; with no lit button, the last lime pane on the board. Only that one slot is colored as moving, so
      *  the round-10 "whole board renders as the mover" failure cannot come back either. */
@@ -2191,7 +2191,7 @@ public final class TerminalSolverFeature {
     }
 
     /** "Click in order!" - same red-pane detection as Panes, but the real order is encoded in each
-     *  pane's stack COUNT (not its name/lore) - confirmed via Odin's NumbersHandler. No label of our
+     *  pane's stack COUNT (not its name/lore) - confirmed via the NumbersHandler. No label of our
      *  own on these - per killer560's report (2026-09-09), vanilla already renders that same count as
      *  a real number in the corner of the item, so our own text just doubled up on top of it.
      *  <p>
@@ -2255,7 +2255,7 @@ public final class TerminalSolverFeature {
 
     /** "What starts with: '<letter>'?" - select every item whose (color-code-stripped) name starts
      *  with the given letter, ignoring case. Real items already selected/correct glint (are enchanted)
-     *  in Hypixel's own UI - excluded here the same way Odin's StartsWithHandler does, with a Golden
+     *  in Hypixel's own UI - excluded here the same way the StartsWithHandler does, with a Golden
      *  Apple allowlist for the one common item that glints but is still a valid answer. */
     private static Map<Integer, SlotHighlight> solveStartsWith(TerminalType type, String title, List<ItemStack> items) {
         Matcher matcher = type.titlePattern().matcher(title);
@@ -2308,7 +2308,7 @@ public final class TerminalSolverFeature {
     }
 
     // Hypixel's terminal title says "SILVER" (Minecraft's old wool-color name) for what DyeColor calls
-    // LIGHT_GRAY - same special case Odin's own TerminalTypes.openHandler handles.
+    // LIGHT_GRAY - same special case the TerminalTypes.openHandler handles.
     private static DyeColor parseSelectColor(String lowerCaseText) {
         if (lowerCaseText.equals("silver")) return DyeColor.LIGHT_GRAY;
         try {
@@ -2332,7 +2332,7 @@ public final class TerminalSolverFeature {
      *  {@link #RUBIX_COLOR_ORDER} per click (no neighbor coupling). The FIRST time this runs for a given
      *  puzzle, tries every possible target color and commits to whichever needs the fewest total clicks
      *  (counting a "3 or 4 forward" pane as cheaper clicked backward instead - real Hypixel lets you
-     *  reverse-cycle a pane, same mechanic Odin's RubixHandler relies on) - every later frame reuses that
+     *  reverse-cycle a pane, same mechanic the RubixHandler relies on) - every later frame reuses that
      *  SAME committed target (see {@link #rubixTargetColorIndex}) instead of re-searching, so a misclick
      *  never suddenly flashes the whole board over to a different target. Each highlighted slot's label
      *  is the signed click count: positive = click normally that many times, negative = click backward. */

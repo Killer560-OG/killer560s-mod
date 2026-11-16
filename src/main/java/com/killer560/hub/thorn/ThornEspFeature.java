@@ -27,14 +27,14 @@ import java.util.Set;
 /**
  * Thorn ESP - highlights, only during the F4/M4 boss fight:
  * <ul>
- * <li><b>Spirit Bear</b>: a Player entity named "Spirit Bear..." (NoammAddons 26.1.2 {@code F4Features}
+ * <li><b>Spirit Bear</b>: a Player entity named "Spirit Bear..." (the reference 26.1.2 {@code F4Features}
  * {@code gameProfile.name.lowercase().startsWith("spirit bear")}).
  * <li><b>Spirit mobs</b>: the wiki's six spirit animals (hypixelskyblock.minecraft.wiki/w/Thorn: Spirit Bull, Wolf, Bat,
  * Rabbit, Chicken, Sheep) matched by vanilla entity class - Wolf / cow (AbstractCow, covers a mooshroom too) / Bat /
  * Rabbit / Chicken / Sheep. The entity types Hypixel uses for them are not verified in a live run yet.
- * <li><b>Spirit Bow</b>: the dropped bow is an armor stand - NoFrills {@code SpiritBowHighlight} matches the stand's name
- * "Spirit Bow", NoammAddons matches a stand whose main-hand item is named "Bow"; either counts here. The stand is tiny,
- * so the box is NoFrills' player-sized 0.5 x 1.975 box on the ground under it.
+ * <li><b>Spirit Bow</b>: the dropped bow is an armor stand, matched by the stand's name
+ * "Spirit Bow", the reference matches a stand whose main-hand item is named "Bow"; either counts here. The stand is tiny,
+ * so the box is the player-sized 0.5 x 1.975 box on the ground under it.
  * </ul>
  * Styles and rules are Dungeon ESP's ({@code mobesp.MobEspFeature}): Outline / Filled (depth-tested unless Through
  * Walls) or Glow (vanilla outline via {@code ThornGlow*Mixin}). Legit: only targets with a clear line of sight right now.
@@ -195,7 +195,7 @@ public final class ThornEspFeature {
         }
     }
 
-    /** NoFrills {@code SpiritBowHighlight}: ground under the stand (up to 4 blocks down), then a 0.5 x 1.975 x 0.5 box
+    /** Spirit Bow box: ground under the stand (up to 4 blocks down), then a 0.5 x 1.975 x 0.5 box
      *  standing on it. */
     private static AABB bowBox(Minecraft client, Entity stand) {
         BlockPos pos = stand.blockPosition();

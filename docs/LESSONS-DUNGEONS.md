@@ -28,7 +28,7 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   fit to 6x6 (his "doesn't rescale for other floors") and kept the boss latch off until he was deep in the arena.
   `scan()` and `insideGridFootprint` now use `MapPainter.currentFloorRooms()`.
 - The dungeon map item's start corner is fixed per floor; measuring it from the first 16-pixel run of color 30 (as
-  NoammAddons does for F4+) read (16,5) on two of his M5 runs (2026-10-08 log) and shifted the whole map for the run.
+  the reference does for F4+) read (16,5) on two of his M5 runs (2026-10-08 log) and shifted the whole map for the run.
   `DungeonMapScanner.knownCorner` holds every floor; the run is only a size check and the fallback for an unknown floor.
 - On Hypixel the vanilla map draws the door into Fairy as a WITHER door while the doorway has no coal (killer560's
   2026-10-08_15.48.34 F1), so anything that finds wither doors by their coal never sees it. Fairy Door takes it from the
@@ -111,15 +111,15 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   counted, so a LOCKED chest (Hypixel: "That chest is locked!") counted too, and every item pickup counted, so an item
   that came out of a chest he opened (or any non-secret item) read as an item secret (killer560, 2026-11-01). Since
   doc-dhud-1101 `AwaitEvents` takes a chest back on the locked line within 1.5 s, and counts an item only when its name
-  is one of Noamm's dungeon secret drops and it was not made after his click within 4.5 blocks of that chest (entity id
+  is one of the dungeon secret drops and it was not made after his click within 4.5 blocks of that chest (entity id
   above the highest id his world held at the click). Testkit 1101-dhud-lockedchest / chestdrop.
 
 ## Score and run records
 
 - **The Murkbat bat bonus is one per PLAYER, not one per run like the Prince.** The shard's Rekindle attribute says "+1
   Bonus Score", "Limit of +1 Score per run" (hypixelskyblock wiki, Murkbat_Shard), but the wiki's Dungeon Score page says
-  it works out as one per player, up to 5, and Odin counts it that way (833e0533). Hypixel's line is `A Bat has been
-  slain. +1 Bonus Score` (Odin `Mimic.kt`, Skyblocker `DungeonScore.java`; color codes unknown). `ScoreCalculatorFeature`
+  it works out as one per player, up to 5, and the reference counts it that way (833e0533). Hypixel's line is `A Bat has been
+  slain. +1 Bonus Score` (color codes unknown). `ScoreCalculatorFeature`
   keys each bat on a name (his own line, a mate's "Bat Killed!") and `ScoreCalculator.BAT_BONUS_CAP` is the one number to
   set to 1 if Hypixel makes it per run. The dungeon sim does not model attributes, so it never sends it.
 - **Hypixel prints the score block ("Team Score: N" and "> EXTRA STATS <") when a run is WIPED too**, so those lines do not
@@ -139,7 +139,7 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
 - Core Entry Times measured the P4 band (45 < y <= 100, Necron's platform, UNDER the core) until 2026-11-01, so a
   player was "in the core" only after Goldor died and he dropped; Necron's first line ends the timing, so usually only the
   first to drop was timed ("4 mages and 1 arch and it only ever gave the arch's time"). The core is the closed room in the
-  middle of the Goldor arena: NoammAddons LeapCounter's in-core box x 42..68, y 106..155, z 54..119 (its INCORE_BOX and our
+  middle of the Goldor arena: the reference LeapCounter's in-core box x 42..68, y 106..155, z 54..119 (its INCORE_BOX and our
   Posmsg "Recore" preset 54.5,115,58.5 sit inside). Testkit 1101-dhud-coreentry.
 - A timer started by a chat line and checked in END_CLIENT_TICK reads a frame to a tick late for something already true
   at the line: the line is handled with the frame's packets (`Minecraft.runTick` processes packets every frame, then runs
@@ -157,7 +157,7 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
 
 - Boxes "not loading in" (killer560, 2026-11-03): a room showed boxes only from spawn spots learned on earlier runs or
   from mobs already in view, and learning ran only during the rush (before the blood door) and only while the helper was
-  on, so after a night of runs his file held 14 spots in 5 rooms. There is no public starred-mob spawn table (adm's is All
+  on, so after a night of runs his file held 14 spots in 5 rooms. There is no public starred-mob spawn table (the one that exists is All
   Rights Reserved; the room captures' `mobSpawns` are 74 snapshot positions in 25 rooms, mostly bats). Fix (bloodrush2-1104):
   the jar ships `assets/killer560smod/bloodrush/spawn-spots.json` (rebuild with `python -I tools/bloodrush/build-spots.py`,
   which merges every Prism instance's learned file into it), spots are learned all run until the boss, and a spot is learned
@@ -167,15 +167,15 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   starred entries only for Archway (40: zombies, skeletons, 2 Fels), and Archway is a bad capture anchored a tile off
   (docs/SIM-ROOMS.md), so its frame cannot be trusted; the rest are bats. The sim places mobs at random unless a room has
   known spots (`SimLiveMobs.placeMobs`), so it is no source. His Hypixel logs name no starred mob positions with a room
-  frame ([Bat], [AutoClear] key room, [InstaClear] lines carry none). The NoammAddons room data (rooms-modern.json), Hades'
-  rooms.json (LGPL, room ids and scores only), Nebulune, Athen and QUOI hold no spawn positions; only adm does (ARR, not
+  frame ([Bat], [AutoClear] key room, [InstaClear] lines carry none). The reference room data (rooms-modern.json), Hades'
+  rooms.json (LGPL, room ids and scores only), other implementations hold no spawn positions; only one outside source does (ARR, not
   used). So the table grows only from learning: since bloodrush2-1104 Learn Spawn Spots also runs while the helper is off
   (its row is built in the tab either way and is in masterToggles, so the card reads ON while it learns), and the table's `sources` map
   names each room's origin.
 
 ## Blood Camp
 
-- Blood Camp's prediction is NoammAddons' (killer560 asked for it, 2026-10-07), including a Kotlin quirk: Noamm sums
+- Blood Camp's prediction is the (killer560 asked for it, 2026-10-07), including a Kotlin quirk: the reference sums
   `packet.xa / 4096` with a Short and an Int, which is INTEGER division, so a blood mob's sub-block step adds nothing and the
   trip starts at the skull's spot in the wall. Ours divided by 4096.0, started one packet out of the wall, and landed the
   predicted spot one step (0.215 blocks in test 392) too far along. Keep the integer division; it is the model, not a typo.
@@ -200,7 +200,7 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   after two 20-tick windows with a ping on at least 19 ticks and at most 24 pings, pings drive it while trusted, client
   ticks otherwise (logic case 1101-logic-bloodcamp-clock drives it by hand).
 - **Split Timers' lag is the stalls, not the net tick deficit** (tickfix-1104; killer560 2026-11-04: "run splits never
-  shows lag now"). Odin (`SplitsManager.tickCounter`) and NoammAddons (`DualTime`) both show `wall - 50 ms * pings`, and
+  shows lag now"). The reference (`SplitsManager.tickCounter`) and the reference (`DualTime`) both show `wall - 50 ms * pings`, and
   so did `SplitLagClock` after timers2: on Hypixel that nets to 0, because the server runs the lost ticks afterwards (a burst
   of pings). His 2026-11-03 23:56 run printed "Storm took 45.15s (43.90s)" and then "Lag: 0.00s" for the run, and every
   other split equal to its lagless time to 0.01 s. `SplitLagClock` now follows that deficit from its lowest point and
@@ -227,7 +227,7 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
 - **On a trusted per-tick clock a locked Goldor phase must not be moved by single hits** (tickfix-1104; killer560
   2026-11-04: "still happens ... i mainly notice it during goldor"). The 8-tick snap sized for GrimAC let every stray
   health drop near the prediction walk the phase on Hypixel: his 2026-11-03 23:55:05/08/11 log has Spirit Mask, Phoenix and
-  Bonzo procs exactly 3 s apart, the first locked the phase, and the Bonzo proc read 16 ticks off it. Odin and NoammAddons
+  Bonzo procs exactly 3 s apart, the first locked the phase, and the Bonzo proc read 16 ticks off it. Other implementations
   never resync at all (60 on Goldor's line, minus one per non-zero ping). Trusted, `GoldorTick` now confirms a hit within 3
   ticks and moves nothing, and re-locks only on hits a whole number of periods apart within 2 ticks (a pair with a mask proc
   or a multi-player hit in it, else three in a row). Testkit 1104-logic-goldor-trusted. Every hit and every predicted 0 logs a
@@ -235,7 +235,7 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   logs a `[TickTimers] <name> proc:` line.
 - **Measured F7 gaps, every 26.x/26.1.2 log of his since SkyBlock 0.27.2 (2026-10-06), 1 s resolution** (tickfix2-1104,
   `killer560s-mod-logs/tickfix2-1104/gaps.py`): Storm's death line to Goldor's line 3 s in 357 runs, 4 s in 125, 2 s in 9 -
-  a steady ~3.26 s, 65 ticks of wall time with any lag in it, so Odin's 64; before 2026-10-06 it read 5 s / 6 s (Odin's old
+  a steady ~3.26 s, 65 ticks of wall time with any lag in it, so the 64; before 2026-10-06 it read 5 s / 6 s (the old
   104). Maxor's opening line to "DON'T DISAPPOINT ME" 4 s in 403, 5 s in 118: ~4.23 s, MAXOR_START_TICKS 83 fits within lag.
   Necron's "congratulations." to "I'm afraid, your journey ends now." 2 s (403) / 3 s (67) and to "Goodbye." 4 s / 5 s: the
   60-tick drop sits between them and no chat line marks it, so it is not checked. Livid (4 runs), Spirit Bear, Terracotta,
@@ -254,7 +254,7 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   `x--` in the per-server-tick listener behind `DungeonState.isBossPhaseActive()`, so each tick the gate read false left
   them a tick behind for good. They keep their end tick now and are worked out from the clock every tick (tickfix-1104).
 - **Real F7 gaps from his 2026-10-30 log (seconds resolution):** Storm's opening line to his lightning line 28 s twice
-  (560 ticks fits, Odin's 520 does not); Storm's death line to Goldor's line 3-4 s (Odin's 64 fits, NoammAddons 1.2.9's 17
+  (560 ticks fits, the 520 does not); Storm's death line to Goldor's line 3-4 s (the 64 fits, the reference 1.2.9's 17
   does not; `GOLDOR_START_TICKS` is 64 since tickfix2-1104, see "Measured F7 gaps" below); the
   party's mask procs 3 and 6 s after Goldor's line, so his damage tick was taken as phased on the line. It is NOT at one
   fixed place after the line: his first mask proc re-locked the phase 42, 9, 2, 21 and 25 ticks (mod 60) after Goldor's
@@ -269,12 +269,12 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   read a Hypixel NPC's death off `isAlive()`. Testkit 1102-bloodcamp-npc-deaths checks vanilla still calls it alive.
 - **Mobs Left comes from The Watcher's boss bar, not from the entities** (killer560, 2026-11-02: "that top bar is how many
   mobs are left"). The client cannot see the mobs still to come, so a count of the ones on the floor read "1+" with a fifth
-  of the camp left. The bar's size is not settled: the wiki says 9 + floor (F7 16, a Hypixel staff quote), Odin and Noamm
+  of the camp left. The bar's size is not settled: the wiki says 9 + floor (F7 16, a Hypixel staff quote), other implementations
   print the bar against 8 + floor. `bloodcamp/WatcherBar` starts from the wiki's and recalibrates from the bar's own
   settled steps (k of N is whole only for the right N), rounding up; it logs "[BloodCampStats] Watcher bar ..." each step,
   so the first real camp's log settles which size Hypixel uses.
 - **A skull 20 blocks from the Watcher is not the edge of the Blood Room** (owner's F7 camp, 2026-11-02, "missed a wall
-  spawn"). NoammAddons and Odin both track a skull's trip only within 20 blocks of the Watcher, but he flies to the case of
+  spawn"). Other implementations both track a skull's trip only within 20 blocks of the Watcher, but he flies to the case of
   the mob he picks (wiki) and the cases sit on walls 24 blocks apart, so a skull leaving the far wall while he was at the
   other had no trip at all (his log: a mob landing with no "trip tracked" line, 6 ticks after another wall's trip started;
   his morning run has the same). The gate is now his room tile or the old 20 blocks; a moving player-head stand with an
@@ -292,7 +292,7 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
 - **The Watcher leaves the client world mid-camp.** Owner's run 3 (2026-11-02): "Watcher removed by the server" for six
   seconds while he flew to a case and the player was still outside; every skull move in that time was dropped and the
   first wave's trip was picked up mid-flight (box 7 blocks off). Gate on his last known spot (`watcherAnchor`), not on his
-  entity being there. Same run: 8 case stands had skins NoammAddons' list lacks; a sideways move from the case grid (x/z on
+  entity being there. Same run: 8 case stands had skins the list lacks; a sideways move from the case grid (x/z on
   a block's center, y N+0.75) is a trip whatever the skin. Testkit 1102-bloodcamp-missed-box.
 - **A trip must not take a mob tagged before its window opened.** Trip #479208 silently took a giant name-tagged 120 ticks
   earlier as its mob, and its own giant was never tagged or clicked (1102-bloodcamp-trip-steal).
@@ -311,7 +311,7 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   which matched the wall clock), a 14 s last wave read 16.45 s. Two faults came of it. The long-gap table (gap >= 18 s ->
   24-27 s) put KILL ~60 ticks after the move on fast Watchers ("the kill still comes up way too late"), and the gate opened
   early elsewhere. Measured: the first skull after the move left the wall 446-474 game ticks after the greeting whatever the
-  gap (13.05-22.35 s), so the gap table is gone (the floor's time always, as NoammAddons 1.2.9), and `elapsedSinceGreeting`
+  gap (13.05-22.35 s), so the gap table is gone (the floor's time always 1.2.9), and `elapsedSinceGreeting`
   is the lesser of clock and game time. Testkit 1104-bloodcamp-gametime runs the ping clock 400 ticks ahead.
 - **Never Miss waits for KILL** (killer560, 2026-11-04: "triggerbot still kills before the kill alert goes off"). It
   ignored the kill timer by design (61f5f083d), so walking in it hit mobs already on the floor (his 00:25:01 camp: a giant
@@ -327,7 +327,7 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
 ## Terminals and solvers
 
 - Melody's Custom GUI picked the moving piece as the one pane COLOR appearing exactly once; a board with a second
-  lime pane (a finished row keeping its marker, which Odin handles with indexOfLast) has none, so after a row or an
+  lime pane (a finished row keeping its marker, which the reference handles with indexOfLast) has none, so after a row or an
   auto terminal's skip nothing was drawn as moving (killer560, 2026-10-05). Find a terminal's piece by position from
   the current slots (`findMelodyMovingSlot`), never by color counts; testkit 218 fails 5/16 on the old rule.
 - Terminal and device SIZES are read off the board/device, never constants (SkyBlock 0.27.2: Melody 3 rows, Click in
@@ -457,7 +457,7 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
 - A `DungeonLayout` room INDEX is only good for the snapshot it came from: `LiveMapFeature.rebuildGroups` numbers rooms by a HashMap walk, so a room joining the map renumbers the others. Wither Doors' Fairy Door kept Fairy's index for 10 ticks, and at run start (rooms arriving every tick) it named his Entrance, so "cleared: you entered Fairy" ended the highlight for the whole run (killer560 2026-11-04 "sometimes fairy door doesnt work"; logs 00:01:52, 00:05:34). Keep a cell (`tiles(r)[0]`) and map it back with `roomOfCell` each tick (fairydoor-1104, testkit 1104-sim-fairy-door-rooms-renumbered). THE RULE (roomidx-1104): never keep a room index (or a LiveMapFeature group id, the same numbering) past the tick, in a field, a set, a map key or a per-mob record, unless it is paired with the snapshot it came from. Keep a cell, or keep the snapshot and map everything over once when `layout.numbersLike(old)` is false (`sameRoom` / `sameRooms`, one reference compare a tick): Blood Rush Helper's next room, last room, rushed rooms, walked-in doors and every mob's room (a mob first seen at run start counted for another room, so its box never showed), and the sim's held-map opened rooms (`HeldMap.SIM_VISITED`) do that now; the map's double press keeps a cell (testkit 1104-sim-bloodrush-rooms-renumbered, 1104-sim-map-rooms-renumbered). A lambda that captures its own `layout` together with the index (Auto Clear's key-room walk) is safe.
 - Hypixel sends a teleport's look ABSOLUTE (for a Spirit Leap: the leaped-to player's look), except a teleport within about 1 s of the one before (seen 221-997 ms), which comes RELATIVE 0/0 so you keep your look; a leap in that window does not take the target's look (his 26.3 log, 63 teleports, 2026-11-04). Fast Leap clicks without the leap menu ever becoming the screen, so detect an own leap by "You have teleported to Name!", not by the screen title at click time (Leap Takes Target's Look, fastleap/LeapRotation).
 - Creeper Beams' opening pair and Secret Sound (dungsolve1108): a pick made before the creeper ENTITY has loaded used to fill `shownOrder` and lock the opening, so the creeper's pair never came first (it stays open until the creeper is found, 40 scans at most). Secret Sound kept ONE pending-chest timestamp, so a second chest inside the 500 ms wait played no sound, and `UseBlockCallback` never sees a click an earlier listener answered non-PASS; it now keeps a queue and also listens where the packet leaves (`RightClickSendMixin`, 50 ms same-position dedupe so callback plus packet is one click).
-- Terminal Solver "last pane reappears and is not clicked again" (dungsolve1108, termlast1108, killer560 to-do Doc) is NOT reproduced on the hx server: testkit 1108-term-lastpane-{auto,stream,reopen,thrice,revert,revert-stream}-<type> cover all five non-Melody types (Rubix included) with the final click dropped once or three times, the board re-opened under a new container id, and the final pane answered then put back two ticks later; the base jar re-clicks and solves in all 30 (26.3 cheat). His real logs say the mod does re-click on Hypixel: on 2026-11-06 13:04 (Rubix, "Change all to same color!") slot 32 was clicked three times about 1 s apart and Hypixel answered none of them ("[AutoTerms] slot 32 still empty 930 ms after a click (server never answered)"); he closed the board at 13:04:17. Every such restore line in his logs is a Rubix click, the only type sent as a real PICKUP (the client predicts the pickup, so the pane vanishes, then the mod puts it back and it "reappears"); every other type sends CLONE and never shows it. Untested idea, needs his OK: send Rubix forward clicks as CLONE button 2 the way Athen does on Hypixel (ITerminalSolver.click: left = CLONE 2, right = PICKUP 1, no prediction), plus the same-tick Grim cases. Capture the log around the last click if it happens again.
+- Terminal Solver "last pane reappears and is not clicked again" (dungsolve1108, termlast1108, killer560 to-do Doc) is NOT reproduced on the hx server: testkit 1108-term-lastpane-{auto,stream,reopen,thrice,revert,revert-stream}-<type> cover all five non-Melody types (Rubix included) with the final click dropped once or three times, the board re-opened under a new container id, and the final pane answered then put back two ticks later; the base jar re-clicks and solves in all 30 (26.3 cheat). His real logs say the mod does re-click on Hypixel: on 2026-11-06 13:04 (Rubix, "Change all to same color!") slot 32 was clicked three times about 1 s apart and Hypixel answered none of them ("[AutoTerms] slot 32 still empty 930 ms after a click (server never answered)"); he closed the board at 13:04:17. Every such restore line in his logs is a Rubix click, the only type sent as a real PICKUP (the client predicts the pickup, so the pane vanishes, then the mod puts it back and it "reappears"); every other type sends CLONE and never shows it. Untested idea, needs his OK: send Rubix forward clicks as CLONE button 2 the way the reference does on Hypixel (ITerminalSolver.click: left = CLONE 2, right = PICKUP 1, no prediction), plus the same-tick Grim cases. Capture the log around the last click if it happens again.
 
 - Auto Kick floor (pvkick-1109, killer560 11-09: joined an F5 party and Auto Kick used F7): Floor Source Detect kept the floor of HIS OWN last Party Finder queue (or the last run, F7) forever, so joining someone else's group (Hypixel: "You have joined [rank] Name's party!" or "Party Finder > <self> joined the dungeon group! (Class Level N)"; no chat line carries that group's floor) judged joiners on the stale floor. `AutoKickFeature.onLine` now calls `QueuedFloorDetector.reset()` and clears lastRunFloor on either line: the floor is that of the Party Finder listing he clicked within 10 s (PfJoinClickMixin on slotClicked, `QueuedFloorDetector.onSlotClick`, lore "Dungeon: The Catacombs" + "Floor: Floor V"); with no click (a /p join, an invite) no floor is known (joiners "no floor -> none", ModChat.log line) until he queues again. Testkit 1109-ui-autokick-joined-other-party.
 

@@ -67,7 +67,7 @@ public final class MetalDetectorSolver {
      *
      * <p>Only a SETTLED reading should come here: the action bar lags behind movement, so a number read while
      * walking belongs to a spot already left. {@code MetalDetectorFeature} passes a reading only once the same
-     * number has arrived twice from the same spot (Skyblocker's rule). A reading from where the last one was taken
+     * number has arrived twice from the same spot (the rule). A reading from where the last one was taken
      * tells us nothing new, so it is ignored rather than counted twice.
      *
      * @return how many candidates remain, or -1 when the centre is not known yet
@@ -107,7 +107,7 @@ public final class MetalDetectorSolver {
     /**
      * Whether this candidate is the right distance from {@code from}.
      *
-     * <p>Measured to the block's lower corner, as Skyblocker measures it ({@code Vec3.atLowerCornerOf}): the 42
+     * <p>Measured to the block's lower corner measures it ({@code Vec3.atLowerCornerOf}): the 42
      * offsets were taken with that measure, so measuring to the center (as the shelved copy did) moves every
      * distance by up to 0.87 blocks, over three times the tolerance, and throws the right answer away.
      */
@@ -119,7 +119,7 @@ public final class MetalDetectorSolver {
         return Math.abs(d - distance) < MetalDetectorData.TOLERANCE;
     }
 
-    /** Skyblocker's candidate block: the center plus the offset, one block up ({@code .offset(0, 1, 0)}). */
+    /** The candidate block: the center plus the offset, one block up ({@code.offset(0, 1, 0)}). */
     private List<Vec3i> worldCandidates() {
         List<Vec3i> out = new ArrayList<>(MetalDetectorData.CHEST_OFFSETS.size());
         for (Vec3i offset : MetalDetectorData.CHEST_OFFSETS) {
@@ -143,7 +143,7 @@ public final class MetalDetectorSolver {
     /**
      * The centre implied by seeing a named Keeper at this position.
      *
-     * <p>The Keeper's block position PLUS its offset, as Skyblocker computes it
+     * <p>The Keeper's block position PLUS its offset computes it
      * ({@code armorStand.blockPosition().offset(offset)}). The shelved copy subtracted it, which put the center 66
      * blocks the wrong way and every candidate with it.
      *

@@ -24,7 +24,7 @@ import java.util.Set;
  * Three of the pre-2.0 mining highlights (killer560 2026-11-01), each its own switch:
  * <ul>
  *   <li><b>Carpet Highlighter</b> (legit): the Dwarven Mines' unbreakable carpets inside ore veins - a gray, light blue or
- *       light gray carpet on a Sea Lantern, the shape Skyblocker's CarpetHighlighter keys on (LGPL-3.0, read for behavior
+ *       light gray carpet on a Sea Lantern, the shape the CarpetHighlighter keys on (LGPL-3.0, read for behavior
  *       only) - filled in a color of his choice, so he stops swinging at them.</li>
  *   <li><b>Titanium Highlight</b> (legit; through walls in the cheat build only): Titanium is Polished Diorite in the Dwarven
  *       Mines (hypixelskyblock wiki, Titanium Ore). Always, or only the blocks an open commission wants: "Titanium Miner"

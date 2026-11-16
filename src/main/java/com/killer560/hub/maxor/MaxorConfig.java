@@ -16,14 +16,14 @@ import java.nio.file.Path;
  * {@code ProfileManager.reloadAllConfigs()}. Feature getters AND {@link SkyblockGate#allows()}.
  * <p>
  * {@code bestPlaceMs} is state, not a setting: the personal best for "picked up -> placed", the equivalent of
- * NoammAddons' {@code PersonalBest.getPB("F7_crystal_placement")} (this repo has no PersonalBest store, so the
+ * The {@code PersonalBest.getPB("F7_crystal_placement")} (this repo has no PersonalBest store, so the
  * one value lives here and therefore survives a restart, per killer560's persistence rule).
  */
 public final class MaxorConfig {
 
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-maxor.json");
 
-    /** Cyan, matching NoammAddons' cyan ("&b") crystal spawn timer text. */
+    /** Cyan cyan ("&b") crystal spawn timer text. */
     public static final int DEFAULT_HIGHLIGHT_COLOR = 0xFF55FFFF;
 
     private static MaxorConfig instance;

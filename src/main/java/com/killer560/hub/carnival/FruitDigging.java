@@ -33,16 +33,16 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Fruit Digging Solver (SkyHanni's Fruit Digging helper and solver): while you play Fruit Digging it keeps the 7x7 sand
+ * Fruit Digging Solver (the Fruit Digging helper and solver): while you play Fruit Digging it keeps the 7x7 sand
  * grid's state - which tiles are dug, what each held, the Mines, Treasure and Anchor clues each dig gave, the fruits a
  * bomb destroyed - and boxes the best tile to dig next with the shovel mode to use and its bomb odds
  * ({@link FruitDiggingSolver}), labels each tile's clue and known content, and shows a HUD with the digs left, the
  * recommendation and the fruit still in the ground. Display only: it never digs for you (Auto Fruit Digging, cheat build,
  * does).
  *
- * <p>The grid is found as the 7x7 patch of sand nearest you when the game starts (SkyHanni's spot, -112 72 19, first).
+ * <p>The grid is found as the 7x7 patch of sand nearest you when the game starts (the spot, -112 72 19, first).
  * A tile counts as dug when it stops being sand right after you hit it, or turns to sandstone; any other tile that stops
- * being sand was a fruit a bomb destroyed. Unverified in game, from SkyHanni: the clue lines, the reveal tag over a dug
+ * being sand was a fruit a bomb destroyed. Unverified in game, from the clue lines, the reveal tag over a dug
  * tile ("Mango (+300)", "Bomb", "Rum"), sandstone for a dug tile, and the Anchor's marker being an item over the tile.
  */
 public final class FruitDigging {
@@ -52,7 +52,7 @@ public final class FruitDigging {
     static final Pattern NO_FRUIT = Pattern.compile("^(?:TREASURE|ANCHOR)! There are no fruits nearby!$");
     static final Pattern MINES = Pattern.compile("^MINES! There (?:is|are) (\\d{1,2}) bombs? hidden nearby\\.$");
     static final Pattern REVEAL = Pattern.compile("^([A-Za-z ]{3,20}?)(?: \\(\\+\\d{1,5}\\))?$");
-    /** SkyHanni's grid corner (row A, column 1). */
+    /** The grid corner (row A, column 1). */
     private static final BlockPos KNOWN_ORIGIN = new BlockPos(-112, 72, 19);
 
     private static BlockPos origin;
@@ -248,7 +248,7 @@ public final class FruitDigging {
         return sand >= 25;
     }
 
-    /** Looks for the grid: SkyHanni's spot, then any fitting patch around the player. */
+    /** Looks for the grid: the spot, then any fitting patch around the player. */
     static BlockPos findGrid(Minecraft mc) {
         ClientLevel level = mc.level;
         if (level == null || mc.player == null) {

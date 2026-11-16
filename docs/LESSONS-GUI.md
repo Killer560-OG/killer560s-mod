@@ -156,7 +156,7 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
   `ClientTooltipComponent` added by a `@ModifyVariable` on the list argument of `GuiGraphicsExtractor.tooltip(Font, List,
   int, int, ClientTooltipPositioner, Identifier)`; hand it a COPY, vanilla's list may be immutable. A Personal
   Compactor/Deletor keeps its slots in custom data as `personal_compact_<n>` / `personal_deletor_<n>` strings holding a
-  SkyBlock id (from Skyblocker's source and the wiki's slot counts, not yet seen on a live item).
+  SkyBlock id (from the source and the wiki's slot counts, not yet seen on a live item).
 - **A container reskin is not a mod screen, so Auto Scale skips it** (`AutoScale.scalesScreen` only takes classes under
   `com.killer560.hub`). The unified Auction House draws its API browser (scaled) and Hypixel's reskinned AH menus (a vanilla
   `ContainerScreen`) in one frame, and the Bazaar the same with its menu-less screen. `AhReskin` and the Bazaar reskin lay
@@ -175,7 +175,7 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
 - **Hypixel's item resource is not an icon source for the Bazaar.** 1,174 of 2,201 bazaar ids are not in
   `/v2/resources/skyblock/items` (every `ENCHANTMENT_*`, `SHARD_*`, `ESSENCE_*`, `FACTION_*`), ~480 more are only a
   `hypixel_skyblock:` resource-pack model on a paper base, and `durability` was ignored: 1,744 drew as paper without the
-  pack. The browser read the bundled `assets/killer560smod/bazaar/products.json` (tools/bazaar, from NEU incl. its
+  pack. The browser read the bundled `assets/killer560smod/bazaar/products.json` (tools/bazaar, from the reference incl. its
   pre-resource-pack commit 26169fe for old head textures), with a pack model only when `getResource("items/<path>.json")`
   finds it; since Pack Disabler the icons come from the shared `skyblock/item_looks.json` and none fall back (425/432).
 - **A picture-in-picture GUI element ignores the pose.** `GuiGraphicsExtractor.skin(...)` (and the other PIP states) is

@@ -7,15 +7,15 @@ import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
 /**
- * Java port of QUOI {@code puzzlesolvers/Repositionable.kt}: etherwarp onto a standing spot. Sequence per QUOI:
+ * Java port of: etherwarp onto a standing spot. Sequence:
  * swap to Aspect of the Void/End, hold sneak (+2 tick delay if it wasn't held), optionally wait until standing still,
  * use the item aimed at the spot's visible face ({@link AutoPuzzleUtil#etherwarpDirection}), wait until
- * {@code player.at(spot)}, then either swap to the shortbow (bow puzzles - sneak stays held, like QUOI) or release
+ * {@code player.at(spot)}, then either swap to the shortbow (bow puzzles - sneak stays held) or release
  * sneak and wait 2 ticks. Additions for safety: gated on the "Etherwarp Reposition" toggle by callers, a 40-tick
  * arrival timeout, and the held item is re-checked to be the AOTV right before use.
  * <p>
  * Since 2026-10-15 every auto runs it with no fixed waits ({@link #nextTick}, killer560: automation acts the very next
- * tick and matches a human's packets): QUOI's 2-tick sneak wait, the 2 ticks after a landing and the gate's 6-tick
+ * tick and matches a human's packets): the 2-tick sneak wait, the 2 ticks after a landing and the gate's 6-tick
  * teleport settle are gone, and only what a server must have heard first is waited for - one tick.
  */
 final class AutoReposition {
@@ -48,7 +48,7 @@ final class AutoReposition {
      * both, and the use goes the very next tick - the least a server needs to hear a sneak before a use, and the look
      * before a use that follows a block click ({@code util/RightClick}). Arrival lets go of sneak and ends the warp in the
      * same tick; the caller's own "not while sneaking" check covers the one tick the release takes to be heard.
-     * The default (QUOI's sequence) is +2 ticks after the sneak, a turn-first tick, and 2 ticks after the landing.
+     * The default (the sequence) is +2 ticks after the sneak, a turn-first tick, and 2 ticks after the landing.
      */
     private final boolean nextTick;
     /** Aim taken at {@link #start} in {@link #nextTick} mode, from {@link #aimFrom}: used for the use if he has not moved. */
@@ -110,7 +110,7 @@ final class AutoReposition {
         return stage != Stage.IDLE;
     }
 
-    /** QUOI {@code reposition(spot, bow, stand, awaitStand)}. No-op if already running / no direction.
+    /** The reference {@code reposition(spot, bow, stand, awaitStand)}. No-op if already running / no direction.
      *  @return true if a reposition is now running (started now or already was) */
     boolean start(Minecraft client, BlockPos target, boolean bowAfter, boolean stand, boolean awaitStandStill) {
         LocalPlayer player = client.player;
@@ -262,7 +262,7 @@ final class AutoReposition {
                         com.killer560.hub.util.ActionGate.expectSelfTeleport(com.killer560.hub.util.ActionGate.Actor.PUZZLE_WORLD,
                                 com.killer560.hub.util.ActionGate.TELEPORT_SETTLE_TICKS);
                         if (bow) {
-                            // Sneak stays held (QUOI); the bow goes back in hand now, so the shot can go next tick.
+                            // Sneak stays held; the bow goes back in hand now, so the shot can go next tick.
                             AutoPuzzleUtil.swapTo(client, player, AutoPuzzleUtil::isShortbow);
                         } else {
                             releaseSneak(client); // heard in this tick's input packet; the caller waits out isShiftKeyDown
@@ -328,7 +328,7 @@ final class AutoReposition {
         stage = Stage.IDLE;
     }
 
-    /** Releases sneak only if an auto pressed it (QUOI {@code mc.options.keyShift.isDown = false} on finish). */
+    /** Releases sneak only if an auto pressed it (the reference {@code mc.options.keyShift.isDown = false} on finish). */
     static void releaseSneak(Minecraft client) {
         if (sneakHeldByUs) {
             LOGGER.debug("[AutoPuzzles] Reposition: sneak key let go (it was held by an auto)");

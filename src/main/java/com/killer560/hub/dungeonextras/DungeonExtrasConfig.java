@@ -123,7 +123,7 @@ public final class DungeonExtrasConfig {
      private int breakerAuraBlocksPerCycle = 1;
     /**
      * Ticks to wait between breaks, on top of the one-a-tick the gate already enforces. Zero by default now: the
-     * tick is the rate limit, twenty a second, which is what QUOI does and what he asked for.
+     * tick is the rate limit, twenty a second, which is what the reference does and what he asked for.
      */
     private int breakerAuraCooldownTicks = 0;
     private boolean breakerAuraZeroPing = false;

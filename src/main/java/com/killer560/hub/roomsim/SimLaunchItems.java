@@ -37,9 +37,9 @@ import java.util.UUID;
 /**
  * Bonzo's Staff, the Jerry-chine Gun and Spring Boots in the sim (simitems-1105, killer560 2026-11-05), answered on the
  * sim's server as Hypixel's server answers them. The launches are server motion packets ({@link SimLaunch#push}), never a
- * client position. Numbers: the projectile paths, burst ranges and pushes are ADM's measurements of Hypixel (an Odin
+ * client position. Numbers: the projectile paths, burst ranges and pushes are measurements of Hypixel (an the reference
  * addon's P3 sim, facts only); the Spring Boots notes and heights are the ones the mod's own Spring Boots HUD reads on
- * Hypixel ({@link SpringBootsOverlay}, Odin's table). Mana is not modeled in the sim; the Jerry-chine's action bar shows
+ * Hypixel ({@link SpringBootsOverlay}, the table). Mana is not modeled in the sim; the Jerry-chine's action bar shows
  * the cost the wiki gives.
  */
 public final class SimLaunchItems {

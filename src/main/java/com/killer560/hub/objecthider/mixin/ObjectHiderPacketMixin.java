@@ -18,9 +18,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * <li>{@code handleParticleEvent} - the orb dust / wither-shield hearts / Wither King witch clouds are only
  *     identifiable by the packet's own flags and origin ({@code count}, {@code overrideLimiter},
  *     {@code alwaysShow}, x/y/z); by the time a {@code Particle} object exists that information is gone.</li>
- * <li>{@code handleUpdateMobEffect} - "there is no blindness" has no render hook; Devonian
+ * <li>{@code handleUpdateMobEffect} - "there is no blindness" has no render hook; the reference
  *     {@code misc/hiders/DisableBlindness.kt} drops the packet, and so does this.</li>
- * <li>{@code handleAddEntity} - QUOI {@code RenderOptimiser.kt} "Hide falling blocks" / "Hide lightning"
+ * <li>{@code handleAddEntity} - "Hide falling blocks" / "Hide lightning"
  *     ({@code :28-29}, cancel {@code :46-49}): both are pure client-render cosmetics with no server-side
  *     interaction, and canceling the spawn packet is cheaper than letting the entity spawn and canceling
  *     its render every frame afterward. This is the one hider pair here that never gets an entity ID in the

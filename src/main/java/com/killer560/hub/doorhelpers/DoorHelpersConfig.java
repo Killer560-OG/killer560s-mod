@@ -10,7 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Persisted Auto Door Opener settings (cheat build only; QUOI {@code AutoDoorOpener.kt}). Ships OFF. The effective
+ * Persisted Auto Door Opener settings (cheat build only;). Ships OFF. The effective
  * {@code is...Enabled()} getters are gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} and
  * {@link com.killer560.hub.util.SkyblockGate}; the tab reads the {@code ...Raw()} getters.
  * <p>
@@ -28,7 +28,7 @@ public final class DoorHelpersConfig {
     /**
      * Measured block reach.
      *
-     * <p>Was 6.0, inherited from QUOI. Only the DEFAULT had been moved to the measurement, so a config saved
+     * <p>Was 6.0, inherited from the reference. Only the DEFAULT had been moved to the measurement, so a config saved
      * at the old 5.0 - or anything up to 6.0 - loaded through this clamp untouched and kept reaching a block
      * and a half past what the server allows.
      */
@@ -41,7 +41,7 @@ public final class DoorHelpersConfig {
 
     private static DoorHelpersConfig instance;
 
-    // Auto Door Opener - QUOI defaults: Triggerbot, Range 5.0, Retry delay 500ms, Swing off, In menus off.
+    // Auto Door Opener - the reference defaults: Triggerbot, Range 5.0, Retry delay 500ms, Swing off, In menus off.
     private boolean autoDoorEnabled = false;
     private OpenerMode autoDoorMode = OpenerMode.TRIGGERBOT;
     // Capped at the reach measured to be accepted and unflagged - see CheatUtilsConfig.MEASURED_MAX_REACH.

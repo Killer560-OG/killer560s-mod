@@ -35,10 +35,10 @@ import java.util.Optional;
  * Egg ESP - CHEAT BUILD ONLY (killer560, 2026-10-19: "an egg ESP option for the cheat variant"). Boxes the hidden
  * Hoppity's Hunt Chocolate Eggs through walls, colored by meal (Breakfast gold, Lunch blue, Dinner green).
  * <p>
- * What counts as an egg is the shape Skyblocker's EggFinder (LGPL-3.0, read for behavior only, no code taken) keys
+ * What counts as an egg is the shape the EggFinder (LGPL-3.0, read for behavior only, no code taken) keys
  * on: an invisible, unnamed armor stand wearing a player head whose skin is one of the three egg skins. We match the
  * skin by its texture id inside the decoded {@code textures} property rather than the whole base64 value, so a
- * re-signed profile with a new timestamp still matches. The three ids were decoded from Skyblocker's EggType values
+ * re-signed profile with a new timestamp still matches. The three ids were EggType values
  * (2026-10-19); Brunch, Dejeuner and Supper wear the same three heads.
  * <p>
  * Purely visual: nothing is clicked or sent. In a legit build {@link #register} returns at once and javac folds every

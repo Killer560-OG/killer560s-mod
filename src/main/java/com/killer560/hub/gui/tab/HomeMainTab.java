@@ -105,7 +105,7 @@ public class HomeMainTab extends BaseTab implements KeyCaptureTab {
                 }).bounds(contentX, y, contentWidth, 20).build());
         y += 26;
 
-        // Global HUD scale (killer560, 2026-10-04, "just like SkyHanni"): 5%..300% in 5% steps, multiplied onto every
+        // Global HUD scale (killer560, 2026-10-04, "just like the reference"): 5%..300% in 5% steps, multiplied onto every
         // element's own scale - see HudConfig#globalScale. Saved in killer560smod-hud.json, so profiles carry it.
         float span = HudConfig.MAX_GLOBAL_SCALE - HudConfig.MIN_GLOBAL_SCALE;
         double normalized = (HudConfig.getInstance().getGlobalScale() - HudConfig.MIN_GLOBAL_SCALE) / span;

@@ -33,7 +33,7 @@ import java.util.regex.Pattern;
  *
  * <p>Auto Swap: before a click the held slot (0-7) goes to the drill with the highest Gemstone Powder bonus. The wiki's
  * Treasure Chest loot modifiers list four drills (Ruby Drill TX-15 +5%, Gemstone Drill LT-522 +10%, Topaz Drill KGR-12
- * +15%, Jasper Drill X +20%); their lore reads "Grants +20% Gemstone Powder" (NEU repo). No such line: any drill. The swap
+ * +15%, Jasper Drill X +20%); their lore reads "Grants +20% Gemstone Powder" (the reference repo). No such line: any drill. The swap
  * is one tick and the click the next, and it waits out {@link HotbarSelect#swapWouldFlag()} (PacketOrderE).
  */
 public final class PowderChestTriggerbot {

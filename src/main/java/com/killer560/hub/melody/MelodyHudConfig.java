@@ -13,7 +13,7 @@ import java.nio.file.Path;
 /**
  * Persisted Team Melody settings - see {@link MelodyTrackerFeature}. Two independent switches:
  * {@link #isHudEnabled()} (the HUD element itself) and {@link #isShareProgress()} (whether OUR read-only
- * tracker's own progress gets published at all, to the relay and/or Odin).
+ * tracker's own progress gets published at all, to the relay and/or the reference).
  * <p>
  * <b>Defaults.</b> The HUD ships OFF like every other new feature in this mod (killer560's "New tab until
  * confirmed" rule) - a player has to opt in even though the underlying read-only tracker itself always runs
@@ -79,7 +79,7 @@ public final class MelodyHudConfig {
 
     public void setHudEnabled(boolean hudEnabled) { this.hudEnabled = hudEnabled; }
 
-    /** Publish OUR own read-only tracker's progress (relay + Odin, when its own toggle/connection allow it).
+    /** Publish OUR own read-only tracker's progress (relay + the reference, when its own toggle/connection allow it).
      *  Never affects what we RECEIVE from teammates - that's always shown once known. */
     public boolean isShareProgress() { return shareProgress; }
 

@@ -43,8 +43,8 @@ project CLAUDE.md. Compiling lessons
 - Custom Items' `DataComponentHolder#get` override must never reach `getHoverName`: on a player head that is
   `PlayerHeadItem.getName`, which reads the overridden `minecraft:profile`, so an id-less head (one on an armor stand)
   overflowed the render thread (2026-10-18). `ArmourDye.identityOf` reads the name with `entryFor` switched off per thread.
-- **Skyblock price ids differ by source.** hysky.de (Skyblocker's keyless lists, Price Tooltip) keys pets
-  `LVL_1_LEGENDARY_GOLDEN_DRAGON` and runes `MUSIC_RUNE_3`; Coflnet and moulberry use NEU ids (`GOLDEN_DRAGON;4`); the
+- **Skyblock price ids differ by source.** hysky.de (the keyless lists, Price Tooltip) keys pets
+  `LVL_1_LEGENDARY_GOLDEN_DRAGON` and runes `MUSIC_RUNE_3`; Coflnet and moulberry use the reference ids (`GOLDEN_DRAGON;4`); the
   Bazaar keys books `ENCHANTMENT_SHARPNESS_6`. moulberry.codes answered 525 on 2026-10-15. Item `timestamp` is a long of
   epoch ms on 867 of 867 live auctions checked.
 - Pet value (petvalue-1104): the price lists only have `LVL_1_`/`LVL_100_`/`LVL_200_<TIER>_<TYPE>`, so `ItemValueCalc.petBase`
@@ -65,7 +65,7 @@ project CLAUDE.md. Compiling lessons
   must go through the menu, which is why Pet Wheel opens it (headless when Hide Pets Menu is on).
 - **Hypixel's SkyBlock resource pack is required**: the 0.26 announcement (hypixel.net thread 6117801) says it is
   force-enabled and SkyBlock cannot be joined without loading it, and players who declined report being kicked with
-  "failed to load resource pack". Noamm's PackDisabler gets round that by answering ACCEPTED + SUCCESSFULLY_LOADED and
+  "failed to load resource pack". The PackDisabler gets round that by answering ACCEPTED + SUCCESSFULLY_LOADED and
   canceling the push, i.e. reporting a pack it never applied. Our Pack Disabler leaves the push to vanilla (the pack
   really loads) and only swaps the model each SkyBlock item is drawn with, at `ItemModelResolver.appendItemLayers`.
   Hypixel's pack overrides no vanilla item textures, so a vanilla look still comes from his own packs.
@@ -75,11 +75,11 @@ project CLAUDE.md. Compiling lessons
   parent of the first conversion), then 60e030e (April). With those, 95 of the 1,366 pack-model items have no old
   look anywhere (`tools/items/gen_item_looks.py`); they are the ones with our own textures.
 - **Refreshing Pack Disabler's item table** (2026-11-03): `python -X utf8 tools/items/fetch_item_sources.py <dir>
-  --client-jar <26.3 client jar>` (Hypixel items + bazaar, NEU master and every snapshot the generator lists), copy the
+  --client-jar <26.3 client jar>` (Hypixel items + bazaar, the reference master and every snapshot the generator lists), copy the
   client's cached Hypixel pack (`<instance>/minecraft/downloads/<uuid>/<sha1>`, read only) to `<dir>/hypixel-pack.zip`,
-  then `gen_item_looks.py <dir>` and `tools/bazaar/gen_bazaar_data.py <dir>`. NEU keeps converting items after each
+  then `gen_item_looks.py <dir>` and `tools/bazaar/gen_bazaar_data.py <dir>`. The reference keeps converting items after each
   SkyBlock update (0.27.2's Reforge/Power Stones and equipment on 2026-10-07, rods 2026-09-03): before running, list
-  NEU commits since the newest snapshot (GitHub API `commits?since=`) and add the PARENT of every "texture"/"model"/
+  the reference commits since the newest snapshot (GitHub API `commits?since=`) and add the PARENT of every "texture"/"model"/
   "resourcepack" commit to `SNAPSHOTS`, or those items fall back to their base material. Read the coverage report: a
   pack model no row names is either a state variant (codex tiers, belts, capsules - fine, matching is by id) or an id
   neither source knows yet. Check head skins live (`tools/items/check_item_skins.py <item_looks.json>`: 1,285/1,285 on 2026-11-03).
@@ -93,15 +93,15 @@ project CLAUDE.md. Compiling lessons
   `textures/item` before blaming Hypixel for a menu look.
 - Hypixel's public items resource has only ~170 item skins and none for Wither Goggles (checked 2026-11-01), and the old
   Hypixel Skin list matched by the selected item's full display name ("Heroic Wither Goggles ✪✪✪✪✪" matched nothing). The
-  NEU repo has 180 skins whose lore names the items each applies to; `tools/item-skins-extract.py` bakes them into
+  the reference repo has 180 skins whose lore names the items each applies to; `tools/item-skins-extract.py` bakes them into
   `armourdye/item-skins.json`, and `ItemSkins.forItem` matches by Skyblock id (STARRED_ dropped) or the cleaned name's end.
-- The Witherborn wither of a full F7 armor set is a `WitherBoss` at `getInvulnerableTicks() == 800` (SkyHanni's "Mini
-  Wither"; Noamm's boss filter excludes 800, so the four F7 bosses never match). Its smoke and swirls are NOT packets:
+- The Witherborn wither of a full F7 armor set is a `WitherBoss` at `getInvulnerableTicks == 800` (the "Mini
+  Wither"; the boss filter excludes 800, so the four F7 bosses never match). Its smoke and swirls are NOT packets:
   `WitherBoss.aiStep` adds them on the client (three `Level.addParticle` calls), so only a hook there drops them.
 
 ## Bazaar and Croesus
 
-- **Attribute shards in a Croesus chest screen all carry the one custom id `ATTRIBUTE_SHARD`** (croesus1108, killer560: "it isnt tracking shards in chests"), so `DungeonChestValuer.priceStack` priced them as nothing; the name decides now ("X Shard", optional "xN", else the stack count) and the Bazaar id is `SHARD_<NAME>` (checked against NEU attribute_shards.json: 307 of 325 match, the odd ones are not dungeon drops). Testkit 1108-menu-croesus-shards.
+- **Attribute shards in a Croesus chest screen all carry the one custom id `ATTRIBUTE_SHARD`** (croesus1108, killer560: "it isnt tracking shards in chests"), so `DungeonChestValuer.priceStack` priced them as nothing; the name decides now ("X Shard", optional "xN", else the stack count) and the Bazaar id is `SHARD_<NAME>` (: 307 of 325 match, the odd ones are not dungeon drops). Testkit 1108-menu-croesus-shards.
 - **Hypixel's Bazaar summaries are named the opposite of how they read.** In
   `api.hypixel.net/v2/skyblock/bazaar`, `buy_summary` is the book you INSTANT-BUY OUT OF and `sell_summary` is
   the one you instant-sell into. Verified on `VIBRANT_CORAL` (2026-09-29): `quick_status.buyPrice` 3324220.9
@@ -141,8 +141,8 @@ project CLAUDE.md. Compiling lessons
   2026-10-30 11:01:17) was counted as 832 because the autopilot took the first rise of the carried count as the whole buy.
   It now waits until all the Bought line's units are carried or the count has stood still 750 ms (the rest went to sacks),
   and costs per bought unit (testkit 2801 delivers in two parts; the old jar recorded 1,152 of 2,304).
-- **Auto Relist's /ah menu names are from public mods, not a recording** (2026-11-02): NEU's Create BIN Auction slots 13
-  (item) / 29 (create) / 31 (price), SkyHanni's "Manage Auctions" and "Status: Sold!/Expired!" lore, Skyblocker's "Collect
+- **Auto Relist's /ah menu names are from public mods, not a recording** (2026-11-02): the Create BIN Auction slots 13
+  (item) / 29 (create) / 31 (price), the "Manage Auctions" and "Status: Sold!/Expired!" lore, the "Collect
   Auction" and "... Auction View". Every match is a case-insensitive "contains" with the fixed slot only as a fallback, and
   each page is logged (`[AhRelist]`). Correct them from a real recording of the menus
   before trusting it on Hypixel; the price sign's lines and the bids page's claimable lore are the least certain.
@@ -162,7 +162,7 @@ project CLAUDE.md. Compiling lessons
   chest is worth a key and walks back into that run (page:slot, same floor) after the reopen (testkit 766/767).
 - **The player's own order is IN the API book**, so an order at the top of its side reads `BazaarOrders.Standing.MATCHED`
   (equal to the best price), almost never `TOP`. "Outbid" must mean strictly beaten (more than 0.05 the wrong way), as
-  SkyHanni's Order Helper does: a buy order below the best buy order (Hypixel's `sell_summary[0]`), a sell offer above
+  the Order Helper does: a buy order below the best buy order (Hypixel's `sell_summary[0]`), a sell offer above
   the cheapest sell offer (`buy_summary[0]`). Bazaar Order Helper ignores prices older than 15 minutes (testkit 2810).
 
 ## Experiments and containers
@@ -303,8 +303,8 @@ project CLAUDE.md. Compiling lessons
 - Hypixel records no S/S+ on Entrance (every real player's Entrance time is `fastest_time` only), so S/S+-only PBs never
   show there. The Party Finder parser also accepts "Floor: Entrance" (floor 0); that lore wording is assumed, not yet
   seen in a real menu.
-- `api.docilelm.top` (Devonian's Party Finder stats) answers HTTP 200 `{"result":{}}` to every User-Agent except Devonian's own
-  (`Mozilla/5.0 (Devonian)`, checked 2026-10-07), so an empty result is an access refusal, not "player not found". Do not
+- `api.docilelm.top` (the Party Finder stats) answers HTTP 200 `{"result":{}}` to every User-Agent except the
+  (`Mozilla/5.0`, checked 2026-10-07), so an empty result is an access refusal, not "player not found". Do not
   impersonate Devonian; Party Finder uses SkyBlockPV (or his own Hypixel key) instead.
 - Custom Party Finder: "the auto accept didnt work" (2026-10-18) was the LEADER's side - his Untested Cheat log shows a request
   sitting 47 s with nothing sent, because only a click on Accept answered one; the joiner's invite accept was already there.
@@ -316,12 +316,12 @@ project CLAUDE.md. Compiling lessons
   refused it ("not issued by Mojang for that UUID": his alts, 2026-10-08; Mod Only Test log, launched as Killer560, playing
   as 9878981). It now builds a fresh `YggdrasilAuthenticationService(...).createUserApiService(token)` (testkit 579 replays
   the swap against a fake Mojang and relay). The relay's embedded Mojang keys were identical to the live set.
-- **Another mod's party server is for that mod's users, not ours.** NoammAddons' owner asked on 2026-11-01 ("definitely dont
+- **Another mod's party server is for that mod's users, not ours.** The owner asked on 2026-11-01 ("definitely dont
   manually auth into it"): the Cross-Mod Bridge had signed into `api.noamm.org/hypixel/auth` with the player's Mojang session
-  and opened `wss://ws.noamm.org` for anyone WITHOUT NoammAddons. Both are gone (`bridge/NoammAdapter`, `NoammCodec`), and
+  and opened `wss://ws.noamm.org` for anyone WITHOUT the reference. Both are gone (`bridge/NoammAdapter`, `NoammCodec`), and
   `util/ModNet.forbidden` refuses that host and endpoint even if code to reach them comes back (testkit 1101-noamm-never). A
-  player who runs NoammAddons still gets its socket-fed state in-process through `interop/LocalModBridge`. Devonian's and
-  Odin's sockets are still joined: ask before adding any other mod's server, and stop at once if its owner objects.
+  player who runs the reference still gets its socket-fed state in-process through `interop/LocalModBridge`. The and
+  the sockets are still joined: ask before adding any other mod's server, and stop at once if its owner objects.
 - **An authed relay call goes through `relay/RelayCalls.call(service, method, path, body)`** (discordlink-1105): one client and
   daemon pool, the bearer token (Mojang chat-key proof) reused per relay and account until 5 minutes before it expires, and a
   future that always completes with a `Reply` (status -1 offline). Custom Party Finder's `LfgRelay` and Discord Link use it;
@@ -338,7 +338,7 @@ project CLAUDE.md. Compiling lessons
   the next set's first placement (killer560, 2026-11-02), though the pads were empty and the next set was up. The reset
   now comes from the next set's first End Crystal seen off pylon height (y != 224), armed by Maxor's laser line, with a
   44-tick backstop. The F7 sim had the next set respawn 20 ticks after Maxor was enraged; it now comes 34 ticks after the
-  laser line (NoammAddons' respawn timer). Testkit 1102-boss-maxorcrys.
+  laser line (the respawn timer). Testkit 1102-boss-maxorcrys.
 
 - **Spotify's local sources name only the FIRST artist.** The window title and Windows' media session both said "Rosa
   Walton" for a track Spotify credits to "Rosa Walton, Hallie Coggins" (2026-10-20), and lrclib's search returned another
@@ -407,9 +407,9 @@ project CLAUDE.md. Compiling lessons
 - A fixed RMS threshold is not a voice detector: room noise on an open mic sat above Voice To Text's 500, so no pause was
   ever seen and Open Mic never sent anything. `voicetotext/OpenMicSegmenter` compares against the quietest chunk of the last
   3 s; testkit 564 feeds noise at RMS 700 (2026-10-08).
-- The Egglocator's particle trail does not reach the egg (SkyHanni's fitter is built on this; not yet checked in our logs): it
+- The Egglocator's particle trail does not reach the egg (the fitter is built on this; not yet checked in our logs): it
   is the start of a cubic Bezier from the player. Its last particle is not the egg; fit the curve and extrapolate
-  (`chocolatefactory/egg/TrailFitter`, SkyHanni's ParticlePathBezierFitter).
+  (`chocolatefactory/egg/TrailFitter`, the ParticlePathBezierFitter).
 - Every game sound, a server packet's (`handleSoundEvent` / `handleSoundEntityEvent` -> `ClientLevel.playSound`) and a
   local one, passes `SoundManager.play` or `playDelayed`, where `SoundManagerClickMixin` hands it to `ClickSounds.replace`;
   that is the ONE sound hook (Click Sounds, Sound Effects, and since 2026-11-02 Sound Disabler, checked first). Returning
@@ -431,7 +431,7 @@ project CLAUDE.md. Compiling lessons
   status, and require a line only a finished run prints.
 - **Check which mod sent a command before fixing it.** The 2026-10-15 p3sim screenshot of repeated "Unknown or incomplete
   command ... gfs ender_pearl 16<--[HERE]" was not ours: his Auto GFS was off and the log had no "[Cheat Utils] Auto GFS:"
-  echo (every send of ours prints one); QUOI and NoammAddons both had Auto GFS on. Ours had the same hole anyway (fixed in
+  echo (every send of ours prints one); other implementations both had Auto GFS on. Ours had the same hole anyway (fixed in
   `util/SackCommands`, testkit 115-hx-autogfs-unknown-command). Grep his log for our echo line first.
 - `util/ChatObserver` drops a line identical to one it saw in the last 250 ms (the dedupe for a mod re-adding Hypixel's
   line). A test that sends the same server line twice back to back loses the second: two "The gate has been destroyed!"
@@ -454,7 +454,7 @@ project CLAUDE.md. Compiling lessons
 - A mouse button bound to vanilla's Drop key does nothing in a container screen: `AbstractContainerScreen.keyPressed`
   reads `keyDrop`, `mouseClicked` never does (javap 26.3 and 26.2). The Terminal Drop Key handles a mouse bind itself
   (`TerminalQolFeature.handleMouseDrop`: the same THROW click on the hovered slot, or the Custom GUI's own click).
-- Another mod's auto sprint ends in `LivingEntity.setSprinting(true)` whichever way it is built (Odin answers
+- Another mod's auto sprint ends in `LivingEntity.setSprinting(true)` whichever way it is built (the reference answers
   `Input.sprint()` in `LocalPlayer.aiStep` with `@ModifyExpressionValue`; others call setSprinting each tick); holding
   the sprint KEY is already undone by our movers replacing the key record. `AutoSprintOverrideMixin` refuses a sprint
   start there while one of the mod's movers drives with sprint up (doc-terms-1101, testkit 1101-menu-autosprint).
@@ -482,13 +482,13 @@ project CLAUDE.md. Compiling lessons
   also accepts U+E067). Any feature that needs the player's area should read `IslandDetector.scoreboardArea()`, not the
   sidebar itself (mining-1103, testkit 1103-mining-area fails on main 2646b64cf).
 - A per-BLOCK mining decision needs the block's own area, not the player's (killer560, 2026-11-03: "i can stand in one zone
-  but the blocks are in another"). `miningqol/MinesAreaMap` gives it with no hand-made boxes: SkyHanni-REPO's
+  but the blocks are in another"). `miningqol/MinesAreaMap` gives it with no hand-made boxes: the public data repo's
   `constants/island_graphs/DWARVEN_MINES.json` (downloaded by `pathfinding/GraphRepository`, refreshed every 12 h) has 264 `area`-tagged nodes (named "Upper Mines", "Rampart's Quarry", ..., or "no_area") sitting in
   pairs on either side of each way between areas. A multi-source Dijkstra from them labels every node with the area it
-  reaches fastest (SkyHanni's own IslandAreaBackend rule); a block takes its nearest node's area within 24 blocks, cached
+  reaches fastest (the IslandAreaBackend rule); a block takes its nearest node's area within 24 blocks, cached
   per chunk section. "no_area" and no node near mean unknown, and the player's area decides. Offline check of the real
   file (killer560s-mod-logs/mithrilarea-data/label.py, 2026-11-03): all 3031 nodes labelled, Upper Mines' nodes span
-  x -155..-63, z -84..-4, Royal Mines x 89..182, Cliffside Veins y 103..153. A new SkyHanni file is picked up on its next
+  x -155..-63, z -84..-4, Royal Mines x 89..182, Cliffside Veins y 103..153. A new the reference file is picked up on its next
   download with nothing to edit; to check one, rerun label.py on it. Testkit 1103-mining-block-area uses a test graph.
 - Mining block highlights follow the server's block updates (`miningqol/mixin/MiningBlockUpdateMixin`: handleBlockUpdate,
   handleChunkBlocksUpdate, handleLevelChunkWithLight at RETURN) instead of the once-a-second scan, which stays as the
@@ -525,7 +525,7 @@ project CLAUDE.md. Compiling lessons
   that. Remember a mob by entity id once identified and keep it while it is loaded, alive and still wanted, as Starred
   Mob Hitboxes does (mithril-mobs-1103, 1103-mining-mob-range). Do not add entity-type-only rules for Skyblock mobs
   unless the type is unique on the island: goblins and Treasure Hoarders are player-model NPCs like every NPC, and
-  SkyHanni's MobFilter also names these mobs only through their stands.
+  the MobFilter also names these mobs only through their stands.
 - The vanilla glow outline is shared: the cheatutils WitherGlow mixins (shouldEntityAppearGlowing, getTeamColor) serve
   Dungeon ESP and Commission Mobs' Glow style; a new glow user adds a check there instead of a second pair of mixins.
 - `PriceData` (Price Tooltip prices: hysky lowest BIN and 1/3-day average lowest BIN, Bazaar, item facts) refreshes only

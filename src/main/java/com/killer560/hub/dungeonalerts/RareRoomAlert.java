@@ -8,7 +8,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 /**
- * Rare Room Alert (Skyblocker RareRoomAlert, SkyHanni Trinity Helper; featB-1108): a title and a sound the first time Trinity,
+ * Rare Room Alert (the reference RareRoomAlert, the reference Trinity Helper; featB-1108): a title and a sound the first time Trinity,
  * Tomioka or Duncan shows up on the map this run, from the room the live map identified (room database name), so it fires
  * when the map reads the room, not only when he walks in. Looks once a second, only in a dungeon with the switch on.
  */

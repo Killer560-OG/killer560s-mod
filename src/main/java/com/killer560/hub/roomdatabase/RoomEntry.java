@@ -3,9 +3,9 @@ package com.killer560.hub.roomdatabase;
 import java.util.List;
 
 /**
- * One dungeon room's real, known data - shape matches NoammAddons' own {@code rooms-modern.json}
+ * One dungeon room's real, known data - shape matches the {@code rooms-modern.json}
  * exactly (field names included) so Gson can deserialize it directly with zero mapping code. Real,
- * confirmed data downloaded from the same public endpoint NoammAddons' own client uses - see
+ * confirmed data downloaded from the same public endpoint the client uses - see
  * {@link RoomDatabase}'s class doc.
  */
 public final class RoomEntry {

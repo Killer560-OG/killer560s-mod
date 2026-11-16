@@ -26,7 +26,7 @@ import com.killer560.hub.compat.McCompat;
  * also add a regular wither highlight that isn't esp"):
  * <ul>
  * <li><b>Starred Mob Hitboxes</b> (orange) - starred mobs + bats, colors, box style, line width. Starred mobs are never
- *     range-limited (QUOI's starred ESP: drawn until they die); bats follow Room Scoped or the Range slider. Always depth-tested / line-of-sight.</li>
+ *     range-limited (the starred ESP: drawn until they die); bats follow Room Scoped or the Range slider. Always depth-tested / line-of-sight.</li>
  * <li><b>Wither Boss Highlight</b> (orange) - the non-ESP F7/M7 wither highlight: Glow Hitbox or Hitbox Fill, never
  *     through walls, never range-limited, with an optional Tracer line to a wither you can see. Exists on both builds.</li>
  * <li><b>ESP</b> (red, cheat jar only) - ONE switch for everything ESP (2026-10-09): the starred mobs and bats above

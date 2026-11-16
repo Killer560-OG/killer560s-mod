@@ -11,10 +11,10 @@ import java.util.regex.Pattern;
  *
  * <h2>Where the numbers come from</h2>
  * Name-tag bosses (F1-F6): the armor stand over the boss, "﴾ Bonzo 250k❤ ﴿" for the boss itself and "Healthy Guardian
- * 1M❤" for a minion (Dungeons Guide {@code BossfightProcessor*.java} match exactly these stands; Skytils
+ * 1M❤" for a minion (Dungeons Guide {@code BossfightProcessor*.java} match exactly these stands; the reference
  * {@code BossHPDisplays.kt} reads the Sadan and giant stands the same way). The tag's number is the current health.
- * Boss-bar bosses (F4 Thorn, F7 withers): the bar's name and fill times a per-floor max (NoammAddons
- * {@code dungeon/BossBarHealth.kt}, Skytils {@code DungeonFeatures.onBossBarSet}; the two agree on every number).
+ * Boss-bar bosses (F4 Thorn, F7 withers): the bar's name and fill times a per-floor max (the reference
+ * {@code dungeon/BossBarHealth.kt}, the reference {@code DungeonFeatures.onBossBarSet}; the two agree on every number).
  * <p>
  * Max health: hypixelskyblock.minecraft.wiki, read 2026-10-25 (Bonzo, Scarf, The Professor, Livid, Sadan pages), which
  * agrees with Dungeons Guide's table except the Reinforced Guardian (wiki 1.2M on F3, DG 1M; the wiki is used). Where
@@ -159,7 +159,7 @@ public final class BossHealthText {
         return null;
     }
 
-    /** Max of a boss-bar boss: health for the withers, LIVES for Thorn (NoammAddons BossBarHealth.kt, Skytils). */
+    /** Max of a boss-bar boss: health for the withers, LIVES for Thorn. */
     static long barMax(String boss, boolean master) {
         return switch (boss) {
             case "Thorn" -> master ? 6L : 4L;

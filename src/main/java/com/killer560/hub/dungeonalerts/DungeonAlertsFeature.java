@@ -166,7 +166,7 @@ public final class DungeonAlertsFeature {
         McCompat.setSubtitle(client, subtitle);
     }
 
-    /** Local UI sound, same call Odin's {@code playSoundAtPlayer} / Essential's {@code USound.playSoundStatic} make. */
+    /** Local UI sound, same call the {@code playSoundAtPlayer} / Essential's {@code USound.playSoundStatic} make. */
     public static void playSound(SoundEvent sound, float volume, float pitch) {
         Minecraft client = Minecraft.getInstance();
         client.execute(() -> client.getSoundManager().play(SimpleSoundInstance.forUI(sound, pitch, volume)));

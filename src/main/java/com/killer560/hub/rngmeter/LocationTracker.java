@@ -62,7 +62,7 @@ public final class LocationTracker {
     // invisible-color-code garbage - Hypixel's real anti-scraping technique puts the actual visible text
     // on each entry's registered PlayerTeam prefix/suffix, not on entry.display()/owner() directly. This
     // class had the identical bug (same copied approach, per its own now-outdated doc note above) - fixed
-    // the same way, confirmed against SkyHanni's own real, working ScoreboardCompatKt.getPlayerNames.
+    // the same way, confirmed against the real, working ScoreboardCompatKt.getPlayerNames.
     private static String readSidebarText() {
         Minecraft client = Minecraft.getInstance();
         if (client.level == null) return "";

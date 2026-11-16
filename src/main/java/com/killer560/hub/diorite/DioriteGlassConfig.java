@@ -11,7 +11,7 @@ import java.nio.file.Path;
 
 /** Persisted "I Hate Diorite" settings - see {@link DioriteGlassFeature}. Ships disabled by default.
  *  Real client-side block replacement (Storm's real diorite pillars swapped to see-through stained
- *  glass), same real category Noamm's own reference implementation gates behind its cheat flag - no
+ *  glass), same real category the reference implementation gates behind its cheat flag - no
  *  legit variant exists, same as {@link com.killer560.hub.autoleap.AutoLeapConfig}/
  *  {@link com.killer560.hub.dungeonbreaker.DungeonBreakerConfig}. */
 public final class DioriteGlassConfig {

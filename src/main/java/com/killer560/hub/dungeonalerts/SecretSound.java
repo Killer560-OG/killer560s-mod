@@ -25,21 +25,21 @@ import java.util.Set;
 import java.util.function.Supplier;
 
 /**
- * Secret Sound - ported from NoammAddons (26.1.2 upstream) {@code features/impl/dungeon/Secrets.kt} ("Secret
+ * Secret Sound - (26.1.2 upstream) {@code features/impl/dungeon/Secrets.kt} ("Secret
  * Sound" section) + the {@code DungeonEvent.SecretEvent} sources in {@code event/EventDispatcher.kt} and
  * {@code utils/dungeons/DungeonUtils.kt}:
  * <ul>
  * <li>BAT: a {@code BAT_DEATH} sound packet while in a dungeon and not in boss.
  * <li>ITEM: {@code ClientboundTakeItemEntityPacket} / {@code ClientboundRemoveEntitiesPacket} for an item entity
- * named in Noamm's {@code dungeonItemDrops} list within 6 blocks (distSqr &lt;= 36), dungeon and not boss.
+ * named in the {@code dungeonItemDrops} list within 6 blocks (distSqr &lt;= 36), dungeon and not boss.
  * <li>CHEST / LEVER / WITHER_ESSENCE / REDSTONE_KEY: right-clicking a chest, trapped chest, lever, or a skull
- * whose owner UUID is one of Noamm's essence/key UUIDs, while in a dungeon. Noamm hooks the outgoing
+ * whose owner UUID is one of the essence/key UUIDs, while in a dungeon. The reference hooks the outgoing
  * {@code ServerboundUseItemOnPacket}; here Fabric's {@link UseBlockCallback}, which Fabric fires from its
  * client {@code MultiPlayerGameModeMixin#useItemOn} right before that packet is sent.
  * </ul>
- * Noamm's rules: an ITEM within 2000 ms of the last CHEST is skipped (the chest's own drop), and the sound is
+ * The rules: an ITEM within 2000 ms of the last CHEST is skipped (the chest's own drop), and the sound is
  * played via its "Play Sound" action, which plays it 5 times at once. Default sound EXPERIENCE_ORB_PICKUP,
- * volume 0.5, pitch 1.0 (Noamm's {@code createSoundSettings} defaults).
+ * volume 0.5, pitch 1.0 (the {@code createSoundSettings} defaults).
  */
 public final class SecretSound {
 
@@ -91,7 +91,7 @@ public final class SecretSound {
             "Treasure Talisman", "Revive Stone", "Architect's First Draft",
             "Secret Dye", "Candycomb");
 
-    /** Whether an item with this (formatting-stripped) name is one of Noamm's dungeon secret item drops. */
+    /** Whether an item with this (formatting-stripped) name is one of the dungeon secret item drops. */
     public static boolean isDungeonItemDrop(String name) {
         return name != null && DUNGEON_ITEM_DROPS.contains(name);
     }
@@ -278,7 +278,7 @@ public final class SecretSound {
         return new int[]{chestSoundsPlayed, lockedChestSoundsDropped};
     }
 
-    /** Noamm's "Play Sound" action - the configured sound 5 times at once. Also used by the tab's test button. */
+    /** The "Play Sound" action - the configured sound 5 times at once. Also used by the tab's test button. */
     public static void play() {
         DungeonAlertsConfig cfg = DungeonAlertsConfig.getInstance();
         SoundEvent sound = SoundChoice.byName(cfg.secretSoundId).sound();

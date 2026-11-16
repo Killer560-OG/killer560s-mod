@@ -23,7 +23,7 @@ public final class RelicHelpersConfig {
     private boolean triggerPickup = true;
     private boolean triggerPlace = true;
     private boolean swapToRelic = true;
-    /** NoammAddons' Relic Triggerbot: at most one click every 200 ms. */
+    /** The Relic Triggerbot: at most one click every 200 ms. */
     private int cooldownMs = 200;
 
     private boolean lookEnabled = false;

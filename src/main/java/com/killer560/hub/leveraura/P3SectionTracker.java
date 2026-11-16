@@ -28,7 +28,7 @@ import java.util.regex.Pattern;
  */
 public final class P3SectionTracker {
 
-    // Same completion regex as Floor7Tracker / QUOI REGEX_TERM_COMPLETED (optional trailing suffix from other mods).
+    // Same completion regex as Floor7Tracker / the reference REGEX_TERM_COMPLETED (optional trailing suffix from other mods).
     // The name group is a REAL username, not any 16 characters.
     //
     // ".{1,16}" is anchored but still matches "[VIP] Bob: a" - twelve characters - so any player typing

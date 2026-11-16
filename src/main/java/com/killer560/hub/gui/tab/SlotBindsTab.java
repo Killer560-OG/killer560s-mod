@@ -17,7 +17,7 @@ import java.util.Set;
 import com.killer560.hub.compat.McCompat;
 
 /** Slot Binds settings - see {@link com.killer560.hub.slotbinds.SlotBindsFeature}'s class doc for the
- *  real Odin-ported swap mechanic this is built on and for the bind flow: set the bind key here, then in
+ *  real swap mechanic this is built on and for the bind flow: set the bind key here, then in
  *  your real inventory screen hover a slot and press it (highlights that slot with a line to your
  *  cursor), then hover a second slot and press it again to link them (2026-10-11: no left click). Pressing the bind key while
  *  hovering a slot that's already bound deletes that bind instead. Bound slots get a border and a

@@ -29,7 +29,7 @@ import java.util.Locale;
  * colored; a mithril or titanium commission's progress moves on with every counted block between the tab's slow refreshes
  * ({@link CommissionProgress}, Live Progress). The waypoints are labels in the world at the place each open commission is done: the five Dwarven Mines areas
  * for an area commission, and the Glacite Tunnels gemstone spots for a "[Gemstone] Collector" commission. When any
- * commission reads DONE, every Emissary gets a label too, so a finished commission can be turned in at the nearest one. The coordinates are Skyblocker's MiningLocationLabel (LGPL-3.0; read for
+ * commission reads DONE, every Emissary gets a label too, so a finished commission can be turned in at the nearest one. The coordinates are the MiningLocationLabel (LGPL-3.0; read for
  * the in-game positions only, no code taken). Labels show through walls, like a waypoint; nothing is clicked or sent.
  */
 public final class CommissionHud {

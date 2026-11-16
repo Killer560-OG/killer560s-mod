@@ -25,7 +25,7 @@ import java.util.Map;
  * clay corner and rotation from the live map), so a spot comes back at every rotation and in any later run. The same
  * spot seen again (within {@link #MERGE} blocks) only counts up.
  *
- * <p>Our own data, not the reference mod adm's: adm's boxes come from its site and are All Rights Reserved. Learned only on
+ * <p>Our own data, not that of other blood rush tools: their boxes are All Rights Reserved. Learned only on
  * Hypixel, never in the Dungeon Sim (whose mobs are placed by the sim, from this very file among others). The Dungeon
  * Sim's Spawn Starred Mobs places a room's mobs on these spots ({@code roomsim.SimLiveMobs}).
  *
@@ -35,7 +35,7 @@ import java.util.Map;
  * {@code tools/bloodrush/build-spots.py} from the spots learned on his own Hypixel runs, so a room shows boxes before
  * its mobs are in view in a run that never saw the room (bloodrush2-1104, killer560 2026-11-03: "the blood rush helper
  * boxes arent really loading in properly or at all"). A room's spots are its learned ones plus each shipped one no
- * learned spot is within {@link #MERGE} of. There is no public table of starred mob spawns (adm's is All Rights
+ * learned spot is within {@link #MERGE} of. There is no public table of starred mob spawns (the one that exists is All Rights
  * Reserved), so the shipped table only covers rooms someone running this mod has learned.
  * Client thread only.
  */

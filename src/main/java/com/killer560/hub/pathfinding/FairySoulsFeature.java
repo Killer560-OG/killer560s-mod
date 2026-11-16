@@ -16,19 +16,19 @@ import java.util.concurrent.Executors;
  * Fairy soul guidance: which souls are still missing on this island, in what order to collect them, and pointing the
  * navigation at the next one.
  * <p>
- * Soul locations come from the island graph itself - SkyHanni tags the soul nodes {@code fairy_soul}
- * (see {@code data/model/graph/GraphNodeTag.kt}), and the counts match NEU-REPO's own
+ * Soul locations come from the island graph itself - the reference tags the soul nodes {@code fairy_soul}
+ * (see {@code data/model/graph/GraphNodeTag.kt}), and the counts match the public
  * {@code constants/fairy_souls.json} island by island (Hub 80, Crimson Isle 29, Spider's Den 19, ...), so no second
  * data source is needed. Found state is tracked in {@link FairySoulStore}.
  * <p>
- * The two chat lines Hypixel sends are the ones SkyHanni and Skyblocker both match:
+ * The two chat lines Hypixel sends are the ones other implementations both match:
  * "SOUL! You found a Fairy Soul!" and "You have already found that Fairy Soul!" - both mean the soul closest to the
  * player was collected (the second one means it was already collected on this profile).
  */
 public final class FairySoulsFeature {
 
     private static final String CHAT = "Fairy Souls";
-    /** SkyHanni uses 10 blocks for "which soul did I just click". */
+    /** The reference uses 10 blocks for "which soul did I just click". */
     private static final double CLICK_MATCH_DISTANCE = 10.0;
 
     private static final ExecutorService ROUTE_POOL = Executors.newSingleThreadExecutor(r -> {
@@ -138,7 +138,7 @@ public final class FairySoulsFeature {
             // tracking is complete when it was never consulted at all.
             ModChat.send(CHAT, ModChat.bad(IslandDetector.islandName().isEmpty() ? "This island" : IslandDetector.islandName()),
                     ModChat.bad(" has no Fairy Souls to find "),
-                    ModChat.dim("(or the SkyHanni graph doesn't have them mapped yet)."));
+                    ModChat.dim("(or the island graph doesn't have them mapped yet)."));
             return;
         }
         List<IslandGraph.Node> missing = unfound(graph);

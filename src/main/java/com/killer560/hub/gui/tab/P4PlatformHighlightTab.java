@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** P4 Platform Highlight settings - see
- *  {@link com.killer560.hub.p4platform.P4PlatformHighlightFeature}'s class doc for the real QUOI-ported
+ *  {@link com.killer560.hub.p4platform.P4PlatformHighlightFeature}'s class doc for the real
  *  "highlight the 3x3 to mine after Goldor dies" this is built on. */
 public class P4PlatformHighlightTab extends BaseTab {
 

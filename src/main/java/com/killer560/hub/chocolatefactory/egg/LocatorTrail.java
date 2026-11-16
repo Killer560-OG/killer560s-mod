@@ -10,29 +10,29 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /**
- * Finds the egg an Egglocator points at from its particle trail, the way SkyHanni's HoppityEggLocator does (killer560,
- * 2026-10-19: "it should be able to find eggs even if they arent observable ... build the mixin style from skyhanni", "snap to
+ * Finds the egg an Egglocator points at from its particle trail, the way the HoppityEggLocator does (killer560,
+ * 2026-10-19: "it should be able to find eggs even if they arent observable ... build the mixin style from another mod", "snap to
  * the right points, those are the only ones it can be at").
  * <p>
  * After a right click of the Egglocator the server draws the start of a curve toward the closest unfound egg as happy-villager
  * particles (speed 0, count 1). For 5 s after the click every such particle is offered to a {@link TrailFitter}; once it holds
  * four points the fitted curve is followed to its end, and that end is snapped to the nearest egg spot on this island within
  * {@link EggPositions#MAX_SNAP} blocks. Only a snapped spot is ever shown: an egg can be nowhere else. A later fit that snaps
- * nowhere keeps the last good spot (SkyHanni does the same).
+ * nowhere keeps the last good spot (the reference does the same).
  * <p>
  * The guess stays until that egg is found, the Egglocator says none are left, or the world changes - not on a timer, because
  * a far egg can take longer than any timer to walk to. Everything here runs on the render thread: the mixin reads the packet
- * after {@code ensureRunningOnSameThread}, as SkyHanni's does.
+ * after {@code ensureRunningOnSameThread}.
  */
 public final class LocatorTrail {
 
-    /** How long after a click the trail's particles are read (SkyHanni: 5 s). */
+    /** How long after a click the trail's particles are read (5 s). */
     private static final long TRAIL_MS = 5_000L;
-    /** When, after a click, a click that produced particles but no egg is called unreliable (SkyHanni: 5.5 s). */
+    /** When, after a click, a click that produced particles but no egg is called unreliable (5.5 s). */
     private static final long VERDICT_MS = 5_500L;
-    /** A trail point further than this from the previous one belongs to something else (SkyHanni: 3.0). */
+    /** A trail point further than this from the previous one belongs to something else (3.0). */
     private static final double MAX_STEP = 3.0;
-    /** A point this close to a fishing hook is the bobber's own particle, not the trail (SkyHanni: 0.3). */
+    /** A point this close to a fishing hook is the bobber's own particle, not the trail (0.3). */
     private static final double HOOK_RADIUS = 0.3;
     private static final org.slf4j.Logger LOGGER = ModLog.get("killer560smod-chocolatefactory");
 

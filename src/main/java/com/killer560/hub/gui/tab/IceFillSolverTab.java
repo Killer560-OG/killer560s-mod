@@ -8,7 +8,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Ice Fill Solver settings - see {@link com.killer560.hub.puzzlesolvers.IceFillSolverFeature}'s class
- *  doc for the real Odin-ported path database this is built on. */
+ *  doc for the real path database this is built on. */
 public class IceFillSolverTab extends BaseTab {
 
     public IceFillSolverTab() {

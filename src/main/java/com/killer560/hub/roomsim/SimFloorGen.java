@@ -467,7 +467,7 @@ public final class SimFloorGen {
     /**
      * Builds exactly the floor he drew, instead of one this class invented.
      *
-     * <p>killer560 (2026-09-29) wants Ashfall's Dungeon Maker: pick rooms from a list, place them on a grid,
+     * <p>killer560 (2026-09-29) wants the Dungeon Maker: pick rooms from a list, place them on a grid,
      * press play. That is this - the map editor hands over a placement per room-grid cell and everything from
      * here down is the same code the random generator uses, so a drawn floor and a generated one differ only
      * in how the cells were chosen.

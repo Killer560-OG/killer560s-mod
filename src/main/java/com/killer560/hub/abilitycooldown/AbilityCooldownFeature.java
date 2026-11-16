@@ -58,12 +58,12 @@ public final class AbilityCooldownFeature {
             return message;
         });
 
-        // Chat (Creeper Veil): ChatObserver, not Fabric's CHAT/GAME - Odin/NoammAddons/Skyblocker can cancel
+        // Chat (Creeper Veil): ChatObserver, not Fabric's CHAT/GAME - other implementations can cancel
         // a server line via ALLOW_GAME and re-add their own copy straight to ChatComponent.
         ChatObserver.subscribe(AbilityCooldownState::onChat);
 
         // "You clicked an item just now" - the 400 ms gate that keeps a teammate's ability sound from
-        // starting your countdown (SkyHanni's ItemAbilityCooldown.onItemClick).
+        // starting your countdown (the ItemAbilityCooldown.onItemClick).
         UseItemCallback.EVENT.register((player, level, hand) -> noteOwnClick(player, level));
         UseBlockCallback.EVENT.register((player, level, hand, hitResult) -> noteOwnClick(player, level));
 

@@ -27,7 +27,7 @@ import java.util.regex.Pattern;
  * Stoneworm or a Scatha spawning from your mining) gets a title and a sound, and a movable HUD counts the 30-second spawn
  * cooldown down to "Worm ready". In the 10 seconds after that line, a nametag reading "[Lv..] Scatha" within 32 blocks
  * turns the alert into a Scatha one (each Scatha once). Game facts from hypixelskyblock.minecraft.wiki's Worm page; the
- * nametag shape follows SkyHanni's "[Lvl 100] Scatha" pet test and is unverified for the mob. Reads chat and nametags
+ * nametag shape follows the "[Lvl 100] Scatha" pet test and is unverified for the mob. Reads chat and nametags
  * only. Off by default.
  */
 public final class WormAlert {

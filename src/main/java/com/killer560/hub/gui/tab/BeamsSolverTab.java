@@ -7,7 +7,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /** Creeper Beams Solver settings - see {@link com.killer560.hub.puzzlesolvers.BeamsSolverFeature}'s
- *  class doc for the real Odin-ported lantern-pair database this is built on. */
+ *  class doc for the real lantern-pair database this is built on. */
 public class BeamsSolverTab extends BaseTab {
 
     public BeamsSolverTab() {

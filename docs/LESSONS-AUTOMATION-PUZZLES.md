@@ -37,7 +37,7 @@ The puzzle autos at run time (camera, timing, leaving, each puzzle). Part of the
 
 ## Timing and leaving
 
-- **"Click, then warp" costs one tick, not seven.** Auto Water's warp after a lever went 7 ticks late: a 200 ms gate, QUOI's
+- **"Click, then warp" costs one tick, not seven.** Auto Water's warp after a lever went 7 ticks late: a 200 ms gate, the
   2-tick sneak wait, and `RightClick.mustTurnFirst`'s turn tick. `AutoReposition` in next-tick mode puts the sneak down AND
   turns the body in the tick it starts (that tick's input and movement packets carry both, after the click), and the use
   goes the next tick; on the landing it ends at once, re-waiving the gate's teleport settle (a Hypixel landing comes a round
@@ -46,8 +46,8 @@ The puzzle autos at run time (camera, timing, leaving, each puzzle). Part of the
   ticks at the USE, the sim lands 2 ticks after the use, and the landing starts its own 6-tick settle, so Blaze, Beams and
   Ice Path shot exactly 6 ticks after each landing (93-solve-*-timing). The landing re-waives the whole settle for bow warps
   too, and a trip a puzzle auto asks the Interactive Map for (`AutoPuzzleUtil.pathIfMapOn`) waives it for its landings.
-  QUOI's 2-tick sneak wait and 2-tick wait after a landing are gone with the next-tick mode for every auto.
-- **QUOI's `at(spot)` reads an etherwarp's landing tick as "not there yet".** He lands 0.05 over the block and gravity sets
+  the 2-tick sneak wait and 2-tick wait after a landing are gone with the next-tick mode for every auto.
+- **the `at(spot)` reads an etherwarp's landing tick as "not there yet".** He lands 0.05 over the block and gravity sets
   him on it the tick after; `ceil(y - 1)` is then the block above, so every reposition saw its own arrival a tick late.
   `AutoPuzzleUtil.at` accepts up to 0.08 over the top; a look aimed on that tick is aimed from the settled standing eye
   (`settledEye`), or a small target's edge is passed by once he drops 0.05.
@@ -136,8 +136,8 @@ The puzzle autos at run time (camera, timing, leaving, each puzzle). Part of the
   carries ~1.7 blocks), so a fast path walk is a sneaking walk (~0.4 a tick), corners are turned mostly standing, a stair
   point is only passed by standing on it, and the cell path is pulled tight first. A sprint-the-straights variant failed 2
   of 4 (a 2.5-block fall, a re-plan).
-- **Three Weirdos: the auto never moved, and QUOI's reach is why it never had to** (killer560, 2026-10-15: "it cannot reach
-  the right person"). QUOI clicked every CLICK stand within 5.48 feet to feet, which from the room's middle covers all
+- **Three Weirdos: the auto never moved, and the reach is why it never had to** (killer560, 2026-10-15: "it cannot reach
+  the right person"). The reference clicked every CLICK stand within 5.48 feet to feet, which from the room's middle covers all
   three; ours is the measured 3.0 eye to box (an entity interaction), and from the Interactive Map's spot (relative 15, 68,
   22) the far weirdo is 3.26 off in every rotation (93-solve-weirdos-reach). `AutoWeirdos` moves onto the spot reaching the
   most weirdos left (then their chests) by its own next-tick etherwarp (a first hop, a walk or an Interactive Map trip when

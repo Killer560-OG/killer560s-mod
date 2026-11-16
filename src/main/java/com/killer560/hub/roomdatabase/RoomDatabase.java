@@ -27,17 +27,17 @@ import com.killer560.hub.compat.McBlocks;
 
 /**
  * The real dungeon room database (140 known rooms - names, shapes, and secret positions) - killer560's
- * "get the room database from noamm" request, for both the Live Map's room-name identification and real
+ * "get the room database from another mod" request, for both the Live Map's room-name identification and real
  * preloaded per-room Secret Waypoints.
  * <p>
  * Downloaded at runtime from {@code https://api.noamm.org/na/data/download} - the exact same public
- * endpoint NoammAddons' own client fetches this from (read directly out of their real
+ * endpoint the client fetches this from (read directly out of their real
  * {@code DataDownloader.kt}, not guessed); no authentication, so this is the same public data every
- * NoammAddons user's game already downloads, just fetched into this mod's own config folder instead of
- * bundling/redistributing a copy in this repo - it stays current the same way NoammAddons' own copy
+ * The reference user's game already downloads, just fetched into this mod's own config folder instead of
+ * bundling/redistributing a copy in this repo - it stays current the same way the copy
  * does, checked against the real version-hash endpoint before re-downloading.
  * <p>
- * Room identification itself uses NoammAddons' own real technique (from {@code ScanUtils.kt}), ported
+ * Room identification itself uses the real technique (from {@code ScanUtils.kt}), ported
  * faithfully: hash together the block at every Y level from 140 down to 12 at a room's grid position
  * (skipping a few "cosmetic variance" blocks - chests, pistons, fluids, fire, and any wood plank type -
  * by treating them as air for hashing purposes, since two copies of the same room can differ only in
@@ -219,10 +219,10 @@ public final class RoomDatabase {
         Files.deleteIfExists(zipFile);
     }
 
-    /** Real room-identification hash, ported directly from NoammAddons' own {@code ScanUtils.getCore} -
+    /** Real room-identification hash -
      *  same block-token rules, same {@code hash = hash*31 + tokenHash} accumulation, same y=140..12
      *  scan range. Kotlin's {@code String.hashCode()} on the JVM IS {@code java.lang.String.hashCode()},
-     *  so this produces byte-for-byte the same hash NoammAddons' own client computes for the same
+     *  so this produces byte-for-byte the same hash the client computes for the same
      *  blocks - no separate algorithm to get subtly wrong. */
     public static int getCore(Level level, int x, int z) {
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos(x, 0, z);
@@ -262,18 +262,18 @@ public final class RoomDatabase {
         return hash;
     }
 
-    /** Real corner/rotation detection, ported from NoammAddons' own {@code UniqueRoom.findRotation} -
+    /** Real corner/rotation detection -
      *  a room's roof always has a real {@code BLUE_TERRACOTTA} marker block at exactly one of its 4
      *  corners, whose position identifies both the corner (for secret-coordinate translation) and the
      *  room's rotation (corner index * 90 degrees). This overload checks one grid tile's own 32x32
-     *  footprint - NoammAddons' per-tile path (used by it for L-shaped rooms, and here as the fallback
+     *  footprint - the per-tile path (used by it for L-shaped rooms, and here as the fallback
      *  for any room whose full tile set isn't known yet).
      *  @return {@code [clayX, clayZ, rotationDegrees]}, or null if no corner marker was found (yet). */
     public static int[] findRotationAndCorner(Level level, int roomCenterX, int roomCenterZ, int roofHeight) {
         return findRotationAndCorner(level, roomCenterX, roomCenterZ, roomCenterX, roomCenterZ, roofHeight);
     }
 
-    /** Multi-tile version of {@link #findRotationAndCorner(Level, int, int, int)} - NoammAddons'
+    /** Multi-tile version of {@link #findRotationAndCorner(Level, int, int, int)} - the
      *  {@code UniqueRoom.findRotation} for non-L rooms: the marker sits at one of the 4 corners of the
      *  bounding box spanning every tile center of the room ({@code min - 15} / {@code max + 15}).
      *  Unloaded corners are skipped. @return {@code [clayX, clayZ, rotationDegrees]}, or null. */
@@ -322,7 +322,7 @@ public final class RoomDatabase {
     }
 
     /** @return how many grid tiles a room of this database {@code shape} ("1x1", "1x2", "1x3", "1x4",
-     *  "2x2", "L") covers - NoammAddons' {@code RoomShape.tileCount}; 4 (the largest real room) when the
+     *  "2x2", "L") covers - the {@code RoomShape.tileCount}; 4 (the largest real room) when the
      *  shape is missing or unrecognized. */
     public static int shapeTileCount(String shape) {
         if (shape == null) return 4;
@@ -334,14 +334,14 @@ public final class RoomDatabase {
         };
     }
 
-    /** Real relative-to-absolute secret coordinate transform, ported from NoammAddons' own
+    /** Real relative-to-absolute secret coordinate transform own
      *  {@code ScanUtils.getRealCoord}.
      *  <p>
      *  killer560, 2026-09-20: "white hitboxes really far away, off centered from the actual teleport maze
      *  area", plus Water Board / Boulder / Ice Path "don't appear at all" - all four at rotation 270.
      *  <b>The rotation has to be NEGATED here.</b> {@link #findRotationAndCorner} returns
-     *  {@code cornerIndex * 90} exactly like NoammAddons' {@code UniqueRoom.setRotationAndCorner}, but
-     *  NoammAddons never feeds that value straight into {@code getRealCoord} - every single call site
+     *  {@code cornerIndex * 90} exactly, but
+     *  the reference never feeds that value straight into {@code getRealCoord} - every single call site
      *  passes {@code 360 - rotation} first ({@code DungeonWaypoints.getRoomData}, {@code TrapHelper:45},
      *  and every puzzle solver: {@code WaterBoardSolver:48}, {@code IcePathSolver:44},
      *  {@code QuizSolver:52}, {@code TeleportMazeSolver:30}, {@code IceFillSolver:30}, with Boulder and
@@ -355,13 +355,13 @@ public final class RoomDatabase {
      *  {@code (rx, rz)} must land inside {@code [cx-15, cx+15] x [cz-15, cz+15]}. Raw:
      *  {@code rotate(rx, rz, 90) = (rz, -rx)}, giving {@code (cx+15+rz, cz-15-rx)} - outside the room on
      *  BOTH axes for every non-zero coordinate. Negated: {@code rotate(rx, rz, -90) = (-rz, rx)}, giving
-     *  {@code (cx+15-rz, cz-15+rx)} - which sweeps the room exactly. QUOI's independent implementation
+     *  {@code (cx+15-rz, cz-15+rx)} - which sweeps the room exactly. The independent implementation
      *  agrees: its {@code Rotations.WEST} (clay {@code +15,-15}, the same NE corner) uses
      *  {@code rotateAroundNorth = (-z, x)}, and its {@code EAST} (SW corner) uses {@code (z, -x)} - the
      *  pair we had swapped.
      *  <p>
      *  Kept as a negation at the call site rather than by renumbering the corners so the value stored by
-     *  the Live Map and printed in the logs still means the same thing as NoammAddons' {@code room.rotation}. */
+     *  the Live Map and printed in the logs still means the same thing. */
     public static BlockPos toRealCoord(RoomEntry.Pos relative, int clayX, int clayZ, int rotationDegrees) {
         BlockPos rotated = rotate(relative.x, relative.y, relative.z, -rotationDegrees);
         return rotated.offset(clayX, 0, clayZ);
@@ -388,7 +388,7 @@ public final class RoomDatabase {
         return result;
     }
 
-    /** NoammAddons' {@code ScanUtils.BlockPos.rotate}, unchanged - note {@code 90} here is a
+    /** The {@code ScanUtils.BlockPos.rotate}, unchanged - note {@code 90} here is a
      *  COUNTER-clockwise quarter turn in Minecraft's top-down frame (+x east, +z south), so callers that
      *  want "turn the room's own frame clockwise by the corner index" pass the negated angle. */
     private static BlockPos rotate(int x, int y, int z, int degrees) {

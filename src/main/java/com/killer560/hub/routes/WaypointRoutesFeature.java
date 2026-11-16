@@ -24,7 +24,7 @@ import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.compat.McRender;
 
 /**
- * Waypoint Routes - ColeWeight/SkyHanni-style ordered routes. The active route for the current Skyblock area
+ * Waypoint Routes - ColeWeight/ordered routes. The active route for the current Skyblock area
  * (tab-list "Area:" line, see {@link SkyblockArea}) renders numbered boxes, a line to the next point and
  * optionally lines between all points; walking within the route's radius of the next point advances it.
  * Visual only - never moves the camera or sends anything. Keybinds are raw-polled like the rest of this mod.

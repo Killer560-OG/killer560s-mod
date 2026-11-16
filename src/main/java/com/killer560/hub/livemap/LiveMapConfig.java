@@ -45,13 +45,13 @@ public final class LiveMapConfig {
      *  heading tick) instead of the arrow; a player whose skin is not known falls back to the arrow. Default OFF.
      *  Saved under a NEW key: the old {@code playerHeads} option was removed on 2026-09-20, and an ancient config
      *  still carrying it must not switch this on by itself.
-     *  Default ON since 2026-10-19: NoammAddons' map draws every player as their head ({@code MapRenderer.drawPlayerHead},
+     *  Default ON since 2026-10-19: the map draws every player as their head ({@code MapRenderer.drawPlayerHead},
      *  "Vanilla Head Marker" off by default). */
     private boolean playerHeads = true;
     /** Pixels per 16-unit room. The map is 116 units square (6 rooms + 5 gaps), so the HUD map is
      *  {@code 116 * roomPx / 16} pixels wide - see {@link MapPainter}. Replaced the old uniform "cellSize". */
     private int roomPx = 16;
-    /** 0 Off, 1 Checkmarks, 2 Secrets, 3 Room Name, 4 Room Name + Secrets - NoammAddons' Checkmark Style.
+    /** 0 Off, 1 Checkmarks, 2 Secrets, 3 Room Name, 4 Room Name + Secrets - the Checkmark Style.
      *  ONE setting for both maps: the Dungeon Map HUD and the Interactive Map both read this, and both settings
      *  tabs' "Room Labels" buttons write it (2026-10-05; the Interactive Map had its own copy until then). */
     private int roomLabels = 1;
@@ -59,15 +59,15 @@ public final class LiveMapConfig {
     private float peekScale = 2.0f;
 
     // ---- shared map appearance (HUD + interactive map) ----
-    // Defaults are the real dungeon map's own colors, decoded from Hypixel's MapColor bytes by NoammAddons'
+    // Defaults are the real dungeon map's own colors, decoded from Hypixel's MapColor bytes by the
     // RoomType.kt / DoorType.kt - see MapPainter. killer560, 2026-09-17: ours drew every room the same gray.
     private boolean colourByType = true;
     /** Undiscovered rooms are this much darker than their color. killer560, 2026-10-19: 0.4 made them too dark to read.
-     *  Default 0 since the NoammAddons colors (2026-10-19): the gray "?" room is then exactly NoammAddons' 65,65,65 and a
+     *  Default 0 since the reference colors (2026-10-19): the gray "?" room is then exactly the 65,65,65 and a
      *  Funny Map room he has not opened exactly its {@code darker().darker()} (see {@link MapPainter#unexploredFill}). */
     public static final float DEFAULT_DARKEN_UNOPENED = 0f;
     private float darkenUnopened = DEFAULT_DARKEN_UNOPENED;
-    /** NoammAddons' look (killer560, 2026-10-19): a faint white wash, {@code MapConfig.kt} "Map Background Color"
+    /** The look (killer560, 2026-10-19): a faint white wash, {@code MapConfig.kt} "Map Background Color"
      *  (255, 255, 255, 50), with a 1px white border ("Map Border Color", "Border Thickness" 1). Until then 60% black with
      *  the mod's orange border; {@link #migrateNoammLook} moves a file still holding those defaults. */
     public static final int DEFAULT_MAP_BACKGROUND = 0x32FFFFFF;
@@ -88,7 +88,7 @@ public final class LiveMapConfig {
     // there. In the normal map it cannot scan for mimic") ----
     private boolean funnyMap = false;
     private boolean showMimicRoom = true;
-    /** Blended over the mimic room's own color at this color's alpha; 0x33 = NoammAddons' 20% red. */
+    /** Blended over the mimic room's own color at this color's alpha; 0x33 = the 20% red. */
     private int mimicColor = 0x33FF0000;
 
     // ---- map themes (killer560, 2026-10-15, see MapThemes): Real Map, each menu preset, Match Menu Theme, Custom. The
@@ -98,17 +98,17 @@ public final class LiveMapConfig {
     private final java.util.List<MapThemes.Scheme> schemes = new java.util.ArrayList<>();
     private int activeScheme = 0;
 
-    // ---- Interactive map (QUOI InteractiveMap visuals + NoammAddons icon options) ----
+    // ---- Interactive map (the reference InteractiveMap visuals + the reference icon options) ----
     private boolean interactiveMapEnabled = false;
     private int openKeyCode = -1;
-    /** QUOI "Close on": false = Release, true = Repress. */
+    /** The reference "Close on": false = Release, true = Repress. */
     private boolean closeOnRepress = false;
     private boolean openFromHudClick = false;
-    /** QUOI "Map scale" 1..10 (default 5). */
+    /** The reference "Map scale" 1..10 (default 5). */
     private float mapScale = 5f;
-    /** QUOI "Font scale" 0.5..3. */
+    /** The reference "Font scale" 0.5..3. */
     private float fontScale = 1f;
-    /** On by default since 2026-10-19: NoammAddons draws every room name and secret count with a shadow
+    /** On by default since 2026-10-19: the reference draws every room name and secret count with a shadow
      *  ({@code Render2D.drawCenteredString}, {@code shadow = true}). */
     private boolean textShadow = true;
     /** The double amber outline round a locked wither door (killer560, 2026-09-20: "wither doors are very hard to see").
@@ -151,7 +151,7 @@ public final class LiveMapConfig {
     private boolean faceDoorOnArrival = false;
     /** killer560, 2026-09-27: "Keep the keep chunks loaded section on by default." */
     private boolean keepChunksLoaded = true;
-    /** QUOI PathSettings defaults. */
+    /** The reference PathSettings defaults. */
     private float yawStep = 6f;
     private float pitchStep = 7f;
     private double hWeight = 6.7;
@@ -234,7 +234,7 @@ public final class LiveMapConfig {
             // Migration, once (2026-10-19): a file saved with an OLD default (0.4, then 0.15, then 0.05) never picks up
             // the new one, because a saved key wins over the default - every instance he has still read 0.4, the value
             // he called too dark to read. Exactly an old default is taken as never chosen; anything else he set stays.
-            // The second flag covers files saved while 0.05 was the default (before the NoammAddons colors).
+            // The second flag covers files saved while 0.05 was the default (before the reference colors).
             boolean firstDone = ConfigJson.getBool(obj, "darkenUnopenedDefault1019", false);
             if (!ConfigJson.getBool(obj, "darkenUnopenedNoamm1019", false)
                     && ((!firstDone && (Math.abs(cfg.darkenUnopened - 0.4f) < 1e-4f
@@ -287,7 +287,7 @@ public final class LiveMapConfig {
     }
 
     /**
-     * Once (2026-10-19, the NoammAddons look): a file saved before it holds every setting, so the new defaults would never
+     * Once (2026-10-19, the reference look): a file saved before it holds every setting, so the new defaults would never
      * reach him - a saved key wins over the default, as with Darken Unexplored above. A value that is exactly an OLD
      * default is taken as never chosen and moved to the new one: the 60% black background, the orange border, Text Shadow
      * off and Player Heads off. Anything else he set stays, and the flag saved with the file stops it running again.
@@ -631,7 +631,7 @@ public final class LiveMapConfig {
         return isFunnyMap() && showMimicRoom;
     }
 
-    /** The mimic room's tint. The legit jar has no setting for it and always paints NoammAddons' 20% red. */
+    /** The mimic room's tint. The legit jar has no setting for it and always paints the 20% red. */
     public int getMimicColor() {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED ? mimicColor : 0x33FF0000;
     }

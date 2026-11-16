@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * Custom Scoreboard hooks on {@link Hud} (26.1.2 names/descriptors verified with javap):
  * <ul>
  * <li>{@code displayScoreboardSidebar(GuiGraphicsExtractor, Objective)V} - canceled while the Custom Scoreboard
- * replaces the vanilla sidebar (SkyHanni's {@code isHideVanillaScoreboardEnabled});</li>
+ * replaces the vanilla sidebar;</li>
  * <li>{@code setOverlayMessage(Component, boolean)V} - the action bar text, read by the Dungeons event.</li>
  * </ul>
  * {@code require = 0} so a mapping change only disables the hook instead of crashing the game.

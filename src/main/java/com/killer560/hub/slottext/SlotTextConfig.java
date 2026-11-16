@@ -25,7 +25,7 @@ public final class SlotTextConfig {
         }
     }
 
-    /** Left Alt, the same default Skyblocker's slot text key has. */
+    /** Left Alt, the same default the slot text key has. */
     public static final int DEFAULT_KEY = 342;
 
     private static final Path CONFIG_PATH = ModPaths.config("killer560smod-slottext.json");

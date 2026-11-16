@@ -43,7 +43,7 @@ import com.killer560.hub.compat.McCompat;
  * the moment a session's rewards are claimed.
  * <p>
  * Purely observational - never clicks, never sends anything. Every real text matched below is taken
- * from SkyHanni 7.48.0's own {@code ExperimentationTableApi} repo patterns (read out of the real jar's
+ * from the reference 7.48.0's own {@code ExperimentationTableApi} repo patterns (read out of the real jar's
  * constant pool with javap, 2026-09-15), not guessed:
  * <ul>
  *   <li>puzzle title {@code (?<type>Superpairs|Chronomatron|Ultrasequencer) \((?<tier>.*)\)}</li>
@@ -52,12 +52,12 @@ import com.killer560.hub.compat.McCompat;
  *   {@code §8 +<reward> (Stakes|Pairs)} line per reward, ending at {@code §eClick to claim rewards!}</li>
  *   <li>chat {@code You claimed the \S+ rewards!} - the session-end trigger</li>
  *   <li>chat drop lines {@code  +<reward>} (fallback if the reward screen was never seen)</li>
- *   <li>chat {@code You bought a bonus charge for the Experimentation Table! (N/3)} - SkyHanni prices
+ *   <li>chat {@code You bought a bonus charge for the Experimentation Table! (N/3)} - the reference prices
  *   charge 1/2/3 at 150/300/500 Bits ({@code ExperimentsProfitTracker.kt})</li>
  *   <li>{@code (?<amount>(?:\d+|\d+,\d+)[MBk]?) Enchanting Exp}</li>
  * </ul>
  * Superpairs' remaining clicks come from the board's slot-4 item name {@code Remaining Clicks: N}
- * (SkyHanni {@code SuperpairDataDisplay.kt}).
+ * .
  */
 public final class ExperimentsProfitTracker {
 
@@ -689,7 +689,7 @@ public final class ExperimentsProfitTracker {
      *  fixed for tooltip coloring in {@code EnchantColorsFeature#ID_TO_LORE_NAME} (id -&gt; printed name).
      *  This is that table's inverse (printed name -&gt; id), rebuilt here rather than reused because
      *  {@code ID_TO_LORE_NAME} is package-private to {@code enchantcolors} and out of scope for this file
-     *  to touch - same source list (SkyHanni's repo constants), so the two stay in sync by construction,
+     *  to touch - same source list (the repo constants), so the two stay in sync by construction,
      *  not by import. */
     private static final Map<String, String> ENCHANT_LORE_NAME_TO_ID = buildEnchantLoreNameToId();
 

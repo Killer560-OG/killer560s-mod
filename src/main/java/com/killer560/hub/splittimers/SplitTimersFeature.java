@@ -26,7 +26,7 @@ import java.util.regex.Pattern;
 import com.killer560.hub.compat.McCompat;
 
 /**
- * Per-floor dungeon split timers. The trigger lines were first ported from Odin's {@code SplitsManager.kt}; the
+ * Per-floor dungeon split timers. The trigger lines were first; the
  * LAYOUT is killer560's own (2026-10-08):
  *
  * <pre>
@@ -46,7 +46,7 @@ import com.killer560.hub.compat.McCompat;
  * than F7/M7 have one boss segment, so their boss section is a single row named after the boss (it IS the Boss row;
  * a second identical "Boss" row would only repeat it).
  *
- * <p>Each split's NAME is the segment that STARTS at its trigger line (Odin's model), so when split N's line fires
+ * <p>Each split's NAME is the segment that STARTS at its trigger line (the model), so when split N's line fires
  * the chat message is "&lt;split N-1's name&gt; took X". The run is armed on "Starting in 1 second."; Mort's line
  * starts the clock, and if Mort's line never arrives (a changed line, a late join) the clock starts one second after
  * the arming line, the moment Mort normally speaks. A missed boundary line leaves its row out and the segment before
@@ -62,12 +62,12 @@ public final class SplitTimersFeature {
     record SplitDef(Pattern pattern, String label) {
     }
 
-    // Odin SplitsManager.MORT_REGEX: the run's first line. Starts "Blood Open".
+    // The reference SplitsManager.MORT_REGEX: the run's first line. Starts "Blood Open".
     private static final SplitDef RUN_START = def(
             "^\\[NPC\\] Mort: (?:Here, I found this map when I first entered the dungeon\\.|Right-click the Orb for spells, and Left-click \\(or Drop\\) to use your Ultimate!)$",
             "§2Blood Open");
     /** The blood door opening: the Watcher's greeting (one per floor) or Hypixel's own door line. Starts "Watcher".
-     *  Odin SplitsManager.BLOOD_OPEN_REGEX. */
+     *  the reference SplitsManager.BLOOD_OPEN_REGEX. */
     static final SplitDef BLOOD_OPENED = def(
             "^\\[BOSS\\] The Watcher: (Congratulations, you made it through the Entrance\\.|Ah, you've finally arrived\\.|Ah, we meet again\\.\\.\\.|Ah, we meet again\\. As I foresaw\\.\\.\\.|So you made it this far\\.\\.\\. interesting\\.|You've managed to scratch and claw your way here, eh\\?|I'm starting to get tired of seeing you around here\\.\\.\\.|Oh\\.\\. hello\\?|Things feel a little more roomy now, eh\\?)$|^The BLOOD DOOR has been opened!$",
             "§cWatcher");
@@ -77,7 +77,7 @@ public final class SplitTimersFeature {
     /** The run's end line. Ends the last boss segment, the Boss row and the Total. */
     private static final SplitDef TOTAL = def(
             "^\\s*☠ Defeated (.+) in 0?([\\dhms ]+?)\\s*(\\(NEW RECORD!\\))?$", "§eTotal");
-    /** Devonian WatcherSplits: the line the blood mobs start on - only Watcher Move's clock reads it. */
+    /** The reference WatcherSplits: the line the blood mobs start on - only Watcher Move's clock reads it. */
     static final Pattern WATCHER_FIGHT = Pattern.compile(
             "^\\[BOSS\\] The Watcher: Let's see how you can handle this\\.$");
 
@@ -165,7 +165,7 @@ public final class SplitTimersFeature {
     }
 
     private static RunState run = new RunState();
-    /** Client ticks left before the end-of-run summary prints (Odin: {@code schedule(10)}); -1 = none. */
+    /** Client ticks left before the end-of-run summary prints ({@code schedule(10)}); -1 = none. */
     private static int finishDelayTicks = -1;
     private static List<Component> pendingFinishMessages = List.of();
 
@@ -173,7 +173,7 @@ public final class SplitTimersFeature {
     }
 
     public static void register() {
-        // ChatObserver, not Fabric CHAT/GAME: Odin/NoammAddons/Skyblocker can cancel a server line via
+        // ChatObserver, not Fabric CHAT/GAME: other implementations can cancel a server line via
         // ALLOW_GAME and re-add their own copy straight to ChatComponent, which Fabric listeners never see.
         // Every trigger is a full-line match of a server-format line, so a player's chat line can't match.
         ChatObserver.subscribe(SplitTimersFeature::onChatMessage);
@@ -193,7 +193,7 @@ public final class SplitTimersFeature {
 
     private static void tick() {
         Minecraft client = Minecraft.getInstance();
-        // Odin resets its splits on LevelEvent.Load - same here, on any real level change.
+        // The reference resets its splits on LevelEvent.Load - same here, on any real level change.
         if (client.level != lastLevel) {
             if (lastLevel != null) {
                 resetAll();
@@ -326,7 +326,7 @@ public final class SplitTimersFeature {
             client.player.sendSystemMessage(tookLine);
             return;
         }
-        // Odin's finishRun: the summary is snapshotted now and printed 10 ticks later, after Hypixel's own. It is the
+        // The finishRun: the summary is snapshotted now and printed 10 ticks later, after Hypixel's own. It is the
         // HUD's layout line for line (dividers left out), then the optional extra blocks.
         List<Component> lines = new ArrayList<>();
         lines.add(tookLine);
@@ -485,7 +485,7 @@ public final class SplitTimersFeature {
     /** "3.35s": lag is always shown in seconds. */
     static String lagSeconds(long ms) { return String.format(Locale.US, "%.2fs", SplitTimersConfig.shown(ms) / 1000.0); }
 
-    /** Odin's Utils.formatTime(time, 2): "1h 2m 3.45s" (to the nearest 0.05 s with Tick Counting). */
+    /** The Utils.formatTime(time, 2): "1h 2m 3.45s" (to the nearest 0.05 s with Tick Counting). */
     static String formatTime(long timeMs) {
         if (timeMs == 0L) return "0s";
         long remaining = SplitTimersConfig.shown(timeMs);

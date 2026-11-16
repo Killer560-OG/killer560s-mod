@@ -18,19 +18,19 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Real Hypixel dungeon "Creeper Beams" puzzle solver, ported from Odin's own {@code BeamsSolver.kt}. A
+ * Real Hypixel dungeon "Creeper Beams" puzzle solver. A
  * fixed real list of candidate Sea Lantern position pairs is bundled
- * ({@code assets/killer560smod/puzzles/creeper-beams-solutions.json}, copied verbatim from Odin); a pair is
+ * ({@code assets/killer560smod/puzzles/creeper-beams-solutions.json}); a pair is
  * "active" right now only when BOTH of its real positions currently hold a real Sea Lantern block (the
  * player redirects the real beam by rotating panes elsewhere in the room, which changes which lanterns
  * light up). Active pairs get matching-colored boxes and an optional connecting tracer line.
  * <p>
- * Unlike Odin's own block-update-event-triggered recalculation (which needs a real event this codebase
+ * Unlike the block-update-event-triggered recalculation (which needs a real event this codebase
  * doesn't have yet), this simply re-scans the small fixed candidate list every tick while in the room -
  * self-healing the instant a pane rotation changes which lanterns are lit, at a fraction of the cost of
  * Boulder Solver's own per-tick floor scan, so no new mixin/event infrastructure was needed for this one.
  * Carries the same real cross-mod corner/rotation-convention risk as Boulder/Quiz/Ice Fill/Water Board
- * (see TESTING.md Round 76) since the candidate positions are Odin's own bundled fixed relative data.
+ * (see TESTING.md Round 76) since the candidate positions are the bundled fixed relative data.
  */
 public final class BeamsSolverFeature {
 
@@ -121,7 +121,7 @@ public final class BeamsSolverFeature {
     private static void tick(Minecraft client) { tickInner(client); }
 
     private static void tickInner(Minecraft client) {
-        // Boss check: NoammAddons e42d3316 "reset when entering boss" (2026-09-14 port).
+        // Boss check: the reference e42d3316 "reset when entering boss" (2026-09-14 port).
         if (!BeamsSolverConfig.getInstance().isEnabled() || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
             if (!"none".equals(LOG.roomKey)) {
                 LOG.room("none", "solver idle: enabled=" + BeamsSolverConfig.getInstance().isEnabled()

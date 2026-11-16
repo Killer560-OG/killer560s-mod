@@ -4,7 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * "Show earned/lost" - SkyHanni's {@code CustomScoreboardNumberTrackingElement} / SkyBlock Custom Scoreboard's
+ * "Show earned/lost" - the {@code CustomScoreboardNumberTrackingElement} / SkyBlock Custom Scoreboard's
  * {@code NumberTrackingElement}: when a tracked number (purse, bits, ...) changes, a " (+N)" is drawn after its line
  * for 5 seconds (changes inside that window add up, like the standalone mod), fading out over the last second. A value
  * not seen for {@link #FORGET_MS} (island without that line, profile switch) is re-baselined instead of producing one

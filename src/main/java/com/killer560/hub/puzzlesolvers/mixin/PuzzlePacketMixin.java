@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 /** Read-only packet observation for the puzzle solvers/autos. javap-checked against the 26.1.2 merged jar: both
  *  handlers start with {@code PacketUtils.ensureRunningOnSameThread(packet, this, minecraft.packetProcessor())}, so
  *  the hooks sit right AFTER that call - main thread only, before vanilla applies the packet (the player's bounding
- *  box is still the pre-teleport one, as QUOI's Teleport Maze logic expects). Never cancels. {@code require = 0}.
+ *  box is still the pre-teleport one Teleport Maze logic expects). Never cancels. {@code require = 0}.
  *  <p>
  *  Guarded (2026-09-20): an exception out of a clientbound packet handler is not just a log line -
  *  {@code ClientCommonPacketListenerImpl.onPacketError} disconnects the client with

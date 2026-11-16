@@ -17,7 +17,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>The island comes from {@link IslandDetector}, which {@code pathfinding.PathfindingFeature} ticks for everyone, so
  * nothing here needs its own read of the tab's "Area:" line. The widgets ("Commissions:", "Crystals:", "Powders:" -
- * SkyHanni's {@code TabWidget} names) are read from the tab list in the order the tab list draws it ({@link TabOrder}):
+ * The {@code TabWidget} names) are read from the tab list in the order the tab list draws it ({@link TabOrder}):
  * a widget is its header line followed by the indented lines under it, up to the next blank or unindented line.
  * They are re-read twice a second while on a mining island, so a HUD drawing every frame never walks the tab list.
  */

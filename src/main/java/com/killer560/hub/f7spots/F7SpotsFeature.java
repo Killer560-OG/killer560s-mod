@@ -12,7 +12,7 @@ import com.killer560.hub.util.ModLog;
  * <ul>
  * <li>{@link WalkWaypoint} - killer560's own "walk here" positions per phase/floor, box + beam + label + distance
  * ({@link F7SpotsRenderer}). Added in-game with "Add Waypoint Here" or by hand-editing the JSON.</li>
- * <li>{@link AimSpot} - aim markers per situation and per class; only NoammAddons' arrow-stack points ship
+ * <li>{@link AimSpot} - aim markers per situation and per class; only the arrow-stack points ship
  * built in ({@link AimSpots}), everything else is killer560's to fill in.</li>
  * </ul>
  * <b>2026-09-21:</b> Storm's crush timer/pad highlight used to live here too ({@code CrushTimer}) - killer560

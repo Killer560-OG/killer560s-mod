@@ -15,22 +15,22 @@ import net.minecraft.world.phys.AABB;
 import java.util.regex.Pattern;
 
 /**
- * Real F7/M7 Necron P4 platform highlight, ported from QUOI's own {@code P4PlatformHighlight.kt} - "the
+ * Real F7/M7 Necron P4 platform highlight - "the
  * 3x3 the player needs to break and the mod will highlight the blocks" (killer560's own description).
  * Real mechanic: after Goldor dies, the real core entrance opens and the boss arena drops you onto a
  * fixed platform above Necron's real Stage 5 room; the player has to mine through a specific real 3x3
  * (a fixed, arena-locked area - it never rotates or moves like the earlier F7 puzzle rooms do) to fall
  * into the fight. This just draws a box over that real fixed area so it's obvious which blocks to break.
  * <p>
- * Stage tracking: QUOI's own {@code Floor7.kt} explicitly avoids matching Goldor's death line directly
+ * Stage tracking: the {@code Floor7.kt} explicitly avoids matching Goldor's death line directly
  * ("we don't use goldor's death message, since it could be dialogue skipped") and instead starts Stage 5
  * on the real "The Core entrance is opening!" chat line - the same real line this codebase's own
  * {@code TickTimersFeature}/{@code SplitTimersFeature} already use for the exact same reason. This
- * highlight turns off again on the real "[BOSS] Necron: All this, for nothing..." line, which is QUOI's
+ * highlight turns off again on the real "[BOSS] Necron: All this, for nothing..." line, which is the
  * own real Phase 5 (post-platform) trigger - by that point the platform's already been broken.
  * <p>
  * killer560, 2026-09-20: "p4 platform highlight doesn't work". Three things were wrong, none of them the
- * coordinates (byte-verified identical to QUOI's own {@code healerBox}): the chat listener ignored the
+ * coordinates (byte-verified identical to the {@code healerBox}): the chat listener ignored the
  * Core line while the setting was off, so enabling it mid-fight could never arm it; the whole feature
  * hung on that one line, so a run where it never arrived (rejoin, hidden/skipped dialogue, or dropping
  * straight onto the platform - which is exactly what this repo's own F7 log shows) drew nothing at all;
@@ -62,7 +62,7 @@ public final class P4PlatformHighlightFeature {
     public static void register() {
         // Shared solver highlight pipelines must exist before the level renderer precompiles them.
         SolverEspRender.init();
-        // ChatObserver, not Fabric CHAT/GAME: Odin/NoammAddons/Skyblocker can cancel a server line via
+        // ChatObserver, not Fabric CHAT/GAME: other implementations can cancel a server line via
         // ALLOW_GAME and re-add their own copy straight to ChatComponent, which Fabric listeners never see.
         // Triggers here are exact/anchored server-format lines, so this mod's own client-side messages (which
         // ChatObserver also delivers) can't match. Overlay (action bar) lines are not delivered - none needed.
@@ -138,7 +138,7 @@ public final class P4PlatformHighlightFeature {
         if (!cfg.isEnabled() || !shouldShow() || !DungeonState.isF7OrM7() || client.level == null) return;
         // Through SolverEspRender, not WorldRenderUtils: this box sits exactly on the faces of the very
         // blocks it outlines, so depth-tested it z-fights into nothing and is completely hidden the moment
-        // you stand on the platform - which is the only time you want to see it. QUOI, the mod this was
+        // you stand on the platform - which is the only time you want to see it. The reference, the mod this was
         // ported from, ships its highlights with the "Depth check" switch off for the same reason.
         if (cfg.isFilled()) {
             SolverEspRender.renderFilledBox(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.P4_PLATFORM, context, PLATFORM_BOX, 0.2f, 1.0f, 1.0f, 0.35f);

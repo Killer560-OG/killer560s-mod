@@ -18,8 +18,8 @@ import java.util.UUID;
 /** Expands the interaction hitbox of levers/buttons/chests/skulls (Wither Essence) so they're easier to
  *  click - killer560's explicit request (2026-09-09), building on the roadmap's "Full Block" item. Ported
  *  from BOTH real reference mods, cross-checked against each other (decompiled via CFR/javap, 2026-09-09):
- *  quoi's own {@code FullBlock}/{@code ButtonBlockMixin}/{@code ChestBlockMixin}/{@code LeverBlockMixin}/
- *  {@code SkullBlockMixin}/{@code WallSkullBlockMixin}, and NoammAddons' own {@code Secrets}/
+ *  another mod's own {@code FullBlock}/{@code ButtonBlockMixin}/{@code ChestBlockMixin}/{@code LeverBlockMixin}/
+ *  {@code SkullBlockMixin}/{@code WallSkullBlockMixin}, and the {@code Secrets}/
  *  {@code MixinButtonBlock}/{@code MixinLeverBlock}/{@code MixinSkullBlock}. Both mods independently
  *  arrived at the same core trick for every block that has REAL solid collision (chests, skulls) -
  *  {@link com.killer560.hub.secrets.mixin.BlockBehaviourMixin} - that cross-confirmation is why it's
@@ -35,7 +35,7 @@ import java.util.UUID;
  *  <li>"Dungeons Only" (all 4 types) - only expand while actually inside a Catacombs/Master Mode run,
  *  not just anywhere on those servers.
  *  <li>"Boss Only" (Levers/Buttons only) - only expand during the real F7/M7 boss fight specifically.
- *  This is this mod's own answer to the same real edge case NoammAddons solves with a per-floor lever
+ *  This is this mod's own answer to the same real edge case the reference solves with a per-floor lever
  *  blacklist (some F7 puzzle levers need their real narrow hitbox to avoid misclicks) - instead of
  *  maintaining a blacklist of known-precise lever positions, Boss Only simply never touches ANY lever
  *  outside the boss fight, sidestepping the whole problem.
@@ -106,19 +106,19 @@ public final class SecretsFeature {
         return cfg.isMasterEnabled() && cfg.isEssenceEnabled() && isOnDungeonServer() && passesDungeonsOnlyGate(cfg);
     }
 
-    // Real player-head skin profile IDs for Wither Essence, per NoammAddons' own DungeonUtils.isSecret
+    // Real player-head skin profile IDs for Wither Essence own DungeonUtils.isSecret
     // (decompiled 2026-09-09) - a skull-type block on Hypixel is a real vanilla SkullBlock/WallSkullBlock
     // using a custom player-skin texture, not a distinct block type of its own, so the ONLY reliable way
     // to tell Wither Essence apart from any other decorative skull in a dungeon room is this skin check.
-    // Missed on the first pass (quoi's own SkullBlockMixin/WallSkullBlockMixin expand every skull
-    // unconditionally, no skin check) - caught cross-referencing NoammAddons specifically, per
+    // Missed on the first pass (another mod's own SkullBlockMixin/WallSkullBlockMixin expand every skull
+    // unconditionally, no skin check) - caught cross-referencing the reference specifically, per
     // killer560's "double check you missed nothing important" follow-up request.
     private static final Set<UUID> WITHER_ESSENCE_PROFILE_IDS = Set.of(
             UUID.fromString("2865274b-3097-394e-8149-ec629c72d850"),
             UUID.fromString("e0f3e929-869e-3dca-9504-54c666ee6f23")
     );
 
-    /** The Redstone Key's skin profile id - QUOI {@code Dungeon.REDSTONE_KEY}, also dungeonalerts.SecretSound's. */
+    /** The Redstone Key's skin profile id - the reference {@code Dungeon.REDSTONE_KEY}, also dungeonalerts.SecretSound's. */
     private static final UUID REDSTONE_KEY_PROFILE_ID = UUID.fromString("fed95410-aba1-39df-9b95-1d4f361eb66e");
 
     /** A skull wearing the Redstone Key's skin - by profile id, like {@link #isWitherEssence}, so no decorative head counts. */
@@ -149,7 +149,7 @@ public final class SecretsFeature {
         return inDungeon;
     }
 
-    // Ported 1:1 from quoi's own ButtonBlockMixin (its real hardcoded per-face shapes, 2026-09-09) - the
+    // Ported 1:1 from another mod's own ButtonBlockMixin (its real hardcoded per-face shapes, 2026-09-09) - the
     // "Flat" option: wider than vanilla's real narrow button hitbox (covers the whole attached face) but
     // still thin (an eighth-block deep), unlike the "Full Box" option which is the entire 1x1x1 cube.
     public static final VoxelShape BUTTON_FLOOR_SHAPE = Shapes.box(0.0, 0.0, 0.0, 1.0, 0.125, 1.0);

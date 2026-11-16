@@ -27,7 +27,7 @@ import java.util.regex.Matcher;
  * (killer560, 2026-09-30: "a legit metal detector setting that just does the calculations and shows waypoint with a
  * line to it"; docs/MINING-PLAN.md section 3).
  *
- * <p>How it reads the game, all from Skyblocker's {@code MetalDetector} (a local reference copy): the readout
+ * <p>How it reads the game, all from the {@code MetalDetector} (a local reference copy): the readout
  * {@code §3§lTREASURE: §b37.4m} on the action bar; the mines' center from any "Keeper of ..." armor stand within 500
  * blocks; a reading is used only once the same number arrives twice from the same spot (the bar lags behind movement);
  * "You found" in chat means the chest was taken and the next one is a new search. {@link MetalDetectorSolver} does the

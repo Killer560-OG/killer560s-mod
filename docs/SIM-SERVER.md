@@ -15,7 +15,7 @@ Part of the sim docs: [SIM.md](SIM.md).
   `MEASURED_MAX_ENTITY_REACH` in `CheatUtilsConfig` are the single places those live. The entity figure was re-measured
   at 0.1 resolution (scenario 85, player placed rather than walked): **3.00 draws no flag, 3.10 does**, so 3.0 is exactly
   on the edge. 4.50 to the box is 5.08 to the CENTER, which is why a center-measured 4.5 limit silently refuses
-  legitimate blocks. The 2026-09-29 audit found 22 sites with their own number, all inherited from QUOI (6.0 in the
+  legitimate blocks. The 2026-09-29 audit found 22 sites with their own number, all inherited from the reference (6.0 in the
   puzzle chest auras and Auto Croesus, 5.48 in Weirdos/Water/Tic Tac Toe/Auto Routes, 4.0 for a terminal - an ENTITY
   click, so 3.0 - 4.7 for essence skulls, and clamps at 5.5 and 6.0 that let a saved config keep an unsafe value after
   the default moved). All now derive from the constants.
@@ -122,7 +122,7 @@ fallback for a room the database does not know.
 ## Weapons and items
 
 - **Launch items and no knockback** (simitems-1105): Bonzo's Staff, the Jerry-chine Gun and Spring Boots are answered in
-  `roomsim/SimLaunchItems` on the sim server (ADM's numbers: Bonzo one balloon per 4 ticks, 0.75 a tick from feet + 1 +
+  `roomsim/SimLaunchItems` on the sim server (the measured numbers: Bonzo one balloon per 4 ticks, 0.75 a tick from feet + 1 +
   0.2 look, bursting inside a block, within 3.5 of feet + 1.5 his motion becomes 1.5 flat away and 0.5 up; Jerry 3 a tick,
   bullet k at feet + 1.1 + (0.25 + 0.75 k) look, within 4 of feet + 1.62 motion 0.5 flat away and 0.6 up; Spring Boots a
   note every 3 ticks of sneak on the ground, 44 at most, release launches him to `SpringBootsOverlay.heightFor(n)`).
@@ -248,7 +248,7 @@ Two sim options of the sim's own data (`roomsim/SimLiveMobs`), off unless asked 
   (0.06 an axis) and fly 1.02 a tick to ~29.6 blocks; what Auto Clear does about that, and the Tomioka stand block with
   no etherwarp out, are in [LESSONS-AUTOMATION.md](LESSONS-AUTOMATION.md) ("Auto Clear kill speed").
 
-## A floor with mobs: keys, wither doors and Fels (2026-11-01, doc-adm-sim-1101)
+## A floor with mobs: keys, wither doors and Fels (2026-11-01, doc-sim-1101)
 
 `roomsim/SimMobFloor` (the Map Designer's Mobs button, `SimMenuPrefs.mobs`; `/simmobs on|off`). Off, nothing changes.
 - **The plan** is made in `SimRun.autoStart` (floor published, before the countdown), from `DungeonLayout.capture()`: the
@@ -280,7 +280,7 @@ Two sim options of the sim's own data (`roomsim/SimLiveMobs`), off unless asked 
 - **Fels** (`SimMobs.spawnFel`): an invisible MARKER armor stand (no hitbox) wearing a wither skeleton skull, stood
   `SKULL_DROP` (1.4375) into the floor so the skull lies on it; a starred one also gets, from the start, an invisible,
   invulnerable, NoAI enderman under its star tag (`SimEnderman.dormant`), as Hypixel's dormant Fel is an enderman under its
-  tag (adm/Odin notes). Within `FEL_WAKE_RADIUS` (9) of the skull the skull goes and the enderman shows (or an unstarred one
+  tag (recorded notes). Within `FEL_WAKE_RADIUS` (9) of the skull the skull goes and the enderman shows (or an unstarred one
   is placed), named Dinnerbone (upside down by vanilla's name rule), tag hidden. Log `[Sim] Fel woke at ...`.
 - **`setInvisible(true)` on a mob lasts one tick**: `LivingEntity.updateInvisibilityStatus` (javap 26.2, 26.3) sets it to
   `hasEffect(INVISIBILITY)` whenever effects are re-read, so the sleeping Fel showed and Auto Clear shot a mob nothing could

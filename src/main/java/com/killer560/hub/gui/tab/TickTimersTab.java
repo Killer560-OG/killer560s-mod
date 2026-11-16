@@ -15,7 +15,7 @@ import java.util.function.Consumer;
 import com.killer560.hub.compat.McCompat;
 
 /** Tick Timers settings - see {@link com.killer560.hub.ticktimers.TickTimersFeature}'s class doc for
- *  the real Odin-ported chat triggers/tick counts this is built on.
+ *  the real chat triggers/tick counts this is built on.
  *  <p>
  *  <b>2026-09-21:</b> Storm's pad highlight moved here from the F7 Spots tab - killer560: "Move them to Tick Timers. One
  *  home per timer." <b>2026-11-02:</b> Storm has one line ("Storm Line", {@code ticktimers.StormLine}); the
@@ -67,7 +67,7 @@ public class TickTimersTab extends BaseTab {
         widgets.add(onOffButton("Show Total", cfg::isGoldorShowTotal, cfg::setGoldorShowTotal, cfg::save,
                 null, col1, y, 108, 18));
 
-        // NoammAddons 1.2.9 floor7/TickTimers.kt "Maxor Start" - in the slot the removed clear Death Tick had.
+        // The reference 1.2.9 floor7/TickTimers.kt "Maxor Start" - in the slot the removed clear Death Tick had.
         widgets.add(onOffButton("Maxor Start", cfg::isMaxorStartTimer, cfg::setMaxorStartTimer, cfg::save,
                 null, col3, y, 108, 18));
         y += 26;

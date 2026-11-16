@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * One rendered Custom Scoreboard line (legacy {@code §} text) and its alignment - SkyHanni's {@code ScoreboardLine},
+ * One rendered Custom Scoreboard line (legacy {@code §} text) and its alignment - the {@code ScoreboardLine},
  * plus the number helpers from its {@code CustomScoreboardUtils}. Optional extras:
  * <ul>
  * <li>{@code hover}/{@code command} - SkyBlock Custom Scoreboard's {@code LineActions}: tooltip lines and a command run
@@ -55,7 +55,7 @@ public record ScoreboardLine(String text, Align align, List<String> hover, Strin
         return out;
     }
 
-    /** SkyHanni's {@code CustomScoreboardUtils.formatNumberDisplay}. */
+    /** The {@code CustomScoreboardUtils.formatNumberDisplay}. */
     public static String formatNumberDisplay(String text, String number, String color) {
         return switch (CustomScoreboardConfig.getInstance().getNumberDisplayFormat()) {
             case TEXT_COLOR_NUMBER -> "§f" + text + ": " + color + number;
@@ -65,7 +65,7 @@ public record ScoreboardLine(String text, Align align, List<String> hover, Strin
         };
     }
 
-    /** SkyHanni's {@code formatStringNum}: re-formats a scoreboard number (long = separators, short = 1.2M).
+    /** The {@code formatStringNum}: re-formats a scoreboard number (long = separators, short = 1.2M).
      *  Anything that doesn't parse is returned unchanged. */
     public static String formatStringNum(String raw) {
         if (raw == null) return "0";
@@ -126,7 +126,7 @@ public record ScoreboardLine(String text, Align align, List<String> hover, Strin
         return d != null && d == 0;
     }
 
-    /** "4d 12h" style, at most {@code maxUnits} non-zero units (SkyHanni {@code Duration.format(maxUnits)}). */
+    /** "4d 12h" style, at most {@code maxUnits} non-zero units. */
     public static String formatDuration(long millis, int maxUnits) {
         if (millis < 1000) return "0s";
         long s = millis / 1000;

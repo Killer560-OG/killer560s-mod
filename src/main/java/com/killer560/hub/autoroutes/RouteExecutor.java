@@ -1747,7 +1747,7 @@ public final class RouteExecutor {
         Vec3 rel = RouteCoords.toRelative(frame, pos);
 
         if (path.isEmpty()) {
-            // No recorded movement: QUOI-style, the next node fires when the player walks into its ring.
+            // No recorded movement: the next node fires fires when the player walks into its ring.
             clearMovement();
             if (walkHoldYaw != null) {
                 tickWalkHold(player);
@@ -2279,7 +2279,7 @@ public final class RouteExecutor {
             ownTeleportUntil = Math.max(ownTeleportUntil, execTicks + 3); // a late duplicate of the landing packet
         }
         AutoRoutesConfig cfg = AutoRoutesConfig.getInstance();
-        // Release the camera as soon as the node is done. Without this a QUOI-style path-less route (nodes
+        // Release the camera as soon as the node is done. Without this a path-less route (nodes
         // only, no recorded walk) kept pulling the view back to the finished node's yaw every frame while
         // the player tried to walk to the next one themselves (2026-09-16 review).
         RouteRotation.clear();
@@ -3751,7 +3751,7 @@ public final class RouteExecutor {
                 turnBody(player, player.getYRot() + Mth.wrapDegrees(warpYaw - player.getYRot()),
                         Mth.clamp(warpPitch, -90f, 90f));
             }
-            // QUOI ClearExecutor's rule, kept: never use before the SERVER has the sneak, or the warp is a plain AOTV
+            // The reference ClearExecutor's rule, kept: never use before the SERVER has the sneak, or the warp is a plain AOTV
             // hop. lastSentInput is what the last ServerboundPlayerInputPacket said, and that packet was sent before
             // anything this tick sends, so the server applies the sneak first (handlePlayerInput -> setShiftKeyDown).
             // No round trip to wait for.
@@ -4047,8 +4047,8 @@ public final class RouteExecutor {
      * tick N, the use at N+2). Measured on Hypixel (Mod Only Test and Untested Cheat, 2026-10-19, every warp with an unpaired
      * AOTV click before it): one tick after the click 45 of 69 warps got no teleport at all, two ticks after 1 of 7, three or
      * more 0 of about 250; after a click made with a different item (Dungeon Breaker, Superboom) 3 of 3 landed one tick on.
-     * Each refusal then cost the refused-warp wait (7-10 ticks with this jar, up to 22 before). QUOI holds every node 2 ticks
-     * after a secret click ({@code AutoRoutes.kt:148-151, 217}) and RSA resumes at N+2 ({@code AutoRoutes.java:183, 393,
+     * Each refusal then cost the refused-warp wait (7-10 ticks with this jar, up to 22 before). The reference holds every node 2 ticks
+     * after a secret click ({@code AutoRoutes.kt:148-151, 217}) and the reference resumes at N+2 ({@code AutoRoutes.java:183, 393,
      * 472}). So the second tick is the first one Hypixel reliably takes: "the first physically possible tick".
      */
     static final long CLICK_TO_WARP_TICKS = 2;
@@ -5707,13 +5707,13 @@ public final class RouteExecutor {
             stepTicks = 0; // the first block goes now, on the tick the charges are there
         }
         if (step == Step.DO) {
-            // QUOI's DungeonBreakerAction: one block per tick, each a start-prediction START_DESTROY_BLOCK and a swing.
+            // The DungeonBreakerAction: one block per tick, each a start-prediction START_DESTROY_BLOCK and a swing.
             // Obvious mode turns the body (camera held) to the block a tick AHEAD of its dig and every dig carries the
             // face the eye sees, because GrimAC checks both (RotationBreak, PositionBreakA; util/DigAim).
             // ONE block a tick at most (gridexp-1102, multibreak-1102): GrimAC's experimental MultiBreak flags a second
             // dig on another block (or face) before the server's next tick packet, and a client sends one tick packet a
             // tick (util/DigWindow). Breaker Aura's Multi Break (ON) breaks the node's blocks back to back, one every tick
-            // in both modes (QUOI's and RSA's own pace, BreakerNode.kt / BreakNode.java); OFF, legit mode waits its
+            // in both modes (the pace, BreakerNode.kt / BreakNode.java); OFF, legit mode waits its
             // Interact Delay between blocks as before.
             boolean legitMode = AutoRoutesConfig.getInstance().isLegitMode();
             boolean multi = com.killer560.hub.dungeonextras.DungeonExtrasConfig.getInstance().isBreakerAuraAnyMultiBreak();
@@ -5916,7 +5916,7 @@ public final class RouteExecutor {
             } else if (redigStanding(client, player, node)) {
                 // A dig the server did not take (a block still standing a round trip after its dig): sent again. The
                 // route never moves on past a standing block (killer560, 2026-10-19: "No Dungeon Breaker block may ever
-                // be left unbroken"); RSA's BreakNode re-mines whatever still stands every tick (BreakNode.java:100).
+                // be left unbroken"); the BreakNode re-mines whatever still stands every tick (BreakNode.java:100).
                 logHold("breakredig:" + traceIndex(node), "node {} DUNGEON_BREAKER: re-dug a block still standing a round "
                         + "trip after its dig ({} of {} gone, {} tick(s))", nodeTag(node), gone, breakerSent.size(), stepTicks);
             } else if (stepTicks > BREAKER_TIMEOUT + serverLagTicks()) {
@@ -6488,7 +6488,7 @@ public final class RouteExecutor {
 
     /** Legit: a real right click at the live (already turned) rotation - for a use-item node the block in the
      *  crosshair first like vanilla (a recorded lever/chest click replays as one), then the item; an etherwarp is
-     *  QUOI's plain {@code gameMode.useItem}. Obvious: the body turned to the target (camera held, see
+     *  the plain {@code gameMode.useItem}. Obvious: the body turned to the target (camera held, see
      *  {@link #turnBody}) and the use packet sent with that same rotation. */
     static void useHeldItem(Minecraft client, LocalPlayer player, float targetYaw, float targetPitch,
                             boolean blockInteraction) {

@@ -10,16 +10,16 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Announces every Spirit Leap to Party Chat, per killer560's request - the part of Noamm's Leap Menu
+ * Announces every Spirit Leap to Party Chat, per killer560's request - the part of the Leap Menu
  * he actually wanted (its "Announce Leap"/"Leap Message" sub-feature), not the whole custom menu.
- * Detected off Hypixel's own "You have teleported to X!" chat line (the exact string Noamm's own
- * CC0 {@code LeapMenu.kt} matches on - confirmed, not guessed). Two independent message types,
+ * Detected off Hypixel's own "You have teleported to X!" chat line (the exact string
+ * other leap menus match on - confirmed, not guessed). Two independent message types,
  * each with its own toggle - if both are on, both get sent:
  * <ul>
  *   <li>Leaping To - a custom, user-typed message ({@link LeapMessageConfig#getCustomMessage()}),
  *   with any {@code {name}} in it replaced by the target's IGN. Sent first.</li>
  *   <li>Cringe - runs this mod's own random cringe-line generator (the actual reason this feature
- *   exists: Noamm's own leap-message setting can only send fixed text, it has no way to invoke a
+ *   exists: the leap-message setting can only send fixed text, it has no way to invoke a
  *   different mod's command, which is what killer560 originally tried and couldn't get working). Sent
  *   after Leaping To if both are on.</li>
  * </ul>

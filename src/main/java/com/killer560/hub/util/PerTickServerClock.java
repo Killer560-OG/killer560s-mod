@@ -10,7 +10,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
  * <p>
  * <b>hypixel.net (tickfix3-1104).</b> Hypixel sends one ping a tick whose id steps by one (-642, -643, -644, ...) and,
  * between them, pings with random ids (his 2026-11-04 log, "first ping ids": [-642, -643, -26967, -380, -9038, -644]):
- * about 1.13 non-zero pings per 50 ms of wall time over a 48 s Goldor phase. Odin and NoammAddons count every non-zero ping;
+ * about 1.13 non-zero pings per 50 ms of wall time over a 48 s Goldor phase. Other implementations count every non-zero ping;
  * here only the CHAIN counts ({@link #chain}), from the first ping after a join, with no trust to earn: the clock is trusted
  * at once. The chain is not one a tick either (goldor2-1104): his census lines read 0.99 to 1.18 CHAIN pings per 50 ms (the
  * extra transactions step the same counter), and his mask procs fell on exact 60-tick multiples of WALL time while the chain
@@ -199,7 +199,7 @@ public final class PerTickServerClock {
             boolean inChain = id != 0 && chain(id);
             census(id, inChain, nanos);
             if (id == 0) {
-                return; // not a tick anywhere (Odin, NoammAddons)
+                return; // not a tick anywhere
             }
             rawPings++;
             windowPings++;

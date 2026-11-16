@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Carry Tracker (featG-1109; Athen's carrier tool): when a dungeon run ends with a tracked player in the party, that player's
+ * Carry Tracker (featG-1109; the carrier tool): when a dungeon run ends with a tracked player in the party, that player's
  * run count goes up by one and the run goes in a history. Both are RECORDS ({@link RecordCatalog#CARRY}, per account in the shared
  * store, so two instances add to the same count). Everything that touches the disk runs on {@link SharedWriter}'s one thread;
  * the tab reads the in-memory copy, which is empty until {@link #warm} has loaded the file.

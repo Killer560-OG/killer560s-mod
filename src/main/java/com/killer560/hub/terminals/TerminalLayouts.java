@@ -45,7 +45,7 @@ public final class TerminalLayouts {
     public static final int MELODY_BUTTON_COLUMN = 7;
 
     /** The button slots used only when a Melody board shows no terracotta button at all (a board that has not
-     *  populated yet): the assumed layout's. 16/25/34 for the new board is NoammAddons 1.2.9 MelodyTerminal's
+     *  populated yet): the assumed layout's. 16/25/34 for the new board is the reference 1.2.9 MelodyTerminal's
      *  {@code claySlots} (its "remove 43" todo applied for 0.27.2). */
     private static final int[] LEGACY_MELODY_BUTTONS = ASSUME_NEW_LAYOUT ? new int[]{16, 25, 34} : new int[]{16, 25, 34, 43};
 

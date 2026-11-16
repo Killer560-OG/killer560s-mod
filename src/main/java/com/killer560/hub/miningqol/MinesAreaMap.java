@@ -15,14 +15,14 @@ import java.util.concurrent.ConcurrentHashMap;
  * Which Dwarven Mines area a BLOCK is in (killer560, 2026-11-03: "make it so its not based off of my location but the
  * blocks location. otherwise i can stand in one zone but the blocks are in another").
  *
- * <p>Source: SkyHanni-REPO's {@code constants/island_graphs/DWARVEN_MINES.json}, the navigation graph the mod already
+ * <p>Source: the public {@code constants/island_graphs/DWARVEN_MINES.json}, the navigation graph the mod already
  * downloads for pathfinding ({@link GraphRepository}). Its nodes tagged {@code area} carry an area name ("Upper Mines",
- * "Rampart's Quarry", ... or "no_area") and sit in pairs on either side of every way from one area into the next. SkyHanni
- * names the player's area the same way ({@code IslandAreaBackend.updateNodes}: the area node with the fastest path from the
+ * "Rampart's Quarry",... or "no_area") and sit in pairs on either side of every way from one area into the next. The player's
+ * area is named the same way ({@code IslandAreaBackend.updateNodes}: the area node with the fastest path from the
  * player's nearest node). Here every node gets the area of the area node it reaches fastest (one multi-source Dijkstra over
  * the graph, edges taken both ways), and a block takes the area of the nearest node within {@link #RADIUS} blocks. A block
  * with no node that near, or whose node is "no_area", has no area here ({@link #areaAt} returns null) and the caller falls
- * back to the player's own area. No hand-made boxes: when SkyHanni's file changes, the map follows on its next download.
+ * back to the player's own area. No hand-made boxes: when the file changes, the map follows on its next download.
  *
  * <p>Thread-safe: the chunk mesher asks from its worker threads. Answers are cached per chunk section (one byte per block,
  * filled as blocks are asked about), held by the map they were read from, so a new graph starts a new cache.
@@ -135,7 +135,7 @@ public final class MinesAreaMap {
             }
             seedArea[i] = k == null ? 0 : (byte) (k + 1);
         }
-        // Edges both ways (a few of SkyHanni's are one-way drops; an area does not stop at one).
+        // Edges both ways (a few of the reference are one-way drops; an area does not stop at one).
         List<List<double[]>> adj = new ArrayList<>(n);
         for (int i = 0; i < n; i++) {
             adj.add(new ArrayList<>());

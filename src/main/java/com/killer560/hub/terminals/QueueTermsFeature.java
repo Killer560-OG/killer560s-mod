@@ -10,7 +10,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Queue Terms (Nebulune, cheat build, default OFF): in Panes, Rubix, Numbers, Starts With and Select, a click of yours on a
+ * Queue Terms (cheat build, default OFF): in Panes, Rubix, Numbers, Starts With and Select, a click of yours on a
  * right slot that comes while an earlier click still waits for the server's answer is held, and goes out one per update: the
  * first frame no click of ours is unanswered, through Auto Terminals' own pacing (the tick's one {@link ActionGate}
  * interaction, {@link TerminalSolverFeature#sendTerminalClick}, the shared pending-click set that confirms it). So fast

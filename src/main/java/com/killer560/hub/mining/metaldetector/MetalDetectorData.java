@@ -11,9 +11,9 @@ import java.util.regex.Pattern;
  *
  * <p>killer560 (2026-09-30): "there needs to be a legit metal detector setting that just does the
  * calculations and shows waypoint with a line to it", and "you should be able to reference tons of other
- * mods for how they calculate the metal detector". He named SkyHanni and Skyblocker.
+ * mods for how they calculate the metal detector". He named other implementations.
  *
- * <p><b>Where these numbers come from.</b> Every value here was read out of Skyblocker's own
+ * <p><b>Where these numbers come from.</b> Every value here was read out of the
  * {@code MetalDetector} class in {@code skyblocker-6.4.1+1.21.11.jar} on 2026-09-30 - the two patterns, the
  * four Keeper offsets and all 42 candidate chest offsets - by disassembling its static initialiser and
  * parsing the pushed constants programmatically rather than transcribing them by eye. Forty-two triples read
@@ -100,7 +100,7 @@ public final class MetalDetectorData {
     /**
      * How far a candidate's distance may differ from the readout and still be kept.
      *
-     * <p>Skyblocker's own figure. The readout is rounded to one decimal place, so an exact comparison would
+     * <p>the figure. The readout is rounded to one decimal place, so an exact comparison would
      * discard the right answer; a quarter of a block covers that rounding without being loose enough to keep
      * two candidates that a single reading should have separated.
      */

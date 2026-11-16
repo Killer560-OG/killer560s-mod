@@ -22,8 +22,8 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Hypixel dungeon "Teleport Maze" solver, ported from QUOI {@code puzzlesolvers/impl/TeleportMazeSolver.kt} (modified
- * OdinFabric {@code TPMazeSolver.kt}). The room has 7 cells of 4 end-portal-frame pads plus a start and end pad. Every
+ * Hypixel dungeon "Teleport Maze" solver (a modified
+ * common solver). The room has 7 cells of 4 end-portal-frame pads plus a start and end pad. Every
  * server teleport ({@link ClientboundPlayerPositionPacket}) to an x.5/69.5/z.5 position marks the pads touched as
  * visited, and the landing rotation is ray-tested (XZ, 32 blocks) against every unvisited pad's 1x4x1 column inflated
  * 0.75: the pads still intersecting the look ray are the candidates for the real exit. Candidates render green (one) /
@@ -45,7 +45,7 @@ public final class TeleportMazeSolverFeature {
             {15, 69, 14}, // end
             {15, 69, 12}, // start
     };
-    private static final int CELL_COUNT = 7; // first 28 pads, 4 per cell, in the same order as QUOI's cells list
+    private static final int CELL_COUNT = 7; // first 28 pads, 4 per cell, in the same order cells list
 
     private static RoomEntry lastRoomEntry = null;
     private static Set<BlockPos> tpPads = new LinkedHashSet<>();
@@ -160,7 +160,7 @@ public final class TeleportMazeSolverFeature {
             return;
         }
         float yaw = packet.change().yRot();
-        // The landing's own block, a quarter block either way. QUOI's box started AT the landing (x.5) and ran one
+        // The landing's own block, a quarter block either way. The box started AT the landing (x.5) and ran one
         // block on, inflated by one: x-0.5 .. x+2.5 of the pad's block - which takes in the pad two blocks over in +x
         // or +z. The maze has eleven such pairs, every one across a wall into the next chamber ((4,12)/(4,14),
         // (10,20)/(10,22), ...), so landing on one marked its neighbor visited too and reported the wrong landing
@@ -275,8 +275,8 @@ public final class TeleportMazeSolverFeature {
         return null;
     }
 
-    /** QUOI {@code isXZInterceptable}: does the look ray (packet yaw/pitch, {@code range} blocks) cross one of the
-     *  box's x or z faces; only the x/z of each intercept is tested, exactly like QUOI. */
+    /** The reference {@code isXZInterceptable}: does the look ray (packet yaw/pitch, {@code range} blocks) cross one of the
+     *  box's x or z faces; only the x/z of each intercept is tested, exactly. */
     private static boolean isXZInterceptable(AABB box, double range, Vec3 pos, float yaw, float pitch) {
         Vec3 look = getLook(yaw, pitch);
         Vec3 start = pos;

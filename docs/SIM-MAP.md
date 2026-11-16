@@ -57,7 +57,7 @@ and the database says `2x2`, so no footprint mismatch either. Likeliest reading:
   ticks must publish its own "still steering" flag: `isBusy()` is false for the whole wait by design, and Auto Routes'
   interlock 5 reads exactly that, so a node underfoot would arm in the gap and steer against the warp about to start.
   `InteractiveMapFeature.isSteering()` is that flag.
-- **Hops chain one a tick from the predicted landing** (QUOI's design; a 20-warp path takes one second). In the sim each
+- **Hops chain one a tick from the predicted landing** (the design; a 20-warp path takes one second). In the sim each
   etherwarp hop goes through `SimAbilities.etherwarpAlong`, which resolves on the integrated server from the server's own
   copy of him with the planner's ray (`TeleportUtils.getLook` + `traverseVoxels`, sneaking eye 1.27), as Hypixel does.
   (Earlier the sim resolved from the CLIENT player, who had not moved yet - "no etherwarp target there" in bursts - and the
@@ -79,10 +79,10 @@ and the database says `2x2`, so no footprint mismatch either. Likeliest reading:
   - The planner thread's result is handed back even on an `Error` (catching only `RuntimeException` left `pathPending`
     set for good); a search that does not answer in 10 s is dropped with a message.
   - Log lines: `[Path] running N warp(s) from ... to ...` and `[Path] off the plan: ...`. Every wait names itself.
-  - **On Hypixel** the same: an etherwarp is answered by one position packet to the landing (what QUOI's executor syncs
+  - **On Hypixel** the same: an etherwarp is answered by one position packet to the landing (what the executor syncs
     on), so a correct path confirms hop by hop, and a lagback or refused warp stops the chain within a tick or a second.
 - `AutoClearUtils.canPath` must not test a room NAME for "Trap" once `isTrap` has read the database: Arrow Trap is NORMAL,
-  and the leftover QUOI rule made every map press from its back half silently do nothing (99-sim-arrowtrap, 2026-10-14).
+  and the leftover the reference rule made every map press from its back half silently do nothing (99-sim-arrowtrap, 2026-10-14).
   Nodes in a trap, a maze or Boulder may be landed on but never warped from (`canPath`'s rooms).
 
 ## Etherwarp onto the roof, and what the interactive map actually needs
@@ -105,9 +105,9 @@ within 5 blocks in its room.
 
 ## Aims and the landing height ("off by one")
 
-Two causes. The planner stood him at block top + 1.05 (QUOI's Hypixel number) while the sim stood him at + 1.0, so every
+Two causes. The planner stood him at block top + 1.05 (the Hypixel number) while the sim stood him at + 1.0, so every
 sim hop was aimed from an eye 0.05 too high; the sim now lands at + 1.05 too and the planner uses that one value. And
-QUOI's aim points are mostly 0.001 from a block's edge, with its top-center point exactly ON the top face, which the voxel
+The aim points are mostly 0.001 from a block's edge, with its top-center point exactly ON the top face, which the voxel
 walk files under the air block above, so a ray grazing an edge flips to the neighbor on any rounding.
 `getEtherwarpDirection` aims at face centers first and returns an aim only after casting the real float yaw/pitch for
 exactly the hop range and seeing it land on the block. Hop range is the held item's 57 + tuners, minus one block, at most

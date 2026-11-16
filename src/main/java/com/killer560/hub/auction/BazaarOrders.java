@@ -27,10 +27,10 @@ import java.util.regex.Pattern;
 /**
  * The player's own Bazaar orders, read client-side from Hypixel's Manage Orders menu. Hypixel's public API has no
  * per-player Bazaar orders, so this is the only source: whenever the menu is open (titled {@code Your Bazaar Orders},
- * or {@code Co-op Bazaar Orders} on a co-op - SkyHanni's {@code BazaarApi.kt} and Skyblocker's {@code BazaarHelper}
+ * or {@code Co-op Bazaar Orders} on a co-op - and the {@code BazaarHelper}
  * both match exactly these), its order items are parsed by {@link BazaarOrderParser} and REPLACE the stored set for
  * the current profile, because that menu lists every order. The per-order {@code Order options} menu (title from
- * SkyHanni's list, unverified layout) only updates orders it shows and never removes one.
+ * The list, unverified layout) only updates orders it shows and never removes one.
  * <p>
  * READ ONLY: nothing here clicks, and nothing is sent. A parse failure is swallowed per item, and the whole read is
  * inside a try, so it can never throw into the tick that calls it. Stored per profile ({@link ProfileTracker#key()})
