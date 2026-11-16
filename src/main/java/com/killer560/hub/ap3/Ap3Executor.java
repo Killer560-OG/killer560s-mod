@@ -2113,7 +2113,13 @@ public final class Ap3Executor {
         // packet had said he faces the stand, and after testkit 415's Hitboxes flag GrimAC let none of those reach
         // the server (416, 2026-10-07). Now: turned move, interact, turned move, then the body is given back - the
         // order Terminal Aura's own Turn To Terminal sends (414).
-        if (actNode.type == Ap3Node.Type.TERM_AURA && termAuraTurnTick >= 0L && tickCounter <= termAuraTurnTick) {
+        boolean turned = actNode.type == Ap3Node.Type.TERM_AURA && termAuraTurnTick >= 0L;
+        // His attack while the body is turned to the stand is GrimAC Hitboxes on what his crosshair is on (it judges his
+        // hit by this tick's movement packet, which still carries the turn): it waits until the body is given back.
+        if (turned && ActionGate.hisClickQueued(client.options.keyAttack)) {
+            holdHisHand(client);
+        }
+        if (turned && tickCounter <= termAuraTurnTick) {
             return;
         }
         // His own click, dig or use held the act back last tick: this tick it goes and his hand waits (holdHisHand).
@@ -3209,6 +3215,12 @@ public final class Ap3Executor {
      *  later" - so the retry is two ticks apart, and the node gives up after a few rather than spamming interacts. */
     private static final int TERM_AURA_TRIES = 3;
     private static final int TERM_AURA_GAP = 2;
+    /** Ticks after a click before its retry: the round trip ({@link #placedGraceTicks}, which adds 2) plus 4 for the
+     *  server's own wait before the window opens (3 ticks in the S4 sim trace) - an earlier retry turned the body and
+     *  armed a second click while the first window was still on its way (ap3termdouble-1115). */
+    private static int termAuraRetryTicks() {
+        return placedGraceTicks() + 4;
+    }
     private static int termAuraTries;
     private static int termAuraGap;
 
@@ -3220,6 +3232,8 @@ public final class Ap3Executor {
     private static net.minecraft.client.gui.screens.Screen termAuraScreen;
     /** The click part of the running Term Aura node is over (opened, gave up, nothing in range): it only brakes now. */
     private static boolean termAuraClickDone;
+    /** {@link #tickCounter} of the last Term Aura click (a new run waits out its window open before clicking). */
+    private static long termAuraSentTick = -100L;
 
     /** The click part is over: from here the node is a STOP - it ends once the slide has died out (see tickStop). */
     private static void termAuraFinish(LocalPlayer player) {
@@ -3243,7 +3257,7 @@ public final class Ap3Executor {
         if (step == Step.PREP) {
             step = Step.DO;
             termAuraTries = 0;
-            termAuraGap = 0;
+            termAuraGap = (int) Math.max(0L, termAuraSentTick + termAuraRetryTicks() - tickCounter); // a second run inside the first click's wait
             termAuraClickDone = false;
         }
         // It stops him like a STOP (killer560, 2026-11-01): the held walk ended when it began (keepsHold false), nothing
@@ -3311,12 +3325,14 @@ public final class Ap3Executor {
         actSlot = -1;
         actFired = false;
         actWaitTicks = 0;
-        termAuraGap = TERM_AURA_GAP;
+        // The retry waits for the open to come back (termAuraRetryTicks, never the old 2): a retry armed while the first
+        // open is still on its way replaced the terminal window and stopped AP3 on "a screen opened" (ap3termdouble-1115).
+        termAuraGap = termAuraRetryTicks();
     }
 
     /** The armed Term Aura click, at START (from {@link #tickStart}, which has asked the ActionGate). */
     private static void fireTermAura(Minecraft client, LocalPlayer player) {
-        actSentTick = tickCounter;
+        actSentTick = termAuraSentTick = tickCounter;
         net.minecraft.world.entity.decoration.ArmorStand stand = termAuraStand;
         termAuraStand = null;
         if (stand != null && !com.killer560.hub.terminalaura.TerminalAuraFeature.clickNow(client, player, stand,
