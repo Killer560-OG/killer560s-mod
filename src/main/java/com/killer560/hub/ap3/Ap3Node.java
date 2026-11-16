@@ -292,11 +292,9 @@ public final class Ap3Node {
      *  1-4 = held by the node gate until P3 section n is complete this run (leveraura.P3SectionTracker#sectionDone),
      *  wherever he stands; 0 = none. */
     public int sectionDone;
-    /** Modifier on ANY node ({@code crystals:<n>}, killer560 2026-11-09): 1 or 2 = held by the node gate until that many End
-     *  Crystals newly appear within {@link #CRYSTAL_WAIT_RANGE} blocks of him after the wait began (a placed Energy
-     *  Crystal); 0 = none. Saved as "crystalWait". */
+    /** Modifier on ANY node ({@code crystals:<n>}, killer560 2026-11-09): 1 or 2 = held by the node gate until that many Maxor
+     *  crystal PHASES are complete this run (each ends on its "2/2 Energy Crystals are now active!" line); 0 = none. Saved as "crystalWait". */
     public int crystalWait;
-    public static final double CRYSTAL_WAIT_RANGE = 5.0;
     /**
      * Modifier on ANY node ({@code ss}): the node fires only once Simon Says is done this run. killer560 (2026-10-18):
      * "For ap3 add a ss trailer that will only trigger that node after ss finishes just like close is after a term

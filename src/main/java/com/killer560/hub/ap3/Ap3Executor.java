@@ -388,7 +388,6 @@ public final class Ap3Executor {
             droppedGate = leapGate; // a left click while he still stands in its box fires it (takeLeapGateClick)
         }
         leapGate = null;
-        gateCrystalSeen.clear();
         leapCleared.clear();
         triggeredAt.clear();
         chargeAlignPulled.clear();
@@ -1426,7 +1425,7 @@ public final class Ap3Executor {
         leapGateArrived = Math.max(leapGateArrived, leapGate.leapCounter);
         gateCloseDone = true;
         gateSectionSkipped = true;
-        gateCrystalCount = Math.max(gateCrystalCount, leapGate.crystalWait);
+        gateCrystalSkipped = true;
         if (leapGate.sectionDone > 0) {
             LOGGER.info("[AP3] section gate: {} #{} sectiondone:{} skipped by left click", leapGate.type.label(),
                     number(leapGate), leapGate.sectionDone);
@@ -1577,36 +1576,12 @@ public final class Ap3Executor {
         return next;
     }
 
-    /** The crystal suffix: End Crystal entity ids seen when the wait began (or counted since), and how many were new. */
-    private static final Set<Integer> gateCrystalSeen = new HashSet<>();
-    private static int gateCrystalCount;
+    /** The crystal suffix: a left click on the wait sets it; the finished phases come from MaxorCrystalsFeature (one "2/2 Energy Crystals are now active!" line each). */
+    private static boolean gateCrystalSkipped;
 
-    /** Wait begins: every crystal standing within 32 blocks is "already there" and never counts. */
-    private static void crystalSnapshot(Minecraft client, LocalPlayer player) {
-        gateCrystalSeen.clear();
-        gateCrystalCount = 0;
-        if (leapGate == null || leapGate.crystalWait == 0 || client.level == null) {
-            return;
-        }
-        for (net.minecraft.world.entity.boss.enderdragon.EndCrystal c : client.level.getEntitiesOfClass(
-                net.minecraft.world.entity.boss.enderdragon.EndCrystal.class, player.getBoundingBox().inflate(32))) {
-            gateCrystalSeen.add(c.getId());
-        }
-    }
-
-    /** Each END while a crystal wait holds: an End Crystal not seen before within 5 blocks (3D) counts once. */
-    private static void countCrystals(Minecraft client, LocalPlayer player) {
-        if (client.level == null) {
-            return;
-        }
-        double r = Ap3Node.CRYSTAL_WAIT_RANGE;
-        for (net.minecraft.world.entity.boss.enderdragon.EndCrystal c : client.level.getEntitiesOfClass(
-                net.minecraft.world.entity.boss.enderdragon.EndCrystal.class, player.getBoundingBox().inflate(r))) {
-            if (c.position().distanceToSqr(player.position()) <= r * r && gateCrystalSeen.add(c.getId())) {
-                gateCrystalCount++;
-                LOGGER.info("[AP3] crystal gate: a crystal appeared ({}/{})", gateCrystalCount, leapGate.crystalWait);
-            }
-        }
+    private static boolean crystalsOk(Ap3Node node) {
+        return node.crystalWait == 0 || gateCrystalSkipped || testMode
+                || com.killer560.hub.maxor.MaxorCrystalsFeature.phasesDone() >= node.crystalWait;
     }
 
     private static void engageLeapGate(Ap3Node node, LocalPlayer player) {
@@ -1619,7 +1594,7 @@ public final class Ap3Executor {
         gateCloseDone = node.closeGate && reached != null && lastTerminalCloseTick >= reached;
         gateSectionSkipped = false;
         gateSectionLogged = false;
-        crystalSnapshot(Minecraft.getInstance(), player);
+        gateCrystalSkipped = false;
         lastPositions.clear();
         counted.clear();
         Minecraft client = Minecraft.getInstance();
@@ -1671,11 +1646,6 @@ public final class Ap3Executor {
                 }
             }
         }
-        if (testMode) {
-            gateCrystalCount = node.crystalWait;
-        } else if (node.crystalWait > 0 && gateCrystalCount < node.crystalWait) {
-            countCrystals(client, player);
-        }
         boolean sectionOk = node.sectionDone == 0 || gateSectionSkipped
                 || com.killer560.hub.leveraura.P3SectionTracker.sectionDone(node.sectionDone);
         if (node.sectionDone > 0 && sectionOk && !gateSectionSkipped && !gateSectionLogged) {
@@ -1686,9 +1656,8 @@ public final class Ap3Executor {
                     com.killer560.hub.leveraura.P3SectionTracker.sectionTotal());
         }
         if (leapGateArrived >= node.leapCounter && (!node.closeGate || gateCloseDone) && sectionOk
-                && gateCrystalCount >= node.crystalWait) {
+                && crystalsOk(node)) {
             leapGate = null;
-            gateCrystalSeen.clear();
             droppedGate = null;
             leapCleared.add(node);
             queue.add(0, node);

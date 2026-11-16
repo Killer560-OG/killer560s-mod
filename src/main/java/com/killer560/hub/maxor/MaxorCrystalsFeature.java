@@ -92,6 +92,8 @@ public final class MaxorCrystalsFeature {
     private static int tickTimer = -1;
     private static int activeCrystals = 0;
     private static int totalCrystals = 0;
+    /** Crystal phases finished this world: each phase ends on its own "2/2 Energy Crystals are now active!" line. */
+    private static int phasesDone = 0;
     /**
      * Server ticks left before the "Active" counter gives up waiting for the next set and drops to 0 on its own; -1 when
      * no laser line is pending. Armed by the stun line whatever the Respawn Timer switch says. The real signal is the
@@ -134,6 +136,7 @@ public final class MaxorCrystalsFeature {
         tickTimer = -1;
         activeCrystals = 0;
         totalCrystals = 0;
+        phasesDone = 0;
         nextSetTicks = -1;
     }
 
@@ -200,6 +203,8 @@ public final class MaxorCrystalsFeature {
         return MaxorConfig.getInstance().isActiveCounterEnabled() && totalCrystals > 0 && inP1();
     }
 
+    public static int phasesDone() { return phasesDone; }
+
     public static int[] activeCounter() { return new int[]{activeCrystals, totalCrystals}; }
 
     private static void onChat(Component message) {
@@ -232,6 +237,7 @@ public final class MaxorCrystalsFeature {
         if (active.matches()) {
             activeCrystals = Integer.parseInt(active.group(1));
             totalCrystals = Integer.parseInt(active.group(2));
+            if (totalCrystals > 0 && activeCrystals == totalCrystals) phasesDone++;
         }
     }
 

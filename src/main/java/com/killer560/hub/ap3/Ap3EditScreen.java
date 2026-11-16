@@ -298,7 +298,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
             // Crystal: the Spring Boots height in blocks, as /ap3 add crystal <n>; blank = the crystal above the node.
             cells.add(field("Crystal height", "Height", 38));
         }
-        // The crystals:<n> suffix (2026-11-09): Off / 1 / 2 End Crystals placed within 5 blocks before the node fires.
+        // The crystals:<n> suffix (2026-11-09): Off / 1 / 2 Maxor crystal phases complete this run before the node fires.
         cells.add((cx, cy, cw) -> cycleButton(crystalLabel(), (b, dir) -> {
             crystalWait = SettingsButtonWidget.step(crystalWait, dir, 3);
             b.setMessage(Component.literal(crystalLabel()));
@@ -510,7 +510,7 @@ public class Ap3EditScreen extends Screen implements MenuThemedScreen {
     }
 
     private String crystalLabel() {
-        return "Wait For Crystal: \u00a76" + (crystalWait == 0 ? "off" : String.valueOf(crystalWait));
+        return "After Crystal Phases: \u00a76" + (crystalWait == 0 ? "off" : String.valueOf(crystalWait));
     }
 
     /** BLINK_CHARGE: the plain stop instead of frozen momentum ({@link Ap3Node#blinkStop}). */

@@ -143,7 +143,7 @@ public final class Ap3Commands {
             "blinkrelease", "crystal");
     /** Modifiers offered after any {@code /ap3 add <type>}. */
     private static final List<String> COMMON_MODS = List.of("w1", "l1", "wait:", "precise", "jump", "edge", "ss", "close",
-            "leapcounter:", "sectiondone:");
+            "leapcounter:", "sectiondone:", "crystals:");
     /** Extra words {@code /ap3 add path} takes: the speed window, the heading and the terminal stop. */
     private static final List<String> PATH_MODS =
             List.of("start", "end", "1", "2", "3", "4", "exact", "speed:", "dir:", "dirtol:", "term");
@@ -593,7 +593,7 @@ public final class Ap3Commands {
         for (String[] line : EDIT_HELP) {
             ModChat.send(FEATURE, ModChat.value(line[0]), ModChat.dim(" - " + line[1]));
         }
-        ModChat.send(FEATURE, ModChat.dim("Modifiers after any /ap3 add: w<n> l<n> (trigger box in blocks), wait:<ms>, precise, ss, close (after a terminal is closed), sectiondone:<1-4> (after that P3 section is done),"
+        ModChat.send(FEATURE, ModChat.dim("Modifiers after any /ap3 add: w<n> l<n> (trigger box in blocks), wait:<ms>, precise, ss, close (after a terminal is closed), sectiondone:<1-4> (after that P3 section is done), crystals:<1-2> (after that many Maxor crystal phases are complete),"
                 + " leapcounter:<n> (wait for n leaps; only aligns run meanwhile)."));
         ModChat.send(FEATURE, ModChat.dim("<n> is the node's number from /ap3 list and its world label (first node = 1)."));
     }
@@ -722,8 +722,8 @@ public final class Ap3Commands {
                         return null;
                     }
                     spec.sectionDone = sec;
-                } else if (t.matches("(crystals|crystal_wait|cw)[:=]\\d+")) {
-                    // killer560 (2026-11-09): wait for 1 or 2 End Crystals to be placed within 5 blocks.
+                } else if (t.matches("(crystals|crystal_wait|cw|cr)[:=]\\d+")) {
+                    // killer560 (2026-11-09): wait until 1 or 2 Maxor crystal phases are complete this run.
                     int cw = Integer.parseInt(t.substring(t.indexOf(t.contains(":") ? ':' : '=') + 1));
                     if (cw < 1 || cw > 2) {
                         ModChat.send(FEATURE, ModChat.bad("crystals takes 1 or 2, not " + cw + "."));
@@ -811,7 +811,7 @@ public final class Ap3Commands {
                     spec.name = raw;
                 } else {
                     ModChat.send(FEATURE, ModChat.bad("Unknown modifier "), ModChat.value(raw),
-                            ModChat.text(" for " + type.label() + " - w<n> l<n>, wait:<ms>, precise, ss, close, sectiondone:<1-4>, leapcounter:<n>"
+                            ModChat.text(" for " + type.label() + " - w<n> l<n>, wait:<ms>, precise, ss, close, sectiondone:<1-4>, crystals:<1-2>, leapcounter:<n>"
                                     + (type == Ap3Node.Type.LEAP ? ", a class, ign <name>" : "")
                                     + (type == Ap3Node.Type.LEAP_COUNTER ? ", a count" : "")
                                     + (type.usesBlinkTicks() ? ", a tick count 1-" + Ap3Node.MAX_BLINK_TICKS : "")
