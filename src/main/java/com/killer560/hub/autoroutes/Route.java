@@ -79,7 +79,9 @@ public final class Route {
             return stack;
         }
         // Only the unbroken run of same-tile nodes in PATH order around the trigger: a later return to the tile is a new stack.
+        // A path arrival fires nothing and breaks no run: it is left out here and joins its own tile's stack below.
         List<RouteNode> ordered = nodesInPathOrder();
+        ordered.removeIf(n -> n != trigger && isArrival(n));
         int at = ordered.indexOf(trigger);
         if (at >= 0) {
             int lo = at;
@@ -91,6 +93,11 @@ public final class Route {
                 hi++;
             }
             stack.addAll(ordered.subList(lo, hi + 1));
+            for (RouteNode n : nodes) {
+                if (n != trigger && isArrival(n) && n.sameTile(trigger)) {
+                    stack.add(n);
+                }
+            }
         }
         if (!stack.contains(trigger)) {
             stack.add(trigger); // not (or no longer) in the list: it still fires itself
@@ -103,11 +110,15 @@ public final class Route {
         return stack;
     }
 
+    private boolean isArrival(RouteNode node) {
+        return node.type == RouteNode.Type.PATH && pathOrdinal(node) >= 0 && !isPathSource(node);
+    }
+
     /** {@link RouteNode#stackRank} doubled, except a path arrival, which fires nothing and goes in between: after
      *  everything that acts standing still (its await then still holds only the movers), before the etherwarp, path,
      *  jump and walk that move him off its tile. */
     int fireRank(RouteNode node) {
-        if (node.type == RouteNode.Type.PATH && pathOrdinal(node) >= 0 && !isPathSource(node)) {
+        if (isArrival(node)) {
             return 2 * RouteNode.MOVER_RANK - 1;
         }
         return 2 * node.stackRank();

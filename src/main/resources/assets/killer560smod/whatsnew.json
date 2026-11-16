@@ -12,7 +12,8 @@
      "Auto Clear no longer etherwarps again and again to a spot no trip lands on (it walks there or moves on); Autopilot's Blood First stops picking a door it cannot reach; an Auto Routes secret wait on a route Auto Secret drives goes on after 2 s when nothing in reach could still count; the Auto Water reward chest waits for the real unlock signal instead of clicking every 4 ticks for seconds (cheat)",
      "Lever Aura and AP3 lever flicks never move your camera: the body turns to the lever for the server and your view stays put. (mod branch is based on ap3leveralways-1115: ship that line first)",
      "Auto Routes: an item secret that lies near a chest you opened earlier is counted again, so a route no longer stalls waiting for it",
-     "Terminals no longer close the moment they open after a Fast Leap"
+     "Terminals no longer close the moment they open after a Fast Leap",
+     "Auto Routes: a route that comes back to an earlier tile fires the nodes in order; path arrivals still stack with their own tile's nodes"
     ]
    }
   ]
