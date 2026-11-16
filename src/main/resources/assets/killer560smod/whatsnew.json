@@ -22,7 +22,8 @@
      "Auto Routes: Master Mode One Try makes crypt, Mimic and Prince kill steps use one ability and move on in a Master Mode floor, and Skip Kills skips them.",
      "Dungeon sim: new Sim Armor setting wears four pieces of Terror (Hydra Strike always at 10 stacks, two extra arrows plus damage and arrow speed bonuses) or Thermodynamic (Attack Speed at the raised cap), saved with the loadout",
      "Treasure Chest Alert now only sounds and shows in the Crystal Hollows.",
-     "Auto Routes: a saved path warp that can no longer go from its spot (a block now in its line, or its landing block gone for a second) is planned again from where you stand and flown, instead of waiting for a left click; stepping back onto a warp spot no longer stalls 2 s after landing"
+     "Auto Routes: a saved path warp that can no longer go from its spot (a block now in its line, or its landing block gone for a second) is planned again from where you stand and flown, instead of waiting for a left click; stepping back onto a warp spot no longer stalls 2 s after landing",
+     "Blink Charge no longer draws an anticheat flag when a lag release of its held answers lands in the same tick as Zero Ping Etherwarp Aimed Warps."
     ]
    }
   ]

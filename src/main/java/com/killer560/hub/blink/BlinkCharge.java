@@ -1433,7 +1433,8 @@ public final class BlinkCharge {
             return;
         }
         synchronized (LOCK) {
-            if (!stalled && lastPingMs > 0 && System.currentTimeMillis() - lastPingMs > STALL_MS && tpSegs.isEmpty()) {
+            if (!stalled && lastPingMs > 0 && System.currentTimeMillis() - lastPingMs > STALL_MS && tpSegs.isEmpty()
+                    && !tickOpen) { // never mid-tick: answers after his use and before the tick's move are GrimAC Post (zpew-aimed-same-swap)
                 stalled = true;
                 stallsSeen++;
                 int n = releaseAnswersLocked();
