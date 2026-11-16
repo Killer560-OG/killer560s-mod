@@ -236,3 +236,4 @@ and Auto Clear are in [LESSONS-AUTOCLEAR.md](LESSONS-AUTOCLEAR.md). Problem, the
   while `RouteExecutor.sceptreReaches` says its bat gets there, in every room (killer560, 2026-10-17); obvious mode uses
   only once the server has heard the look. Testkit 96-ar-1017-mimicaim (main: 51 down, no kill; branch: 2 down, 3 aimed,
   killed), 62-argrim-1017-mimicaim.
+- Auto Routes await chest clicks (arawait-1116): `AwaitEvents.notASecretItem` treats an item made near a chest click as that chest's loot, but only within `CHEST_DROP_WINDOW_MS` (2 s) of the click; before, up to 64 clicks lived forever, so in the sim (every room at one world spot) or beside any old chest an item secret was never counted and the route stalled. A hx session mixing a new case with 1101-dhud-chestdrop hung once on both versions before any test line (Fabric test-thread phase deadlock) and passed on rerun. Testkit 1116-ar-await-*.

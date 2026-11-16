@@ -700,11 +700,17 @@ public final class AwaitEvents {
     private static final long LOCKED_WINDOW_MS = 1500L;
     /** An item made after a chest click, this close to the chest, is what came out of the chest. */
     static final double CHEST_DROP_RANGE = 4.5;
+    /** A chest's loot appears within about a second of the click; later items are secrets, not loot. */
+    static final long CHEST_DROP_WINDOW_MS = 2000L;
 
     private static void noteChestClick(Minecraft client, BlockPos pos) {
         if (chestClicksLevel != client.level) {
             chestClicks.clear();
             chestClicksLevel = client.level;
+        }
+        long now = System.currentTimeMillis();
+        while (!chestClicks.isEmpty() && now - chestClicks.peekFirst().atMs() > CHEST_DROP_WINDOW_MS) {
+            chestClicks.pollFirst();
         }
         int max = 0;
         for (Entity e : client.level.entitiesForRendering()) {
@@ -731,8 +737,9 @@ public final class AwaitEvents {
             return "'" + name + "' is not a dungeon secret item";
         }
         if (chestClicksLevel == Minecraft.getInstance().level) {
+            long now = System.currentTimeMillis();
             for (ChestClick c : chestClicks) {
-                if (item.getId() > c.maxEntityId()
+                if (now - c.atMs() <= CHEST_DROP_WINDOW_MS && item.getId() > c.maxEntityId()
                         && item.position().distanceTo(Vec3.atCenterOf(c.pos())) <= CHEST_DROP_RANGE) {
                     return "'" + name + "' came out of the chest at " + c.pos().toShortString();
                 }
@@ -763,6 +770,11 @@ public final class AwaitEvents {
     }
 
     private static int lockedChests;
+
+    /** For the testkit: chest clicks currently kept. */
+    static int chestClickCount() {
+        return chestClicksLevel == Minecraft.getInstance().level ? chestClicks.size() : 0;
+    }
 
     /** For the testkit: chest clicks taken back because Hypixel said the chest was locked. */
     static int lockedChests() {

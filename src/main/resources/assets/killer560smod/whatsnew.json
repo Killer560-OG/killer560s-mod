@@ -10,7 +10,8 @@
      "Auto Terminals: Burst Finish (cheat, off by default) sends a terminal's last clicks in one tick as soon as the server has answered the ones before, with Burst Size 1-21; Auto Terminals now waits until every slot of a terminal has loaded before its first click and works a terminal out again when no click has gone out for 2.5 seconds; Terminal Solver writes a board dump to the log when a terminal stays unsolved with nothing to click.",
      "Multi Warp Mode: Burst or Tick Split (cheat; Tick Split spends only Blink Charge's bank, never flags)",
      "Auto Clear no longer etherwarps again and again to a spot no trip lands on (it walks there or moves on); Autopilot's Blood First stops picking a door it cannot reach; an Auto Routes secret wait on a route Auto Secret drives goes on after 2 s when nothing in reach could still count; the Auto Water reward chest waits for the real unlock signal instead of clicking every 4 ticks for seconds (cheat)",
-     "Lever Aura and AP3 lever flicks never move your camera: the body turns to the lever for the server and your view stays put. (mod branch is based on ap3leveralways-1115: ship that line first)"
+     "Lever Aura and AP3 lever flicks never move your camera: the body turns to the lever for the server and your view stays put. (mod branch is based on ap3leveralways-1115: ship that line first)",
+     "Auto Routes: an item secret that lies near a chest you opened earlier is counted again, so a route no longer stalls waiting for it"
     ]
    }
   ]
