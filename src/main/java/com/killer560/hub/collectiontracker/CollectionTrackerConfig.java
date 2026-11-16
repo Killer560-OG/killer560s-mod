@@ -46,7 +46,10 @@ public final class CollectionTrackerConfig {
             cfg.enabled = ConfigJson.getBool(obj, "enabled", cfg.enabled);
             cfg.showRate = ConfigJson.getBool(obj, "showRate", cfg.showRate);
             cfg.onlyRecent = ConfigJson.getBool(obj, "onlyRecent", cfg.onlyRecent);
-            cfg.setRecentSeconds(ConfigJson.getInt(obj, "recentSeconds", cfg.recentSeconds));
+            // Set the field, never the setter: the setter calls selectionChanged, which asks for the instance this
+            // load has not stored yet, and the first load then recursed until the stack overflowed.
+            cfg.recentSeconds = Math.max(RECENT_MIN, Math.min(RECENT_MAX,
+                    ConfigJson.getInt(obj, "recentSeconds", cfg.recentSeconds)));
             JsonArray arr = ConfigJson.getArray(obj, "selected");
             if (arr != null) {
                 for (JsonElement e : arr) {
