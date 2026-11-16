@@ -52,6 +52,11 @@ public enum SimArmor {
         return current() == TERROR ? 1 + HYDRA_STACKS * HYDRA_ARROW_SPEED_PER_STACK : 1;
     }
 
+    /** Attack Speed this set adds to the effective value (Newton's Demise raises the cap by 50, and the player sits at it). */
+    int attackSpeedBonus() {
+        return this == THERMODYNAMIC ? NEWTONS_DEMISE_CAP_BONUS : 0;
+    }
+
     public static int extraArrows() {
         return current() == TERROR ? HYDRA_EXTRA_ARROWS : 0;
     }
@@ -71,7 +76,7 @@ public enum SimArmor {
         };
     }
 
-    private ItemStack build(int i) {
+    ItemStack piece(int i) {
         String id = pieceId(i);
         ItemStack stack = new ItemStack(BASES[i]);
         CompoundTag tag = new CompoundTag();
@@ -89,7 +94,7 @@ public enum SimArmor {
             ItemStack worn = sp.getItemBySlot(SLOTS[i]);
             String id = com.killer560.hub.cheatutils.CheatUtils.skyblockId(worn);
             boolean ours = id != null && (id.startsWith("INFERNAL_TERROR_") || id.startsWith("THERMODYNAMIC_"));
-            if (set != NONE) sp.setItemSlot(SLOTS[i], set.build(i));
+            if (set != NONE) sp.setItemSlot(SLOTS[i], set.piece(i));
             else if (ours) sp.setItemSlot(SLOTS[i], ItemStack.EMPTY);
         }
     }
