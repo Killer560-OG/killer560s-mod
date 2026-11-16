@@ -38,7 +38,7 @@ import java.util.concurrent.ThreadLocalRandom;
  *
  * <p><b>What is real here and what is not.</b> The QUESTION and its CORRECT answer are the real Hypixel dungeon
  * "Quiz" trivia database this mod already ships and already uses for the live solver -
- * {@code data/killer560smod/puzzles/quiz-answers.json}, loaded the exact same way
+ * {@code assets/killer560smod/puzzles/quiz-answers.json}, loaded the exact same way
  * {@code com.killer560.hub.puzzlesolvers.QuizSolverFeature#loadAnswers} does, and never edited or invented here.
  *
  * <p>The other two chests' WRONG answer text is not real: that file only ever stored the correct answer(s) for
@@ -1387,7 +1387,7 @@ public final class SimQuizPuzzle {
 
     private static Map<String, List<String>> loadAnswers() {
         try (InputStream stream = SimQuizPuzzle.class.getClassLoader()
-                .getResourceAsStream("data/killer560smod/puzzles/quiz-answers.json")) {
+                .getResourceAsStream("assets/killer560smod/puzzles/quiz-answers.json")) {
             if (stream == null) return Map.of();
             try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
                 Type type = new TypeToken<Map<String, List<String>>>() {

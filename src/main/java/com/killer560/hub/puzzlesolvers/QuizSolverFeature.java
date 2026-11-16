@@ -20,7 +20,7 @@ import java.util.Map;
  * Real Hypixel dungeon "Quiz" puzzle solver, ported from Odin's own {@code QuizSolver.kt}. The real
  * Oruo the Omniscient statue asks a real trivia question in chat with 3 real lettered answer options
  * (ⓐ/ⓑ/ⓒ), each standing on one of 3 fixed real relative floor positions; the correct option is looked up
- * from a bundled real question-to-answer(s) database ({@code data/killer560smod/puzzles/quiz-answers.json},
+ * from a bundled real question-to-answer(s) database ({@code assets/killer560smod/puzzles/quiz-answers.json},
  * copied verbatim from Odin) and highlighted with a floor box. Never answers for you - only highlights.
  */
 public final class QuizSolverFeature {

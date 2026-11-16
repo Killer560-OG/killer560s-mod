@@ -23,7 +23,7 @@ import java.util.List;
  * pre-solved list of relative positions, {@code easy} or {@code hard} depending on
  * {@link IceFillSolverConfig#isOptimizedPath()}) is drawn as a connected line through all 3 floors. All
  * real position/path data is bundled verbatim from Odin in
- * {@code data/killer560smod/puzzles/ice-fill-floors.json}. Never walks for you - only draws the path.
+ * {@code assets/killer560smod/puzzles/ice-fill-floors.json}. Never walks for you - only draws the path.
  */
 public final class IceFillSolverFeature {
 

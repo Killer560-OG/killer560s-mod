@@ -198,12 +198,103 @@ def scan_blob(where: str, data: bytes, fps: Fingerprints, rep: Report, check_pat
                 (rep.warn if native else rep.fail)(f"PATH {kind}: {where}:{line_of(data, m.start())} {m.group(0)[:48].decode('utf-8', 'replace')}")
 
 
+# Mod presence (nofingerprint-1115, killer560 2026-11-15: a server must never learn the mod is installed, enforced so
+# nothing adds a way back). Checked on our own jar only, the same rules build.gradle's checkNoFingerprint applies to
+# the source: no lang file and no data/ folder (Fabric answers a known-pack probe for a mod with data/), no global
+# client payload receiver, payload/channel code only in the co-op sim (roomsim/, private addresses only), and no
+# translation call in a class that carries a mod-named key.
+PRESENCE_ENTRY = re.compile(r"^(assets/[^/]+/lang/.+|data/.+)$")
+PRESENCE_OWN_CLASS = "com/killer560/"
+PRESENCE_CHANNEL_OK = "com/killer560/hub/roomsim/"
+
+
+CLIENT_NET = {"net/fabricmc/fabric/api/client/networking/v1/ClientPlayNetworking",
+              "net/fabricmc/fabric/api/client/networking/v1/ClientConfigurationNetworking"}
+PAYLOAD_REG = "net/fabricmc/fabric/api/networking/v1/PayloadTypeRegistry"
+TRANSLATE = {("net/minecraft/network/chat/Component", m) for m in
+             ("translatable", "translatableWithFallback", "translatableEscape", "keybind")}
+TRANSLATE |= {("net/minecraft/client/resources/language/I18n", m) for m in ("get", "exists")}
+TRANSLATE_CLASSES = {"net/minecraft/network/chat/contents/TranslatableContents",
+                     "net/minecraft/network/chat/contents/KeybindContents"}
+
+
+def constant_pool(body: bytes):
+    """(method refs as (owner, name), class names, string constants) of a class file; None if unreadable."""
+    try:
+        n = int.from_bytes(body[8:10], "big")
+        utf, cls, nat, refs, strs = {}, {}, {}, [], {}
+        i, k = 10, 1
+        while k < n:
+            tag = body[i]
+            if tag == 1:
+                ln = int.from_bytes(body[i + 1:i + 3], "big")
+                utf[k] = body[i + 3:i + 3 + ln].decode("utf-8", "replace")
+                i += 3 + ln
+            elif tag in (7, 8, 16, 19, 20):
+                v = int.from_bytes(body[i + 1:i + 3], "big")
+                if tag == 7:
+                    cls[k] = v
+                elif tag == 8:
+                    strs[k] = v
+                i += 3
+            elif tag == 15:
+                i += 4
+            elif tag in (9, 10, 11, 12, 17, 18):
+                a, b = int.from_bytes(body[i + 1:i + 3], "big"), int.from_bytes(body[i + 3:i + 5], "big")
+                if tag == 12:
+                    nat[k] = a
+                elif tag in (10, 11):
+                    refs.append((a, b))
+                i += 5
+            elif tag in (3, 4):
+                i += 5
+            elif tag in (5, 6):
+                i += 9
+                k += 1
+            else:
+                return None
+            k += 1
+        classes = {utf.get(v, "") for v in cls.values()}
+        methods = {(utf.get(cls.get(a), ""), utf.get(nat.get(b), "")) for a, b in refs}
+        return methods, classes, [utf.get(v, "") for v in strs.values()]
+    except (IndexError, ValueError):
+        return None
+
+
+def scan_presence(inner: str, name: str, body: bytes, rep: Report) -> None:
+    if PRESENCE_ENTRY.match(name):
+        rep.fail(f"PRESENCE resource (lets a server detect the mod): {inner}")
+    if not (name.endswith(".class") and name.startswith(PRESENCE_OWN_CLASS)):
+        return
+    cp = constant_pool(body)
+    if cp is None:
+        rep.fail(f"PRESENCE unreadable class constant pool: {inner}")
+        return
+    methods, classes, strings = cp
+    if any(o in CLIENT_NET and m == "registerGlobalReceiver" for o, m in methods):
+        rep.fail(f"PRESENCE global client payload receiver (listed to every server): {inner}")
+    if any(o in CLIENT_NET or o == PAYLOAD_REG for o, _ in methods) and not name.startswith(PRESENCE_CHANNEL_OK):
+        rep.fail(f"PRESENCE payload/channel code outside the co-op sim: {inner}")
+    if methods & TRANSLATE or any(m == "<init>" and o in TRANSLATE_CLASSES for o, m in methods):
+        for s in strings:
+            if "killer560" in s.lower() or "k560" in s.lower():
+                rep.fail(f"PRESENCE mod-named string {s!r} in a class that resolves translations: {inner}")
+
+
+def own_mod_jar(zf: zipfile.ZipFile) -> bool:
+    try:
+        return json.loads(zf.read("fabric.mod.json").decode("utf-8")).get("id") == "killer560smod"
+    except (KeyError, ValueError):
+        return False
+
+
 def scan_zip(where: str, data: bytes, fps: Fingerprints, rep: Report, depth: int = 0) -> None:
     try:
         zf = zipfile.ZipFile(io.BytesIO(data))
     except zipfile.BadZipFile:
         rep.fail(f"UNREADABLE zip: {where}")
         return
+    ours = own_mod_jar(zf)
     for info in zf.infolist():
         if info.is_dir():
             continue
@@ -212,6 +303,8 @@ def scan_zip(where: str, data: bytes, fps: Fingerprints, rep: Report, depth: int
         if FORBIDDEN_NAMES.search(name):
             rep.fail(f"FORBIDDEN file in artifact: {inner}")
         body = zf.read(info)
+        if ours:
+            scan_presence(inner, name, body, rep)
         if name.endswith(".java"):
             rep.warn(f"SOURCE file shipped: {inner}")
         if name.endswith(".class"):

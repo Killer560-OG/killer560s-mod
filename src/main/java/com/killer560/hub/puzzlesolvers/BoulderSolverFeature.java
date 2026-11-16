@@ -22,7 +22,7 @@ import java.util.Map;
  * puzzle's floor is a real 6x7 grid of pressure-plate-sized tiles at y=66 (relative room coordinates
  * z in {24,21,18,15,12,9}, x in {24,21,18,15,12,9,6}) that is either solid or air in one of 8 known real
  * patterns; each pattern maps to a fixed real solution list of {@code [renderX, renderZ, clickX, clickZ]}
- * quadruples at y=65 (bundled verbatim from Odin in {@code data/killer560smod/puzzles/boulder-solutions.json}).
+ * quadruples at y=65 (bundled verbatim from Odin in {@code assets/killer560smod/puzzles/boulder-solutions.json}).
  * The player must click each listed position in any order; this only ever renders a box around the next
  * (or, if configured, every remaining) BUTTON to click - it never sends any packet or click itself.
  *

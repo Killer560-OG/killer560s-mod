@@ -491,7 +491,7 @@ public final class SimBoulderPuzzle {
     /** The keys of {@code boulder-solutions.json} - the same file and the same loading as the solver. */
     private static List<String> loadPatterns() {
         try (InputStream stream = SimBoulderPuzzle.class.getClassLoader()
-                .getResourceAsStream("data/killer560smod/puzzles/boulder-solutions.json")) {
+                .getResourceAsStream("assets/killer560smod/puzzles/boulder-solutions.json")) {
             if (stream == null) return List.of();
             try (Reader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
                 Type type = new TypeToken<Map<String, List<List<Integer>>>>() {

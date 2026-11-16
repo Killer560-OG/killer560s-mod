@@ -222,8 +222,20 @@ public final class SimGuest {
         if (ip.contains("hypixel.net") || ip.contains("p3sim.net")) return false;
         Pending p = pending;
         if (p != null && p.address() != null && p.address().equalsIgnoreCase(data.ip)) return true;
+        // Without a ticket the NAME he typed must be a private address too (or a LAN-listed world): a public host
+        // name reached over a private route (a VPN, a proxy) is a public server, and our channels must never be
+        // listed to it (nofingerprint-1115).
+        if (data.type() != ServerData.Type.LAN && !privateLiteral(data.ip)) return false;
         SocketAddress remote = conn.getConnection().getRemoteAddress();
         return remote instanceof InetSocketAddress isa && privateAddress(isa.getAddress());
+    }
+
+    /** "localhost" or a private IP literal, with or without a port; never asks DNS. */
+    static boolean privateLiteral(String address) {
+        String host = net.minecraft.client.multiplayer.resolver.ServerAddress.parseString(address).getHost();
+        if (host.equalsIgnoreCase("localhost")) return true;
+        if (!com.google.common.net.InetAddresses.isInetAddress(host)) return false;
+        return privateAddress(com.google.common.net.InetAddresses.forString(host));
     }
 
     static boolean privateAddress(InetAddress a) {

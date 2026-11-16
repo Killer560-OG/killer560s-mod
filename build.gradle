@@ -330,8 +330,70 @@ def nettyMatchesMinecraft = tasks.register('nettyMatchesMinecraft') {
 	}
 }
 
+// A server must never be able to tell from the client's own answers that this mod is installed (killer560,
+// 2026-11-15: "ensure the server can never know that someone is using our mod", enforced "so something in the
+// future doesnt accidentally add a way to do this back in"). A sign, anvil or book can carry a translatable or
+// keybind component and read the resolved text back, Fabric's known-packs answer lists a mod with a data/ pack,
+// and every global payload receiver is listed in minecraft:register to every server. This fails every variant on:
+// a lang file or data/ folder in our resources, a translation call whose key is not vanilla's (or not a literal),
+// a global client payload receiver, and per-connection channel/payload code outside the co-op sim's files
+// (which register only on a private address, roomsim/SimGuest). Rule text: .claude/rules/code-lessons.md
+// "Mod presence"; the jar is checked again by tools/verify-artifact.py, the live client by testkit 65-join-fingerprint.
+def checkNoFingerprint = tasks.register('checkNoFingerprint') {
+	description = 'Fails if the mod could reveal its presence to a server (lang/data resources, mod translation keys, channels).'
+	def srcDirs = [file('src/main/java'), compatDir]
+	def resDirs = [file('src/main/resources'), compatResources]
+	inputs.files(srcDirs.collect { fileTree(it) }, resDirs.collect { fileTree(it) })
+	doLast {
+		def bad = []
+		resDirs.each { dir ->
+			if (!dir.exists()) return
+			fileTree(dir).visit { d ->
+				def p = d.relativePath.pathString
+				if (p ==~ /assets\/[^\/]+\/lang(\/.*)?/ && !d.isDirectory()) bad << "resource ${p}: a lang file lets a server resolve our keys"
+				if (p == 'data' || p.startsWith('data/')) bad << "resource ${p}: a data/ folder makes Fabric answer known-pack probes with our mod id"
+			}
+		}
+		def vanilla = null
+		def mcJar = configurations.compileClasspath.resolvedConfiguration.resolvedArtifacts
+				.collect { it.file }.find { it.name.startsWith('minecraft-') && it.name.endsWith('.jar') && new java.util.zip.ZipFile(it).withCloseable { z -> z.getEntry('assets/minecraft/lang/en_us.json') != null } }
+		if (mcJar != null) {
+			new java.util.zip.ZipFile(mcJar).withCloseable { z ->
+				vanilla = new groovy.json.JsonSlurper().parse(z.getInputStream(z.getEntry('assets/minecraft/lang/en_us.json')), 'UTF-8').keySet()
+			}
+		}
+		def call = ~/(Component\s*\.\s*(translatable|translatableWithFallback|translatableEscape|keybind)|I18n\s*\.\s*(get|exists)|new\s+(TranslatableContents|KeybindContents))\s*\(\s*("([^"\\]*)")?/
+		def channelOk = ['roomsim/SimCoop.java', 'roomsim/SimGuest.java', 'roomsim/SimRequests.java', 'roomsim/SimPartyChat.java']
+		srcDirs.each { dir ->
+			if (!dir.exists()) return
+			fileTree(dir) { include '**/*.java' }.each { f ->
+				def rel = dir.toPath().relativize(f.toPath()).toString().replace('\\', '/')
+				f.readLines('UTF-8').eachWithIndex { line, i ->
+					def t = line.trim()
+					if (t.startsWith('*') || t.startsWith('//') || t.startsWith('/*')) return
+					def where = "${rel}:${i + 1}"
+					def m = call.matcher(line)
+					while (m.find()) {
+						def key = m.group(6)
+						if (key == null) bad << "${where}: translation call with a non-literal key"
+						else if (vanilla == null) bad << "${where}: translation key \"${key}\" (vanilla en_us.json not found to check it)"
+						else if (!vanilla.contains(key)) bad << "${where}: translation key \"${key}\" is not vanilla's"
+					}
+					if (line =~ /Client(Play|Configuration)Networking\s*\.\s*registerGlobalReceiver/) bad << "${where}: a global client receiver is listed to every server"
+					if (line =~ /(Client(Play|Configuration)Networking\s*\.\s*(registerReceiver|send)|PayloadTypeRegistry\s*\.)/
+							&& !channelOk.any { rel.endsWith(it) }) bad << "${where}: payload/channel code outside the co-op sim's private-address gate"
+				}
+			}
+		}
+		if (!bad.isEmpty()) {
+			throw new GradleException("checkNoFingerprint: the mod could reveal itself to a server:\n  " + bad.join('\n  '))
+		}
+		logger.lifecycle("checkNoFingerprint: no lang/data resources, mod translation keys or global channels")
+	}
+}
+
 jar {
-	dependsOn nettyMatchesMinecraft
+	dependsOn nettyMatchesMinecraft, checkNoFingerprint
 	// The Minecraft version is in the name of all four jars on purpose. With a legit and a cheat jar for each
 	// of two Minecraft versions, two files both called "-legit.jar" is how somebody installs the wrong one -
 	// and .github/workflows/dev-build.yml collects them with a `*-legit.jar` glob, which would silently pick

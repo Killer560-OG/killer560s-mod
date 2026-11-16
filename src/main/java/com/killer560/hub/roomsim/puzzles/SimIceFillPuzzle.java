@@ -63,7 +63,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * not a reading of the sentence, it is what the room and the data both are:
  *
  * <ul>
- *   <li>{@code data/killer560smod/puzzles/ice-fill-floors.json}'s own top-level shape is
+ *   <li>{@code assets/killer560smod/puzzles/ice-fill-floors.json}'s own top-level shape is
  *       {@code [floor][pattern][waypoint]} - three floors, each with several possible layouts.
  *       {@code IceFillSolverFeature}'s class doc says the same in words: "3 real floors, each with several
  *       possible real ice layouts".</li>

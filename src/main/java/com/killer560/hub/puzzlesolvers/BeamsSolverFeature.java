@@ -20,7 +20,7 @@ import java.util.List;
 /**
  * Real Hypixel dungeon "Creeper Beams" puzzle solver, ported from Odin's own {@code BeamsSolver.kt}. A
  * fixed real list of candidate Sea Lantern position pairs is bundled
- * ({@code data/killer560smod/puzzles/creeper-beams-solutions.json}, copied verbatim from Odin); a pair is
+ * ({@code assets/killer560smod/puzzles/creeper-beams-solutions.json}, copied verbatim from Odin); a pair is
  * "active" right now only when BOTH of its real positions currently hold a real Sea Lantern block (the
  * player redirects the real beam by rotating panes elsewhere in the room, which changes which lanterns
  * light up). Active pairs get matching-colored boxes and an optional connecting tracer line.

@@ -17,7 +17,7 @@ final class SolverData {
     /** The parsed file, or {@code fallback} when it is missing, empty or unreadable (each logged with the solver's tag).
      *  Loggers are fetched by name because solvers call this from a static initializer, before their own LOGGER is set. */
     static <T> T load(String file, Type type, T fallback, String loggerName, String tag, String missing, String failed) {
-        try (InputStream stream = SolverData.class.getClassLoader().getResourceAsStream("data/killer560smod/puzzles/" + file)) {
+        try (InputStream stream = SolverData.class.getClassLoader().getResourceAsStream("assets/killer560smod/puzzles/" + file)) {
             if (stream == null) {
                 com.killer560.hub.util.ModLog.get(loggerName).warn("{} {}", tag, missing);
                 return fallback;

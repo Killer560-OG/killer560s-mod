@@ -32,7 +32,7 @@ import com.killer560.hub.util.ChatColors;
  * is the most involved real puzzle mechanic ported so far: exactly 3 of 5 real wool colors get pushed out
  * (a real 5-choose-3 = 10 combinations) and one of 4 real marker blocks identifies which physical board
  * layout is active; together these key into a bundled real lever-timing database
- * ({@code data/killer560smod/puzzles/water-solutions.json}, copied verbatim from Odin) giving each of 7
+ * ({@code assets/killer560smod/puzzles/water-solutions.json}, copied verbatim from Odin) giving each of 7
  * real interactable blocks (6 levers + the water bucket) a real list of click times in seconds, relative
  * to the moment the water lever is first flicked (that's the real puzzle-wide synchronized start signal).
  * Highlights the single soonest real next click with a tracer, and floats a real live countdown ("Xs" /
