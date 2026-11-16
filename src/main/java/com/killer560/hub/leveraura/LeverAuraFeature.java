@@ -56,6 +56,8 @@ public final class LeverAuraFeature {
     private static final Set<Long> clickedEarly = new HashSet<>();
     /** Levers clicked after S2 opened (per run). */
     private static final Set<Long> clickedS2 = new HashSet<>();
+    /** Levers turned to (flicked or turn-only) in the current AP3 pass; emptied once AP3 stops, so a retry turns again. */
+    private static final Set<Long> turnedThisPass = new HashSet<>();
     /** ActionGate tick the next flick is due on, fractional so a CPS between whole ticks keeps its average. */
     private static double nextClickDueTick = 0.0;
     /** The tick a due flick first went to turning the body (TurnFirst), or -1: the flick is scheduled from there. */
@@ -124,6 +126,9 @@ public final class LeverAuraFeature {
     private static void tick(Minecraft client) {
         // First, always: a body turned for a flick is held for it and given back the tick after.
         TURN.tick(client.player);
+        if (!turnedThisPass.isEmpty() && !com.killer560.hub.ap3.Ap3Executor.isRunning()) {
+            turnedThisPass.clear();
+        }
         P3SectionTracker.poll(client);
         if (P3SectionTracker.generation() != lastGeneration) {
             lastGeneration = P3SectionTracker.generation();
@@ -195,16 +200,15 @@ public final class LeverAuraFeature {
                 }
                 long key = pos.asLong();
                 boolean turnOnly = false;
-                if ((s2Open ? clickedS2 : clickedEarly).contains(key)) {
-                    logLever(pos, "clicked", s2Open ? "already flicked since S2 opened" : "already flicked early", d);
-                    continue;
-                }
-                if (!hasNotActivatedStand(client, pos)) {
+                boolean wasClicked = (s2Open ? clickedS2 : clickedEarly).contains(key);
+                if (wasClicked || !hasNotActivatedStand(client, pos)) {
                     // An AP3 route is planned with this lever's turn (its keys are re-picked at the turned yaw), so while
-                    // one runs an activated lever still gets the same turn at the same tick, only no click (ap3leverturn-1115:
-                    // without it every retry walked on different keys and missed the route).
-                    if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED || !com.killer560.hub.ap3.Ap3Executor.isRunning()) {
-                        logLever(pos, "activated", "no Not Activated stand above (already activated)", d);
+                    // one runs a lever that is already on (a teammate's flick, or ours earlier in the run) gets the same turn
+                    // at the same tick once per pass, only no click (ap3leverturn-1115, ap3leveralways-1115).
+                    if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED || !com.killer560.hub.ap3.Ap3Executor.isRunning()
+                            || turnedThisPass.contains(key)) {
+                        logLever(pos, wasClicked ? "clicked" : "activated", wasClicked ? "already flicked this run"
+                                : "no Not Activated stand above (already activated)", d);
                         continue;
                     }
                     logLever(pos, "activatedTurn", "already activated, AP3 route running: same turn, no click", d);
@@ -311,6 +315,7 @@ public final class LeverAuraFeature {
             hit = onLook;
         }
         (s2Open ? clickedS2 : clickedEarly).add(pos.asLong());
+        turnedThisPass.add(pos.asLong());
         if (turnOnly) {
             turnOnlyCount++;
             turnOnlyTick = ActionGate.currentTick();
@@ -375,6 +380,7 @@ public final class LeverAuraFeature {
         lastHeldKey = null;
         clickedEarly.clear();
         clickedS2.clear();
+        turnedThisPass.clear();
         nextClickDueTick = 0.0;
         turnStartTick = -1L;
         lastSection = P3SectionTracker.section();

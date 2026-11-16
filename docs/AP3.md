@@ -163,6 +163,10 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   of SD and the walk drifted off the route. Lever Aura now gives an activated lever on a running AP3 route the same flick
   (gate, cooldown, TurnFirst turn and hand-back) with no use_block, and AP3 reads that tick as a flick tick
   (`LeverAuraFeature.turnOnlyThisTick`). Testkit 1115-ap3-leverturn-states / -same-use compare both lever states on the wire.
+  ap3leveralways-1115: the turn is the same for every state of the lever. AP3 has no lever node; the only levers a route flicks
+  are the two S2 section levers (Lever Aura). A lever already on because AP3 itself flicked it earlier in the run (a retry
+  without a new run) turns again too, once per pass (`turnedThisPass`, emptied when AP3 stops), no click. The Lights device
+  levers are the Lights Device's and untouched. Testkit 1115-ap3-leveralways-retry / -retry-same-use.
 - **Lever reach, measured (leverbest-1112, testkit 1112-boss-lever-reach-probe, GrimAC 2.3.74 default AND experimental,
   same numbers).** What counts is where the click's look ENTERS the lever's full block, measured from the real eye (feet +
   1.62 standing, 1.27 sneaking), along a ray that really hits the lever's small outline. Hand flicks from feet west of the
