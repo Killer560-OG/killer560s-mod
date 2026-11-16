@@ -22,6 +22,7 @@ public abstract class AutoCloseChestMixin {
         // (util/ChestWindows - Auto Close Chest hid every reward chest's window from the autos waiting on it).
         try {
             com.killer560.hub.util.ChestWindows.noteOpenPacket(packet);
+            com.killer560.hub.util.StillHold.onServerOpen();
         } catch (RuntimeException e) {
             ModLog.get("killer560smod-autoclosechest").error("[AutoCloseChest] chest window count threw", e);
         }

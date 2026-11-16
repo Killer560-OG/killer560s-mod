@@ -84,6 +84,13 @@ The puzzle autos at run time (camera, timing, leaving, each puzzle). Part of the
   that has it in reach (`AutoPuzzleUtil.reachSpots`), as Auto Blaze's already did.
 - Sim Ice Fill's two reward chests sat on coordinates read off one capture; Mod Only Test's holds gray wool there, so no
   chest stood until it searched for the torch-lit pedestals by the iron bars.
+- **A held container close must die when the server opens a window** (termclose-1115, killer560 2026-11-15: "Why is it
+  closing terminals sometimes", 7 of 66 terminals shut the second they opened). `util/StillHold` holds every
+  `ServerboundContainerClosePacket` while the server has him moving, sprinting or sneaking, and sent it later with no
+  check. Fast Leap's hidden-menu close went out mid-sprint, was held, and was released the tick the terminal screen
+  released his keys; Hypixel closes whatever window is open on any close, so the terminal shut. Five of the seven had his
+  own Fast Leap 2-5 s before. `StillHold.onServerOpen()` (render thread, HEAD of handleOpenScreen via AutoCloseChestMixin)
+  now drops every held close. Testkit 1115-termclose-stillhold (boss session) fails on 03e527b54.
 
 ## Per puzzle
 

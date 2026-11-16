@@ -38,6 +38,17 @@ public final class StillHold {
         return true;
     }
 
+    /**
+     * A server-opened window (render thread, HEAD of handleOpenScreen) makes every held close stale: the server already replaced
+     * the window it was for, and Hypixel closes whatever window is open on any close, so a late one shut the next terminal
+     * (termclose-1115: Fast Leap's hidden-menu close, held while he sprinted, went out the tick the terminal released his keys).
+     */
+    public static void onServerOpen() {
+        if (Minecraft.getInstance().isSameThread()) {
+            HELD.clear();
+        }
+    }
+
     /** Client tick end: lets one held close go once the server has him still. */
     public static void tick(Minecraft mc) {
         if (HELD.isEmpty()) {
