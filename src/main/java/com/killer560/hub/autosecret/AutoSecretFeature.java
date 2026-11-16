@@ -2789,6 +2789,7 @@ public final class AutoSecretFeature {
         int bestDist = Integer.MAX_VALUE;
         for (RoomStatus.Room r : rooms) {
             if (!secreted.contains(r.name()) || revisited.contains(r.name()) || r.secrets() <= 0
+                    || com.killer560.hub.autoroutes.RouteRunMemory.givenUpIn(r.name())
                     || !dist.containsKey(r.room())) {
                 continue;
             }

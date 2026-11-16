@@ -54,6 +54,9 @@ public final class RouteRunMemory {
     /** Nodes whose await (or bat node's kill) was met this run, by {@link #nodeKey}. */
     private static final Set<String> metNodes = new HashSet<>();
     private static final Set<String> routedRooms = new HashSet<>();
+    /** Bat / crypt nodes the route gave up on this run ({@link #nodeKey}), and their rooms: nothing automated goes back. */
+    private static final Set<String> givenUpNodes = new HashSet<>();
+    private static final Set<String> givenUpRooms = new HashSet<>();
     /** Boom nodes that blew blocks this run, by {@link #boomKey}. */
     private static final Set<String> boomedNodes = new HashSet<>();
     /** How far each room's route got this run: {nodes done, nodes in the route}, kept after a stop (the HUD's percent). */
@@ -94,6 +97,8 @@ public final class RouteRunMemory {
         routedRooms.clear();
         progress.clear();
         boomedNodes.clear();
+        givenUpNodes.clear();
+        givenUpRooms.clear();
     }
 
     /** For the testkit: forget the run, as a new run would. */
@@ -230,6 +235,27 @@ public final class RouteRunMemory {
         Vec3 p = node.relativePos();
         return String.format(Locale.US, "%s|%s|%.1f,%.1f,%.1f", route == null ? "?" : route.roomName(), node.type,
                 p.x, p.y, p.z);
+    }
+
+    /** A bat / crypt node timed out (or a one-try / skip path moved on): it is never fired again this run, and Auto Secret
+     *  never goes back to its room for what it missed (killer560, 2026-11-15: "if it skips a bat it shouldnt go back"). */
+    public static void markGivenUp(String room, String nodeKey) {
+        check();
+        if (givenUpNodes.size() < 512 && givenUpNodes.add(nodeKey) && room != null) {
+            givenUpRooms.add(room);
+            LOGGER.info("[RouteMemory] gave up on {} - no auto goes back for it this run", nodeKey);
+        }
+    }
+
+    static boolean givenUp(String nodeKey) {
+        check();
+        return givenUpNodes.contains(nodeKey);
+    }
+
+    /** Whether the route gave up on a bat or crypt in {@code room} this run. */
+    public static boolean givenUpIn(String room) {
+        check();
+        return room != null && givenUpRooms.contains(room);
     }
 
     /** Whether this node's await (or bat node's kill) was met earlier this run. */

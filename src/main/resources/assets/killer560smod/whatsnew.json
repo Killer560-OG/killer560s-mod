@@ -7,6 +7,7 @@
     "title": "More",
     "blurb": "Changes in this update.",
     "items": [
+     "Auto Routes: a bat the route gave up on is left alone instead of being revisited.",
      "Sim: the Dungeon Breaker can no longer break smooth granite, pistons, dispensers, or blocks with a torch, button or fire on them",
      "Dungeon sim: every sim setting (boss Spawn Withers and mode, loadout, filters, speed, co-op) is yours alone and no profile saves or changes it (built on profshare-1112)",
      "Accessory Advisor: drag the panel anywhere (Reset Position in its tab), a mode button on the panel, and click an accessory's name to copy it",
@@ -24,7 +25,8 @@
      "Treasure Chest Alert now only sounds and shows in the Crystal Hollows.",
      "Auto Routes: a saved path warp that can no longer go from its spot (a block now in its line, or its landing block gone for a second) is planned again from where you stand and flown, instead of waiting for a left click; stepping back onto a warp spot no longer stalls 2 s after landing",
      "Blink Charge no longer draws an anticheat flag when a lag release of its held answers lands in the same tick as Zero Ping Etherwarp Aimed Warps.",
-     "Servers can no longer tell the mod is installed from anything the client sends: no mod text can be read back through signs, anvils or key names, and the mod no longer shows up in the server's resource pack check."
+     "Servers can no longer tell the mod is installed from anything the client sends: no mod text can be read back through signs, anvils or key names, and the mod no longer shows up in the server's resource pack check.",
+     "Auto Routes: a bat the route gave up on is left alone instead of being revisited, and a crypt left after one try or skipped in Master Mode is not revisited either."
     ]
    }
   ]

@@ -1959,16 +1959,23 @@ public final class RouteExecutor {
         net.minecraft.world.phys.AABB box = player.getBoundingBox();
         if (nextNode < ordered.size()) {
             RouteNode next = ordered.get(nextNode);
-            if (next != from && !next.sameTile(from) && next.contains(frame, RouteCoords.toReal(frame, next.relativePos()), cfg.getHeight(), box)) {
+            if (next != from && !next.sameTile(from) && !givenUpNode(next) && next.contains(frame, RouteCoords.toReal(frame, next.relativePos()), cfg.getHeight(), box)) {
                 return next;
             }
         }
         for (RouteNode node : ordered) {
-            if (node != from && !node.sameTile(from) && node.contains(frame, RouteCoords.toReal(frame, node.relativePos()), cfg.getHeight(), box)) {
+            if (node != from && !node.sameTile(from) && !givenUpNode(node)
+                    && node.contains(frame, RouteCoords.toReal(frame, node.relativePos()), cfg.getHeight(), box)) {
                 return node;
             }
         }
         return null;
+    }
+
+    /** A bat / crypt node the route gave up on: a landing never counts as arriving in it ({@link RouteRunMemory#markGivenUp}). */
+    private static boolean givenUpNode(RouteNode node) {
+        return (node.type == RouteNode.Type.BAT || node.type == RouteNode.Type.CRYPT)
+                && RouteRunMemory.givenUp(RouteRunMemory.nodeKey(route, node));
     }
 
     private static void endWalkHold() {
@@ -4621,6 +4628,11 @@ public final class RouteExecutor {
         String KIND = bat ? "BAT" : "CRYPT";
         AutoRoutesConfig.CryptWeapon weapon = bat ? AutoRoutesConfig.getInstance().getBatWeapon()
                 : AutoRoutesConfig.getInstance().getCryptWeapon();
+        if (step == Step.PREP && RouteRunMemory.givenUp(RouteRunMemory.nodeKey(route, node))) {
+            LOGGER.info("[AutoRoutes] Node #{} {}: given up on earlier this run - not attacking", route.indexOf(node) + 1, KIND);
+            finishAction();
+            return;
+        }
         if (step == Step.PREP && bat && RouteRunMemory.metThisRun(awaitNodeKey)) {
             LOGGER.info("[AutoRoutes] Node #{} BAT: its bat was already killed earlier this run - not attacking",
                     route.indexOf(node) + 1);
@@ -4629,6 +4641,7 @@ public final class RouteExecutor {
         }
         if (step == Step.PREP && !bat && AutoRoutesConfig.getInstance().masterSkipNow()) {
             LOGGER.info("[AutoRoutes] Node #{} CRYPT: Master Mode, Skip Kills on - no attack, moving on", route.indexOf(node) + 1);
+            RouteRunMemory.markGivenUp(route.roomName(), RouteRunMemory.nodeKey(route, node));
             finishAction();
             return;
         }
@@ -4745,6 +4758,7 @@ public final class RouteExecutor {
             if (!bat && AwaitEvents.weaponUses() - batUseBase >= 1 && AutoRoutesConfig.getInstance().masterOneTryNow()) {
                 LOGGER.info("[AutoRoutes] Node #{} CRYPT: Master Mode, One Try - {} use(s) sent, {} kill(s) counted - moving on",
                         route.indexOf(node) + 1, AwaitEvents.weaponUses() - batUseBase, kills(false));
+                RouteRunMemory.markGivenUp(route.roomName(), RouteRunMemory.nodeKey(route, node));
                 releaseUse(client);
                 restoreCryptSlot(client, player);
                 finishAction();
@@ -4790,6 +4804,7 @@ public final class RouteExecutor {
                 LOGGER.info("[AutoRoutes] Node #{} {}: {} of {} kill(s) after holding use {} tick(s) - attack "
                         + "time ({} tick(s)) up, moving on", route.indexOf(node) + 1, KIND, kills(bat), goal,
                         stepTicks, attackTicks);
+                RouteRunMemory.markGivenUp(route.roomName(), RouteRunMemory.nodeKey(route, node));
                 AutoRoutesFeature.chatBad(String.format(java.util.Locale.US,
                         "%s node: no kill in %.1f s - moving on.", bat ? "Bat" : "Crypt", attackTicks / 20.0));
                 releaseUse(client);
