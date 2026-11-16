@@ -78,10 +78,19 @@ public final class Route {
         if (trigger == null) {
             return stack;
         }
-        for (RouteNode n : nodes) {
-            if (n == trigger || n.sameTile(trigger)) {
-                stack.add(n);
+        // Only the unbroken run of same-tile nodes in PATH order around the trigger: a later return to the tile is a new stack.
+        List<RouteNode> ordered = nodesInPathOrder();
+        int at = ordered.indexOf(trigger);
+        if (at >= 0) {
+            int lo = at;
+            int hi = at;
+            while (lo > 0 && ordered.get(lo - 1).sameTile(trigger)) {
+                lo--;
             }
+            while (hi + 1 < ordered.size() && ordered.get(hi + 1).sameTile(trigger)) {
+                hi++;
+            }
+            stack.addAll(ordered.subList(lo, hi + 1));
         }
         if (!stack.contains(trigger)) {
             stack.add(trigger); // not (or no longer) in the list: it still fires itself
