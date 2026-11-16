@@ -3745,7 +3745,7 @@ public final class RouteExecutor {
             // must hear this warp's look before the use, or the use is taken as that click's end and nothing happens.
             // Turned here, while the sneak is still on its way to the server, it costs no tick.
             if (!AutoRoutesConfig.getInstance().isLegitMode()
-                    && com.killer560.hub.util.RightClick.mustTurnFirst(player, zpFeet, warpYaw, warpPitch, "[AutoRoutes] Etherwarp")) {
+                    && com.killer560.hub.util.RightClick.mustTurnFirst(player, zpFeet, warpYaw, warpPitch, "[AutoRoutes] Etherwarp", true)) {
                 logHold("turnearly:" + traceIndex(node), "Etherwarp ({}): a block click is unpaired - turning the body to "
                         + "the warp's look while the sneak is on its way ({} tick(s) in AIM)", nodeTag(node), stepTicks);
                 turnBody(player, player.getYRot() + Mth.wrapDegrees(warpYaw - player.getYRot()),

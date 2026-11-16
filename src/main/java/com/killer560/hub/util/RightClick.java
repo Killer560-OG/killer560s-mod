@@ -245,7 +245,29 @@ public final class RightClick {
      * sent once he has landed, so the hop waits for the landing.
      */
     public static boolean mustTurnFirst(LocalPlayer player, Vec3 serverFeet, float yaw, float pitch, String who) {
+        return mustTurnFirst(player, serverFeet, yaw, pitch, who, false);
+    }
+
+    /**
+     * {@link #mustTurnFirst(LocalPlayer, Vec3, float, float, String)} asked while no use goes this tick (a sneak wait):
+     * with {@code early} the look judged is the one this tick's movement packet WILL report - the body's own, which
+     * another feature may have just turned back (Secret Aura's hand-back on the warp's firing tick) - not only the
+     * one the server last heard. When that look meets a block and is not the use's look, turn now: next tick the
+     * server has heard the use's look and the use needs no extra tick.
+     */
+    public static boolean mustTurnFirst(LocalPlayer player, Vec3 serverFeet, float yaw, float pitch, String who,
+            boolean early) {
         if (!unpaired || player == null) return false;
+        if (early && sentKnown && !sameLook(player, yaw, pitch)
+                && (Math.abs(Mth.wrapDegrees(player.getYRot() - sentYaw)) > SAME_LOOK_DEGREES
+                || Math.abs(player.getXRot() - sentPitch) > SAME_LOOK_DEGREES)) {
+            checkLevel(player);
+            if (unpaired && serverRay(player, serverFeet != null ? serverFeet : sentFeet(player), player.getYRot(),
+                    player.getXRot()) != null) {
+                return true;
+            }
+        }
+        if (!unpaired) return false;
         checkLevel(player);
         if (!unpaired) return false;
         Vec3 feet = serverFeet != null ? serverFeet : sentFeet(player);
