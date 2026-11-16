@@ -164,6 +164,10 @@ The puzzle autos at run time (camera, timing, leaving, each puzzle). Part of the
   `currentHighlights` holds only the next two or three. Any container click sent while movement input is held draws
   MultiActionsC on DEFAULT Grim and the server drops the click, burst or not; with a screen open he moves only through
   Inventory Walk, whose Stop To Click holds clicks until he stands still.
+- The loaded gate below tracks ONLY the window its open packet named (clickorder-1116): it first followed any container id, so a
+  window-0 inventory packet between the board's updates reset it, the board read "not loaded" until 3 s after the open, the
+  highlights froze on pane 1 and Auto Terminals re-clicked pane 1 ("Wrong number!", Click in Order, his 11-16 log). The
+  testkit hx terminal option `invSync` sends that window-0 update before every board change (1116-term-invsync-*).
 - Terminal loaded gate, stall net and Burst Size (termplus-1112). A board counts as loaded only once every window slot has
   been described: `TerminalBoardLoadMixin` (TAIL of handleOpenScreen / handleContainerContent / handleContainerSetSlot)
   keeps a BitSet per container id; an open or contents packet that carries any item marks every slot, an all-empty one marks

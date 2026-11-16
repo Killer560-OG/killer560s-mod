@@ -645,14 +645,9 @@ public final class TerminalSolverFeature {
     private static int loadedContainerId = -1;
     private static final java.util.BitSet loadedSlots = new java.util.BitSet();
 
-    private static void trackBoard(int containerId) {
-        if (containerId != loadedContainerId) {
-            loadedContainerId = containerId;
-            loadedSlots.clear();
-        }
-    }
-
-    /** A new window opened: nothing in it is described yet. */
+    /** A new window opened: nothing in it is described yet. Only this window is tracked: a packet for another window (the
+     *  player's own inventory, window 0, which Hypixel updates while a terminal is open) must not reset it, or the board
+     *  read "not loaded" for 3 s after every click and the highlights froze on the first pane (clickorder-1116). */
     public static void onBoardOpen(int containerId) {
         loadedContainerId = containerId;
         loadedSlots.clear();
@@ -660,7 +655,7 @@ public final class TerminalSolverFeature {
 
     /** A whole-window contents packet: every slot is described, unless it carries nothing at all. */
     public static void onBoardContents(int containerId, List<ItemStack> contents) {
-        trackBoard(containerId);
+        if (containerId != loadedContainerId) return;
         for (ItemStack stack : contents) {
             if (!stack.isEmpty()) {
                 loadedSlots.set(0, contents.size());
@@ -671,8 +666,7 @@ public final class TerminalSolverFeature {
 
     /** One slot packet: that slot is described. */
     public static void onBoardSlot(int containerId, int slot) {
-        trackBoard(containerId);
-        if (slot >= 0) loadedSlots.set(slot);
+        if (containerId == loadedContainerId && slot >= 0) loadedSlots.set(slot);
     }
 
     /** @return whether all {@code count} window slots of container {@code containerId} are described. A container no packet was
