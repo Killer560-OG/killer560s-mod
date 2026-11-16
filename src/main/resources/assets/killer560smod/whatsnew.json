@@ -26,7 +26,8 @@
      "Click in Order (Terminal Solver and Auto Terminals) no longer gets stuck on the first pane after one click: the highlights move on to the next number and Auto Terminals stops clicking the wrong pane",
      "Fixed a crash (the game closing with a stack overflow) when the Collection Tracker's saved settings were read for the first time",
      "The Freeze State keys no longer print \"Freeze State is turned off\" while Freeze State is off; they just do nothing.",
-     "Split Timers: the lag figure now counts only server lag, never your own FPS drops or connection stalls"
+     "Split Timers: the lag figure now counts only server lag, never your own FPS drops or connection stalls",
+     "Blink Charge keeps its bank through teleports with no anticheat flags: a teleport sends its waiting answers and confirm at once (no more ~1 s teleport holds), warps in quick succession keep what the server covers, a second press joins a waiting shot, and Hypixel key releases fire within 50 ms; a mob teleported back near you while answers are held is held too, so hitting it during a delayed shot no longer flags; the lag threshold remembers your connection across Charge on and off"
     ]
    }
   ]

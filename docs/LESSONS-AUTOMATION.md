@@ -1190,6 +1190,12 @@ with Charge full: no hold, no bank spent, normal pace), 1111-blink-hyp-quiet row
   Digging and the Triggerbot) goes only while `DigAim.heardLookStrikes` (RotationBreak) and every hotbar select waits out
   `HotbarSelect.swapWouldFlag()`. Prevent Misclicks / Prevent Wrong Shovel cancel the AttackBlockCallback, which fires every
   tick while the button is held, so their chat line is deduped (2 s per reason).
+- Blink lane drop lane1114-0729 (trainfix-blink2-1116): every 62-argrim chain case failed "could not call
+  AutoRoutesConfig.setZeroPingChain" because the branch's testkit predated zpewunify-1111 (Zero Ping Chain is the Etherwarp
+  tab's Works For: Auto Routes row, testkit `arChain`); a stale testkit, not the mod. And a teleport keeps only what the
+  oldest held answer covers, so a confirm the tick the bank first reads 20 keeps 19 when that answer is 895-950 ms old
+  (exp Grim, 1027-blink-c-keep-delay "kept 19 ... did not act" while the shot itself landed clean): the case now teleports
+  after a full ~1 s charge.
 
 ## Carnival autos (carnival-1110)
 
