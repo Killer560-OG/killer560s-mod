@@ -21,7 +21,8 @@
      "Auto Routes: an etherwarp no longer waits an extra tick when Secret Aura hands the look back after clicking a lever or chest",
      "Auto Clear: Door Only (cheat) goes to each wither door on the way to Blood, clicks it while a key is held, stops when Blood is open",
      "Fixed the first Hypixel join after launch failing with \"Status: 429\": the mod no longer uses Mojang's login budget in the background, and Profile Viewer, Collection Tracker and the museum reader now use the relay's shared Hypixel key, so no API key and no SkyBlockPV login is needed.",
-     "Command Auto Correct now fixes swapped letters in short commands like /zb to /bz and /ha to /ah, plus extra, missing, wrong or doubled letters, all caps, a double slash, a missing space like /warpbase, and a mistyped /warp destination like /warp bsae to /warp base; a command that is already valid is never changed and a typo equally close to two commands is left alone"
+     "Command Auto Correct now fixes swapped letters in short commands like /zb to /bz and /ha to /ah, plus extra, missing, wrong or doubled letters, all caps, a double slash, a missing space like /warpbase, and a mistyped /warp destination like /warp bsae to /warp base; a command that is already valid is never changed and a typo equally close to two commands is left alone",
+     "Auto Routes: clicking in a menu while a route holds sneak, or attacking while it turns for an etherwarp, no longer draws an anticheat flag"
     ]
    }
   ]

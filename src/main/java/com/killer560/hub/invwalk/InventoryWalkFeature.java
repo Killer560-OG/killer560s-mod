@@ -541,11 +541,18 @@ public final class InventoryWalkFeature {
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED || mc.player == null || !mc.isSameThread()) {
             return false;
         }
+        if (!heldClicks.isEmpty() || (com.killer560.hub.autoroutes.RouteExecutor.isRunning()
+                && mc.player.getLastSentInput().shift())) {
+            // Auto Routes' etherwarp sneak is at the server: his click or close in a menu now is GrimAC MultiActionsC /
+            // MultiActionsD, Inventory Walk on or off (arsneak-1116, 62-argrim-1116-ar-same-*-openclick). The route lets
+            // the sneak go while one is held (RouteExecutor.closeHeld), and the still tick sends it.
+            return true;
+        }
         InventoryWalkConfig cfg = InventoryWalkConfig.getInstance();
         if (!cfg.isEnabled() || !cfg.isStopToClick()) {
             return false;
         }
-        if (active || !heldClicks.isEmpty()) {
+        if (active) {
             return true;
         }
         Screen screen = McCompat.screen(mc);

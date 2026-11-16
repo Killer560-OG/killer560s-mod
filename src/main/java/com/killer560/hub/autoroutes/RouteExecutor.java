@@ -1696,7 +1696,10 @@ public final class RouteExecutor {
             // A use, block click, attack or command already left in this server tick (his own click outside a tick,
             // another feature's): a node acting now would put its hotbar swap after it - GrimAC PacketOrderE, an order
             // no vanilla client sends (62-argrim-1017-breakerwarp, gridexp-1102). Everything waits for this tick's
-            // movement packet; the walk keys stay as they were.
+            // movement packet; the walk keys stay as they were. This hold costs no tick after a Secret Aura click
+            // (arsneak-1116): that click's own movement packet must still report the click's look (RotationPlace
+            // post-flying, util/TurnFirst) and its unpaired click needs the warp's look heard before the use, so the
+            // use cannot go before the second tick after it whatever goes in this one.
             logHold("orderE", "node {}: a {} already went out this server tick - acting next tick so no hotbar swap "
                     + "follows it (GrimAC PacketOrderE)", nodeTag(activeNode), com.killer560.hub.util.HotbarSelect.orderConflict());
             applyFallbackKeys(client);
@@ -3740,6 +3743,17 @@ public final class RouteExecutor {
                     logHold("noether:" + traceIndex(node), "Etherwarp: {} in hand at the send and no etherwarp item in "
                             + "the hotbar now", ItemIdentity.skyblockId(player.getMainHandItem()));
                 }
+            }
+            // His left click goes out this tick in handleKeybinds, after us, aimed by his view: GrimAC judges the hit by the
+            // looks this tick reports, so the body faces his view now and the warp turns and goes after it (arsneak-1116,
+            // 62-argrim-1116-ar-same-*-attack: the use and a turned body in his attack's tick drew Hitboxes). Not while a
+            // missing landing block or a pick holds the warp: there his click is the one that sends it (below).
+            if (!AutoRoutesConfig.getInstance().isLegitMode() && blockWaitTicks == 0 && pickWaitBlock == null
+                    && com.killer560.hub.util.ActionGate.hisClickQueued(client.options.keyAttack)) {
+                BODY.giveBack(player);
+                logHold("hisattack:" + traceIndex(node), "Etherwarp ({}): your attack goes out this tick - the body faces "
+                        + "your view for it, the warp goes after", nodeTag(node));
+                return false;
             }
             // A right click on a block may be waiting on the server for its second half (util/RightClick): the server
             // must hear this warp's look before the use, or the use is taken as that click's end and nothing happens.

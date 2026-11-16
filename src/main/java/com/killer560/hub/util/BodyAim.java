@@ -65,6 +65,12 @@ public final class BodyAim {
             ViewFreeze.hold(player.getYRot(), player.getXRot());
             return;
         }
+        giveBack(player);
+    }
+
+    /** Now: the body back to the held view (his mouse movement included) and the camera released; nothing if not held. */
+    public void giveBack(LocalPlayer player) {
+        if (!held || player == null) return;
         float viewYaw = ViewFreeze.viewYaw();
         float viewPitch = ViewFreeze.viewPitch();
         if (!Float.isNaN(viewYaw)) {
