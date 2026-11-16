@@ -1068,7 +1068,10 @@ public final class LiveMapFeature {
         // MapPainter.visibleState already paints from.
         if (com.killer560.hub.roomsim.SimState.isActive()) {
             RoomEntry entry = roomEntryAt(idx);
-            if (entry != null && com.killer560.hub.roomsim.SimRoomState.isCleared(entry.name)) {
+            // stateFor, not isCleared: a solved sim puzzle is painted green there (as Hypixel's map shows it), and the
+            // Water Board chest waits on this (acslow3-1115).
+            int sim = entry == null ? -1 : com.killer560.hub.roomsim.SimRoomState.stateFor(entry.name);
+            if (sim == DungeonMapScanner.STATE_GREEN || sim == DungeonMapScanner.STATE_CLEARED) {
                 return true;
             }
         }

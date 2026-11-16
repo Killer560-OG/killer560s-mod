@@ -2940,6 +2940,8 @@ public final class RouteExecutor {
             } else if (refusedClickLetGo(client, node, have)) {
                 // Let go uncounted: no RouteRunMemory.met, nothing claimed - the secret stays not collected.
                 done = true;
+            } else if (nothingInReachLetGo(client, player, node, have, System.currentTimeMillis() - awaitStartMs)) {
+                done = true;
             }
             long waitedMs = System.currentTimeMillis() - awaitStartMs;
             if (!done && waitedMs / 1000L > awaitLogSecond) {
@@ -2982,6 +2984,48 @@ public final class RouteExecutor {
     private static int awaitGaveUpBase;
     /** His own refused secret clicks (no Secret Aura retry coming) after which a waiting await lets go. */
     static final int REFUSED_CLICKS_LET_GO = 3;
+    /** Ticks an await Auto Secret drives waits with nothing in reach that could count before it lets go (see below). */
+    static final int NOTHING_IN_REACH_LET_GO_TICKS = 40;
+    /** Blocks round him an item on the ground could still be picked up from by the route's next steps. */
+    private static final double AWAIT_ITEM_RANGE = 6.0;
+    /** For the testkit: treat the route as driven by Auto Secret (a sim arena has no dungeon for it to run in). */
+    private static boolean autoSecretDrivesForTest;
+    /** When the nothing-in-reach let-go last looked (it looks at most every 10 ticks). */
+    private static long nothingInReachCheckMs;
+    public static void autoSecretDrivesForTest(boolean on) { autoSecretDrivesForTest = on; }
+
+    /**
+     * An await only he can meet, while Auto Secret drives and he is not going to: Deathmite #3 (his 11-15 log, 15:24:26-38)
+     * waited 0/1 for 243 ticks with no chest, lever or skull in Secret Aura's reach, no item on the ground and no bat, the
+     * room still 0/6 on the action bar, until he pressed Escape. Checked every 10 ticks after
+     * {@link #NOTHING_IN_REACH_LET_GO_TICKS}: let go UNCOUNTED (nothing claimed, the room not marked secreted) only when
+     * Secret Aura has nothing to take in reach and no item entity or bat is near. Never on a route he runs himself.
+     */
+    private static boolean nothingInReachLetGo(Minecraft client, LocalPlayer player, RouteNode node, int have, long waitedMs) {
+        long ticks = waitedMs / 50L;
+        long now = System.currentTimeMillis();
+        if (ticks < NOTHING_IN_REACH_LET_GO_TICKS || now - nothingInReachCheckMs < 500L
+                || !(autoSecretDrivesForTest || com.killer560.hub.autosecret.AutoSecretFeature.isRunning())) {
+            return false;
+        }
+        nothingInReachCheckMs = now;
+        if (com.killer560.hub.cheatutils.SecretAuraFeature.takingInReach(client, false) != null) {
+            return false;
+        }
+        AABB around = player.getBoundingBox().inflate(AWAIT_ITEM_RANGE);
+        if (!client.level.getEntitiesOfClass(net.minecraft.world.entity.item.ItemEntity.class, around).isEmpty()
+                || !client.level.getEntitiesOfClass(net.minecraft.world.entity.ambient.Bat.class,
+                player.getBoundingBox().inflate(AwaitEvents.BAT_SPAWN_RANGE)).isEmpty()) {
+            return false;
+        }
+        int index = route.indexOf(node) + 1;
+        LOGGER.info("[AutoRoutes] Node #{} {}: await let go at {}/{} secrets after {} tick(s) - Auto Secret drives and "
+                        + "nothing in reach could count (no secret Secret Aura would take, no item within {}, no bat within "
+                        + "{}) - the secret is left uncollected", index, node.type, have, Math.max(1, node.awaitAmount),
+                ticks, AWAIT_ITEM_RANGE, AwaitEvents.BAT_SPAWN_RANGE);
+        secretLeftThisRun = true;
+        return true;
+    }
 
     /**
      * killer560, 2026-10-20: "if I am trying to grab a chest when it leaps to me then it'll sit there and the auto route

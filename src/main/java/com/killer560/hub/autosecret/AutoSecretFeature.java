@@ -2971,7 +2971,7 @@ public final class AutoSecretFeature {
         if (why != null) {
             LOGGER.info("[AutoSecret] going to the {} door at cell {}: {}", blood ? "blood" : "wither", cell, why);
         }
-        if (goal == null) {
+        if (goal == null || failDoorTripsForTest) {
             tripFailed("no way to the door from here");
             return;
         }
@@ -2991,7 +2991,14 @@ public final class AutoSecretFeature {
         beginTravel(Trip.DOOR);
     }
 
-    private static String doorName(int cell) {
+    /** For the testkit: every door trip fails as if the map had no way there (a sim floor always has one). */
+    private static boolean failDoorTripsForTest;
+
+    public static void failDoorTripsForTest(boolean on) {
+        failDoorTripsForTest = on;
+    }
+
+    static String doorName(int cell) {
         return "the door at cell " + cell;
     }
 

@@ -106,7 +106,28 @@ final class RewardChest {
      */
     private final int retryEvery;
 
+    /**
+     * Whether the chest can be opened yet (acslow3-1115): TRUE unlocked, FALSE still locked, null when nothing can say.
+     * While it is not TRUE the {@link #retryEvery} clicks are held back: a probe every {@link #LOCKED_PROBE_EVERY} ticks,
+     * at most {@link #LOCKED_PROBES} while it reads FALSE (no cap while nothing can say), so a locked chest is not clicked
+     * 60 times; the moment it reads TRUE the next click goes at once and the {@link #retryEvery} clicks run until it opens.
+     */
+    private final java.util.function.Supplier<Boolean> unlocked;
+    private static final int LOCKED_PROBE_EVERY = 20;
+    private static final int LOCKED_PROBES = 5;
+    /** Ticks the step waits for a locked chest's unlock before letting Autopilot go on. */
+    private static final int LOCKED_GIVE_UP_TICKS = 1200;
+    private boolean unlockSeen = false;
+    /** testkit: a chest given directly, with no room (a Grim session has no dungeon room). */
+    private boolean fixedTarget = false;
+
     RewardChest(String tag, int[] anchorRel, int[] boxRel, int maxChests, int retryEvery) {
+        this(tag, anchorRel, boxRel, maxChests, retryEvery, null);
+    }
+
+    RewardChest(String tag, int[] anchorRel, int[] boxRel, int maxChests, int retryEvery,
+                java.util.function.Supplier<Boolean> unlocked) {
+        this.unlocked = unlocked;
         this.retryEvery = retryEvery;
         this.tag = tag;
         this.camera = new FreeCam(tag + " chest");
@@ -156,6 +177,22 @@ final class RewardChest {
         lastNote = "";
         unloaded = false;
         retryLoggedFor = -1;
+        unlockSeen = false;
+        fixedTarget = false;
+    }
+
+    int clicks() {
+        return clicks;
+    }
+
+    /** testkit: claim {@code pos} with no room around it (see {@link #fixedTarget}). */
+    void startAtForTest(BlockPos pos) {
+        reset(Minecraft.getInstance());
+        start();
+        target = pos;
+        fixedTarget = true;
+        everFound = true;
+        sinceClick = Integer.MAX_VALUE / 2;
     }
 
     private void note(String what) {
@@ -179,11 +216,10 @@ final class RewardChest {
             return;
         }
         if (McCompat.screen(client) != null) {
-            if (clickedAwaitingScreen && target != null) {
-                done(target, "its window opened");
-            } else {
-                note("a screen is open - waiting");
-            }
+            // Any other screen (the Interactive Map, chat, a menu) is not the chest's window: only a chest window that
+            // arrived after the click (above) or its lid says it opened. acslow3-1115: his map screen ended the step as
+            // "opened" while the chest was still locked.
+            note("a screen is open - waiting");
             return;
         }
         if (target != null && isOpen(client, target)) {
@@ -201,8 +237,8 @@ final class RewardChest {
             // the click goes the very next tick; it is handed back once the chest is open.
             landed = true;
         }
-        int[] cr = LiveMapFeature.currentRoomClayAndRotation();
-        if (cr == null || client.level == null) {
+        int[] cr = fixedTarget ? null : LiveMapFeature.currentRoomClayAndRotation();
+        if ((cr == null && !fixedTarget) || client.level == null) {
             note("the room's rotation is not known - waiting");
             return;
         }
@@ -271,9 +307,33 @@ final class RewardChest {
             return;
         }
         if (retryEvery > 0) {
-            if (clicks > 0 && sinceClick < retryEvery) {
-                LOGGER.debug("[AutoPuzzles] {}: next click in {} tick(s)", tag, retryEvery - sinceClick);
-                return; // the next click goes exactly retryEvery ticks after the last; the window or the lid ends it
+            Boolean open = unlocked == null ? Boolean.TRUE : unlocked.get();
+            int every = retryEvery;
+            if (Boolean.TRUE.equals(open)) {
+                if (!unlockSeen) {
+                    unlockSeen = true;
+                    if (clicks > 0) {
+                        LOGGER.info("[AutoPuzzles] {}: the puzzle reads solved - the chest is unlocked, clicking now"
+                                + " (then every {} tick(s) until it opens) after {} locked probe(s) elapsedTicks={}", tag,
+                                retryEvery, clicks, elapsed());
+                        sinceClick = Integer.MAX_VALUE / 2;
+                    }
+                }
+            } else {
+                if (ticks > LOCKED_GIVE_UP_TICKS) {
+                    finish("the chest never read unlocked in " + LOCKED_GIVE_UP_TICKS / 20 + " s (" + clicks + " probe(s))");
+                    return;
+                }
+                if (Boolean.FALSE.equals(open) && clicks >= LOCKED_PROBES) {
+                    note("the reward chest is still locked - waiting for the puzzle to read solved (" + clicks
+                            + " probe(s) sent)");
+                    return;
+                }
+                every = LOCKED_PROBE_EVERY;
+            }
+            if (clicks > 0 && sinceClick < every) {
+                LOGGER.debug("[AutoPuzzles] {}: next click in {} tick(s)", tag, every - sinceClick);
+                return; // the next click goes exactly `every` ticks after the last; the window or the lid ends it
             }
         } else if (clicks > 0 && !unanswered()) {
             if (LOGGER.isDebugEnabled()) {
@@ -336,7 +396,8 @@ final class RewardChest {
         LOGGER.info("[AutoPuzzles] {}: clicked the reward chest at {} ({} from his eye, click {}{}) seq={}"
                         + " elapsedTicks={}", tag, AutoPuzzleUtil.fmt(target),
                 String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(distSq)), clicks,
-                retryEvery > 0 ? ", next in " + retryEvery + " tick(s) until it opens" : "", clickSeq, elapsed());
+                retryEvery <= 0 ? "" : unlockSeen ? ", next in " + retryEvery + " tick(s) until it opens"
+                        : ", locked probe - next in " + LOCKED_PROBE_EVERY + " tick(s) at most", clickSeq, elapsed());
     }
 
     /**

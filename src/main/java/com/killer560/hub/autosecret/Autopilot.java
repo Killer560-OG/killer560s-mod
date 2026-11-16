@@ -203,6 +203,18 @@ final class Autopilot {
                 return begin(head + (byRate == null ? "" : " | by rate alone: " + byRate.pick().describe()), rush, rooms);
             }
             Order door = bloodFirstDoor(layout, blood, bloodLocked);
+            if (door != null && secreted.contains(AutoSecretFeature.doorName(door.door()))) {
+                // Its trip failed three times (tripFailed left it out): picking it again only re-ran the failing warp,
+                // ~13 ticks a go, for 8 s in Altar (his 11-15 log, 15:28:22-30). The tour goes on; the door is left to
+                // the finish.
+                String note = "out " + door.door();
+                if (!note.equals(lastBloodFirstWait)) {
+                    lastBloodFirstWait = note;
+                    LOGGER.info("[Autopilot] Blood First: the door at cell {} is out of reach (its trip failed) - planning"
+                            + " the rest", door.door());
+                }
+                door = null;
+            }
             if (door != null) {
                 LOGGER.info("{} | pick DOOR cell {} ({}) - {}", head, door.door(), door.blood() ? "blood" : "wither", door.why());
                 setHud(door.blood() ? "Opening the blood door" : "Opening a wither door on the blood path", door.why());

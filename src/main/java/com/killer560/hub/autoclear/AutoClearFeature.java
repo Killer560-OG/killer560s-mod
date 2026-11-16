@@ -132,6 +132,14 @@ public final class AutoClearFeature {
     private static int slotBefore = -1;
     private static final Set<String> skippedRooms = new HashSet<>();
     private static final Set<Integer> skippedMobs = new HashSet<>();
+    /** Stand blocks of this room no trip lands on (near and exact both ended off them): walked to or given up at once,
+     *  never etherwarped to again. Cleared with the room (resetRoam). */
+    private static final Set<BlockPos> noLandStands = new HashSet<>();
+
+    /** For the testkit: stand blocks this room's trips could not land on. */
+    public static int noLandStands() {
+        return noLandStands.size();
+    }
     private static int roomsCleared = 0;
     /** When this run began, for the time-left estimate's seconds per room (see {@link #publishPlan}). */
     private static long runStartMs = 0L;
@@ -2041,6 +2049,7 @@ public final class AutoClearFeature {
         roamLookedFrom.clear();
         roamSpots = null;
         walkOffRoam = false;
+        noLandStands.clear();
     }
 
     // ---- mobs that left the client's view alive (killer560, 2026-10-19: "the clear was still really unoptimal") ----
@@ -2381,8 +2390,12 @@ public final class AutoClearFeature {
                 continue;
             }
             final BlockPos spot = stand;
+            boolean noLand = noLandStands.contains(spot);
             action = "roaming " + roomName + " to " + k.name() + " (" + k.why() + ")";
-            if (!walkInsteadOfTrip(client, player, spot, null, k.name() + " (" + k.why() + ")")) {
+            if (!walkInsteadOfTrip(client, player, spot, null, k.name() + " (" + k.why() + ")", false, noLand)) {
+                if (noLand) {
+                    continue;   // no trip lands there (see noLandStands) and no walk does: the next mob, or the spots
+                }
                 startTrip(client, player, () -> {
                     tripTo(spot);
                     return true;
@@ -2825,13 +2838,25 @@ public final class AutoClearFeature {
         java.util.function.Predicate<Vec3> inReach = weapon == AutoClearConfig.Weapon.SPIRIT_SCEPTRE
                 ? feetAt -> WeaponReach.sceptreReachesFrom(client.level, feetAt, box, usefulBatRange())
                 : feetAt -> reaches(cfg.getWeapon(), feetAt, box);
-        if (walkInsteadOfTrip(client, player, spot, inReach, targetName + " at " + target.blockPosition().toShortString())) {
+        boolean noLand = noLandStands.contains(spot);
+        if (walkInsteadOfTrip(client, player, spot, inReach, targetName + " at " + target.blockPosition().toShortString(),
+                false, noLand)) {
             return;
         }
         if (lastTripGoal != null && BlockPos.containing(feet).below().equals(lastTripGoal)) {
             lastTripGoal = null;   // the last trip did land on its block: a new trip there is a new trip
         }
+        if (noLand) {
+            // No trip landed on it before in this room and no walk gets there: two more failing warps would only end
+            // where he stands again (Steps, his 11-15 log: the same skip six times over 8 s, ~20 ticks each).
+            LOGGER.info("[AutoClear] skipped {} at {}: no trip landed on {} earlier in this room and no walk gets there",
+                    targetName, target.blockPosition().toShortString(), spot.toShortString());
+            skippedMobs.add(targetId);
+            targetId = -1;
+            return;
+        }
         if (tripsCannotReach(spot)) {
+            noLandStands.add(spot.immutable());
             // The near trip and the exact one both ended off this block: a third would end where he stands again.
             LOGGER.info("[AutoClear] skipped {} at {}: no trip lands on {} (the near and the exact plan both ended at {})",
                     targetName, target.blockPosition().toShortString(), spot.toShortString(),
@@ -4104,7 +4129,14 @@ public final class AutoClearFeature {
 
     /** True when both the near trip and the exact one onto {@code spot} ended off it: no trip will get him there. */
     private static boolean tripsCannotReach(BlockPos spot) {
-        return spot.equals(lastTripGoal) && sameGoalTrips >= 2;
+        return noLandForTest || (spot.equals(lastTripGoal) && sameGoalTrips >= 2);
+    }
+
+    /** For the testkit: every stand reads as one no trip lands on (a sim room has no such block to build cheaply). */
+    private static boolean noLandForTest;
+
+    public static void noLandForTest(boolean on) {
+        noLandForTest = on;
     }
 
     /** Gives the body back first (a tick), then starts an Interactive Map trip. */

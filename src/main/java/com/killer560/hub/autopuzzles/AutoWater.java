@@ -55,11 +55,52 @@ final class AutoWater {
     private static final FreeCam CAMERA = new FreeCam("Water");
     private static final AutoReposition REPOSITION = new AutoReposition("Water", CAMERA, true);
     /** The reward chest at relative (15, 56, 22), under the chest spot (see {@link RewardChest}). Clicked every
-     *  {@link #CHEST_CLICK_EVERY} ticks until it opens: it stays locked until the water has run. */
+     *  {@link #CHEST_CLICK_EVERY} ticks until it opens once the puzzle reads solved: it stays locked until the water has
+     *  run, and before that only a few slow probes go (acslow3-1115: his log had 65 clicks on the locked chest). */
     private static final RewardChest CHEST = new RewardChest("Water Board", new int[]{15, 56, 22},
-            new int[]{0, 50, 0, 30, 64, 30}, 1, AutoWater.CHEST_CLICK_EVERY);
+            new int[]{0, 50, 0, 30, 64, 30}, 1, AutoWater.CHEST_CLICK_EVERY, AutoWater::chestUnlocked);
     /** killer560, 2026-10-19: "waterboard should keep clicking that secret every 4 ticks until it gets it". */
     static final int CHEST_CLICK_EVERY = 4;
+    /** testkit: forces the unlock signal (null = the real one). */
+    private static Boolean unlockForTest;
+
+    /**
+     * The chest is unlocked once Hypixel calls the puzzle done: the tab list's Water Board line reads ✔ (or ✖), or the
+     * dungeon map shows the room cleared - the same rule Secret Aura waits on for this room. Null when neither source can
+     * say (the tab is read only for Score Calculator or the map's Extra Info, the map only once calibrated).
+     */
+    private static Boolean chestUnlocked() {
+        if (unlockForTest != null) {
+            return unlockForTest;
+        }
+        if (com.killer560.hub.cheatutils.SecretAuraFeature.puzzleDone(ROOM)) {
+            return Boolean.TRUE;
+        }
+        return com.killer560.hub.scorecalc.ScoreCalculatorFeature.estimateWanted()
+                || LiveMapFeature.hasRoomStates() ? Boolean.FALSE : null;
+    }
+
+    public static void setUnlockForTest(Boolean unlocked) {
+        unlockForTest = unlocked;
+    }
+
+    public static int chestClicksForTest() {
+        return CHEST.clicks();
+    }
+
+    /** testkit (a Grim session, no dungeon room): claim the chest at {@code pos}; tick it with {@link #chestTickForTest}. */
+    public static void chestStartAtForTest(net.minecraft.core.BlockPos pos) {
+        CHEST.startAtForTest(pos);
+    }
+
+    public static void chestTickForTest() {
+        AutoPuzzleUtil.turnTick(Minecraft.getInstance()); // as the puzzle dispatcher does first each tick
+        CHEST.tick(Minecraft.getInstance());
+    }
+
+    public static boolean chestActiveForTest() {
+        return CHEST.isActive();
+    }
 
     private static boolean atChest = false;
     private static boolean stoppedThisRoom = false;

@@ -82,7 +82,7 @@ public final class SecretAuraFeature {
      * The current room's puzzle is over: solved or failed on the tab list (Score Calculator's reading), or the room
      * cleared on the dungeon map. Anything else - open, not listed yet, Score Calculator off - counts as mid-solve.
      */
-    private static boolean puzzleDone(String roomName) {
+    public static boolean puzzleDone(String roomName) {
         char tab = com.killer560.hub.scorecalc.ScoreCalculatorFeature.puzzleState(roomName);
         if (tab == '✔' || tab == '✖') {
             return true;

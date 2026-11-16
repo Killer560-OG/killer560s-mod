@@ -176,6 +176,9 @@ public final class SimWaterPuzzle {
     private static final int[] CHEST_FRONT = {15, 56, 21};
     private static volatile BlockPos rewardChest = null;
     private static volatile boolean rewardOpened = false;
+    /** testkit (acslow3-1115): uses of the reward chest the server took, and a lock that makes them open nothing. */
+    private static volatile int rewardUses = 0;
+    private static volatile boolean rewardLockedForTest = false;
 
     /**
      * THE BACK LEVER IS THE LAPIS SLOT.
@@ -414,6 +417,10 @@ public final class SimWaterPuzzle {
             if (level.isClientSide() || chest == null || !SimState.isActive()
                     || !chest.equals(hitResult.getBlockPos())) {
                 return InteractionResult.PASS;
+            }
+            rewardUses++;
+            if (rewardLockedForTest) {
+                return InteractionResult.FAIL; // testkit: a chest Hypixel still holds locked - the click opens nothing
             }
             if (!rewardOpened) {
                 rewardOpened = true;
@@ -1040,6 +1047,8 @@ public final class SimWaterPuzzle {
     }
 
     public static boolean isComplete() { return complete; }
+    public static int rewardUsesForTest() { return rewardUses; }
+    public static void lockRewardForTest(boolean locked) { rewardLockedForTest = locked; }
 
     /** Where the reward chest stands, or null before the board is solved. For the testkit's 93-solve-waterboard. */
     public static BlockPos rewardChestPos() { return rewardChest; }
