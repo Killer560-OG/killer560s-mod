@@ -114,6 +114,7 @@ public final class SearchAliases {
             Map.entry("dungeon sim teleports", "sim settings"),
             Map.entry("dungeon sim room capture", "sim settings"),
             Map.entry("dungeon sim", "sim settings"),
+            Map.entry("sim wardrobe", "sim settings"),
             Map.entry("cheat utilities", "secret aura"),
             // killer560 (2026-11-04) calls the Structure Scanner "the cheat map scanner".
             Map.entry("map scanner", "crystal hollows map"),
