@@ -16,10 +16,12 @@ import net.minecraft.client.gui.screens.inventory.AbstractSignEditScreen;
 import net.minecraft.client.gui.screens.inventory.BookEditScreen;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ServerboundClientTickEndPacket;
 import net.minecraft.network.protocol.game.ServerboundContainerButtonClickPacket;
 import net.minecraft.network.protocol.game.ServerboundContainerClickPacket;
 import net.minecraft.network.protocol.game.ServerboundContainerClosePacket;
 import net.minecraft.network.protocol.game.ServerboundInteractPacket;
+import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerCommandPacket;
 import net.minecraft.network.protocol.game.ServerboundPlayerInputPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
@@ -117,6 +119,37 @@ public final class InventoryWalkFeature {
      * Blink hold running the server has not seen it yet.
      */
     private static volatile Input serverInput;
+    /**
+     * Menu Walk is holding the server's input (invwalkmenu-1111): in a Hypixel menu that closes on movement no
+     * player_input and no sprint change reaches the server, so it keeps the keys he walked in with and simulates him
+     * walking; Hypixel resyncs him about a block back every 2-3 ticks and the walk goes on (measured on Hypixel 11-11).
+     * A movement key it hears in a menu closes it 1-4 ticks later; keyless input never does.
+     */
+    private static boolean masking;
+    /** Ticks since Menu Walk last ended (a setback in this window is still Menu Walk's). */
+    private static int unmaskedTicks = Integer.MAX_VALUE;
+    /**
+     * The input Menu Walk owes the server, sent just before this tick's movement packet (or its client_tick_end when
+     * none goes) unless vanilla sent one of its own first: two input packets in one client tick are GrimAC's experimental
+     * BadPacketsZ (testkit 1108-iw-termwalk), and any packet between a movement packet and client_tick_end is PacketOrderO.
+     */
+    private static Input owedInput;
+    /** The sprint state the server must hear with the owed input (null: it has it). */
+    private static Boolean owedSprint;
+    /** Menu Walk is on in this menu; its pullbacks and summary are counted while it is. */
+    private static boolean menuWalking;
+    private static int menuPullbacks;
+    private static int menuKeyTicks;
+    /**
+     * An action that may open a server menu went out (a use, an interact, a click on the SkyBlock Menu star): input
+     * changes wait until then, so none reaches the server after it opened the menu (his 26.3 log 11-11 14:08:59: an input
+     * sent just before the menu showed closed it after 1 tick). The current input goes when the window ends with no menu.
+     */
+    private static long inputHoldUntilMs;
+    private static boolean inputHeldOutside;
+    static final long OPEN_RACE_MS = 400;
+    private static long pullbacks;
+    private static long hiddenInputs;
     private static volatile Boolean serverSprinting;
 
     /** Totals, for the testkit and the log. */
@@ -136,6 +169,16 @@ public final class InventoryWalkFeature {
         InventoryWalkConfig cfg = InventoryWalkConfig.getInstance();
         LocalPlayer player = client.player;
         Screen screen = McCompat.screen(client);
+        if (inputHeldOutside && !masking && System.currentTimeMillis() >= inputHoldUntilMs && player != null) {
+            inputHeldOutside = false;
+            owedInput = player.getLastSentInput();
+            owedSprint = serverSprinting != null && serverSprinting != player.isSprinting() ? player.isSprinting() : null;
+        }
+        if (menuWalking) {
+            unmaskedTicks = 0;
+        } else if (unmaskedTicks < Integer.MAX_VALUE) {
+            unmaskedTicks++;
+        }
         if (player != null && !carrying.isEmpty() && player.containerMenu.getCarried().isEmpty()) {
             // The server reset his cursor (a resync, a new or closed menu) while the pick-up was still unsent: it never had
             // these clicks, and the client now shows its truth, so they are dropped, never replayed onto another state.
@@ -145,6 +188,9 @@ public final class InventoryWalkFeature {
         if (player == null || client.getConnection() == null) {
             serverInput = null;
             serverSprinting = null;
+            masking = false;
+            owedInput = null;
+            owedSprint = null;
             if (!heldClicks.isEmpty()) {
                 LOGGER.info("[InvWalk] {} held packet(s) dropped: no connection", heldClicks.size());
                 heldClicks.clear();
@@ -198,25 +244,50 @@ public final class InventoryWalkFeature {
         }
         activeTicks++;
         if (screen != menuScreen) {
+            menuSummary(player);
             menuScreen = screen;
             menuTicks = 0;
             menuKeysTick = -1;
             menuClickTick = -1;
             menuStart = player.position();
+            menuPullbacks = 0;
+            menuKeyTicks = 0;
         }
         menuTicks++;
+        menuWalking = com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && cfg.isMenuWalk()
+                && screen instanceof AbstractContainerScreen<?> cs && cs.getMenu().containerId != 0;
+        setMasking(client, menuWalking);
 
         List<String> held = new ArrayList<>();
         boolean paused = pauseLeft > 0 || !heldClicks.isEmpty();
         if (pauseLeft > 0) {
             pauseLeft--;
         }
-        apply(client, client.options.keyUp, !paused, held);
-        apply(client, client.options.keyDown, !paused, held);
-        apply(client, client.options.keyLeft, !paused, held);
-        apply(client, client.options.keyRight, !paused, held);
-        apply(client, client.options.keyJump, !paused && cfg.isJump(), held);
-        apply(client, client.options.keySprint, !paused && cfg.isSprint(), held);
+        if (menuWalking) {
+            // Hypixel moves him in its menus only by the input it held when the menu opened: any input change closes the
+            // menu, and moving apart from it is pulled back (his 11-11 logs: net 0.00 blocks). So the keys play the
+            // server's held input, whatever the keyboard does, until the menu goes.
+            Input in = serverInput != null ? serverInput : Input.EMPTY;
+            if (!heldClicks.isEmpty() && owedInput == null && moving(serverInput)) {
+                // A held click's still tick: his local input may already read keyless (vanilla then sends nothing), so the
+                // server is told the stop itself.
+                owedInput = Input.EMPTY;
+                owedSprint = Boolean.TRUE.equals(serverSprinting) ? Boolean.FALSE : owedSprint;
+            }
+            set(client.options.keyUp, !paused && in.forward(), held);
+            set(client.options.keyDown, !paused && in.backward(), held);
+            set(client.options.keyLeft, !paused && in.left(), held);
+            set(client.options.keyRight, !paused && in.right(), held);
+            set(client.options.keyJump, !paused && in.jump(), held);
+            set(client.options.keySprint, !paused && in.sprint(), held);
+        } else {
+            apply(client, client.options.keyUp, !paused, held);
+            apply(client, client.options.keyDown, !paused, held);
+            apply(client, client.options.keyLeft, !paused, held);
+            apply(client, client.options.keyRight, !paused, held);
+            apply(client, client.options.keyJump, !paused && cfg.isJump(), held);
+            apply(client, client.options.keySprint, !paused && cfg.isSprint(), held);
+        }
 
         String keys = String.join(",", held) + (paused ? " (paused)" : "");
         if (!keys.equals(lastKeys)) {
@@ -226,6 +297,7 @@ public final class InventoryWalkFeature {
         boolean moving = !held.isEmpty() && !paused;
         if (moving) {
             walkingTicks++;
+            menuKeyTicks++;
             if (menuKeysTick < 0) {
                 menuKeysTick = menuTicks;
             }
@@ -242,7 +314,10 @@ public final class InventoryWalkFeature {
 
     /** Sets {@code mapping} to the keyboard's state (or up, when {@code allowed} is false). */
     private static void apply(Minecraft client, KeyMapping mapping, boolean allowed, List<String> held) {
-        boolean down = allowed && physicallyDown(client, mapping);
+        set(mapping, allowed && physicallyDown(client, mapping), held);
+    }
+
+    private static void set(KeyMapping mapping, boolean down, List<String> held) {
         if (mapping.isDown() != down) {
             mapping.setDown(down);
         }
@@ -287,6 +362,9 @@ public final class InventoryWalkFeature {
             flushClicks(client, "Inventory Walk off: " + why);
         }
         // Otherwise a click or close still held keeps waiting for its still tick (the tick handles it with no screen).
+        menuSummary(client.player);
+        menuWalking = false;
+        setMasking(client, false);
         active = false;
         pauseLeft = 0;
         menuScreen = null;
@@ -312,8 +390,46 @@ public final class InventoryWalkFeature {
      * packet, a sprint, or a sneak - every click made while walking drew it (testkit 1025-invwalk-inventory, 2026-10-25).
      */
     public static boolean onPacketSent(Packet<?> packet) {
+        if (packet instanceof ServerboundPlayerInputPacket) {
+            owedInput = null;
+        } else if ((owedInput != null || owedSprint != null)
+                && (packet instanceof ServerboundClientTickEndPacket || packet instanceof ServerboundMovePlayerPacket)) {
+            Input owed = owedInput;
+            owedInput = null;
+            if (owed != null) {
+                sendRaw(new ServerboundPlayerInputPacket(owed));
+            }
+            LocalPlayer p = Minecraft.getInstance().player;
+            if (owedSprint != null && p != null) {
+                // Keep Input held his sprint changes back: the server hears where it stands now, as vanilla sends it
+                // (before the movement packet).
+                sendRaw(new ServerboundPlayerCommandPacket(p, owedSprint ? ServerboundPlayerCommandPacket.Action.START_SPRINTING
+                        : ServerboundPlayerCommandPacket.Action.STOP_SPRINTING));
+            }
+            owedSprint = null;
+        }
+        if (mayOpenMenu(packet)) {
+            inputHoldUntilMs = System.currentTimeMillis() + OPEN_RACE_MS;
+        }
         if (sendingHeld) {
             return false;
+        }
+        boolean race = !masking && System.currentTimeMillis() < inputHoldUntilMs;
+        if ((masking || race) && packet instanceof ServerboundPlayerCommandPacket sc
+                && (sc.getAction() == ServerboundPlayerCommandPacket.Action.START_SPRINTING) == Boolean.TRUE.equals(serverSprinting)
+                && (sc.getAction() == ServerboundPlayerCommandPacket.Action.START_SPRINTING
+                || sc.getAction() == ServerboundPlayerCommandPacket.Action.STOP_SPRINTING)) {
+            // A sprint change held back left vanilla's sprint state apart from the server's: one that repeats the server's
+            // state (a click's still tick stopping a sprint the server never heard start) is GrimAC's BadPacketsF.
+            return true;
+        }
+        if ((masking || race) && heldClicks.isEmpty() && (packet instanceof ServerboundPlayerInputPacket
+                || packet instanceof ServerboundPlayerCommandPacket cmd && (cmd.getAction() == ServerboundPlayerCommandPacket.Action.START_SPRINTING
+                || cmd.getAction() == ServerboundPlayerCommandPacket.Action.STOP_SPRINTING))) {
+            // The server keeps the keys and sprint it had when the menu opened (a click's still tick goes).
+            hiddenInputs++;
+            inputHeldOutside |= race;
+            return true;
         }
         boolean isClick = packet instanceof ServerboundContainerClickPacket;
         boolean isClose = packet instanceof ServerboundContainerClosePacket;
@@ -708,7 +824,114 @@ public final class InventoryWalkFeature {
                         + "last click at tick %s, keys [%s], sprinting=%s, moved %.2f blocks (%.2f up), onGround=%s",
                 menuScreen.getTitle().getString(), menuTicks, menuKeysTick < 0 ? "never" : String.valueOf(menuKeysTick),
                 menuClickTick < 0 ? "never" : String.valueOf(menuClickTick), lastKeys, player.isSprinting(),
-                Math.hypot(now.x - menuStart.x, now.z - menuStart.z), now.y - menuStart.y, player.onGround()));
+                Math.hypot(now.x - menuStart.x, now.z - menuStart.z), now.y - menuStart.y, player.onGround())
+                + (menuWalking ? ", Menu Walk on, " + menuKeyTicks + " key tick(s), " + menuPullbacks + " pullback(s)" : ""));
+    }
+
+    /** Menu Walk is on and this packet may make the server open a menu (see {@link #inputHoldUntilMs}). */
+    private static boolean mayOpenMenu(Packet<?> p) {
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED || !InventoryWalkConfig.getInstance().isEnabled()
+                || !InventoryWalkConfig.getInstance().isMenuWalk()) {
+            return false;
+        }
+        if (p instanceof ServerboundUseItemPacket || p instanceof ServerboundUseItemOnPacket || p instanceof ServerboundInteractPacket) {
+            return true;
+        }
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (!(p instanceof ServerboundContainerClickPacket c) || c.containerId() != 0 || player == null) {
+            return false;
+        }
+        var slots = player.inventoryMenu.slots;
+        return c.slotNum() >= 0 && c.slotNum() < slots.size() && isMenuStar(slots.get(c.slotNum()).getItem());
+    }
+
+    /** Menu Walk's line for the menu that is ending: how far he got, on how many key ticks, against how many pullbacks. */
+    private static void menuSummary(LocalPlayer player) {
+        if (!menuWalking || player == null || menuScreen == null || menuStart == null) {
+            return;
+        }
+        Vec3 now = player.position();
+        LOGGER.info(String.format(Locale.ROOT, "[InvWalk] Menu Walk in \"%s\": %d tick(s), %d key tick(s), moved %.2f blocks, "
+                        + "%d pullback(s)", menuScreen.getTitle().getString(), menuTicks, menuKeyTicks,
+                Math.hypot(now.x - menuStart.x, now.z - menuStart.z), menuPullbacks));
+    }
+
+    /**
+     * Turns the hidden keys on or off. On: the server gets a keyless input this tick (vanilla sends one only when his keys
+     * change). Off: his real input goes, so the server is never left without keys he is holding. Either is owed.
+     */
+    private static void setMasking(Minecraft client, boolean on) {
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED || masking == on) {
+            return;
+        }
+        masking = on;
+        unmaskedTicks = 0;
+        LocalPlayer player = client.player;
+        if (player != null && client.getConnection() != null) {
+            Input real = player.getLastSentInput();
+            owedInput = on ? null : real;
+            inputHeldOutside = false;
+            owedSprint = !on && serverSprinting != null && serverSprinting != player.isSprinting() ? player.isSprinting() : null;
+            LOGGER.info("[InvWalk] Menu Walk: the server's input {}, his input {}", on ? "held" : "released to his",
+                    inputText(real));
+        }
+    }
+
+    private static void sendRaw(Packet<?> p) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getConnection() == null) {
+            return;
+        }
+        sendingHeld = true;
+        try {
+            mc.getConnection().send(p);
+        } finally {
+            sendingHeld = false;
+        }
+    }
+
+    /**
+     * {@code blink/mixin/BlinkPacketListenerMixin}: every server position. A setback while (or just after) keys were hidden
+     * is Menu Walk's pullback: reported, honored (vanilla applies it), and walking carries on from there. The INFO line
+     * says how far and how often, for his Hypixel log.
+     */
+    public static void onServerPosition(Vec3 from, Vec3 to) {
+        if (from == null || to == null || !(menuWalking || unmaskedTicks <= 20)) {
+            return;
+        }
+        double d = from.distanceTo(to);
+        if (d <= 0.01 || d > 10 || menuKeysTick < 0) {
+            // Nothing moved, or a teleport he asked for (a Spirit Leap click), not a pullback of his walk.
+            return;
+        }
+        pullbacks++;
+        menuPullbacks++;
+        LOGGER.info(String.format(Locale.ROOT, "[InvWalk] Menu Walk pullback #%d in this menu: %.2f blocks at menu tick %d"
+                + " (keys %s)", menuPullbacks, d, menuTicks, lastKeys));
+        if (menuPullbacks == 1) {
+            // Once a menu: Keep Input's resyncs come every 2-3 ticks by design; the rest are in the log line above.
+            com.killer560.hub.util.ServerCorrections.report("Inventory Walk",
+                    "the server pulled you back while you walked in a menu - carrying on", d);
+        }
+    }
+
+    /** A server position that is Menu Walk's resync (Smooth Teleport eases the camera over it; nothing else changes). */
+    public static boolean isResync(Vec3 from, Vec3 to) {
+        double d = from.distanceTo(to);
+        return masking && d > 0.01 && d < 3;
+    }
+
+    /** Menu Walk is holding the server's input now, and its counters (testkit). */
+    public static boolean isMasking() {
+        return masking;
+    }
+
+    public static long pullbacks() {
+        return pullbacks;
+    }
+
+    public static long hiddenInputs() {
+        return hiddenInputs;
     }
 
     public static void noteLook() {

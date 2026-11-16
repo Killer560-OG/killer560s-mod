@@ -56,6 +56,8 @@ public final class InventoryWalkConfig {
     /** With Stop To Click: a storage menu's pick-up stays unsent while he walks carrying it (iwbypass-1108). */
     private boolean carryInChests = false;
     private LookMode lookMode = LookMode.HOLD;
+    /** Menu Walk: in a Hypixel menu that closes on movement the server keeps the keys he walked in with (invwalkmenu-1111). */
+    private boolean menuWalk = false;
 
     private InventoryWalkConfig() {
     }
@@ -80,6 +82,7 @@ public final class InventoryWalkConfig {
             cfg.lookKeyCode = com.killer560.hub.util.KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "lookKeyCode", cfg.lookKeyCode));
             cfg.carryInChests = ConfigJson.getBool(obj, "carryInChests", cfg.carryInChests);
             cfg.lookMode = ConfigJson.getEnum(obj, "lookMode", LookMode.class, cfg.lookMode);
+            cfg.menuWalk = ConfigJson.getBool(obj, "menuWalk", cfg.menuWalk);
         }
         instance = cfg;
     }
@@ -95,7 +98,16 @@ public final class InventoryWalkConfig {
         obj.addProperty("lookKeyCode", lookKeyCode);
         obj.addProperty("carryInChests", carryInChests);
         obj.addProperty("lookMode", lookMode.name());
+        obj.addProperty("menuWalk", menuWalk);
         ConfigJson.write(CONFIG_PATH, obj);
+    }
+
+    public boolean isMenuWalk() {
+        return menuWalk;
+    }
+
+    public void setMenuWalk(boolean on) {
+        this.menuWalk = on;
     }
 
     public boolean isEnabled() {

@@ -42,6 +42,7 @@ public abstract class BlinkPacketListenerMixin {
             PositionMoveRotation target = PositionMoveRotation.calculateAbsolute(
                     PositionMoveRotation.of(player), packet.change(), packet.relatives());
             BlinkFeature.onServerPosition(player.position(), target.position());
+            com.killer560.hub.invwalk.InventoryWalkFeature.onServerPosition(player.position(), target.position());
         } catch (Throwable t) {
             killer560smod$blink$threw(t);
         }
@@ -108,8 +109,9 @@ public abstract class BlinkPacketListenerMixin {
     }
 
     /**
-     * A block near him changed in a way he could bump into (GrimAC moves its world only at the ping after the update, which
-     * Charge holds a second): the answers go through that ping at once (BlinkCharge.onServerPush). Both versions: both
+     * A block near him changed in a way he could bump into: GrimAC moves its world only when the ping sent before the update
+     * is answered, which Charge holds a second, so the change waits for that answer (BlinkCharge.deferBlockUpdate). His own
+     * break instead sends every held answer at once and is applied now (BlinkCharge.catchUpForOwnBreak). Both versions: both
      * handlers begin with ensureRunningOnSameThread (javap 26.1.2 / 26.2); this runs before vanilla applies the change.
      */
     @Inject(method = "handleBlockUpdate", at = @At(value = "INVOKE", target = ENSURE_SAME_THREAD, shift = At.Shift.AFTER),
@@ -120,6 +122,9 @@ public abstract class BlinkPacketListenerMixin {
             if (packet != null && !com.killer560.hub.blink.BlinkCharge.applyingDeferred()
                     && com.killer560.hub.blink.BlinkCharge.deferBlocks()
                     && killer560smod$blink$bumps(packet.getPos(), packet.getBlockState())) {
+                if (killer560smod$blink$ownBreak(packet.getPos(), packet.getBlockState())) {
+                    return;
+                }
                 ClientPacketListener self = (ClientPacketListener) (Object) this;
                 com.killer560.hub.blink.BlinkCharge.deferBlockUpdate(() -> self.handleBlockUpdate(packet));
                 ci.cancel();
@@ -139,11 +144,20 @@ public abstract class BlinkPacketListenerMixin {
                 return;
             }
             boolean[] hit = {false};
+            net.minecraft.core.BlockPos[] own = {null};
             packet.runUpdates((pos, state) -> {
-                if (!hit[0] && killer560smod$blink$bumps(pos, state)) {
+                if (killer560smod$blink$bumps(pos, state)) {
                     hit[0] = true;
+                    if (own[0] == null && state.getCollisionShape(Minecraft.getInstance().level, pos).isEmpty()
+                            && com.killer560.hub.blink.BlinkCharge.isOwnDig(pos)) {
+                        own[0] = pos.immutable();
+                    }
                 }
             });
+            // Every change in the packet shares its ping, so his own break among them lets the whole packet through.
+            if (hit[0] && own[0] != null && com.killer560.hub.blink.BlinkCharge.catchUpForOwnBreak(own[0])) {
+                return;
+            }
             if (hit[0]) {
                 ClientPacketListener self = (ClientPacketListener) (Object) this;
                 com.killer560.hub.blink.BlinkCharge.deferBlockUpdate(() -> self.handleChunkBlocksUpdate(packet));
@@ -166,7 +180,7 @@ public abstract class BlinkPacketListenerMixin {
         var level = Minecraft.getInstance().level;
         var e = packet == null || level == null ? null : packet.getEntity(level);
         if (e != null) {
-            killer560smod$blink$hold(e.getId(), e, killer560smod$blink$live(self, () -> self.handleMoveEntity(packet)), ci);
+            killer560smod$blink$hold(e.getId(), e, null, killer560smod$blink$live(self, () -> self.handleMoveEntity(packet)), ci);
         }
     }
 
@@ -178,7 +192,8 @@ public abstract class BlinkPacketListenerMixin {
             return;
         }
         ClientPacketListener self = (ClientPacketListener) (Object) this;
-        killer560smod$blink$hold(packet.id(), null, killer560smod$blink$live(self, () -> self.handleTeleportEntity(packet)), ci);
+        killer560smod$blink$hold(packet.id(), null, packet.relatives().isEmpty() ? packet.change().position() : null,
+                killer560smod$blink$live(self, () -> self.handleTeleportEntity(packet)), ci);
     }
 
     @Inject(method = "handleEntityPositionSync", at = @At(value = "INVOKE", target = ENSURE_SAME_THREAD,
@@ -189,7 +204,8 @@ public abstract class BlinkPacketListenerMixin {
             return;
         }
         ClientPacketListener self = (ClientPacketListener) (Object) this;
-        killer560smod$blink$hold(packet.id(), null, killer560smod$blink$live(self, () -> self.handleEntityPositionSync(packet)), ci);
+        killer560smod$blink$hold(packet.id(), null, com.killer560.hub.compat.McPackets.positionSyncPos(packet),
+                killer560smod$blink$live(self, () -> self.handleEntityPositionSync(packet)), ci);
     }
 
     /** A held entity change applies only on the live connection: one held across a world change would hit a dead listener (level null). */
@@ -203,17 +219,26 @@ public abstract class BlinkPacketListenerMixin {
     }
 
     @Unique
-    private static void killer560smod$blink$hold(int id, net.minecraft.world.entity.Entity e, Runnable apply,
-            CallbackInfo ci) {
+    private static void killer560smod$blink$hold(int id, net.minecraft.world.entity.Entity e, net.minecraft.world.phys.Vec3 to,
+            Runnable apply, CallbackInfo ci) {
         try {
             var level = Minecraft.getInstance().level;
             if (com.killer560.hub.blink.BlinkCharge.holdEntityMove(id, e != null || level == null ? e : level.getEntity(id),
-                    apply)) {
+                    to, apply)) {
                 ci.cancel();
             }
         } catch (Throwable t) {
             killer560smod$blink$threw(t);
         }
+    }
+
+    /** A block he dug becoming walkable: the answers go at once and it applies now (BlinkCharge.catchUpForOwnBreak). */
+    @Unique
+    private static boolean killer560smod$blink$ownBreak(net.minecraft.core.BlockPos pos,
+            net.minecraft.world.level.block.state.BlockState next) {
+        var level = Minecraft.getInstance().level;
+        return level != null && next.getCollisionShape(level, pos).isEmpty()
+                && com.killer560.hub.blink.BlinkCharge.catchUpForOwnBreak(pos);
     }
 
     /** Within 3 blocks of his box, and its collision changes from what the client has there now. */

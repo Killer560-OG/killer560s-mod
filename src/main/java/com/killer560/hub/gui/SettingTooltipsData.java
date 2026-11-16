@@ -281,7 +281,7 @@ final class SettingTooltipsData {
         d.put("blink/show hud", "Shows \"Charge 12/20\" while charging and \"Hold 5/20\" while holding; move it in the HUD editor.");
         d.put("blink/show server position", "Red box: where the server has you during a hold. Green box: where a charge shot would land you now.");
         d.put("blink/hud style", "Bar: a bar that fills as ticks bank. Text: \"Charge 12/20\". Both: the bar with the numbers.");
-        d.put("blink/chat messages", "Says in chat when a hold starts and ends and when Charge starts, fires and stops.");
+        d.put("blink/chat messages", "Says in chat when a hold starts and ends, when Charge starts, fires and stops, and how much of the bank a teleport kept.");
         d.put("blink/debug log", "Writes every blink to latest.log on a GitHub build too (your own builds always do).");
         d.put("blink/charge key", "Standing still banks ticks; firing runs them all at once and shoots you forward. Fired standing, it goes off when you move.");
         d.put("blink/charge mode", "Toggle: press to charge, press again to fire. Hold: charge while held, fire when you let go.");
@@ -290,7 +290,8 @@ final class SettingTooltipsData {
         d.put("inventory walk/look key", "Hold it with a menu open and moving the mouse turns you (your normal sensitivity) instead of the cursor; let go and the mouse moves the cursor again. Not Set by default. Click, then press a key or mouse button; Escape clears it.");
         d.put("inventory walk/look key mode", "Hold: you look while the Look Key is held. Toggle: one press starts looking, the next press stops it, and closing the menu stops it too. Hold by default.");
         d.put("inventory walk/carry in chests", "With Stop To Click on: in a chest, ender chest, barrel or Hypixel storage page, an item you pick up stays on your cursor and is not sent while you keep walking. When you put it down you stop for a moment and both clicks go together, so the server never sees an item carried while you move. Off by default.");
-        d.put("blink/hold key", "While held, everything you send waits; let go and it all goes at once. Menu clicks always go through.");
+        d.put("inventory walk/menu walk (flags grim)", "In Hypixel server menus (SkyBlock Menu, Storage, Ender Chest, any container but your own inventory), which Hypixel closes as soon as it hears a movement key: walk (and sprint) into the menu and you keep walking the way you were going while it stays open. Hypixel only moves you by the keys it heard before the menu opened, so keys pressed inside do nothing until it closes, and a menu opened standing still cannot walk. Hypixel may close it after about 10 blocks or pull you back a block every few ticks; the camera eases over it. Your own inventory keeps the normal Inventory Walk. GrimAC flags it. Off by default.");
+        d.put("blink/hold key", "While held, everything you send waits; let go and it all goes at once. Menu clicks always go through. A teleport sends what was held and the hold goes on from where you land.");
         d.put("blink/hold ticks", "A hold lets go on its own after this many ticks. Past 20, Hypixel sets it back.");
     }
 

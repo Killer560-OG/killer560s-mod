@@ -1648,10 +1648,10 @@ public final class ClearExecutor {
             return;
         }
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED
+                && !com.killer560.hub.autoroutes.AutoRoutesConfig.getInstance().isChargedChain()
                 && (nodes != null && !nodes.isEmpty() || issued.size() > confirmed)) {
-            // A path's warps are going out or in flight: no landing's confirm waits a second behind Blink Charge's
-            // answers (his 26.3 log 2026-11-10 08:39, 12 map warps in two ~1030 ms holds).
-            com.killer560.hub.blink.BlinkCharge.noteChain("Interactive Map");
+            // A path's warps are going out or in flight: nothing of it waits behind Blink Charge's answers.
+            com.killer560.hub.blink.BlinkCharge.noteRoute("Interactive Map");
         }
         LiveMapConfig cfg = LiveMapConfig.getInstance();
         // killer560: "the entire portion of interactive map is the teleport pathing" - there is no separate

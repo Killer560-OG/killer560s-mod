@@ -42,7 +42,9 @@ import java.util.List;
  * {@link #MAX_HELD_PACKETS} is released at once.
  *
  * <p><b>The server's word is final.</b> A server teleport while holding (an etherwarp landing, a leap, a pearl) is held
- * through: its accept goes in the queue in its place. One that puts him back where the hold started is the server
+ * through: what was held goes out at once, in order (its last ping answer is the one GrimAC needs before the confirm),
+ * then the confirm and the landing move go live, and the hold starts again from the landing, its tick count from zero.
+ * One that puts him back where the hold started is the server
  * refusing the blink: what is held is released at once (all of it, in order, ahead of the setback's accept), reported
  * through {@link ServerCorrections}, and nothing stops. A world change (login or respawn packet) releases everything held,
  * in order, before the new world's packets; a configuration switch releases everything; a
@@ -144,7 +146,15 @@ public final class BlinkFeature {
             return false;
         }
         synchronized (LOCK) {
-            if (!holding || connection != holdConnection) {
+            if (!holding || connection != holdConnection || releasingThread == Thread.currentThread()) {
+                noteSent(connection, packet);
+                return false;
+            }
+            if (passTeleport != 0 && (passTeleport == 1
+                    ? packet instanceof net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket
+                    : packet instanceof ServerboundMovePlayerPacket)) {
+                // A teleport's confirm (1) and vanilla's landing move right behind it (2) go live, then the hold goes on.
+                passTeleport = passTeleport == 1 ? 2 : 0;
                 noteSent(connection, packet);
                 return false;
             }
@@ -176,6 +186,8 @@ public final class BlinkFeature {
     }
 
     private static long clicksLive;
+    /** A teleport while holding: 1 = its confirm passes next, 2 = then the landing move; reset at the next tick start. */
+    private static int passTeleport;
     /** The thread sending a released burst right now: its sends skip Charge's hook. */
     private static volatile Thread releasingThread;
     private static long clicksAtStart;
@@ -224,6 +236,7 @@ public final class BlinkFeature {
     // The tick
 
     static void tick(Minecraft client) {
+        passTeleport = 0;
         if (ticksSinceRelease < Integer.MAX_VALUE) {
             ticksSinceRelease++;
         }
@@ -410,13 +423,7 @@ public final class BlinkFeature {
                     dropped++;
                     continue;
                 }
-                // holding is off, so this send passes our hook (and notes the move for the box), and Charge's too.
-                releasingThread = Thread.currentThread();
-                try {
-                    connection.send(h.packet(), h.listener(), false);
-                } finally {
-                    releasingThread = null;
-                }
+                sendLive(connection, h); // notes the move for the box, skips Charge's hook
                 sent++;
             }
             connection.flushChannel();
@@ -451,6 +458,16 @@ public final class BlinkFeature {
         if (BlinkConfig.getInstance().isChatMessages()) {
             String extra = dropped > 0 ? ", " + dropped + " stale dropped" : "";
             ModChat.send("Blink", ModChat.text("released " + ticks + " tick(s), " + sent + " packet(s) (" + why + extra + ")"));
+        }
+    }
+
+    /** Sends one held packet now, past the hold and Charge's hook (both check {@link #releasingThread}). */
+    private static void sendLive(Connection connection, Held h) {
+        releasingThread = Thread.currentThread();
+        try {
+            connection.send(h.packet(), h.listener(), false);
+        } finally {
+            releasingThread = null;
         }
     }
 
@@ -521,13 +538,37 @@ public final class BlinkFeature {
         boolean backToStart = start != null && to != null && dist > RUBBERBAND_BLOCKS && to.distanceTo(start) < 0.5;
         BlinkCharge.noteServerTeleport(from, to, dist);
         if (wasHolding && !backToStart) {
-            // An etherwarp landing, a leap, a lag-back to somewhere new: keep holding. The accept vanilla answers with goes
-            // into the queue in its place, so on release the server sees a client that got the teleport late - every
-            // held move before the accept is ignored by it, every one after starts from the new spot.
+            // An etherwarp landing, a leap, a lag-back to somewhere new: keep holding, from the landing. GrimAC takes the
+            // confirm only right behind the answer to the ping it sent before the teleport (SetbackTeleportUtil), and that
+            // answer is the newest one held now (pings and the teleport are handled in the server's order). So what was
+            // held goes out now, in order, then the confirm and vanilla's landing move go live (passTeleport), and the
+            // hold restarts from the landing. Before blinktp-1111 the confirm waited in the queue, so the server ignored
+            // every move until the release and the landing reached it up to Hold Ticks late.
+            int sent;
+            int ticks;
+            synchronized (LOCK) {
+                ticks = heldTicks;
+                sent = queue.size();
+                Connection connection = holdConnection;
+                if (connection != null && connection.isConnected()) {
+                    for (Held h : queue) {
+                        sendLive(connection, h);
+                    }
+                    connection.flushChannel();
+                }
+                queue.clear();
+                heldTicks = 0;
+                heldMoves = 0;
+                holdStartMs = System.currentTimeMillis();
+                holdStartServerPos = to;
+                passTeleport = 1;
+            }
+            holdStartClientPos = to;
             teleportsHeld++;
             BlinkLog.event("server teleport while holding: %.2f blocks, client at %s, server put him at %s (%d tick(s) "
-                    + "into the hold) - kept holding, the accept goes out in order; teleport #%d held through", dist,
-                    BlinkLog.fmt(from), BlinkLog.fmt(to), heldTicks, teleportsHeld);
+                    + "into the hold) - %d held packet(s) sent in order, the confirm and landing go live, holding again from "
+                    + "the landing; teleport #%d held through", dist, BlinkLog.fmt(from), BlinkLog.fmt(to), ticks, sent,
+                    teleportsHeld);
             if (to != null) {
                 serverPos = to;
             }

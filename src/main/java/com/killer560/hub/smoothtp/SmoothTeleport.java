@@ -80,6 +80,10 @@ public final class SmoothTeleport {
     private static Vec3 offset;
     private static long glideStartNs;
     private static long glideNs;
+    /** This glide is Menu Walk's resync, drawn whether or not Smooth Teleport is on. */
+    private static boolean resyncGlide;
+    /** Menu Walk's resyncs come every 2-3 ticks: each glides over about two ticks, so the camera never jumps back. */
+    static final long RESYNC_GLIDE_MS = 100;
     private static Level glideLevel;
 
     private static int glides;
@@ -188,6 +192,16 @@ public final class SmoothTeleport {
      * where the client still has him, {@code to} where the packet puts him. Decides glide or snap; moves nothing.
      */
     public static void onServerPosition(Vec3 from, Vec3 to) {
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && com.killer560.hub.invwalk.InventoryWalkFeature.isResync(from, to)) {
+            // Menu Walk's expected resync (honored: vanilla applies it); only the camera eases over it.
+            PENDING.clear();
+            if (lastDrawn != null) {
+                startFrom = lastDrawn;
+                glideNs = RESYNC_GLIDE_MS * 1_000_000L;
+                resyncGlide = true;
+            }
+            return;
+        }
         SmoothTeleportConfig cfg = SmoothTeleportConfig.getInstance();
         if (!cfg.isEnabled()) {
             PENDING.clear();
@@ -236,6 +250,7 @@ public final class SmoothTeleport {
         }
         startFrom = lastDrawn;
         glideNs = cfg.getDurationMs() * 1_000_000L;
+        resyncGlide = false;
         glides++;
         lastDecision = String.format(Locale.ROOT, "glide %s %.2f blocks over %d ms", use.kind(), dist,
                 cfg.getDurationMs());
@@ -290,7 +305,7 @@ public final class SmoothTeleport {
         Vec3 out = vanilla;
         if (offset != null) {
             double t = (System.nanoTime() - glideStartNs) / (double) glideNs;
-            if (t >= 1.0 || detached || glideLevel != level || !SmoothTeleportConfig.getInstance().isEnabled()) {
+            if (t >= 1.0 || detached || glideLevel != level || !resyncGlide && !SmoothTeleportConfig.getInstance().isEnabled()) {
                 cancel();
             } else {
                 out = vanilla.add(offset.scale(1.0 - Math.max(0.0, t)));

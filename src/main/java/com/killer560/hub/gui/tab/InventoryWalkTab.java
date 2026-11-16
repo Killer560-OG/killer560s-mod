@@ -118,8 +118,14 @@ public class InventoryWalkTab extends BaseTab implements KeyCaptureTab {
                 cfg::setLookMode, cfg::save).bounds(contentX, y, contentWidth, ROW).build());
         y += ROW + 4;
         w.add(onOffButton("Carry In Chests", cfg::isCarryInChests, cfg::setCarryInChests, cfg::save, null, contentX, y, contentWidth, ROW));
+        y += ROW + 6;
+        w.add(SectionHeaders.row(contentX, y, contentWidth, "Cheat", true));
+        y += 16;
+        w.add(onOffButton(MENU_WALK, cfg::isMenuWalk, cfg::setMenuWalk, cfg::save, null, contentX, y, contentWidth, ROW));
         return w;
     }
+
+    static final String MENU_WALK = "Menu Walk (flags Grim)";
 
     private static Component screensText(InventoryWalkConfig cfg) {
         return Component.literal("Screens: " + cfg.getScreens().label);

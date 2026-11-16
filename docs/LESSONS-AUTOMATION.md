@@ -147,6 +147,17 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   only on a server without RotationBreak. The "sticks around" report (Burst + Blink Charge): BlinkCharge.deferBlockUpdate
   holds the server's break until its ping answer goes (~1 s) while the break sound is not held; a pending pick is now drawn
   as air through the SectionCompiler hook (`MithrilStone.replace`, remeshed on add/remove, expires at 3 s and on world change).
+  His OWN break no longer waits (simbreakdelay-1112, killer560 2026-11-12: "it needs to instantly break when i break the block
+  or it is useless having blink held"): a block update near him for a pos he sent START/STOP_DESTROY_BLOCK for (recorded in
+  BlinkCharge.onSendLocked, 16 at most, 3 s) that makes it walkable sends every held answer back to back between ticks and
+  is applied at once (`BlinkCharge.catchUpForOwnBreak`), with the teleport rule for the bank (`catchUpLocked`: kept as far
+  as the oldest answer covers, all 20 after a second of charging). Two batches a tick apart keep only what the second one's
+  oldest answer covers (20 -> 2 for a column dug a tick apart), so a break that comes back while another dig of his is
+  still on its way, or that Breaker Aura says is coming (`BlinkCharge.ownDigsComing`, set from its picked targets: the
+  first update arrives before the second dig is sent), waits for it, at most 250 ms (one batch, bank kept; the gap opens
+  when its last block goes anyway). A long wall dug one a tick still batches every 250 ms and keeps about 4 ticks.
+  Breaker Aura also yields a tick when his right click goes out (`ActionGate.hisUseGoesThisTick`): experimental GrimAC
+  PacketOrderI flags any dig and use_item in one tick, with or without Charge. Testkit 1112-blink-ownbreak-*.
   SUPERSEDED for Breaker Aura by breaker3-1110 (killer560 2026-11-10: "that burst should be the old one that was perfect"):
   Burst Multi Break is now its own row, exclusive with Legit Multi Break, and is the pre-d2da58568 burst exactly - every
   pick in reach on whatever look he has, on the first tick, charges the only limit, no aim (aimForMost, strikesAnyEye and the
@@ -746,16 +757,37 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   of predicted landings (`inFlight`), reads `feet(player)` instead of `player.position()` while it is non-empty, and
   matches each server packet against the queue; a packet that matches an older entry confirms it and every older one.
   The in-flight cap must sit inside Blink's 22 ticks or a blinked chain stalls until Blink's own limit releases it.
-- A chain under Blink Charge waited about 1 s per warp (mapchain-1110, his 26.3 log: 14 teleport holds of 1027-1088 ms,
-  #15's confirm held while #16-#21 were predicted and queued behind it). A confirm may go only right behind the answer to
-  the ping sent with its teleport; when the oldest held answer no longer covered the bank, Charge held the confirm and
-  everything after it ~1 s (`tpSegs`), and in a chain the second teleport always finds only young answers. While a chain
-  runs (`BlinkCharge.noteChain`, called each tick by RouteExecutor and ClearExecutor) the answers up to that ping and the
-  confirm go at once, a running hold is released, and the bank is backed again on the next still ticks (`rebackBank`).
+- A chain under Blink Charge waited about 1 s per warp (mapchain-1110, his 26.3 log: 14 teleport holds of 1027-1088 ms):
+  Charge held each confirm and everything after it ~1 s (`tpSegs`) whenever the oldest held answer no longer covered the
+  bank. Gone since blinktp-1111 (next entry): no teleport holds anything any more, chain or not.
+- Blink at a server teleport (blinktp-1111). Charge: every waiting ping answer goes at once, oldest first, back to back,
+  then the confirm, then vanilla's landing move, all live (`BlinkCharge.confirmTeleportLocked`); answers to later pings
+  wait their normal delay; no move or click is ever held; the tick of the confirm and the two after a MOVING one are not banked (settle ticks, below). The bank
+  is cut to what the batch covers: GrimAC's Timer moves its lag floor only on the FIRST answer after a tick packet
+  (Timer.onPrePredictionPacketReceive, `hasGottenMovementAfterTransaction`), so in a back-to-back batch the floor lands on
+  the OLDEST answer and the landing move (a tick packet) holds the balance up to it (`limitFallBehind`, 120 ms drift).
+  Covered ticks = floor((oldest age + 120) / 50) - 1: a ~1 s charge keeps all 20 and a shot can fire the next tick; warps
+  100 ms apart keep ~3, 300 ms apart ~8. Keeping more through a fast chain is not possible: the batch's oldest answer IS the
+  time since the last batch, and anything beyond it drew Timer (1027-ap3-blink-leap-route, x31). Hold: at a teleport the
+  queue goes out in order (its newest answer is the teleport's ping's), the confirm and landing pass (`passTeleport`), and
+  the hold restarts from the landing (Hold Ticks from zero, refusal spot = the landing). With Chat Messages on Charge says
+  "teleport kept N of M tick(s)" when a teleport cut the bank. Testkit 1111-blinktp-*.
   The "never shows my blink running out" half: Charged Chain lived only in Auto Routes; the Interactive Map's
   ClearExecutor sent one hop a tick (MAX_LEAD 6). It now spends banked ticks (`spendTick` per hop, lead up to 21, only
   while `shotCovered()`) and honors Blink The Chain. Testkit 62-argrim-1110-mapchain-charged/-nobank/-same-*,
   62-argrim-1110-archain-nohold (wire: uses in one 50 ms window, bank drop, no holds, default and experimental Grim).
+- Kept-teleport flags are bugs (blinkkept-1111, killer560 2026-11-11: "if it is flagging i would rather you fix it"). Every
+  testkit case that once accepted them (Rows.addKept/KEPT, runExpectingFlags for 1025-blink-charge-warp/-inplace/-rapid,
+  1026-blink-setback-shot/-dimension-charge, 1026-ap3-blink-leap, 62-argrim-1025-chargechain, 1027-blink-c-keep-delay rows)
+  now fails on any GrimAC line. The only flag left on blinktp's model was Simulation .10 decaying x8 in 1026-blink-setback-shot:
+  a shot set back while he still had speed, banked from the confirm on, so GrimAC's first move after the teleport was the
+  next shot's sprinting one. Two settle ticks after a MOVING teleport (they go out, not banked) had fixed exactly this on
+  2026-11-01 (55a52546d) and blinktp dropped them; they are back. Where the bank cannot be kept it is cut, never flagged:
+  warps a tick apart (1025-blink-charge-rapid), a second teleport ~150 ms after a leap (1027-ap3-blink-leap-route, the
+  lane's own tp). On 26.3 no landing move follows the confirm at once (WireCapture: the next move went 2-100 ms later,
+  when he next moved; in a Hold, none within the case's capture), so the 1111-blinktp wire checks judge only that each confirm
+  sits right behind an answer. The testkit's freeze watch killed whole runs under load (the lockstep parks the render thread
+  while a case's server starts): TESTKIT_HUNG_SECONDS=240 for long Blink runs.
 - The testkit's PacketTrace hooks `Connection.send` as Blink does, so with Blink holding it counts a held packet when
   made and again on release; judge blinked runs by the mod's log and the server's counters.
 - Grim's lag anchor (Timer/TimerLimit `lastMovementPlayerClock`, javap 2.3.74) is the send time of the last ping the
@@ -810,8 +842,8 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   through every server teleport (answers stay on their steady delay, no flush, no post-teleport pause - the 2026-10-26
   settle pause and the flush on a moving confirm are gone), respawns and dimension changes, configuration phases (answers
   sent first), a hold starting, the Skyblock gate, screens and AP3 stopping. Until campaign-blink-1027 GrimAC flagged and
-  ignored everything after a kept teleport; now the confirm waits behind its ping's answer (next entry) and only a shot in
-  the first ~1.5 s after it is partly set back; he accepted the flags either way.
+  ignored everything after a kept teleport; the confirm then waited behind its ping's answer (next entry), and since
+  blinktp-1111 the answers go at once with the confirm behind them and the bank is cut to what they cover (above).
   Do not revert. Impossible to keep: a hold's packets across a world change (old-world moves), anything across a disconnect.
 - What keeping the bank cost on GrimAC until campaign-blink-1027 (blink-keep-1027, testkit 1026-blink-keep-warp,
   1026-ap3-blink-leap, 1027-blink-c-keep-delay): Simulation = the teleport's distance, GroundSpoof, TickTimer, BadPacketsN and
@@ -1107,6 +1139,33 @@ lets re-backing (and banking while unbacked) withhold a still tick only while th
 and re-backing resumes after it. BadPacketsV stays clean (reminders still 20 SENT ticks apart); a re-back now takes about two
 reminder cycles instead of 1.1 s, so a shot after a stall waits that much longer for cover. The "backed again" log line says how
 many ticks went between ("N sent between them for a position in time").
+
+Charge shots set back on Hypixel (blinkhyp-1111, his 26.3 log 2026-11-11, `2026-11-11-1.log.gz` 08:53-08:55, 14 shots, 5
+set back 11-42 blocks, the log said "0 set back"). (1) A SECOND press of the Charge key while a shot waited for cover skipped the
+wait (`shoot()` only deferred when `deferredWhy == null`) and fired inside the teleport hold; the shot then left in the hold's
+release burst (84-85 packets: the answers, the confirm, ~20 walking ticks held behind it, the 20 shot ticks) and Hypixel put
+him back near the teleport's landing (#2, #8, #9; #14 the same with 20 ticks not backed; #5 fired that way and was kept). A
+request while a shot waits now joins it. (2) Hypixel answers teleports with re-sync teleports while charging: standing still,
+in-place re-syncs came in pairs 224-556 ms apart, each right after a hold let go or a back-to-back answer batch went with a
+confirm; #10 fired ~1 s after an etherwarp's confirm and a re-sync already on its way took it 0 ticks later. On hypixel.net
+(`PerTickServerClock.onHypixel`, test hook `BlinkCharge.hypixelForTest`) a shot now also waits `HYPIXEL_TP_QUIET_MS` (750)
+after the last teleport arrived or hold let go; at `SHOT_WAIT_MAX_MS` a covered shot fires anyway. GrimAC never needed it, so
+off Hypixel nothing changed. (3) Hypixel's setback lands where it last accepted him, not at the shot's start, so a setback is
+now any teleport within 40 ticks that puts him back in the first half of the shot's path (`undoesShot`). Every shot logs
+"shot #N fired under: ..." (teleport and hold timing, unbacked ticks, answers) and 40 ticks later "kept" or "SHOT SET BACK"
+with those conditions, so his next Hypixel log shows which conditions still lose shots. Not explained yet: why Hypixel keeps
+re-syncing a still player while Charge holds (the loop runs as long as he stands; it costs nothing until he fires).
+Testkit 1111-blink-hyp-double (the hold, two presses), 1111-blink-hyp-quiet (forced Hypixel waits 750 ms; Grim does not).
+Later the same day (killer560: "when it is on full charge it wont let me release it", a 6248 ms wait; and Auto Routes crawled
+with Charge on, every warp behind a ~950 ms teleport hold, nodes 22-63 ticks): on Hypixel his key release now waits at most
+`HYPIXEL_KEY_WAIT_MS` (50 ms) and then fires, letting go of any held answers and teleport hold, and the chat line says
+"(waited N ms)"; on Hypixel a teleport is never held behind its ping's answer (the batch goes with the confirm and the bank is
+re-backed), GrimAC keeps the hold. While Auto Routes or the Interactive Map run a plain route, they call
+`BlinkCharge.noteRoute` every tick: held answers and holds go at once and nothing is held while it runs (counter `routeAnswers`);
+a charged chain still uses `noteChain`. The stall detector's 150 ms was below a jittery link's normal ping gap, so it sent
+answers early on every gap and Charge never banked (1027-blink-c-slowserver/-jitter "did not act" since blinklag-1104): it is
+now `clamp(avg + 100 + 3*dev, 150, 400)` over the link's own gaps (average over 16; the swing rises fast and falls over 64, and neither is reset at charge-on: reset, a quiet bank fill dropped it and the first jitter gap read as a stall, jitter base 300 shot 0). Testkit 62-argrim-1111-archarge-route (route
+with Charge full: no hold, no bank spent, normal pace), 1111-blink-hyp-quiet rows "hypixel two tps, no hold".
 
 - Terminal machinery on its own switches (cheatbugs-1109, killer560 2026-11-09): `TerminalSolverConfig.isMachineryOn()` (solver || Auto || Hover || Queue) gates tracking and solving, the solver's own drawing stays under `isEnabled()`; Hover Terms no longer needs the solver switch. A feature whose rows sat under another feature's switch gets its own `isMachineryOn` and the other's draw code its own check (Simon Says: `isMachineryRaw`).
 - Blood Camp Work Just Outside Blood Room (cheat, default OFF): the room anchor comes from the live map (`LiveMapFeature.bloodRoomCenter`) when the Watcher was never seen, so the overlay draws anywhere; margin `OUTSIDE_MARGIN` 6 blocks outside the room for the Trigger Bot and Aura. Outside-the-room Grim runs are still open (the config and the gate are tested, not a shot from outside).

@@ -807,6 +807,8 @@ public final class BreakerAuraFeature {
         // he is standing on ("If it is selected for breaker aura it should break").
         double reach = cfg.getBreakerAuraReach();
         List<BlockPos> targets = collectPickedTargets(player, level, reach, now);
+        // Blink Charge groups his breaks that come back close together into one catch-up (BlinkCharge.catchUpForOwnBreak).
+        com.killer560.hub.blink.BlinkCharge.ownDigsComing(!targets.isEmpty());
 
         // ARMED ON APPROACH, not on arrival. killer560 (2026-09-23): "The breaker aura seems to not be breaking a
         // block on the very first tick it is in range. It almost waits a little bit."
@@ -977,6 +979,15 @@ public final class BreakerAuraFeature {
             census("window"); // another dig owns this server tick
             return;
         }
+        if (!order.isEmpty() && ActionGate.hisUseGoesThisTick(client)) {
+            // His right click goes in this tick's handleKeybinds, after us: any dig before a use_item in one server tick is
+            // GrimAC PacketOrderI (type=place/use, digging=true, experimental; 1112-blink-ownbreak-use-nocharge). His click
+            // goes first; we dig next tick (ActionGate does the same for his attack click).
+            logRated("use", "[BreakerAura] held: his right click goes this tick (GrimAC PacketOrderI), {} target(s) in reach",
+                    order.size());
+            census("gate");
+            return;
+        }
         if (!ActionGate.tryAct(ActionGate.Actor.BREAKER_AURA)) {
             gateRefused = true;
             logRated("gate", "[BreakerAura] held: ActionGate refused BREAKER_AURA this tick, {} target(s) in reach,"
@@ -1111,6 +1122,7 @@ public final class BreakerAuraFeature {
             return;
         }
         census("sent");
+        com.killer560.hub.blink.BlinkCharge.ownDigsComing(targets.size() > sent);
         // The next pick's look rides this tick's movement packet (the dig just sent is still judged on the look the
         // server had: GrimAC tries (lastYaw, lastPitch) too). A pick the current look already strikes needs no turn. Burst
         // never turns him (the old burst did not).
