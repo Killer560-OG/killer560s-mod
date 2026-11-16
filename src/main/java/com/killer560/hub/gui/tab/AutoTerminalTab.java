@@ -103,6 +103,16 @@ public class AutoTerminalTab extends BaseTab {
                             requestRebuild.run();
                         }).bounds(contentX, y, 220, 20).build());
                 y += 24;
+                // Burst Finish: the last clicks of a terminal go out in one tick.
+                widgets.add(onOffButton("Burst Finish", () -> cfg().isBurstFinishRaw(), v -> cfg().setBurstFinish(v), () -> cfg().save(),
+                        requestRebuild, contentX, y, 220, 20));
+                y += 24;
+                if (cfg().isBurstFinishRaw()) {
+                    widgets.add(intSlider(contentX, y, 220, 1, TerminalSolverConfig.MAX_BURST_SIZE,
+                            () -> cfg().getBurstSize(), v -> cfg().setBurstSize(v),
+                            () -> Component.literal("Burst Size: " + cfg().getBurstSize())));
+                    y += 24;
+                }
             }
             widgets.add(new StringWidget(contentX, y, contentWidth, 12,
                     Component.literal("Terminals to auto-click:"), Minecraft.getInstance().font));

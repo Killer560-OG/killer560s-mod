@@ -52,6 +52,9 @@ public final class TerminalSolverConfig {
      *  slot is already in view while the hand is moving, so a practiced player's pause between clicks is shorter. */
     public static final int MIN_FIRST_CLICK_DELAY_MS = 0;
     public static final int MAX_FIRST_CLICK_DELAY_MS = 300;
+    /** The most terminal clicks Burst Finish sends in one tick. */
+    public static final int MAX_BURST_SIZE = 21;
+    public static final int DEFAULT_BURST_SIZE = 5;
     public static final int MIN_CURSOR_REACTION_MS = 60;
     public static final int MAX_CURSOR_REACTION_MS = 400;
     /** Stream Safe's Miss Chance and Overshoot Chance, percent of moves. */
@@ -205,6 +208,9 @@ public final class TerminalSolverConfig {
     private boolean queueTerms = false;
     /** First Click Delay (killer560, 2026-11-03): ms Auto Terminals waits after a terminal stabilizes before its first click (replaces the old fixed 500 ms settle). */
     private int firstClickDelayMs = 300;
+    /** Burst Finish (killer560 2026-11-11): once the clicks left are at most Burst Size, send them all in one tick. */
+    private boolean burstFinish = false;
+    private int burstSize = DEFAULT_BURST_SIZE;
     private int cursorReactionMs = 130;
     private int cursorMissChance = 6;
     private int cursorOvershootChance = 18;
@@ -312,6 +318,7 @@ public final class TerminalSolverConfig {
             .add("hideMouseCursor", false, c -> c.hideMouseCursor, (c, v) -> c.hideMouseCursor = v)
             .add("autoStreamSafe", false, c -> c.autoStreamSafe, (c, v) -> c.autoStreamSafe = v)
             .add("queueTerms", false, c -> c.queueTerms, (c, v) -> c.queueTerms = v)
+            .add("burstFinish", false, c -> c.burstFinish, (c, v) -> c.burstFinish = v)
             .add("blockInputWhileAutoClicking", true, c -> c.blockInputWhileAutoClicking, (c, v) -> c.blockInputWhileAutoClicking = v)
             .add("announceCompletionTime", true, c -> c.announceCompletionTime, (c, v) -> c.announceCompletionTime = v)
             .add("hoverTerminalsEnabled", false, c -> c.hoverTerminalsEnabled, (c, v) -> c.hoverTerminalsEnabled = v)
@@ -332,6 +339,7 @@ public final class TerminalSolverConfig {
             cfg.autoClickMaxDelayMs = clampAutoClickDelay(ConfigJson.getInt(obj, "autoClickMaxDelayMs", 200));
             // Same min <= max invariant the setters enforce (a hand-edited file could otherwise load min > max).
             cfg.firstClickDelayMs = clamp(ConfigJson.getInt(obj, "firstClickDelayMs", 300), MIN_FIRST_CLICK_DELAY_MS, MAX_FIRST_CLICK_DELAY_MS);
+            cfg.burstSize = clamp(ConfigJson.getInt(obj, "burstSize", DEFAULT_BURST_SIZE), 1, MAX_BURST_SIZE);
             cfg.cursorReactionMs = clamp(ConfigJson.getInt(obj, "cursorReactionMs", 130), MIN_CURSOR_REACTION_MS, MAX_CURSOR_REACTION_MS);
             cfg.cursorMissChance = clamp(ConfigJson.getInt(obj, "cursorMissChance", 6), 0, MAX_CURSOR_MISS_CHANCE);
             cfg.cursorOvershootChance = clamp(ConfigJson.getInt(obj, "cursorOvershootChance", 18), 0, MAX_CURSOR_OVERSHOOT_CHANCE);
@@ -377,6 +385,7 @@ public final class TerminalSolverConfig {
             obj.addProperty("autoClickMinDelayMs", autoClickMinDelayMs);
             obj.addProperty("autoClickMaxDelayMs", autoClickMaxDelayMs);
             obj.addProperty("firstClickDelayMs", firstClickDelayMs);
+            obj.addProperty("burstSize", burstSize);
             obj.addProperty("cursorReactionMs", cursorReactionMs);
             obj.addProperty("cursorMissChance", cursorMissChance);
             obj.addProperty("cursorOvershootChance", cursorOvershootChance);
@@ -563,6 +572,16 @@ public final class TerminalSolverConfig {
     public void setAutoStreamSafe(boolean autoStreamSafe) { this.autoStreamSafe = autoStreamSafe; }
 
     public int getFirstClickDelayMs() { return firstClickDelayMs; }
+
+    public boolean isBurstFinish() { return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && burstFinish; }
+
+    public boolean isBurstFinishRaw() { return burstFinish; }
+
+    public void setBurstFinish(boolean burstFinish) { this.burstFinish = burstFinish; }
+
+    public int getBurstSize() { return burstSize; }
+
+    public void setBurstSize(int size) { this.burstSize = clamp(size, 1, MAX_BURST_SIZE); }
 
     public void setFirstClickDelayMs(int ms) {
         this.firstClickDelayMs = clamp(ms, MIN_FIRST_CLICK_DELAY_MS, MAX_FIRST_CLICK_DELAY_MS);

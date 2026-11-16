@@ -435,6 +435,7 @@ public final class TerminalSolverFeature {
         // for one frame while this new one's own real data is still arriving.
         currentHighlights = Map.of();
         rubixTargetColorIndex = -1;
+        emptySinceMs = 0;
         hasStabilizedOnce = false;
         previousItemsSnapshot = List.of();
         clickContentStabilized = false;
@@ -562,7 +563,7 @@ public final class TerminalSolverFeature {
         resyncPredictedSlots(screen, now);
         List<ItemStack> items = terminalItems(screen.getMenu());
         currentTerminalSlotCount = items.size();
-        boolean realContent = hasRealContent(items);
+        boolean realContent = hasRealContent(items) && boardLoaded(containerIdNow, items.size(), now);
         if (!hasStabilizedOnce) {
             if (realContent && ItemStack.listMatches(items, previousItemsSnapshot)) {
                 hasStabilizedOnce = true;
@@ -601,9 +602,13 @@ public final class TerminalSolverFeature {
             currentHighlights = solve(type, title, items);
             if (!currentHighlights.isEmpty()) {
                 lastHighlightScreen = screen;
-            } else if (hasStabilizedOnce && lastHighlightScreen != screen) {
-                // Never anything to click on this screen (a solved board at the end of a terminal had some first).
-                noteEmptySolve(type, rawTitle, items);
+                emptySinceMs = 0;
+            } else if (hasStabilizedOnce) {
+                // Nothing to click: logged at once when this screen never had anything, else only once it has stayed
+                // empty 2.5 s while open (a finished board closes in well under that; a board the solver wrongly reads
+                // as done does not, and its dump is the evidence for it: termdone-1112).
+                if (emptySinceMs == 0) emptySinceMs = now;
+                if (lastHighlightScreen != screen || now - emptySinceMs >= 2500L) noteEmptySolve(type, rawTitle, items);
             }
             if (type == TerminalType.NUMBERS && hasStabilizedOnce && !numbersCountNoted) {
                 // 14 numbers (old) or 10 (new): every numbered pane, clicked (lime) or not (red), on the settled
@@ -631,6 +636,51 @@ public final class TerminalSolverFeature {
                 QueueTermsFeature.tick(screen, type, items, currentHighlights, autoThisType);
             }
         }
+    }
+
+    // ---- All-slots-loaded gate (termplus-1112): a board counts as loaded only when the server has described every window
+    // slot (a contents packet with items in it, or a slot packet each), not when one non-black pane appeared. A half-filled
+    // board read as an empty solve, "terminal done", and clicked nothing. ----
+    private static final long BOARD_LOAD_TIMEOUT_MS = 3000L;
+    private static int loadedContainerId = -1;
+    private static final java.util.BitSet loadedSlots = new java.util.BitSet();
+
+    private static void trackBoard(int containerId) {
+        if (containerId != loadedContainerId) {
+            loadedContainerId = containerId;
+            loadedSlots.clear();
+        }
+    }
+
+    /** A new window opened: nothing in it is described yet. */
+    public static void onBoardOpen(int containerId) {
+        loadedContainerId = containerId;
+        loadedSlots.clear();
+    }
+
+    /** A whole-window contents packet: every slot is described, unless it carries nothing at all. */
+    public static void onBoardContents(int containerId, List<ItemStack> contents) {
+        trackBoard(containerId);
+        for (ItemStack stack : contents) {
+            if (!stack.isEmpty()) {
+                loadedSlots.set(0, contents.size());
+                return;
+            }
+        }
+    }
+
+    /** One slot packet: that slot is described. */
+    public static void onBoardSlot(int containerId, int slot) {
+        trackBoard(containerId);
+        if (slot >= 0) loadedSlots.set(slot);
+    }
+
+    /** @return whether all {@code count} window slots of container {@code containerId} are described. A container no packet was
+     *  seen for (a sim filling the menu directly) passes, and so does one still incomplete after 3 s, so a window that never
+     *  fills is solved as before. */
+    static boolean boardLoaded(int containerId, int count, long now) {
+        return containerId != loadedContainerId || loadedSlots.nextClearBit(0) >= count
+                || now - terminalOpenedAtMs >= BOARD_LOAD_TIMEOUT_MS;
     }
 
     /** @return whether {@code items} contains at least one real, non-filler slot (same "not empty, not a
@@ -739,6 +789,7 @@ public final class TerminalSolverFeature {
             }
             return;
         }
+        stallNet(type, cfg);
         if (type == TerminalType.MELODY) {
             if (cfg.isAutoMelodyEnabled()) {
                 tickMelodyAutoClick(screen, items);
@@ -759,8 +810,31 @@ public final class TerminalSolverFeature {
             return;
         }
         long now = System.currentTimeMillis();
-        if (now < nextAutoClickAllowedAtMs) return;
         long retryTimeout = retryTimeoutMs(cfg);
+        if (cfg.isBurstFinish()) {
+            int left = clicksLeft(type, items);
+            // Clicks still in flight count as done here: a single click sent while others await their answer would take
+            // the board below the burst size, and the burst then came out short (7 of 8, 1112-term-burst-size-8-sametick).
+            int inFlight = 0;
+            for (PendingClick p : pendingClicks.values()) {
+                if (now - p.sentAtMs() < retryTimeout && currentHighlights.containsKey(p.slot())) inFlight++;
+            }
+            if (left > 0 && left - inFlight <= cfg.getBurstSize()) {
+                // At the burst size every click left goes in ONE tick, the moment the server has answered the clicks before
+                // it (not after the per-click delay): a pane already clicked is never clicked again, and a click the server
+                // dropped is overdue after the retry timeout and simply goes out again in the next burst.
+                for (PendingClick p : pendingClicks.values()) {
+                    if (now - p.sentAtMs() < retryTimeout) return;
+                }
+                if (left <= cfg.getBurstSize()) {
+                    if (clickedThisWireTick() || !ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
+                    sendBurst(screen, type, items, now);
+                    nextAutoClickAllowedAtMs = now + cfg.rollAutoClickDelayMs();
+                    return;
+                }
+            }
+        }
+        if (now < nextAutoClickAllowedAtMs) return;
         AutoClickTarget target = null;
         PendingClick retryOf = null;
         if (stickySlot >= 0) {
@@ -802,7 +876,7 @@ public final class TerminalSolverFeature {
         // delay is short. Checked after the target is picked but before ANY state moves - the rolled delay
         // (nextAutoClickAllowedAtMs) and the pendingClicks entry - so a denied
         // frame costs nothing and the identical target is simply re-picked next frame.
-        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
+        if (clickedThisWireTick() || !ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
         ItemStack snapshot = target.slot() >= 0 && target.slot() < items.size() ? items.get(target.slot()).copy() : ItemStack.EMPTY;
         int rolledDelay = cfg.rollAutoClickDelayMs();
         nextAutoClickAllowedAtMs = now + rolledDelay;
@@ -819,6 +893,97 @@ public final class TerminalSolverFeature {
         }
         stickySlot = needsMoreClicks(type, currentHighlights.get(target.slot())) ? target.slot() : -1;
         noteAutoClick(target.slot(), now);
+    }
+
+    /** Stall net (termplus-1112): no click out for 2.5 s while clicks remain drops the pacing and pending state, so the next
+     *  frame re-solves the board as it is now and clicks again (a reply the server never sent). Melody keeps its row progress. */
+    private static final long STALL_MS = 2500L;
+    static long lastClickProgressMs;
+    static int stallResets;
+
+    private static void stallNet(TerminalType type, TerminalSolverConfig cfg) {
+        long now = System.currentTimeMillis();
+        if (now - Math.max(lastClickProgressMs, stabilizedAtMs) < STALL_MS) return;
+        if (!isAutoTypeEnabled(type, cfg) || (type == TerminalType.MELODY ? melodyButtons.length == 0 : currentHighlights.isEmpty())) return;
+        lastClickProgressMs = now;
+        stallResets++;
+        nextAutoClickAllowedAtMs = 0;
+        pendingClicks.clear();
+        predictedSlots.clear();
+        stickySlot = -1;
+        lastMelodyClickAtMs = 0;
+        scheduledMelodyClicks.clear();
+        LOGGER.info("{} no click for 2.5 s with clicks left: pacing dropped, re-solving ({})", DIAG_TAG, type);
+    }
+
+    /** Bursts sent and the clicks in the last one, since the game started (the testkit reads them). */
+    static int burstsSent;
+    static int lastBurstClicks;
+    /** {@link com.killer560.hub.autoroutes.RouteExecutor#tickEndsSent} at the last auto click. ActionGate's tick starts at
+     *  START_CLIENT_TICK, but the server reads a tick as the packets between two tick-end packets, and the frames drawn after
+     *  a tick's end packet still count as that ActionGate tick: a click there and a click (or a burst) in the next tick would
+     *  share one server tick (termship-1115, a 5-burst went out as 7 clicks in one tick with his own click). */
+    private static int clickWireTick = Integer.MIN_VALUE;
+
+    private static boolean clickedThisWireTick() {
+        return com.killer560.hub.autoroutes.RouteExecutor.tickEndsSent() == clickWireTick;
+    }
+
+    /** @return the clicks still needed on this board: every red pane for Numbers (its highlights show only the next few),
+     *  each Rubix pane's click count, one per highlight otherwise. */
+    private static int clicksLeft(TerminalType type, List<ItemStack> items) {
+        int n = 0;
+        if (type == TerminalType.NUMBERS) {
+            for (ItemStack stack : items) {
+                if (stack.getItem() == McItems.RED_STAINED_GLASS_PANE) n++;
+            }
+            return n;
+        }
+        if (type != TerminalType.RUBIX) return currentHighlights.size();
+        for (SlotHighlight h : currentHighlights.values()) n += Math.max(1, Math.abs(rubixClicks(h)));
+        return n;
+    }
+
+    /** A Rubix highlight's signed click count (negative: right clicks), 0 if it has none. */
+    private static int rubixClicks(SlotHighlight h) {
+        try {
+            return h == null || h.label() == null ? 0 : Integer.parseInt(h.label().trim());
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
+    /** Burst Finish: every click left on the board, in one tick, through the one click path. Numbers in their order, a Rubix
+     *  pane as many times as it needs (right clicks for a negative count), every other type one click per highlight. Each
+     *  slot is pending as usual, so a lost click is re-sent after the retry timeout. */
+    private static void sendBurst(ContainerScreen screen, TerminalType type, List<ItemStack> items, long now) {
+        int sent = 0;
+        List<Integer> slots = type == TerminalType.NUMBERS ? numberOrder(items) : new ArrayList<>(currentHighlights.keySet());
+        for (int slot : slots) {
+            int times = 1;
+            int button = 0;
+            ContainerInput input = ContainerInput.CLONE;
+            if (type == TerminalType.RUBIX) {
+                int n = rubixClicks(currentHighlights.get(slot));
+                times = Math.max(1, Math.abs(n));
+                button = n < 0 ? 1 : 0;
+                input = ContainerInput.PICKUP;
+            }
+            ItemStack snapshot = slot < items.size() ? items.get(slot).copy() : ItemStack.EMPTY;
+            pendingClicks.put(slot, new PendingClick(slot, now, now, snapshot, 1));
+            for (int i = 0; i < times; i++) {
+                if (!sendTerminalClick(screen, slot, button, input)) {
+                    pendingClicks.remove(slot);
+                    break;
+                }
+                sent++;
+            }
+            noteAutoClick(slot, now);
+        }
+        stickySlot = -1;
+        burstsSent++;
+        lastBurstClicks = sent;
+        LOGGER.info("{} burst: {} clicks in one tick ({})", DIAG_TAG, sent, type);
     }
 
     /** Stream Safe during the opening settle: the hand heads for the first slot it will click (Melody: the current row's
@@ -844,12 +1009,7 @@ public final class TerminalSolverFeature {
     /** @return whether {@code highlight}'s slot needs another click after the one about to be sent: a Rubix pane whose
      *  remaining count is 2 or more. Every other type takes one click per slot. */
     static boolean needsMoreClicks(TerminalType type, SlotHighlight highlight) {
-        if (type != TerminalType.RUBIX || highlight == null || highlight.label() == null) return false;
-        try {
-            return Math.abs(Integer.parseInt(highlight.label().trim())) > 1;
-        } catch (NumberFormatException e) {
-            return false;
-        }
+        return type == TerminalType.RUBIX && Math.abs(rubixClicks(highlight)) > 1;
     }
 
     /**
@@ -1008,6 +1168,8 @@ public final class TerminalSolverFeature {
             predictedSlots.remove(slotIndex);
             return false;
         }
+        lastClickProgressMs = System.currentTimeMillis();
+        clickWireTick = com.killer560.hub.autoroutes.RouteExecutor.tickEndsSent();
         if (clickType == ContainerInput.PICKUP) {
             // Same real-click carried-item flash Rubix's own manual click path already guards against
             // (see #handleCustomGuiClick's matching comment) - a real PICKUP predicts the pickup locally
@@ -1919,6 +2081,7 @@ public final class TerminalSolverFeature {
             "What starts with", "Select all the", "Click the button on time"};
     private static String lastUnmatchedTitle;
     private static Object lastEmptySolveScreen;
+    private static long emptySinceMs;
     private static Object lastHighlightScreen;
 
     private static void noteUnmatchedTerminalTitle(String rawTitle, String normalized) {
@@ -1948,7 +2111,7 @@ public final class TerminalSolverFeature {
                     .append('x').append(stack.getCount()).append(stack.hasFoil() ? "*" : "")
                     .append('|').append(stripColor(stack.getHoverName().getString())).append("; ");
         }
-        LOGGER.info("{} {} '{}' settled with nothing to click - board: {}", DIAG_TAG, type, rawTitle, board);
+        LOGGER.info("{} {} '{}' nothing to click (never had, or empty 2.5 s while open) - board: {}", DIAG_TAG, type, rawTitle, board);
     }
 
     /** {@code TerminalType.values()} once (each call clones the array). */
@@ -2055,7 +2218,8 @@ public final class TerminalSolverFeature {
         return count;
     }
 
-    private static Map<Integer, SlotHighlight> solveNumbers(List<ItemStack> items) {
+    /** The red (unclicked) number panes, lowest number first. */
+    private static List<Integer> numberOrder(List<ItemStack> items) {
         List<Integer> slots = new ArrayList<>();
         for (int i = 0; i < items.size(); i++) {
             if (items.get(i).getItem() == McItems.RED_STAINED_GLASS_PANE) {
@@ -2063,6 +2227,11 @@ public final class TerminalSolverFeature {
             }
         }
         slots.sort(Comparator.comparingInt(i -> items.get(i).getCount()));
+        return slots;
+    }
+
+    private static Map<Integer, SlotHighlight> solveNumbers(List<ItemStack> items) {
+        List<Integer> slots = numberOrder(items);
         Map<Integer, SlotHighlight> result = new LinkedHashMap<>();
         if (!slots.isEmpty()) {
             result.put(slots.get(0), new SlotHighlight(color(TerminalSolverConfig.OverlayColor.NUMBERS_NEXT), null, true));

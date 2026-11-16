@@ -2045,6 +2045,8 @@ final class SettingTooltipsData {
 
         // Hover Terminals + Run Summary
         d.put("click order", "Which correct slot Auto Terminals clicks next: First (top left to bottom right), Random, Closest to the last click or Furthest from it. Numbers keeps its fixed order; Stream Safe uses its own human order.");
+        d.put("burst finish", "Cheat build only. Once the clicks left on a terminal are at most Burst Size, Auto Terminals sends all of them in one tick, as soon as the server has answered the clicks before. The clicks before it keep First Click Delay and the Min/Max Delay. Not used with Stream Safe.");
+        d.put("burst size", "How many clicks may be left for Burst Finish to send them all in one tick, 1-21 (5 by default).");
         d.put("queue terms", "Cheat build only. A click of yours on a correct terminal slot while the click before it is still waiting for the server is held and sent when the server answers, one per update. Auto Terminals clicking takes over when it is on.");
         d.put("terminal solver/terminal sounds", "Plays a sound for each correct click you make in a terminal and when you finish one. Needs the Terminal Solver on for the click sounds. Pick Default to play nothing for that part.");
         d.put("terminal solver/click sound", "The sound for each correct click. Left click forward, right click back; the new one plays once.");

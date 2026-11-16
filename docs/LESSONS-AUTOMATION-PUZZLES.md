@@ -146,6 +146,29 @@ The puzzle autos at run time (camera, timing, leaving, each puzzle). Part of the
   intro 0-1 s after his own room entry in all 47 runs where he walked in, so Auto Quiz no longer walks to a guessed "CLICK"
   stand to talk. The sim starts Oruo on the footprint, and Oruo's intro can reach the client a tick or two BEFORE the live
   map names the room, so anything pairing the two must allow either order ([QuizLog] does).
+
+## Terminals
+
+- **Burst Finish (termburst-1111).** Up to 5 container clicks in one client tick, all under one `ActionGate` grant, are
+  clean on GrimAC default and experimental for every terminal type, including a Rubix pane clicked twice in the same tick
+  and his own click plus a hotbar swap in that tick (testkit 1111-menu-term-burst-*). The burst waits only for the server
+  to answer the clicks already sent (no `pendingClicks` entry younger than the retry timeout), not for the per-click delay;
+  a dropped click stays pending and goes again in the next burst. Numbers counts its red panes from the items, since
+  `currentHighlights` holds only the next two or three. Any container click sent while movement input is held draws
+  MultiActionsC on DEFAULT Grim and the server drops the click, burst or not; with a screen open he moves only through
+  Inventory Walk, whose Stop To Click holds clicks until he stands still.
+- Terminal loaded gate, stall net and Burst Size (termplus-1112). A board counts as loaded only once every window slot has
+  been described: `TerminalBoardLoadMixin` (TAIL of handleOpenScreen / handleContainerContent / handleContainerSetSlot)
+  keeps a BitSet per container id; an open or contents packet that carries any item marks every slot, an all-empty one marks
+  none, a slot packet marks its slot. A container no packet was seen for, or one still incomplete after 3 s, passes. The stall
+  net (`stallNet`, after the First Click Delay gate) fires when 2.5 s pass with no click sent while clicks remain and drops
+  `nextAutoClickAllowedAtMs`, `pendingClicks`, `predictedSlots`, the sticky slot and Melody's scheduled clicks. Burst Size 1-21 was
+  swept at 5, 8, 10, 13, 16 and 21 on a 24-target Select board, with the player's use, swing, hotbar swap and container click in
+  the burst tick, on default and experimental Grim: the wire shows exactly Burst Size clicks in one client tick (+1 with his own
+  click) and the server answers every one. Testkit: hx `parts`/`partGap` open an EMPTY window and send the slots in parts
+  (1112-term-parts fails on the termburst jar: a click at tick 275 before the last part at 301), `dropClicks` drops a reply
+  (1112-term-stall-*; the case wedges the pacing so only the net can recover), 1112-term-burst-size-N[-sametick].
+- Terminal "thought it was done" (termdone-1112, owner on real Hypixel F7, 2026-11-12: closed and reopened one): his 6 MB log at 13:42-13:54 holds NO stuck terminal (every terminal solved in 0.9-2.3 s, no "[AutoTerms]" warning, no "settled with nothing" line), so the cause is NOT proven. Ruled out by reading: predicted-pickup latch (only Rubix PICKUPs predict; restored by `resyncPredictedSlots`), stale Rubix target (reset in `beginTerminal`), `stickySlot`/`pendingClicks` (time out), `foreignClickFailed` (logs ERROR). Open suspects: a natively glinting board item (Starts With / Select skip every `hasFoil` item except Golden Apple) and a Hypixel window that never fills. `noteEmptySolve` now also fires when a stabilized board stays empty 2.5 s while open, with a board dump (item, count, foil, name): grep "[AutoTerms]" "nothing to click" in the next report and fix from that dump.
 - **A mod chat line in flight as a terminal opens gets the terminal closed** (termclose-1111, killer560 2026-11-11: "something
   keeps closing my terminals"). His 26.3 logs of 11-11 (killer560s-mod-logs/termclose-1111-scan.py, -flight.py): 75 real F7
   terminal opens; every one Hypixel closed unsolved had one to four of our /pc lines (Leaping To, Cringe, Posmsg) sent and

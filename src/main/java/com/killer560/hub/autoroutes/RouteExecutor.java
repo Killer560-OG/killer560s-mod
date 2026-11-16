@@ -4150,6 +4150,11 @@ public final class RouteExecutor {
         tickEndsSent++;
     }
 
+    /** Client tick-end packets handed to the connection so far: what the server counts a "tick" of our packets by. */
+    public static int tickEndsSent() {
+        return tickEndsSent;
+    }
+
     public static void onBlockClickSent(LocalPlayer player, InteractionHand hand) {
         if (player == null) {
             return;
