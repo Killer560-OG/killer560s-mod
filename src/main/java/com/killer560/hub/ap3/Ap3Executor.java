@@ -1306,9 +1306,28 @@ public final class Ap3Executor {
      * stop node or align node" it stops) - its own braking / aligning waits its turn. A node with the {@code close}
      * modifier always takes the normal path (its gate is the point), and so does everything behind a {@code wait:}.
      */
+    private static boolean gated(Ap3Node node) {
+        return ((node.closeGate || node.sectionDone > 0 || node.crystalWait > 0) && !testMode)
+                || (node.leapCounter > 0 && !leapCleared.contains(node));
+    }
+
+    /**
+     * A WALK / RUN queued while an align owned movement stays queued after he leaves its box, so when the align ends
+     * every queued mover fires and the last one wins (ap3setback-1116: an align crossed WALK #38 then RUN #39, and RUN
+     * #39's direction from the align spot ran him off the platform). Such a mover yields to a queued one he still stands in.
+     */
+    private static Ap3Node moverHeIsIn(Ap3Node node, Vec3 pos) {
+        if (node.contains(pos)) return null;
+        for (Ap3Node q : queue) {
+            if (q != node && q.type.isMover() && q.contains(pos) && !gated(q)) return q;
+        }
+        return null;
+    }
+
     private static void fireInstant(Minecraft client, LocalPlayer player) {
         boolean movementOwned = activeNode != null && activeNode.ownsMovementNow();
         releaseStopwatches();
+        Ap3Node firedIn = null; // a WALK / RUN fired this pass that he stands in
         for (int i = 0; i < queue.size(); ) {
             Ap3Node node = queue.get(i);
             if (node.type == Ap3Node.Type.STOPWATCH && alignOver(node)) {
@@ -1316,8 +1335,7 @@ public final class Ap3Executor {
                 swHeld.add(node);
                 continue;
             }
-            boolean gated = ((node.closeGate || node.sectionDone > 0 || node.crystalWait > 0) && !testMode)
-                    || (node.leapCounter > 0 && !leapCleared.contains(node));
+            boolean gated = gated(node);
             boolean fire = !gated && switch (node.type) {
                 case STOPWATCH -> true;
                 case LOOK -> !boomAiming(); // it would turn him off the boom's look before its use: it waits its turn
@@ -1343,6 +1361,14 @@ public final class Ap3Executor {
             switch (node.type) {
                 case LOOK -> doLook(player, node);
                 case WALK, RUN -> {
+                    Ap3Node other = firedIn != null && !node.contains(player.position()) ? firedIn
+                            : moverHeIsIn(node, player.position());
+                    if (other == null && node.contains(player.position())) firedIn = node;
+                    if (other != null) {
+                        LOGGER.info("[AP3] {} #{} dropped: it waited while you left its box, and {} #{} that you are in"
+                                + " goes instead", node.type.label(), number(node), other.type.label(), number(other));
+                        continue;
+                    }
                     jumpPendingTicks = 0;
                     edgeArmedTicks = 0;
                     holdDir = node.dir();
