@@ -6,6 +6,7 @@ import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.FeatureBits;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModLog;
+import com.killer560.hub.util.PingTracker;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -33,7 +34,19 @@ public final class AutoShovelSwap {
     private static String wantedFor;
     private static int fruitlessTaps;
     private static String modeBeforeTap;
+    private static long confirmByTick;
+    private static long tapTick;
+    /** The mode the server's last shovel click named, while the item model has not caught up, and when it came. */
+    private static String heardMode;
+    private static long heardTick;
+    private static int heard;
+    /** A heard mode stands in for the model this long; the model then wins. */
+    static final int MODEL_WAIT_TICKS = 60;
+    private static long gaveUpTick;
     private static int swaps;
+    private static int lostTaps;
+    /** After three taps that changed nothing it rests this long, then tries again (it used to stop for the whole pick). */
+    static final int RETRY_TICKS = 40;
 
     private AutoShovelSwap() {
     }
@@ -43,6 +56,19 @@ public final class AutoShovelSwap {
         CarnivalInput.stopRule(NAME, () -> AutoFruitConfig.swap().isEnabled() && FruitDigging.active());
         int bit = FeatureBits.register(NAME, () -> AutoFruitConfig.swap().isEnabledRaw());
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoShovelSwap.tick", bit, AutoShovelSwap::tick));
+        // A tap left unconfirmed in one game must not count as fruitless in the next (it then never tapped again there).
+        CarnivalState.onGameStart(g -> {
+            wantedFor = null;
+            modeBeforeTap = null;
+            heardMode = null;
+            fruitlessTaps = 0;
+            nextTick = 0;
+        });
+    }
+
+    /** The mode one tap steps {@code mode} to: Mines, Anchor, Treasure, Mines. */
+    static String next(String mode) {
+        return "Mines".equals(mode) ? "Anchor" : "Anchor".equals(mode) ? "Treasure" : "Mines";
     }
 
     /** The dowsing mode a Carnival Shovel is in ("Mines", "Anchor", "Treasure"), or null when it is not one. Hypixel's one
@@ -126,14 +152,28 @@ public final class AutoShovelSwap {
             fruitlessTaps = 0;
         }
         String held = modeOf(player.getMainHandItem());
+        long now = ActionGate.currentTick();
+        if (heardMode != null && (heardMode.equals(held) || now - heardTick > MODEL_WAIT_TICKS)) {
+            if (!heardMode.equals(held)) {
+                // The server clicked but the item never followed (his 11-14 19:07 game): the model is the truth.
+                LOGGER.info("[{}] heard {} but the shovel still shows {} after {} ticks", NAME, heardMode, held, MODEL_WAIT_TICKS);
+                if (++fruitlessTaps >= 3) {
+                    gaveUpTick = now;
+                }
+            }
+            heardMode = null;
+        }
         if (want.equals(held)) {
-            if (modeBeforeTap != null) {
+            if (modeBeforeTap != null || heardMode != null) {
                 LOGGER.info("[{}] shovel now in {} mode", NAME, held);
                 modeBeforeTap = null;
+                heardMode = null;
             }
             return;
         }
-        long now = ActionGate.currentTick();
+        if (want.equals(heardMode)) {
+            return; // the server already switched (its click said so); the item model follows up to 2 s later
+        }
         if (now < nextTick) {
             return;
         }
@@ -151,18 +191,80 @@ public final class AutoShovelSwap {
         if (held == null) {
             return; // not holding a shovel and none on the hotbar in that mode: nothing it can do
         }
-        if (modeBeforeTap != null && modeBeforeTap.equals(held)) {
-            fruitlessTaps++;
+        if (modeBeforeTap != null) {
+            if (heardMode != null && heardTick > tapTick || next(modeBeforeTap).equals(held)) {
+                // The server took the tap: its lever click came (the pitch names the new mode) or the model moved. The
+                // next step may go from the heard mode without waiting for the model, which lags 1-2 s: his pincarn6
+                // game (23:15:38) timed out on the model alone, tapped again and stepped the shovel twice.
+                modeBeforeTap = null;
+            } else if (now < confirmByTick) {
+                return;
+            } else {
+                // Neither a click nor a model change by a round trip plus a second: the tap never reached the server
+                // (vanilla drops a use while it is destroying a block, or the click was eaten); tap again.
+                lostTaps++;
+                modeBeforeTap = null;
+                LOGGER.info("[{}] tap lost (no click and no model change from the server); tapping again", NAME);
+                if (++fruitlessTaps >= 3) {
+                    gaveUpTick = now;
+                }
+            }
         }
+        String from = heardMode != null ? heardMode : held;
         if (fruitlessTaps >= 3) {
+            if (now - gaveUpTick < RETRY_TICKS) {
+                return;
+            }
+            fruitlessTaps = 0;
+        }
+        // Vanilla's startUseItem does nothing while a block is being destroyed, so a tap then is lost.
+        if (mc.gameMode != null && mc.gameMode.isDestroying()) {
             return;
         }
         if (CarnivalInput.tap(mc.options.keyUse)) {
             swaps++;
-            modeBeforeTap = held;
-            nextTick = now + ActionGate.delayTicks(delayMs);
-            LOGGER.info("[{}] stepping the shovel from {} toward {} for {}", NAME, held, want, r.label());
+            modeBeforeTap = from;
+            tapTick = now;
+            confirmByTick = now + 20 + 2L * Math.max(0, PingTracker.automationMs()) / 50;
+            // Never two taps the same distance apart: the Swap Delay plus a rolled reaction.
+            nextTick = now + ActionGate.delayTicks(delayMs) + Human.ticks(2, 0, 8);
+            LOGGER.info("[{}] stepping the shovel from {} toward {} for {}", NAME, from, want, r.label());
         }
+    }
+
+    /** Hypixel answers each shovel step with a lever click at the player whose pitch is the new mode (1.0 Mines, 8/7
+     *  Anchor, 9/7 Treasure; his 11-14 logs), 1-2 s before the item model changes. Render thread, from the sound packet. */
+    public static void onSound(net.minecraft.network.protocol.game.ClientboundSoundPacket p) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (modeBeforeTap == null && heardMode == null || player == null || !AutoFruitConfig.swap().isEnabled()
+                // By id: an inline sound decodes to a direct holder, which has no registered name.
+                || !p.getSound().value().location().equals(net.minecraft.sounds.SoundEvents.LEVER_CLICK.location())
+                || player.distanceToSqr(p.getX(), p.getY(), p.getZ()) > 9) {
+            return;
+        }
+        String mode = modeOfPitch(p.getPitch());
+        if (mode != null) {
+            heardMode = mode;
+            heardTick = ActionGate.currentTick();
+            heard++;
+            LOGGER.info("[{}] server clicked the shovel to {} (pitch {})", NAME, mode, p.getPitch());
+        }
+    }
+
+    /** The mode a shovel-step click's pitch names, or null. */
+    static String modeOfPitch(float pitch) {
+        return Math.abs(pitch - 1f) < 0.03f ? "Mines" : Math.abs(pitch - 8f / 7f) < 0.03f ? "Anchor"
+                : Math.abs(pitch - 9f / 7f) < 0.03f ? "Treasure" : null;
+    }
+
+    /** Harness: shovel-step clicks heard from the server. */
+    public static int heard() {
+        return heard;
+    }
+
+    /** Harness: taps that sent no use packet and were made again. */
+    public static int lostTaps() {
+        return lostTaps;
     }
 
     /** Harness: hotbar selects and mode taps made. */

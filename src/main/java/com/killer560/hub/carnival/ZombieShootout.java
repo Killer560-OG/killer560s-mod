@@ -100,9 +100,19 @@ public final class ZombieShootout {
             this(zombie, lamp, box, points, msLeft, color, label, false);
         }
 
-        /** Where to aim: a walking zombie is led by Lead Adjust percent of its estimated travel; a lamp never moves. */
-        public Vec3 leadPoint(Vec3 eye, int pct) {
-            return zombie == null ? aimPoint() : Lead.ahead(zombie.getId(), aimPoint(), eye, pct);
+        /** Where a dart must be aimed to hit it: led along a walking zombie's path and raised for the dart's drop
+         *  ({@link Lead#dartAim}); a lamp never moves but the drop still counts. */
+        public Vec3 dartAim(Vec3 eye) {
+            return Lead.dartAim(zombie == null ? Integer.MIN_VALUE : zombie.getId(), aimPoint(), eye);
+        }
+
+        /** The fire window, degrees: how far off the aim point the look may be and still meet the box (70% of the
+         *  angle its narrower half-width spans from {@code eye}, at least 0.4). One-hit zombies, so a near miss costs a
+         *  dart: his 11-14 games fired 3.4 darts a kill through a 2-degree window that is 0.52 blocks at 15. */
+        public float fireWindow(Vec3 eye) {
+            double half = Math.min(box.getXsize(), box.getYsize()) / 2;
+            double dist = Math.max(1, eye.distanceTo(aimPoint()));
+            return (float) Math.max(0.4, 0.7 * Math.toDegrees(Math.atan(half / dist)));
         }
 
         public Vec3 aimPoint() {
@@ -186,9 +196,12 @@ public final class ZombieShootout {
         List<Target> list = new ArrayList<>();
         Set<Integer> alive = new HashSet<>();
         List<net.minecraft.world.entity.decoration.ArmorStand> tags = new ArrayList<>();
+        long tick = com.killer560.hub.util.ActionGate.currentTick();
         for (Entity e : mc.level.entitiesForRendering()) {
             if (e instanceof net.minecraft.world.entity.decoration.ArmorStand a && a.hasCustomName()) {
                 tags.add(a);
+            } else if (e instanceof net.minecraft.world.entity.projectile.arrow.AbstractArrow arrow) {
+                Lead.seeArrow(arrow, tick);
             }
             if (!(e instanceof Zombie z) || !z.isAlive() || z.distanceToSqr(mc.player) > RANGE * RANGE) {
                 continue;
@@ -198,17 +211,23 @@ public final class ZombieShootout {
                 continue;
             }
             alive.add(z.getId());
-            Lead.sample(z.getId(), z.position());
+            // The server's position, not the drawn one (drawn up to three ticks behind while it slides there).
+            Vec3 at = Lead.serverPos(z);
+            Lead.sample(z.getId(), at, 0.5);
+            at = Lead.now(z.getId(), at);
+            AABB box = z.getBoundingBox().move(at.x - z.getX(), at.y - z.getY(), at.z - z.getZ());
+            Lead.seeTarget(z.getId(), box.getCenter());
             long seen = FIRST_SEEN.computeIfAbsent(z.getId(), k -> now);
             long left = Math.max(0, t.lifetimeMs - (now - seen));
             int pts = t == Tier.LEATHER && z.isBaby() ? t.points * 2 : t.points;
             // Hypixel puts its own timer on a name tag over the zombie: that one is read and shown, ours never stacks on it.
             double theirs = theirTimer(z, tags);
-            list.add(new Target(z, null, z.getBoundingBox(), pts, theirs >= 0 ? (long) (theirs * 1000) : left, t.color,
+            list.add(new Target(z, null, box, pts, theirs >= 0 ? (long) (theirs * 1000) : left, t.color,
                     (z.isBaby() ? "Baby " : "") + t.label, theirs >= 0));
         }
         FIRST_SEEN.keySet().retainAll(alive);
         Lead.retain(alive);
+        Lead.endTick(tick);
         for (BlockPos p : LAMPS) {
             if (lit(mc.level, p)) {
                 long since = LIT_SINCE.computeIfAbsent(p, k -> now);

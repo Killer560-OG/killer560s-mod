@@ -22,6 +22,8 @@ import net.minecraft.world.phys.Vec3;
 final class CarnivalInput {
 
     private static int packets = -1;
+    /** Teleports this soon after a game starts are the game's own, not corrections. */
+    static final long CORRECTION_GRACE_MS = 3_000;
     private static int taps;
 
     private CarnivalInput() {
@@ -36,7 +38,7 @@ final class CarnivalInput {
     }
 
     static void aim(String owner, LocalPlayer player, Vec3 point, boolean moving, boolean freeCamera) {
-        ViewAim.aim(owner, player, point, moving, freeCamera);
+        ViewAim.aim(owner, player, point, moving, freeCamera, true);
     }
 
     static void release(String owner) {
@@ -100,7 +102,9 @@ final class CarnivalInput {
     /** Reports a server correction once (with {@code feature}'s name) and lets it carry on. */
     static void watchCorrections(String feature) {
         int now = ServerCorrections.packetCount();
-        if (packets >= 0 && now != packets) {
+        // A game start teleports him (his 11-14 log: one "correction" at every start): not a correction. Timed from the
+        // game's own start, so a second game of the same kind gets its grace too.
+        if (packets >= 0 && now != packets && CarnivalState.gameMillis() >= CORRECTION_GRACE_MS) {
             ServerCorrections.report(feature, "- carrying on", ServerCorrections.lastMoveDistance());
         }
         packets = now;

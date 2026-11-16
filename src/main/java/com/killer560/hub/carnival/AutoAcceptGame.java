@@ -33,7 +33,7 @@ public final class AutoAcceptGame {
     static final long OPTIONS_WINDOW_MS = 3_000;
     private static long npcAtMs;
     private static long promptAtMs;
-    private static String pending;
+    private static ClickEvent pending;
     private static int sent;
 
     private AutoAcceptGame() {
@@ -67,8 +67,8 @@ public final class AutoAcceptGame {
             return;
         }
         if (plain.startsWith(PROMPT)) {
-            // Inline options: the first run-command anywhere in the line. Otherwise the options come on the next lines.
-            String inline = firstRunCommand(message);
+            // Inline options: the first clickable option anywhere in the line. Otherwise the options come on the next lines.
+            ClickEvent inline = firstOption(message);
             if (inline != null) {
                 pending = inline;
                 npcAtMs = 0;
@@ -81,13 +81,29 @@ public final class AutoAcceptGame {
             // The first option line after the prompt decides it, picked or not: nothing later is ever taken.
             promptAtMs = 0;
             npcAtMs = 0;
-            pending = firstRunCommand(message);
+            pending = firstOption(message);
         }
     }
 
     private static String command(Component c) {
         return c.getStyle().getClickEvent() instanceof ClickEvent.RunCommand run && run.command() != null
                 && !run.command().isBlank() ? run.command() : null;
+    }
+
+    /** The first option a click would pick in {@code c}, depth first: a run-command, or a Custom click action (how
+     *  Hypixel's game NPCs offer them: skyblock:dialogue_response with the npc and response key, his 11-14 log). */
+    static ClickEvent firstOption(Component c) {
+        ClickEvent e = c.getStyle().getClickEvent();
+        if (e instanceof ClickEvent.Custom || command(c) != null) {
+            return e;
+        }
+        for (Component sibling : c.getSiblings()) {
+            ClickEvent found = firstOption(sibling);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
     }
 
     /** The first run-command click event in {@code c}, depth first (Hypixel's prompt is a plain prefix, an arrow, then the option). */
@@ -109,11 +125,22 @@ public final class AutoAcceptGame {
         if (pending == null) {
             return;
         }
-        String command = pending;
+        ClickEvent option = pending;
         pending = null;
         if (mc.player == null || mc.getConnection() == null || !AutoAcceptGameConfig.getInstance().isEnabled()) {
             return;
         }
+        if (option instanceof ClickEvent.Custom custom) {
+            // What vanilla's chat click sends for a Custom click event.
+            mc.getConnection().send(new net.minecraft.network.protocol.common.ServerboundCustomClickActionPacket(
+                    custom.id(), custom.payload()));
+            sent++;
+            lastCommand = custom.id() + " " + custom.payload().map(Object::toString).orElse("");
+            ModChat.log(NAME, ModChat.text("Accepted the game."));
+            LOGGER.info("[{}] sent custom click {}", NAME, lastCommand);
+            return;
+        }
+        String command = ((ClickEvent.RunCommand) option).command();
         String stripped = command.startsWith("/") ? command.substring(1) : command;
         mc.getConnection().sendCommand(stripped);
         sent++;

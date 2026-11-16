@@ -42,8 +42,6 @@ public class AutoZombieShootoutTab extends BaseTab {
             save.run();
             btn.setMessage(aimMode(cfg));
         }).bounds(contentX + half + 4, y, half, 18).build());
-        IslandRows.slider(w, contentX, y + 22, half, 0, ShootoutShotConfig.MAX_LEAD_PCT, 5,
-                cfg::getLeadPct, cfg::setLeadPct, v -> "Lead Adjust: " + v + "%", save);
         return w;
     }
 }

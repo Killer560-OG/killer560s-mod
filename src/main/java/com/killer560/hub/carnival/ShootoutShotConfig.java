@@ -12,7 +12,6 @@ public final class ShootoutShotConfig extends CarnivalSettings {
     public static final int MIN_SHOT_MS = 100;
     public static final int MAX_SHOT_MS = 1000;
     public static final int MAX_AIM_DELAY_MS = 500;
-    public static final int MAX_LEAD_PCT = 200;
     public static final String[] SHOOT_WITH = {"Use", "Attack"};
 
     private static final ShootoutShotConfig TRIGGERBOT = new ShootoutShotConfig("triggerbot");
@@ -26,7 +25,6 @@ public final class ShootoutShotConfig extends CarnivalSettings {
         declare("aimDelayMs", 50);
         declare("tubeOnly", true);
         declare("lampsFirst", true);
-        declare("leadPct", 100);
         declare("freeCamera", false);
     }
 
@@ -52,7 +50,6 @@ public final class ShootoutShotConfig extends CarnivalSettings {
         setShotDelayMs(getShotDelayMs());
         setAimDelayMs(getAimDelayMs());
         setShootWith(getShootWith());
-        setLeadPct(getLeadPct());
     }
 
     /** 0 = your Use key (right click), 1 = your Attack key (left click). */
@@ -94,15 +91,6 @@ public final class ShootoutShotConfig extends CarnivalSettings {
 
     public void setLampsFirst(boolean v) {
         put("lampsFirst", v);
-    }
-
-    /** Lead Adjust, percent: how far ahead of a walking zombie Auto Zombie Shootout aims (0 = at it, 100 = the estimate). */
-    public int getLeadPct() {
-        return integer("leadPct");
-    }
-
-    public void setLeadPct(int v) {
-        put("leadPct", clamp(v, 0, MAX_LEAD_PCT));
     }
 
     public boolean isFreeCamera() {

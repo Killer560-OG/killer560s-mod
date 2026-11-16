@@ -60,7 +60,6 @@ final class SettingTooltipsCarnival {
         d.put("auto zombie shootout/shot delay", "Automation: can get you banned; keep it off on the main server. The least time between two shots (100 to 1000 ms); each gap is rolled up to a quarter longer.");
         d.put("auto zombie shootout/aim delay", "Automation: can get you banned; keep it off on the main server. How long the crosshair must be on a new target before it shoots (0 to 500 ms).");
         d.put("auto zombie shootout/lamps first", "Automation: can get you banned; keep it off on the main server. Turns to a lit Redstone Lamp before any zombie (100 points and 1.2x points for 6 seconds). Off: lamps only when no zombie is in sight.");
-        d.put("auto zombie shootout/lead adjust", BAN + "How far ahead of a walking zombie it aims, as a percent of the estimate (its speed times the dart's flight time); it shoots when the look reaches that point. 0 aims straight at the zombie, 100 is the estimate, up to 200.");
         d.put("auto zombie shootout/aim mode", BAN + "Legit turns your view to each target in an eased, visible turn. No Rotate turns only the look the server hears: your screen holds still (Free Camera) while your body turns.");
         d.put("auto shovel swap", "Automation: can get you banned; keep it off on the main server. In Fruit Digging, switches your Carnival Shovel to the mode the solver wants for the next dig.");
         d.put("auto shovel swap/swap delay", "Automation: can get you banned; keep it off on the main server. The least time between two swaps or mode taps (100 to 2000 ms).");
@@ -69,7 +68,6 @@ final class SettingTooltipsCarnival {
         d.put("auto fruit digging/free camera", "Automation: can get you banned; keep it off on the main server. Holds your screen still while your body turns to each tile; your mouse looks around freely.");
         d.put("auto catch a fish", "Automation: can get you banned; keep it off on the main server. In Catch a Fish, turns you to the best fish, casts, and holds Use to reel in a hooked fish. Only Escape or the Emergency Cancel Key stops it for the rest of that game; moving the mouse never does.");
         d.put("auto catch a fish/cast delay", "Automation: can get you banned; keep it off on the main server. The least time between two casts (100 to 2000 ms).");
-        d.put("auto catch a fish/lead adjust", BAN + "How far ahead of a swimming fish it aims, as a percent of the estimate (its speed times the cast's flight time). 0 aims straight at the fish, 100 is the estimate, up to 200.");
         d.put("auto catch a fish/free camera", "Automation: can get you banned; keep it off on the main server. Holds your screen still while your body turns to each fish; your mouse looks around freely.");
         d.put("fruit digging solver/prevent misclicks", "Cancels your dig on any grid tile but the solver's best tile, so a misclick never wastes a dig. Only blocks your own click.");
         d.put("fruit digging solver/prevent wrong shovel", "Cancels your dig while the Carnival Shovel is not in the mode the solver wants (right click cycles the mode). Only blocks your own click.");

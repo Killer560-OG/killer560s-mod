@@ -20,6 +20,10 @@ public final class ViewAim {
     /** Who is turning the view now (a feature name), or null. */
     private static String aimOwner;
     private static boolean registered;
+    /** A moving target this far from the look is a new one: flicked to, then followed (when asked for). */
+    static final float FLICK_DEGREES = 6f;
+    static final int FLICK_TICKS = 10;
+    private static long flickTick = -100;
 
     private ViewAim() {
     }
@@ -68,6 +72,15 @@ public final class ViewAim {
      * Does nothing while another owner aims or a route runs.
      */
     public static void aim(String owner, LocalPlayer player, Vec3 point, boolean moving, boolean freeCamera) {
+        aim(owner, player, point, moving, freeCamera, false);
+    }
+
+    /**
+     * As {@link #aim(String, LocalPlayer, Vec3, boolean, boolean)}; with {@code flick} a moving target more than
+     * FLICK_DEGREES off gets a rolled humanized approach first, then a follow once it lands or FLICK_TICKS pass.
+     */
+    public static void aim(String owner, LocalPlayer player, Vec3 point, boolean moving, boolean freeCamera,
+                           boolean flick) {
         if (routeRunning() || (aimOwner != null && !aimOwner.equals(owner))) {
             return;
         }
@@ -81,7 +94,16 @@ public final class ViewAim {
         }
         aimOwner = owner;
         float[] r = lookAt(player, point);
-        if (moving) {
+        long now = ActionGate.currentTick();
+        if (moving && flick) {
+            // Following from the first tick turned every acquisition into the same machine-smooth curve.
+            if (!RouteRotation.isActive() || error(player, point) > FLICK_DEGREES && now - flickTick > FLICK_TICKS) {
+                RouteRotation.beginApproach(r[0], r[1], false, 0f, 0f);
+                flickTick = now;
+            } else if (now - flickTick > FLICK_TICKS || RouteRotation.settled(1.5f)) {
+                RouteRotation.follow(r[0], r[1]);
+            }
+        } else if (moving) {
             RouteRotation.follow(r[0], r[1]);
         } else if (!RouteRotation.isActive() || RouteRotation.settled(1.0f)
                 || Math.abs(Mth.wrapDegrees(r[0] - player.getYRot())) > 3f) {

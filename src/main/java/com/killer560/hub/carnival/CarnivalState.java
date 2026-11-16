@@ -24,7 +24,7 @@ import java.util.regex.Pattern;
  * luck, pal!"), until the centered end-of-game title. Read four times a second, only while a Carnival feature is on.
  *
  * <p>Unverified in game (taken from SkyHanni): every sidebar line shape, the two start lines, and the end title being a
- * centered line holding only the game's name. Catch a Fish has no known start line, so it is read from the sidebar alone.
+ * centered line holding only the game's name. Catch a Fish's start line ("Good luck, friend!") is from his 11-14 log.
  */
 public final class CarnivalState {
 
@@ -54,6 +54,8 @@ public final class CarnivalState {
     // Chat (anchored on the whole line: an [NPC] line or a centered title no player's chat line can take).
     static final Pattern START_FRUIT = Pattern.compile("^\\[NPC] Carnival Pirateman: Good luck, matey!$");
     static final Pattern START_ZOMBIE = Pattern.compile("^\\[NPC] Carnival Cowboy: Good luck, pal!$");
+    /** His 11-14 log: Catch a Fish's start line (the game was found by the sidebar only before). */
+    static final Pattern START_CATCH = Pattern.compile("^\\[NPC] Carnival Fisherman: Good luck, friend!$");
     static final Pattern END_TITLE = Pattern.compile("^ {10,40}(Fruit Digging|Catch a Fish|Zombie Shootout)$");
 
     // Sidebar, read with the color codes stripped.
@@ -155,6 +157,8 @@ public final class CarnivalState {
             chatStart(Game.FRUIT_DIGGING);
         } else if (START_ZOMBIE.matcher(plain).matches()) {
             chatStart(Game.ZOMBIE_SHOOTOUT);
+        } else if (START_CATCH.matcher(plain).matches()) {
+            chatStart(Game.CATCH_A_FISH);
         } else {
             Matcher m = END_TITLE.matcher(plain);
             if (m.matches()) {

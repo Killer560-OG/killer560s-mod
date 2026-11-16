@@ -46,8 +46,8 @@ public final class CatchAFish {
     /** A fish in the pond. */
     public record Fish(ArmorStand stand, boolean yellow) {
         public AABB box() {
-            Vec3 p = stand.position();
-            double top = stand.getBoundingBox().maxY;
+            Vec3 p = Lead.serverPos(stand);
+            double top = stand.getBoundingBox().maxY + (p.y - stand.getY());
             return new AABB(p.x - 0.35, top - 0.6, p.z - 0.35, p.x + 0.35, top + 0.1, p.z + 0.35);
         }
     }
@@ -138,7 +138,7 @@ public final class CatchAFish {
                 continue;
             }
             alive.add(stand.getId());
-            Lead.sample(stand.getId(), stand.position());
+            Lead.sample(stand.getId(), Lead.serverPos(stand), 0.25);
             if (stand.hasCustomName() && stand.getItemBySlot(EquipmentSlot.HEAD).isEmpty()) {
                 tags.add(stand);
             }
@@ -182,12 +182,19 @@ public final class CatchAFish {
                 double dx = t.getX() - p.x;
                 double dz = t.getZ() - p.z;
                 if (dy > -0.5 && dy < 3 && dx * dx + dz * dz < 2.25) {
-                    String text = t.getCustomName().getString();
+                    net.minecraft.network.chat.Component name = t.getCustomName();
                     if (!barLogged) {
                         barLogged = true;
-                        LOGGER.info("[CatchAFish] name tag over a fish: '{}'", text);
+                        LOGGER.info("[CatchAFish] name tag over a fish: '{}' colors {}", name.getString(), colorRuns(name));
                     }
-                    Bar b = parseBar(text);
+                    Bar b = BAR_CACHE.get(name);
+                    if (b == null && !BAR_CACHE.containsKey(name)) {
+                        if (BAR_CACHE.size() > 64) {
+                            BAR_CACHE.clear();
+                        }
+                        b = parseBar(name);
+                        BAR_CACHE.put(name, b);
+                    }
                     if (b != null) {
                         BARS.put(f.stand().getId(), b);
                         break;
@@ -238,6 +245,7 @@ public final class CatchAFish {
         POND_Y.clear();
         BACK.clear();
         BARS.clear();
+        BAR_CACHE.clear();
         java.util.Arrays.fill(flagged, 0);
         barLogged = false;
         Lead.clear();
@@ -306,6 +314,70 @@ public final class CatchAFish {
             }
         }
         return frac < 0 && secs < 0 ? null : new Bar(frac, secs);
+    }
+
+    /** Parsed tags by the name object a stand carries (the same object until the server renames it), bounded. */
+    private static final java.util.Map<net.minecraft.network.chat.Component, Bar> BAR_CACHE =
+            new java.util.IdentityHashMap<>();
+
+    /** Whether a styled glyph reads as an empty bar segment: gray, dark gray or black. */
+    private static boolean offColor(net.minecraft.network.chat.TextColor c) {
+        int rgb = c.getValue() & 0xFFFFFF;
+        return rgb == 0xAAAAAA || rgb == 0x555555 || rgb == 0;
+    }
+
+    /**
+     * A name tag read as a bar (killer560 11-14: the fish tag shows a progress bar, not a percent or seconds): a percent
+     * or seconds in its text first; else every symbol glyph (not a letter, digit or space) counted by its color, a gray
+     * or dark gray one empty and any other colored one filled, so unknown glyphs still count; else the known glyph sets
+     * of {@link #parseBar(String)}.
+     */
+    static Bar parseBar(net.minecraft.network.chat.Component tag) {
+        String text = tag.getString();
+        Bar plain = parseBar(text);
+        if (plain != null && (plain.fraction() >= 0 && PERCENT.matcher(text).find() || plain.secondsLeft() >= 0)) {
+            return plain;
+        }
+        int[] n = new int[3]; // filled, empty, glyphs with a color
+        tag.visit((style, part) -> {
+            net.minecraft.network.chat.TextColor c = style.getColor();
+            for (int i = 0; i < part.length(); i++) {
+                char ch = part.charAt(i);
+                if (Character.isLetterOrDigit(ch) || Character.isWhitespace(ch) || "[](){}:".indexOf(ch) >= 0) {
+                    continue;
+                }
+                if (c != null && offColor(c)) {
+                    n[1]++;
+                } else {
+                    n[0]++;
+                }
+                n[2] += c != null ? 1 : 0;
+            }
+            return java.util.Optional.empty();
+        }, net.minecraft.network.chat.Style.EMPTY);
+        if (n[0] + n[1] >= 4 && n[2] > 0) {
+            return new Bar(n[0] / (double) (n[0] + n[1]), plain == null ? -1 : plain.secondsLeft());
+        }
+        return plain;
+    }
+
+    /** The tag's text in color runs, "#55ff55:'||||' #aaaaaa:'||'", for the once-a-game log line. */
+    private static String colorRuns(net.minecraft.network.chat.Component tag) {
+        StringBuilder sb = new StringBuilder();
+        tag.visit((style, part) -> {
+            if (!part.isEmpty()) {
+                sb.append(style.getColor() == null ? "none" : style.getColor().serialize()).append(":'").append(part)
+                        .append("' ");
+            }
+            return java.util.Optional.empty();
+        }, net.minecraft.network.chat.Style.EMPTY);
+        return sb.toString().trim();
+    }
+
+    /** Harness: a styled name tag read as a bar: {fraction or -1, seconds left or -1}, null when it is not a bar. */
+    public static double[] barForTest(net.minecraft.network.chat.Component tag) {
+        Bar b = parseBar(tag);
+        return b == null ? null : new double[]{b.fraction(), b.secondsLeft()};
     }
 
     /** The bar over a fish (a named stand within 1.5 blocks sideways and up to 3 above it), or null. */
