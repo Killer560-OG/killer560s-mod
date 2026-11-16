@@ -55,7 +55,9 @@ public final class Ap3Keybinds {
                 Action a = ACTIONS[i];
                 boolean always = a == Action.STOP || a == Action.FREEZE_STATE || a == Action.REWIND_TICK
                         || a == Action.FORWARD_TICK;
-                if (!enabled && !always) {
+                // The Freeze State keys (arrows by default) do nothing while Freeze State is off, silently (killer560 11-13).
+                boolean freezeKey = a == Action.FREEZE_STATE || a == Action.REWIND_TICK || a == Action.FORWARD_TICK;
+                if (!enabled && !always || freezeKey && !cfg.isFreezeStateEnabled()) {
                     wasDown[i] = false;
                     continue;
                 }
