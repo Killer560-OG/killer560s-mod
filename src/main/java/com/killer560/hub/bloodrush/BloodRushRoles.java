@@ -14,9 +14,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Blood rush roles, with the usual conventions (facts from its BrRoles; our own code) so a party mixing
- * the two mods numbers its roles the same way (killer560, 2026-11-03: "I just don't want someone on their mod to be player
- * 1 and ours 2 and they go for the same mobs").
+ * Blood rush roles, in the shared form (role numbers, class roles in master mode and party chat claims exactly as the
+ * shared table's users have them) so a party mixing players on different mods numbers its roles the same way (killer560,
+ * 2026-11-03: "I just don't want someone on their mod to be player 1 and ours 2 and they go for the same mobs"). Nothing here
+ * invents a role: what each role kills is {@link BloodRushData}'s table.
  *
  * <p><b>Who kills.</b> Killers 2 to 4 (the door runner not counted) take roles 1..N; the door runner kills nothing, unless
  * Door Kills has him kill: then he is one more role, the last. Door Kills After Fairy has him kill only in rooms the rush
@@ -42,7 +43,7 @@ public final class BloodRushRoles {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-bloodrush");
     /** "Party > [MVP+] Name: !3br 2", "Party > Name: !br d". The rank bracket is absent for a player without one. */
-    static final Pattern CLAIM = Pattern.compile("^Party > (?:\\[[A-Z+]{1,10}\\] )?([A-Za-z0-9_]{1,16}): !([2-4])?br ([1-4]|d)$");
+    static final Pattern CLAIM = Pattern.compile("^Party > (?:\\[[^\\]]*\\] )?([A-Za-z0-9_]{1,16}): !([2-4])?br ([1-4]|d)$");
 
     private static Integer chatCount;
     /** Who claimed which role, in the order they said it (lower-case name -> {display name, role}). */
@@ -70,9 +71,8 @@ public final class BloodRushRoles {
         Integer n = m.group(2) == null ? null : Integer.parseInt(m.group(2));
         String what = m.group(3);
         seen = true;
-        if (n != null && !n.equals(chatCount)) {
+        if (n != null && n != count(BloodRushConfig.getInstance())) { // a different count is a new sync: everyone picks again
             TAKEN.clear();
-            door = null;
         }
         if (n != null) {
             chatCount = n;
@@ -142,7 +142,7 @@ public final class BloodRushRoles {
                 };
             }
         }
-        return Math.min(cfg.getRole(), cfg.getKillers());
+        return cfg.getRole();
     }
 
     private static Integer chatMine() {
@@ -222,7 +222,7 @@ public final class BloodRushRoles {
     }
 
     /** Whether anyone in the party has claimed a role this run (party chat). */
-    public static boolean admInParty() {
+    public static boolean claimsSeen() {
         return seen;
     }
 

@@ -9,7 +9,7 @@ Sources, all ours and all seen on Hypixel (the mod never learns in the sim):
   argument %APPDATA%/PrismLauncher/instances;
 - the shared record store's sim-mob-looks.json (%USERPROFILE%/.killer560smod/shared), where every instance records the
   room-relative block of each starred mob it confirmed on its spawn spot.
-Never another mod's box data (adm's is All Rights Reserved).
+These are only the fallback for rooms the shared table (build-br-data.py) does not cover.
 
 Spots are room-relative blocks (RouteCoords: 1xN rooms run along +x, every room starts at 0,0), the same in every file.
 A spot is kept only in a room that can hold starred mobs (tools/bench/roomtypes.json: NORMAL, RARE, CHAMPION), inside the

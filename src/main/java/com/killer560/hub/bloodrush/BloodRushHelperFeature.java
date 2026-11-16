@@ -50,19 +50,17 @@ import java.util.regex.Pattern;
  * wither door into it opens; the rush path is the rooms on the way (the room tree) from the Entrance to each wither or
  * blood door; a room's plan keys on the door you came in by (the doorway you last walked through, else its door on the
  * Entrance side of the path); roles, the door runner, Door Kills, the drop at fairy and master mode class roles are in
- * {@link BloodRushRoles}; a room with one box is a miniboss room and every role kills it.
+ * {@link BloodRushRoles}; a miniboss room is every role's.
  *
- * <p><b>The split</b> is where hand-made plans exist per room x entry door x team size. Ours is a rule
- * fitted to those plans ({@link BloodRushSplit}; a private measurement script): the room's boxes are grouped into one region a role
- * with k-means seeded from the box farthest from the door, regions kept to equal box counts on normal floors; roles are
- * numbered farthest region first on normal floors, most boxes first in master mode; inside a role the kill order walks
- * from the door, nearest first, then each next nearest the last. Once your own boxes are done, the others' that are left
- * show as help. Agreement with those plans is measured, not exact: a player on the usual roles and one of ours can still share a box,
- * so with role lines in party chat the HUD says so.
+ * <p><b>Boxes and split</b> come from the shared table ({@link BloodRushData}): for a room it covers, its boxes in table
+ * order (the box number is the place in the list; mobs only claim them) and the plan for the entry door and team size say
+ * which role kills which box in what order and which boxes are a role's stack. Without a plan (roles off, he left the rush,
+ * no plan for that door) every box is plain and numbered. Once your own boxes are done, the others' that are left show as
+ * help.
  *
- * <p><b>Boxes</b> come from the room's known spawn spots ({@link BloodRushSpots}: earlier sightings, his own and the
- * jar's shipped table, grouped
- * within {@link #LINK} blocks) and, for mobs no learned box claims, from the mobs themselves where first seen.
+ * <p><b>Fallback.</b> A room the table does not cover uses our own learned spots ({@link BloodRushSpots}: earlier sightings,
+ * his own and the jar's shipped table, grouped within {@link #LINK} blocks) and, for mobs no learned box claims, the mobs
+ * themselves where first seen. Those boxes are always plain.
  *
  * <p><b>Legit and cheat.</b> Legit: depth-tested, the rush and its doors read off the hotbar map. Cheat build only: Through
  * Walls, and Whole Rush Path (the scanned dungeon's path, every room on it at once).
@@ -123,6 +121,8 @@ public final class BloodRushHelperFeature {
         final List<Integer> mobs = new ArrayList<>();
         int alive;
         boolean learned;
+        /** From the shared table (its number is its place in the room's list), not from learned spots. */
+        boolean shared;
         double cx;
         double cz;
 
@@ -131,8 +131,8 @@ public final class BloodRushHelperFeature {
         }
     }
 
-    /** What a box is to him: his (in kill order), help (someone else's, his own being done), or someone else's. */
-    enum Look { MINE, HELP, THEIRS }
+    /** What a box is to him: his (in kill order), help (his stack, or someone else's once his own are done), someone else's, or plain. */
+    enum Look { MINE, HELP, THEIRS, PLAIN }
 
     /** One box as drawn, and the facts tests read. */
     record Spot(String room, AABB box, int argb, String label, boolean next, Look look, int order, int role, int mobs,
@@ -189,6 +189,9 @@ public final class BloodRushHelperFeature {
     /** The learned-spot boxes of each room, by room name, while its frame and the spot table stay the same. */
     private static final Map<String, Learned> LEARNED = new HashMap<>();
 
+    /** Each room's wither or blood door (world x, z) from the last rush path; a door runner's plan is keyed by it. */
+    private static final Map<Integer, double[]> EXITS = new HashMap<>();
+
     private record Learned(int x, int z, int rot, int version, List<AABB> boxes) {
     }
     private static String status = "idle";
@@ -221,16 +224,14 @@ public final class BloodRushHelperFeature {
                 });
     }
 
-    /** The notice a party running the usual roles gets (killer560, 2026-11-03: "I just don't want someone on their mod to be
-     *  player 1 and ours 2 and they go for the same mobs"). */
-    public static final String ADM_NOTICE = "ADM players in party: our split is close to ADM's, not identical - call your rooms";
+    private static final String EXAMPLE_LINE = "BR roles: 1 Bob, 2 you, door Jim (2 killing)";
 
-    /** The two HUD lines while role claims from party chat are known (the notice, then who claimed what), else none. */
+    /** The HUD line while role claims from party chat are known (who claimed what), else none. */
     public static List<String> hudLines() {
-        if (!BloodRushConfig.getInstance().isEnabled() || !BloodRushRoles.admInParty()) {
+        if (!BloodRushConfig.getInstance().isEnabled() || !BloodRushRoles.claimsSeen()) {
             return List.of();
         }
-        return List.of(ADM_NOTICE, "BR roles: " + BloodRushRoles.summary());
+        return List.of("BR roles: " + BloodRushRoles.summary());
     }
 
     /** The roles line: shown only while someone in the party has claimed a role in the usual form. Movable in the HUD editor. */
@@ -238,12 +239,12 @@ public final class BloodRushHelperFeature {
 
         @Override
         public int width() {
-            return 2 + Minecraft.getInstance().font.width(ADM_NOTICE);
+            return 2 + Minecraft.getInstance().font.width(EXAMPLE_LINE);
         }
 
         @Override
         public int height() {
-            return 2 + 2 * com.killer560.hub.hud.HudText.ROW;
+            return 2 + com.killer560.hub.hud.HudText.ROW;
         }
 
         @Override
@@ -255,7 +256,7 @@ public final class BloodRushHelperFeature {
         public void render(net.minecraft.client.gui.GuiGraphicsExtractor graphics, int x, int y) {
             boolean example = com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance())
                     instanceof com.killer560.hub.hud.HudEditorScreen;
-            List<String> lines = example ? List.of(ADM_NOTICE, "BR roles: 1 Bob, 2 you, door Jim (2 killing)") : hudLines();
+            List<String> lines = example ? List.of(EXAMPLE_LINE) : hudLines();
             if (lines.isEmpty()) {
                 return;
             }
@@ -264,7 +265,6 @@ public final class BloodRushHelperFeature {
             }
             var font = Minecraft.getInstance().font;
             graphics.text(font, lines.get(0), x + 1, y + 1, com.killer560.hub.gui.ThemeAccent.onDark(com.killer560.hub.gui.ThemeAccent.light(0xFFFFAA00)), true);
-            graphics.text(font, "§7" + lines.get(1), x + 1, y + 1 + com.killer560.hub.hud.HudText.ROW, 0xFFAAAAAA, true);
         }
     };
 
@@ -703,6 +703,7 @@ public final class BloodRushHelperFeature {
             links.add(new ArrayList<>());
         }
         Set<Integer> ends = new HashSet<>(RUSHED);
+        EXITS.clear();
         int entrance = -1;
         for (int r = 0; r < n; r++) {
             String t = type(layout, r);
@@ -736,6 +737,9 @@ public final class BloodRushHelperFeature {
             if (type == DungeonLayout.DOOR_WITHER || type == DungeonLayout.DOOR_BLOOD) {
                 ends.add(a);
                 ends.add(b);
+                Vec3 w = DungeonLayout.doorCentre(idx);
+                EXITS.put(a, new double[]{w.x, w.z});
+                EXITS.put(b, new double[]{w.x, w.z});
             }
         }
         Map<Integer, double[]> out = new HashMap<>();
@@ -833,52 +837,93 @@ public final class BloodRushHelperFeature {
             }
             doors.put(room, door);
             boolean late = late(room);
-            int n = BloodRushRoles.planCount(cfg, late);
-            Integer playing = BloodRushRoles.count(cfg) == 0 ? Integer.valueOf(1) : BloodRushRoles.playing(cfg, late);
-            if (BloodRushRoles.youDropped(cfg, late)) {
-                n = 0;
-                playing = 1; // he left the rush to clear: every box is his
+            Integer playing = BloodRushRoles.playing(cfg, late);
+            BloodRushData.Plan plan = boxes.get(0).shared ? planOf(layout, room, name, boxes.size(), door, cfg, late) : null;
+            BloodRushData.Look[] looks = looks(boxes.size(), plan, playing);
+            List<int[]> mine = new ArrayList<>(); // {order, box index}
+            for (int i = 0; i < looks.length; i++) {
+                if (looks[i] != null && looks[i].kind() == BloodRushData.Kind.MINE) {
+                    mine.add(new int[]{looks[i].n(), i});
+                }
             }
-            List<List<Box>> roles = BloodRushSplit.split(boxes, door[0], door[1], Math.max(1, n), BloodRushRoles.master());
+            mine.sort(java.util.Comparator.comparingInt(a -> a[0]));
+            int role = playing == null ? 0 : playing;
             boolean ownDone = true;
-            List<Box> mineOrder = playing != null && playing >= 1 && playing <= roles.size() ? roles.get(playing - 1)
-                    : List.of();
-            for (Box b : mineOrder) {
-                ownDone &= b.done();
-            }
             boolean nextGiven = false;
-            int order = 0;
-            for (Box b : mineOrder) {
-                order++;
+            for (int[] m : mine) {
+                Box b = boxes.get(m[1]);
+                ownDone &= b.done();
                 if (b.done()) {
                     continue;
                 }
                 boolean next = !nextGiven;
                 nextGiven = true;
                 int argb = b.mobs.isEmpty() ? cfg.getLearnedColor() : cfg.getMineColor();
-                out.add(spot(name, b, argb, label(Integer.toString(order), b), next, Look.MINE, order, playing));
+                out.add(spot(name, b, argb, label(Integer.toString(m[0]), b), next, Look.MINE, m[0], role));
             }
-            for (int r = 1; r <= roles.size(); r++) {
-                if (playing != null && r == playing) {
+            for (int i = 0; i < looks.length; i++) {
+                Box b = boxes.get(i);
+                BloodRushData.Look l = looks[i];
+                if (b.done() || (l != null && l.kind() == BloodRushData.Kind.MINE)) {
                     continue;
                 }
-                boolean help = ownDone && playing != null && !mineOrder.isEmpty();
-                if (!help && !cfg.isShowOthers()) {
-                    continue;
-                }
-                String who = BloodRushRoles.holder(r);
-                for (Box b : roles.get(r - 1)) {
-                    if (b.done() || mineOrder.contains(b)) {
+                if (l == null || l.kind() == BloodRushData.Kind.NONE) {
+                    out.add(spot(name, b, cfg.getOthersColor(), label(Integer.toString(i + 1), b), false, Look.PLAIN, 0, 0));
+                } else if (l.kind() == BloodRushData.Kind.STACK) {
+                    out.add(spot(name, b, com.killer560.hub.gui.ThemeAccent.light(0xFFFFAA00), label("stack", b), false, Look.HELP, 0, role));
+                } else {
+                    boolean help = ownDone && playing != null && !mine.isEmpty();
+                    if (!help && !cfg.isShowOthers()) {
                         continue;
                     }
-                    String text = (help ? "help " : "") + "R" + r + (who != null ? " " + who : "");
-                    out.add(spot(name, b, help ? com.killer560.hub.gui.ThemeAccent.light(0xFFFFAA00) : cfg.getOthersColor(), label(text, b), false,
-                            help ? Look.HELP : Look.THEIRS, 0, r));
+                    String who = l.n() > 0 ? BloodRushRoles.holder(l.n()) : null;
+                    String text = (help ? "help " : "") + "R" + (l.n() > 0 ? Integer.toString(l.n()) : "?") + (who != null ? " " + who : "");
+                    out.add(spot(name, b, help ? com.killer560.hub.gui.ThemeAccent.light(0xFFFFAA00) : cfg.getOthersColor(), label(text, b),
+                            false, help ? Look.HELP : Look.THEIRS, 0, l.n()));
                 }
             }
         }
         LAST_DOORS = doors;
         return out.equals(CACHED) ? CACHED : List.copyOf(out);
+    }
+
+    /** What each box (by number, 1 up) is to him in {@code plan}; null entries are plain boxes (no plan: roles off, he left the
+     *  rush, or the table has none for this door and team size). */
+    static BloodRushData.Look[] looks(int count, BloodRushData.Plan plan, Integer playing) {
+        BloodRushData.Look[] out = new BloodRushData.Look[count];
+        for (int i = 0; plan != null && i < count; i++) {
+            out[i] = BloodRushData.look(plan, i + 1, playing);
+        }
+        return out;
+    }
+
+    /** The shared plan for a room whose boxes come from the table, or null (see {@link #looks}). */
+    private static BloodRushData.Plan planOf(DungeonLayout layout, int room, String name, int boxCount, double[] door,
+                                            BloodRushConfig cfg, boolean late) {
+        if (BloodRushRoles.count(cfg) == 0 || !(BloodRushRoles.onDoor(cfg) || BloodRushRoles.mine(cfg) != null)
+                || BloodRushRoles.youDropped(cfg, late)) {
+            return null;
+        }
+        int n = BloodRushRoles.planCount(cfg, late);
+        if (BloodRushData.isMini(name)) { // a miniboss room: every role kills every box
+            int[][] roles = new int[Math.max(1, n)][boxCount];
+            for (int[] r : roles) {
+                for (int i = 0; i < boxCount; i++) {
+                    r[i] = i + 1;
+                }
+            }
+            return new BloodRushData.Plan(roles, new int[roles.length][0]);
+        }
+        int[] cr = layout.clayRotation(room);
+        if (cr == null) {
+            return null;
+        }
+        RouteCoords.Frame f = new RouteCoords.Frame(name, cr[0], cr[1], cr[2]);
+        BlockPos rel = RouteCoords.toRelativeBlock(f, new BlockPos((int) Math.floor(door[0]), 0, (int) Math.floor(door[1])));
+        double[] w = EXITS.get(room);
+        BlockPos wr = w == null ? null : RouteCoords.toRelativeBlock(f, new BlockPos((int) Math.floor(w[0]), 0, (int) Math.floor(w[1])));
+        return BloodRushData.plan(name, rel.getX(), rel.getZ(), wr == null ? null : new int[]{wr.getX(), wr.getZ()}, n,
+                BloodRushRoles.master(), BloodRushRoles.doorerKills(cfg, late));
     }
 
     private static String label(String text, Box b) {
@@ -895,8 +940,18 @@ public final class BloodRushHelperFeature {
      */
     private static List<Box> boxes(DungeonLayout layout, int room, String name, BloodRushConfig cfg) {
         List<Box> learned = new ArrayList<>();
-        if (cfg.isShowLearned()) {
-            int[] cr = layout.clayRotation(room);
+        int[] cr = layout.clayRotation(room);
+        int[][] table = cr == null || name == null ? null : BloodRushData.boxes(name);
+        boolean shared = table != null;
+        if (shared) {
+            for (AABB a : sharedBoxes(name, cr, table)) {
+                Box bx = new Box();
+                bx.box = a;
+                bx.learned = true;
+                bx.shared = true;
+                learned.add(bx);
+            }
+        } else if (cfg.isShowLearned()) { // fallback: a room the shared table does not cover keeps our own learned spots
             if (cr != null && name != null) {
                 for (AABB a : learnedBoxes(name, cr)) {
                     Box bx = new Box();
@@ -941,7 +996,7 @@ public final class BloodRushHelperFeature {
         }
         List<Box> out = new ArrayList<>(learned);
         List<Vec3> pts = new ArrayList<>();
-        for (Mob m : loose) {
+        for (Mob m : shared ? List.<Mob>of() : loose) { // the table's boxes are the whole room: a mob outside them gets none
             pts.add(m.first);
         }
         for (List<Integer> g : clusterIdx(pts)) {
@@ -962,9 +1017,27 @@ public final class BloodRushHelperFeature {
             b.cx = (b.box.minX + b.box.maxX) / 2;
             b.cz = (b.box.minZ + b.box.maxZ) / 2;
         }
-        // A stable order (the split breaks ties by it): west to east, then north to south.
-        out.sort((a, b) -> a.cx != b.cx ? Double.compare(a.cx, b.cx) : Double.compare(a.cz, b.cz));
+        // Learned rooms get a stable number: west to east, then north to south. The table's keep their own order.
+        if (!shared) out.sort((a, b) -> a.cx != b.cx ? Double.compare(a.cx, b.cx) : Double.compare(a.cz, b.cz));
         return out;
+    }
+
+    /** The table's boxes of a room in the world (a box spans its two corner blocks), cached until its frame changes. */
+    private static List<AABB> sharedBoxes(String name, int[] cr, int[][] table) {
+        Learned c = LEARNED.get("=" + name);
+        if (c != null && c.x == cr[0] && c.z == cr[1] && c.rot == cr[2]) {
+            return c.boxes;
+        }
+        RouteCoords.Frame f = new RouteCoords.Frame(name, cr[0], cr[1], cr[2]);
+        List<AABB> boxes = new ArrayList<>();
+        for (int[] t : table) {
+            BlockPos a = RouteCoords.toRealBlock(f, new BlockPos(t[0], t[1], t[2]));
+            BlockPos b = RouteCoords.toRealBlock(f, new BlockPos(t[3], t[4], t[5]));
+            boxes.add(new AABB(Math.min(a.getX(), b.getX()), Math.min(a.getY(), b.getY()), Math.min(a.getZ(), b.getZ()),
+                    Math.max(a.getX(), b.getX()) + 1, Math.max(a.getY(), b.getY()) + 1, Math.max(a.getZ(), b.getZ()) + 1));
+        }
+        LEARNED.put("=" + name, new Learned(cr[0], cr[1], cr[2], 0, List.copyOf(boxes)));
+        return boxes;
     }
 
     /** The room's learned spots grouped within {@link #LINK}, one box each; rebuilt when its frame or the table changes. */
@@ -1258,25 +1331,54 @@ public final class BloodRushHelperFeature {
         return pathComputes;
     }
 
-    /** The split on bare box middles {x, z} (index order kept): per role, the box indices in kill order. */
-    public static List<List<Integer>> splitForTest(double[][] centres, double doorX, double doorZ, int n, boolean master) {
-        List<Box> boxes = new ArrayList<>();
-        for (double[] c : centres) {
-            Box b = new Box();
-            b.cx = c[0];
-            b.cz = c[1];
-            b.box = new AABB(c[0] - 0.8, 69, c[1] - 0.8, c[0] + 0.8, 71, c[1] + 0.8);
-            boxes.add(b);
+    /** The shared table's plan as "role1;role2|stack1;stack2" (box numbers comma separated), or "none". */
+    public static String planForTest(String room, int dx, int dz, int wx, int wz, int n, boolean master, boolean doorer) {
+        BloodRushData.Plan p = BloodRushData.plan(room, dx, dz, wx == Integer.MIN_VALUE ? null : new int[]{wx, wz}, n, master, doorer);
+        if (p == null) {
+            return "none";
         }
-        List<List<Integer>> out = new ArrayList<>();
-        for (List<Box> r : BloodRushSplit.split(boxes, doorX, doorZ, n, master)) {
-            List<Integer> l = new ArrayList<>();
-            for (Box b : r) {
-                l.add(boxes.indexOf(b));
-            }
-            out.add(l);
+        java.util.function.Function<int[][], String> f = a -> java.util.Arrays.stream(a)
+                .map(r -> java.util.Arrays.stream(r).mapToObj(Integer::toString).collect(java.util.stream.Collectors.joining(",")))
+                .collect(java.util.stream.Collectors.joining(";"));
+        return f.apply(p.roles()) + "|" + f.apply(p.stacks());
+    }
+
+    /** The table's boxes of a room as "x1,y1,z1,x2,y2,z2;..." in table order, or "none" when it has none. */
+    public static String tableBoxesForTest(String room) {
+        int[][] b = BloodRushData.boxes(room);
+        return b == null ? "none" : java.util.Arrays.stream(b).map(r -> java.util.Arrays.stream(r)
+                .mapToObj(Integer::toString).collect(java.util.stream.Collectors.joining(","))).collect(java.util.stream.Collectors.joining(";"));
+    }
+
+    /** What each box of a table room is to him under the party's claims now, entered at room-relative (dx, dz):
+     *  "mine=1,2;r1=3;none=4" (box numbers 1 up), or "none" without a plan. */
+    public static String claimSplitForTest(String room, int dx, int dz) {
+        BloodRushConfig cfg = BloodRushConfig.getInstance();
+        int[][] table = BloodRushData.boxes(room);
+        BloodRushData.Plan plan = table == null ? null : BloodRushData.plan(room, dx, dz, null,
+                BloodRushRoles.planCount(cfg, false), BloodRushRoles.master(), false);
+        if (plan == null) {
+            return "none";
         }
-        return out;
+        Integer playing = BloodRushRoles.playing(cfg, false);
+        java.util.TreeMap<String, List<Integer>> by = new java.util.TreeMap<>();
+        for (int i = 1; i <= table.length; i++) {
+            BloodRushData.Look l = BloodRushData.look(plan, i, playing);
+            String k = switch (l.kind()) {
+                case MINE -> "mine";
+                case STACK -> "stack";
+                case THEIRS -> "r" + l.n();
+                case NONE -> "none";
+            };
+            by.computeIfAbsent(k, x -> new java.util.ArrayList<>()).add(i);
+        }
+        return by.entrySet().stream().map(e -> e.getKey() + "=" + e.getValue().stream().map(Object::toString)
+                .collect(java.util.stream.Collectors.joining(","))).collect(java.util.stream.Collectors.joining(";"));
+    }
+
+    /** Table room names, comma separated. */
+    public static String tableRoomsForTest() {
+        return String.join(",", new java.util.TreeSet<>(BloodRushData.rooms()));
     }
 
     /** Forgets this world's mobs, doors and the blood door, as a new world would. */
