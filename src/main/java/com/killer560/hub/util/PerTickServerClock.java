@@ -38,7 +38,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
  * The clock is one count: each counted ping advances it while trusted; while not, it follows the client's game time (a
  * tick a tick, plus forward set-time corrections; never down), so it is continuous across a change of source.
  * {@link #deficitTicksSince} is how far it is behind the client's ticks (a catch-up burst pays it back);
- * {@link #stallTicksSince} is {@link StallLag}'s lag in ticks (stalls, paid back or not, and a slow server). Once per world, 60 s after its first ping, one INFO line
+ * {@link #stallTicksSince} is {@link StallLag}'s lag in ticks (stalls the server did not catch up with a burst, and a slow server). Once per world, 60 s after its first ping, one INFO line
  * gives the ping census (ids 0 and non-zero, chain and off-chain, per 50 ms of wall time, chain direction).
  */
 public final class PerTickServerClock {
@@ -492,7 +492,7 @@ public final class PerTickServerClock {
     }
 
     /** The server's lag since {@code mark}, in 50 ms ticks ({@link StallLag}: 0 while it is not trusted, a stall counts in
-     *  full and stays counted after its catch-up burst, network jitter counts nothing; bcstall-1105). For a lag READING. */
+     *  full unless a catch-up burst pays it back (splitlag-1116), network jitter counts nothing; bcstall-1105). For a lag READING. */
     public static long stallTicksSince(long[] mark) {
         if (mark == null || mark.length < 3) {
             return 0L;

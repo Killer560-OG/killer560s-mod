@@ -6,8 +6,13 @@ package com.killer560.hub.util;
  * {@code wall - 50 ms * server ticks} counts in two parts that only ever add:
  * <ul>
  * <li><b>Stalls</b> (tickfix2-1104, killer560: "run splits never shows lag now"): one ping gap more than
- * {@link #STALL_MS} over its 50 ms counts in full, grows live while it lasts, and is never paid back by the catch-up
- * burst that follows (the server ran those ticks late; the player still waited).</li>
+ * {@link #STALL_MS} over its 50 ms counts in full and grows live while it lasts. The server ticks that then come in a
+ * burst within {@link #PAYBACK_MS} (pings faster than one per 50 ms, and the clock moved up to the server's game time)
+ * pay it back (splitlag-1116, killer560 2026-11-16: "it should only count lag as the server lag, not my client-side
+ * lag"): the server ran those ticks on time and only their delivery waited, on a frozen client (the queued packets are
+ * handled at once when it wakes) or a stalled connection. Hypixel does not catch up a real stall (its game time stays
+ * behind, so no burst comes). His 11-14/15 logs: per 60 s census window the old count read 2-6 s (16 s in one) while the
+ * server's game time fell 0.1-0.5 s behind the wall clock.</li>
  * <li><b>A slow server</b> (laglag-1105, killer560: "the lag timer is going up while the server isnt lagging"): the rest
  * of the deficit counts only where its LOW point rises, the lowest value in each {@link #BLOCK_MS} block. Network jitter
  * only ever makes a ping late, so a late ping and the quick one after it never move a block's low; a server at 19.8 TPS
@@ -31,6 +36,9 @@ public final class StallLag {
     static final long BLOCK_MS = 2000L;
     /** A block low this far under the reference is a catch-up burst: the reference follows it down. */
     static final long DROP_MS = 100L;
+    /** How long after a stall ends a burst of server ticks may still pay it back (a frozen client handles its queued
+     *  packets in one go, a stalled connection delivers them in one go; a second covers a slow frame or two). */
+    static final long PAYBACK_MS = 1000L;
     private static final org.slf4j.Logger LOGGER = ModLog.get("killer560smod-servertick");
 
     /** Wall minus 50 ms per tick since the first tick, without the stalls (they count on their own). */
@@ -43,6 +51,17 @@ public final class StallLag {
     private static long lastTickMs;
     private static long shownMs;
     private static long shownAtMs;
+    /** The last stall while a burst may still pay it back: its size, its ping gap, the net of every tick's lateness since
+     *  it ended and that net's low point, what was paid back, and until when. */
+    private static long pendingMs;
+    private static long pendingGapMs;
+    private static long pendingNetMs;
+    private static long pendingLowMs;
+    private static long pendingPaidMs;
+    private static long pendingUntilMs;
+    /** Testkit: stalls seen and ms paid back since the last {@link #reset}, so a case can prove the gap was seen. */
+    private static int stallsSeen;
+    private static long paidBackMs;
 
     private StallLag() {
     }
@@ -58,12 +77,25 @@ public final class StallLag {
         lastTickMs = 0L;
         shownMs = 0L;
         shownAtMs = 0L;
+        pendingMs = 0L;
+        stallsSeen = 0;
+        paidBackMs = 0L;
+    }
+
+    /** Ends the pay-back window of the last stall with one line saying what stayed counted. */
+    private static void closePending() {
+        if (pendingMs == 0L) return;
+        LOGGER.info("[StallLag] stall: +{} ms of lag (ping gap {} ms, {} ms paid back by the server ticks that came in a burst"
+                + " after it), {} ms this connection", pendingMs - pendingPaidMs, pendingGapMs, pendingPaidMs,
+                stallLagMs + slowLagMs);
+        pendingMs = 0L;
     }
 
     /** A {@link PerTickServerClock} tick (subscribed by its register). */
     static synchronized void onTick() {
         if (!PerTickServerClock.trusted()) {
             lastTickMs = 0L;
+            closePending();
             return;
         }
         long now = PerTickServerClock.wallMs();
@@ -75,10 +107,28 @@ public final class StallLag {
         }
         long over = now - last - NOMINAL_TICK_MS;
         if (over > STALL_MS) {
+            closePending();
             stallLagMs += over;
-            LOGGER.info("[StallLag] stall: +{} ms of lag (ping gap {} ms), {} ms this connection",
-                    over, now - last, stallLagMs + slowLagMs);
+            stallsSeen++;
+            pendingMs = over;
+            pendingGapMs = now - last;
+            pendingNetMs = 0L;
+            pendingLowMs = 0L;
+            pendingPaidMs = 0L;
+            pendingUntilMs = now + PAYBACK_MS;
+        } else if (pendingMs > 0L && now <= pendingUntilMs) {
+            // The low point of the ticks' net lateness since the stall ended: a burst drives it down by 50 ms a tick the
+            // server ran during the gap; jitter (a late tick, then an early one) leaves it where it was.
+            pendingNetMs += over;
+            pendingLowMs = Math.min(pendingLowMs, pendingNetMs);
+            long paid = Math.min(pendingMs, -pendingLowMs);
+            long step = paid - pendingPaidMs;
+            pendingPaidMs = paid;
+            stallLagMs -= step;
+            paidBackMs += step;
+            deficitMs += over + step;
         } else {
+            closePending();
             deficitMs += over;
         }
         blockLowMs = Math.min(blockLowMs, deficitMs);
@@ -94,7 +144,14 @@ public final class StallLag {
         }
     }
 
-    /** Lag so far: stalls (one still running counts live) plus a slow server, climbing no faster than the wall clock.
+    /** Testkit: stalls seen since the last {@link #reset}. */
+    public static synchronized int stallsSeen() { return stallsSeen; }
+
+    /** Testkit: ms of stalls paid back by a burst since the last {@link #reset}. */
+    public static synchronized long paidBackMs() { return paidBackMs; }
+
+    /** Lag so far: stalls (one still running counts live) plus a slow server, climbing no faster than the wall clock,
+     *  and dropping only when a burst pays a stall back (a lagless time only climbs either way).
      *  Only differences between two reads mean anything; never read as an absolute value. */
     public static synchronized long lagMs() {
         long now = PerTickServerClock.wallMs();
@@ -102,7 +159,7 @@ public final class StallLag {
         long live = last == 0L ? 0L : now - last - NOMINAL_TICK_MS;
         long lag = stallLagMs + slowLagMs + (live > STALL_MS ? live : 0L);
         long cap = shownAtMs == 0L ? lag : shownMs + Math.max(0L, now - shownAtMs);
-        shownMs = Math.max(shownMs, Math.min(lag, cap));
+        shownMs = Math.min(lag, cap);
         shownAtMs = now;
         return shownMs;
     }

@@ -204,8 +204,19 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   so did `SplitLagClock` after timers2: on Hypixel that nets to 0, because the server runs the lost ticks afterwards (a burst
   of pings). His 2026-11-03 23:56 run printed "Storm took 45.15s (43.90s)" and then "Lag: 0.00s" for the run, and every
   other split equal to its lagless time to 0.01 s. `SplitLagClock` now follows that deficit from its lowest point and
-  counts a rise of more than 150 ms in full, never paid back (a burst only lowers the low point); jitter counts nothing.
-  Testkit 1104-logic-split-lag drives it at wall-clock pace. Each counted stall logs `[SplitLag] stall: +N ms`.
+  counts a rise of more than 150 ms in full; jitter counts nothing. Testkit 1104-logic-split-lag drives it at wall-clock pace.
+- **A ping gap the server caught up with a burst was the CLIENT's, not lag** (splitlag-1116; killer560 2026-11-16: "it
+  also counts lag going up if I myself am lagging"). Pings are handled on the client thread and timed when handled, so a
+  frozen client (its queued packets handled at once when it wakes) and a stalled connection (the backlog delivered at once)
+  look exactly like a server stall, except that the ticks the server did run arrive right after in a burst. Hypixel does
+  NOT catch up a real stall (its game time stays behind; tickfix-1104's "Hypixel runs the lost ticks afterwards" was
+  read off a count that included its extra pings). His 11-14/15 logs, per 60 s census window: `StallLag` read 2-6 s (17 s
+  in one) while the server's game time fell 0.1-0.5 s behind the wall clock; the one real slow-server window read 7.8 s of
+  stalls for 8.7 s of game-time deficit. `StallLag` now lets the ticks that come faster than 50 ms apart within 1 s of a
+  stall (burst pings, the clock moved up to game time) pay it back (the low point of their net lateness, so jitter pays
+  nothing), and the shown lag may drop by that. It cannot tell a client freeze off Hypixel longer than 2 s from a stall
+  (the clock banks only 40 ticks of credit there). One `[StallLag] stall: +N ms (ping gap, M ms paid back)` line per stall
+  when its window closes. Testkit 1116-logic-splitlag-server-stall, -client-freeze, -conn-stall, -freeze-in-stall.
 - **A repeating boss timer kept as a counter drifts; keep the server tick of one real event instead.** Goldor's "Tick:"
   was set to 60 on his line and decremented once per `ServerTickClock` event, which counts CLIENT ticks in any second
   with under 15 pings and was skipped whenever the sidebar did not read F7, so nothing ever pulled it back onto the
@@ -242,8 +253,8 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   the purple pad and the mask cooldowns have no chat line at their end to measure against; their values stay the references'.
 - **A stall reading and a tick conversion want different measures.** `PerTickServerClock.deficitTicksSince` is client
   ticks minus pings since a mark, which a catch-up burst pays back: right for turning a server-tick target into a client tick
-  (Blood Camp's `killShownTick`). `stallTicksSince` counts every rise of that deficit past 2 ticks in full and keeps it after
-  the burst (tickfix2-1104; until then it was the net, so Blood Camp Stats' camp lag and a pong's stall read ~0 after
+  (Blood Camp's `killShownTick`). `stallTicksSince` counts every rise of that deficit past 2 ticks in full and keeps it
+  unless a burst follows within 1 s (splitlag-1116: then it was a client freeze or a connection stall; tickfix2-1104; until then it was the net, so Blood Camp Stats' camp lag and a pong's stall read ~0 after
   Hypixel caught up). Logic case 1104-logic-stall-burst.
 - **GrimAC's transaction pings can pass the per-tick test for a few seconds** (shipH-rr-argrim-a-26.3.log: "is a per-tick
   pinger: 22 pings, 20 of 20" then "no longer" 3 s later). Grim's ids are `-(counter & 0x7FFF)`, non-positive and stepping

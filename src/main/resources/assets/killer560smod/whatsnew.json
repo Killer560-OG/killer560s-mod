@@ -25,7 +25,8 @@
      "Auto Routes: clicking in a menu while a route holds sneak, or attacking while it turns for an etherwarp, no longer draws an anticheat flag",
      "Click in Order (Terminal Solver and Auto Terminals) no longer gets stuck on the first pane after one click: the highlights move on to the next number and Auto Terminals stops clicking the wrong pane",
      "Fixed a crash (the game closing with a stack overflow) when the Collection Tracker's saved settings were read for the first time",
-     "The Freeze State keys no longer print \"Freeze State is turned off\" while Freeze State is off; they just do nothing."
+     "The Freeze State keys no longer print \"Freeze State is turned off\" while Freeze State is off; they just do nothing.",
+     "Split Timers: the lag figure now counts only server lag, never your own FPS drops or connection stalls"
     ]
    }
   ]

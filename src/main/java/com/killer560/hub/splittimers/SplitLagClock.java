@@ -10,7 +10,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
  * <p>
  * <b>Counted the way other implementations count (2026-11-03, timers2).</b> Both keep, beside the wall clock, a count of
  * server ticks; lag lost is the wall
- * time minus 50 ms per tick. The count is {@link StallLag} (stalls in full, a slow server where the deficit's low rises,
+ * time minus 50 ms per tick. The count is {@link StallLag} (stalls the server did not catch up, a slow server where the deficit's low rises,
  * never climbing faster than the wall clock), shared with Blood Camp's camp lag since bcstall-1105.
  * <p>
  * Only counted while {@link PerTickServerClock#trusted()}: on a server that does not ping once a tick the clock is the
