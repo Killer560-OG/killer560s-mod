@@ -314,7 +314,36 @@ public final class SbProfile {
         return inventories;
     }
 
+    private List<ItemStack> riftAccessories;
+
+    /**
+     * The Rift Accessory Bag's items, or null while the API sends none. 0.27.3 added the bag in game, but
+     * {@code member.rift.inventory} still holds only inv_contents, inv_armor, equipment_contents and the ender chest
+     * (live profiles, pv0273-1117), so this reads a talisman/accessory blob there once one appears, never a guessed
+     * name. Decodes once; call it off the render thread.
+     */
+    public synchronized List<ItemStack> riftAccessories() {
+        if (riftAccessories == null) {
+            riftAccessories = List.of();
+            JsonObject rift = asObj(path(memberJson, "rift.inventory"));
+            if (rift != null) {
+                for (Map.Entry<String, JsonElement> e : rift.entrySet()) {
+                    String k = e.getKey().toLowerCase(java.util.Locale.ROOT);
+                    if (k.contains("talisman") || k.contains("accessor")) {
+                        riftAccessories = LegacyItems.decodeInventory(e.getValue());
+                        riftBagSent = true;
+                        break;
+                    }
+                }
+            }
+        }
+        return riftBagSent ? riftAccessories : null;
+    }
+
+    private boolean riftBagSent;
+
     private Inventories decodeInventories() {
+        riftAccessories();
         JsonObject inv = inventoryJson == null ? new JsonObject() : inventoryJson;
         JsonObject bags = asObj(inv.get("bag_contents"));
 

@@ -35,6 +35,16 @@ public final class ProfileExtras {
     public final Rift rift;
     public final Farming farming;
     public final Misc misc;
+    public final AccessoryBag bag;
+
+    /**
+     * {@code member.accessory_bag_storage} after the 0.27.3 bag rework (shape read from live profiles, pv0273-1117):
+     * {@code sort} ("rarity" seen), {@code tuning.slot_0} = the active tuning (stat -> points; slots 1-4 are saved
+     * presets), {@code bag_upgrades_purchased}. The API has no total Tuning Points or bag slot count, so those are not
+     * shown; {@code tuningInUse} is the sum of the active tuning's points.
+     */
+    public record AccessoryBag(String sort, int tuningInUse, int bagUpgrades) {
+    }
 
     public record Crystal(String state, int found, int placed) {
     }
@@ -87,6 +97,23 @@ public final class ProfileExtras {
         rift = parseRift(member);
         farming = parseFarming(member);
         misc = parseMisc(profile, member);
+        bag = parseBag(asObj(member.get("accessory_bag_storage")));
+    }
+
+    static AccessoryBag parseBag(JsonObject s) {
+        if (s == null) {
+            return new AccessoryBag("", 0, 0);
+        }
+        int tuning = 0;
+        JsonObject active = asObj(path(s, "tuning.slot_0"));
+        if (active != null) {
+            for (Map.Entry<String, JsonElement> e : active.entrySet()) {
+                if (!e.getKey().equals("purchase_ts")) {
+                    tuning += (int) num(e.getValue());
+                }
+            }
+        }
+        return new AccessoryBag(str(s, "sort", ""), tuning, (int) num(s.get("bag_upgrades_purchased")));
     }
 
 

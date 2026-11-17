@@ -2180,7 +2180,7 @@ final class ExtraPages {
         int rw = s.contentW - navW - 6;
         s.box(g, rx, s.contentY, rw, s.contentH);
         switch (view) {
-            case 0 -> drawGeneral(g, p, m, rx, rw, mx, my);
+            case 0 -> drawGeneral(g, p, m, ex.bag, rx, rw, mx, my);
             case 1 -> drawCounts(g, "Kills", m.kills(), rx, rw, false, mx, my);
             case 2 -> drawCounts(g, "Deaths", m.deaths(), rx, rw, false, mx, my);
             default -> {
@@ -2208,7 +2208,8 @@ final class ExtraPages {
         return best;
     }
 
-    private void drawGeneral(GuiGraphicsExtractor g, SbProfile p, ProfileExtras.Misc m, int rx, int rw, int mx, int my) {
+    private void drawGeneral(GuiGraphicsExtractor g, SbProfile p, ProfileExtras.Misc m, ProfileExtras.AccessoryBag bag,
+                             int rx, int rw, int mx, int my) {
         int x = rx + 6;
         int w = (rw - 24) / 2;
         int y = s.contentY + 5;
@@ -2242,6 +2243,14 @@ final class ExtraPages {
         y = s.stat2(g, x, y, w, "Magical Power", commas(m.magicalPower()));
         if (!m.selectedPower().isEmpty()) {
             y = s.stat2(g, x, y, w, "Power", SbProfile.titleCase(m.selectedPower()));
+        }
+        // SkyBlock 0.27.3: the API sends the points spent in the active tuning and the bag upgrades bought, but not the
+        // total Tuning Points or the slot count the tab widget shows (killer560s-mod-logs/pv0273-1117/NEEDS-CAPTURE.md).
+        if (bag.tuningInUse() > 0) {
+            y = s.stat2(g, x, y, w, "Tuning Points In Use", commas(bag.tuningInUse()));
+        }
+        if (bag.bagUpgrades() > 0) {
+            y = s.stat2(g, x, y, w, "Bag Upgrades", commas(bag.bagUpgrades()));
         }
         y = s.stat2(g, x, y, w, "Minions Crafted", commas(m.minionsCrafted()));
         y = s.stat2(g, x, y, w, "Fairy Exchanges", commas(m.fairyExchanges()));

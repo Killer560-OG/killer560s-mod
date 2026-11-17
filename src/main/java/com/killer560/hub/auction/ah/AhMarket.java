@@ -265,6 +265,38 @@ public final class AhMarket {
         });
     }
 
+    /**
+     * The sales-history key of an accessory sold with an enrichment: the same accessory with the same extras
+     * (enrichment type, recombobulated or not), so an enriched sale is never mixed with plain ones.
+     */
+    public static String extrasKey(String id, String enrichment, int recomb) {
+        return id + "|enrich=" + enrichment.toUpperCase(java.util.Locale.ROOT) + "|recomb=" + (recomb > 0 ? 1 : 0);
+    }
+
+    private static String enrichmentOf(ItemStack stack) {
+        net.minecraft.world.item.component.CustomData data = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+        return data == null ? "" : data.copyTag().getStringOr("talisman_enrichment", "");
+    }
+
+    private static int recombOf(ItemStack stack) {
+        net.minecraft.world.item.component.CustomData data = stack.get(net.minecraft.core.component.DataComponents.CUSTOM_DATA);
+        return data == null ? 0 : data.copyTag().getIntOr("rarity_upgrades", 0);
+    }
+
+    /** Adds one sale under {@code key}, keeping the newest {@link #SALES_KEPT}. Caller holds the class lock. */
+    private static void record(String key, long at, long price) {
+        ArrayDeque<Point> d = SALES.computeIfAbsent(key, k -> new ArrayDeque<>());
+        d.addLast(new Point(at, price));
+        while (d.size() > SALES_KEPT) {
+            d.pollFirst();
+        }
+    }
+
+    /** Test hook: records a sale as {@link #applyEnded} would. */
+    public static synchronized void recordSaleForTest(String key, long at, long price) {
+        record(key, at, price);
+    }
+
     /** Parses one auctions_ended answer into the sales history; returns how many new sales were recorded. */
     public static int applyEnded(String body) {
         JsonObject root = JsonParser.parseString(body).getAsJsonObject();
@@ -296,10 +328,10 @@ public final class AhMarket {
                         SEEN_ENDED.clear();
                         SEEN_ENDED.add(auctionId);
                     }
-                    ArrayDeque<Point> d = SALES.computeIfAbsent(id, k -> new ArrayDeque<>());
-                    d.addLast(new Point(at, price / count));
-                    while (d.size() > SALES_KEPT) {
-                        d.pollFirst();
+                    record(id, at, price / count);
+                    String enrichment = enrichmentOf(items.get(0));
+                    if (!enrichment.isEmpty()) {
+                        record(extrasKey(id, enrichment, recombOf(items.get(0))), at, price / count);
                     }
                     dirty = true;
                 }

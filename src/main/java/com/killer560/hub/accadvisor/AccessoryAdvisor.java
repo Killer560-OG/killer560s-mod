@@ -347,6 +347,27 @@ public final class AccessoryAdvisor {
         return info == null || info.accessory() == null ? "COMMON" : info.accessory().tier();
     }
 
+    /** Every accessory in the items resource (id -> name and tier); empty until it loaded. Render thread. */
+    public static Map<String, AccessoryRanker.Acc> catalogView() {
+        return catalog();
+    }
+
+    /** The upgrade family an accessory belongs to (its own id when it has none). Starts the family download once. */
+    public static String familyKey(String id) {
+        loadFamilies();
+        return familyOf.getOrDefault(id, id);
+    }
+
+    /** Ids the upgrade table marks as not real bag accessories. */
+    public static boolean isIgnored(String id) {
+        return ignored.contains(id);
+    }
+
+    /** Bumped every time the families change, so a view built from them knows to rebuild. */
+    public static int familiesVersion() {
+        return familiesVersion;
+    }
+
     private static Map<String, AccessoryRanker.Acc> catalog() {
         if (testCatalog != null) {
             return testCatalog;

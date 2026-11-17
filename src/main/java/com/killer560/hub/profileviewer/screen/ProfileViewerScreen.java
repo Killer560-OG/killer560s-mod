@@ -3,6 +3,7 @@ package com.killer560.hub.profileviewer.screen;
 import com.killer560.hub.profileviewer.ProfileViewerConfig;
 import com.killer560.hub.profileviewer.ProfileViewerFeature;
 import com.killer560.hub.profileviewer.api.ProfileViewerApi;
+import com.killer560.hub.profileviewer.data.AccessoryBagView;
 import com.killer560.hub.profileviewer.data.LevelTables;
 import com.killer560.hub.profileviewer.data.SbProfile;
 import com.killer560.hub.gui.MenuStyle;
@@ -169,6 +170,11 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     private int page;
     private int invView = 0;
     private int invPage = 0;
+    /** Accessories view: the Rift Accessory Bag tab, sort by name, and the main bag flattened once per decode. */
+    private boolean accRift, accByName;
+    private List<List<ItemStack>> accPagesKey;
+    private List<ItemStack> accFlat = List.of();
+    private static final int ACC_MISSING_SHADE = 0xA0101010;
     /** Vertical scroll (in panel-rows) for the Ender Chest / Backpacks tiled multi-panel view. */
     private int invScroll = 0;
     private int petScroll = 0;
@@ -1763,7 +1769,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                 multiPanelGrid(g, rx, rw, top, labels, itemLists, mx, my);
             }
             case 3 -> pagedGrid(g, "Wardrobe", inv.wardrobe(), rx, rw, gridX, top, mx, my, inv.wardrobeEquipped());
-            case 4 -> pagedGrid(g, "Accessory Bag", inv.accessories(), rx, rw, gridX, top, mx, my, -1);
+            case 4 -> drawAccessoryBag(g, p, inv, rx, rw, gridX, top, mx, my);
             case 5 -> {
                 tx(g, "Personal Vault", rx + 6, contentY + 6, ACCENT);
                 if (inv.personalVault().isEmpty()) {
@@ -1851,6 +1857,82 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             equippedCol = (wardrobeEquipped - 1) % 9;
         }
         grid(g, pages.get(invPage), gridX, top, mx, my, equippedCol);
+    }
+
+    /** The Accessories view as SkyBlock's own bag menu lays it out (0.27.3): every accessory its own slot, missing ones
+     *  grayed, toggled-off ones marked with a red corner, and the Rift Accessory Bag on its own tab. */
+    private void drawAccessoryBag(GuiGraphicsExtractor g, SbProfile p, SbProfile.Inventories inv, int rx, int rw, int gridX,
+                                  int top, int mx, int my) {
+        List<ItemStack> owned;
+        if (accRift) {
+            owned = p.riftAccessories();
+        } else {
+            owned = accOwned(inv.accessories());
+        }
+        int bx = rx + 6;
+        int by = contentY + 3;
+        button(g, bx, by, 96, 14, "Accessory Bag", mx, my, !accRift, () -> { accRift = false; invPage = 0; });
+        button(g, bx + 100, by, 104, 14, "Rift Accessory Bag", mx, my, accRift, () -> { accRift = true; invPage = 0; });
+        button(g, bx + 208, by, 64, 14, accByName ? "Sort: Name" : "Sort: Rarity", mx, my, false,
+                () -> { accByName = !accByName; invPage = 0; });
+        if (owned == null) {
+            centeredIn(g, "The API does not send the Rift Accessory Bag yet.", rx, rw, contentY + contentH / 2 - 4, DIM);
+            return;
+        }
+        List<AccessoryBagView.Slot> slots = AccessoryBagView.slots(owned, accRift, accByName);
+        int pages = Math.max(1, (slots.size() + AccessoryBagView.PAGE - 1) / AccessoryBagView.PAGE);
+        invPage = Math.floorMod(invPage, pages);
+        if (pages > 1) {
+            String label = (invPage + 1) + " / " + pages;
+            int right = rx + rw - 6;
+            button(g, right - 16, by, 16, 14, ">", mx, my, false, () -> invPage++);
+            tx(g, label, right - 22 - this.font.width(label), by + 4, VALUE);
+            button(g, right - 42 - this.font.width(label), by, 16, 14, "<", mx, my, false, () -> invPage--);
+        }
+        int y0 = top + 2;
+        int from = invPage * AccessoryBagView.PAGE;
+        for (int i = 0; i < AccessoryBagView.PAGE; i++) {
+            int x = gridX + (i % 9) * 18;
+            int y = y0 + (i / 9) * 18;
+            AccessoryBagView.Slot s = from + i < slots.size() ? slots.get(from + i) : null;
+            if (s == null) {
+                slotBox(g, x, y, 18, 0);
+                continue;
+            }
+            if (s.state() == AccessoryBagView.State.MISSING) {
+                slotBox(g, x, y, 18, 0);
+                g.item(s.stack(), x + 1, y + 1);
+                g.fill(x + 1, y + 1, x + 17, y + 17, ACC_MISSING_SHADE);
+                if (inside(mx, my, x, y, 18, 18) && !dropdownOpen) {
+                    pendingTooltip = List.of(
+                            Component.literal(s.name()).withStyle(style(0xFF000000 | LevelTables.rarityColor(s.tier()))),
+                            Component.literal("Missing").withStyle(style(DIM)));
+                }
+                continue;
+            }
+            slot(g, x, y, s.stack(), mx, my, false);
+            if (s.state() == AccessoryBagView.State.DISABLED) {
+                g.fill(x + 1, y + 1, x + 17, y + 17, ACC_MISSING_SHADE);
+                g.fill(x + 12, y + 1, x + 17, y + 6, BAD);
+            }
+        }
+        int[] c = AccessoryBagView.counts(slots);
+        int ly = y0 + 5 * 18 + 6;
+        tx(g, c[0] + " owned", gridX, ly, VALUE);
+        int lx = gridX + this.font.width(c[0] + " owned") + 10;
+        tx(g, c[1] + " toggled off (still in Networth)", lx, ly, BAD);
+        tx(g, c[2] + " missing", gridX, ly + 11, DIM);
+    }
+
+    /** The main bag's pages flattened once per decoded inventory (the pages list is fixed after decode). */
+    private List<ItemStack> accOwned(List<List<ItemStack>> pages) {
+        if (pages != accPagesKey) {
+            List<ItemStack> flat = new ArrayList<>();
+            for (List<ItemStack> page : pages) flat.addAll(page);
+            accPagesKey = pages;
+            accFlat = flat;
+        }
+        return accFlat;
     }
 
     private static List<String> numbered(String prefix, int count) {

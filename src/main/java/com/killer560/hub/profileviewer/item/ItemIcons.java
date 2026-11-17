@@ -64,6 +64,25 @@ public final class ItemIcons {
         return CACHE.computeIfAbsent(id, ItemIcons::resolve);
     }
 
+    /**
+     * The real catalog look of a SkyBlock id (skins, models) from whatever item catalog is already on disk, fetched only
+     * while the Item Browser is on; else the offline look-alike of {@link #forId}. Not cached: callers keep their result.
+     */
+    public static ItemStack catalogIcon(String skyblockId) {
+        try {
+            com.killer560.hub.itembrowser.SkyblockItemEntry entry = com.killer560.hub.itembrowser.SkyblockItemRepository.findOnDisk(skyblockId);
+            if (entry == null && com.killer560.hub.itembrowser.ItemBrowserConfig.getInstance().isEnabled()) {
+                entry = com.killer560.hub.itembrowser.SkyblockItemRepository.findById(skyblockId);
+            }
+            if (entry != null) {
+                return com.killer560.hub.itembrowser.SkyblockItemStackFactory.build(entry);
+            }
+        } catch (Exception ignored) {
+            // fall through to the offline look-alike
+        }
+        return forId(skyblockId);
+    }
+
     public static ItemStack forItem(String vanillaId) {
         Item item = lookup(vanillaId);
         return new ItemStack(item == null ? Items.PAPER : item);

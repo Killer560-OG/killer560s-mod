@@ -102,7 +102,13 @@ public final class Networth {
                 bp.addAll(b.items());
             }
             cats.add(items("Backpacks", bp, bins));
+            // 0.27.3: the API bag still lists only owned accessories (no placeholders for missing ones), and a toggled-off
+            // one (accessory_disabled: 1) stays in it and keeps counting (killer560, 2026-11-17).
             cats.add(items("Accessory Bag", flatten(inv.accessories()), bins));
+            List<ItemStack> rift = p == null ? null : p.riftAccessories();
+            if (rift != null) {
+                cats.add(items("Rift Accessory Bag", rift, bins));
+            }
             cats.add(items("Personal Vault", inv.personalVault(), bins));
             List<ItemStack> bags = new ArrayList<>(inv.fishingBag());
             bags.addAll(inv.quiver());

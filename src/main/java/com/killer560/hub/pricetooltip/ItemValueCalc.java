@@ -155,7 +155,7 @@ public final class ItemValueCalc {
         }
         String enrichment = tag.getStringOr("talisman_enrichment", "");
         if (!enrichment.isEmpty()) {
-            add(parts, "Enrichment", PriceData.unitPrice("TALISMAN_ENRICHMENT_" + enrichment.toUpperCase(Locale.ROOT)) * (nw ? 0.5 : 1));
+            enrichment(parts, id, enrichment, tag.getIntOr("rarity_upgrades", 0));
         }
         ListTag boosters = tag.getListOrEmpty("boosters");
         if (boosters.size() > 0) {
@@ -379,6 +379,48 @@ public final class ItemValueCalc {
             }
         }
         add(parts, "Gemstone Slots (" + unlocked.size() + ")", unlockSum * (nw ? 0.6 : 1));
+    }
+
+    /** Recent sales older than this do not count as "comparable" for an enriched accessory. */
+    private static final long SALE_MAX_AGE_MS = 14L * 24 * 3600 * 1000;
+
+    /**
+     * An enriched accessory (killer560, 2026-11-17, after SkyBlock 0.27.3 turned enrichments into +1 Tuning Point): first a
+     * recent Auction House sale of the same accessory with the same enrichment and recombobulation, as far as the AH
+     * history this mod already keeps has one (the median sale less what is already counted); else the enrichment's own
+     * price as its craft cost; else nothing, so the item stays at its base. The label always says which one it is.
+     */
+    private static void enrichment(List<Part> parts, String id, String type, int recomb) {
+        String upper = type.toUpperCase(Locale.ROOT);
+        long sale = recentMedian(AhMarket.sales(AhMarket.extrasKey(id, upper, recomb)), System.currentTimeMillis());
+        if (sale > 0) {
+            double counted = 0;
+            for (Part p : parts) {
+                counted += p.value();
+            }
+            parts.add(new Part("Enrichment (recent sale)", Math.max(0, sale - counted)));
+            return;
+        }
+        add(parts, "Enrichment (craft cost)", PriceData.unitPrice("TALISMAN_ENRICHMENT_" + upper));
+    }
+
+    /** Median price of the sales within {@link #SALE_MAX_AGE_MS} of {@code now}, or 0 when there are none. Public for the tests. */
+    public static long recentMedian(List<AhMarket.Point> sales, long now) {
+        if (sales == null || sales.isEmpty()) {
+            return 0;
+        }
+        long[] prices = new long[sales.size()];
+        int n = 0;
+        for (AhMarket.Point p : sales) {
+            if (p.price() > 0 && now - p.atMs() <= SALE_MAX_AGE_MS) {
+                prices[n++] = p.price();
+            }
+        }
+        if (n == 0) {
+            return 0;
+        }
+        java.util.Arrays.sort(prices, 0, n);
+        return n % 2 == 1 ? prices[n / 2] : (prices[n / 2 - 1] + prices[n / 2]) / 2;
     }
 
     private static void add(List<Part> parts, String label, double value) {

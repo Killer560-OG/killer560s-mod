@@ -78,7 +78,10 @@ public final class PriceData {
     }
 
     /** An accessory's display name and base rarity (Hypixel leaves {@code tier} out for COMMON). */
-    public record Accessory(String name, String tier) {
+    public record Accessory(String name, String tier, boolean rift) {
+        public Accessory(String name, String tier) {
+            this(name, tier, false);
+        }
     }
 
     /** Facts about one item id from the items resource; {@code accessory} is null for anything not an accessory. */
@@ -336,7 +339,8 @@ public final class PriceData {
                 slots = List.copyOf(list);
             }
             Accessory acc = "ACCESSORY".equals(str(it, "category"))
-                    ? new Accessory(str(it, "name"), str(it, "tier") == null ? "COMMON" : str(it, "tier")) : null;
+                    ? new Accessory(str(it, "name"), str(it, "tier") == null ? "COMMON" : str(it, "tier"),
+                    "RIFT".equals(str(it, "origin"))) : null;
             if (npc == null && museumCat == null && upgrades.isEmpty() && slots.isEmpty() && acc == null) continue;
             out.put(id, new ItemInfo(npc, museumCat, sets, upgrades, slots, acc));
         }
@@ -482,6 +486,9 @@ public final class PriceData {
             o.addProperty("category", "ACCESSORY");
             o.addProperty("name", info.accessory().name());
             o.addProperty("tier", info.accessory().tier());
+            if (info.accessory().rift()) {
+                o.addProperty("origin", "RIFT");
+            }
         }
         if (info.museumCategory() != null) {
             JsonObject md = new JsonObject();
@@ -549,8 +556,9 @@ public final class PriceData {
                 JsonObject wrap = JsonParser.parseString(Files.readString(itemsFile, StandardCharsets.UTF_8)).getAsJsonObject();
                 if (wrap.has("items") && wrap.get("items").isJsonArray()) {
                     items = parseItems(wrap.getAsJsonArray("items"));
-                    // A cache written before accessories were kept (accadvisor-1113) is refetched on the next pass.
-                    boolean hasAccessories = items.values().stream().anyMatch(i -> i.accessory() != null);
+                    // A cache written before accessories (accadvisor-1113) or their Rift origin (pv0273-1117) were kept is
+                    // refetched on the next pass.
+                    boolean hasAccessories = items.values().stream().anyMatch(i -> i.accessory() != null && i.accessory().rift());
                     itemsFetchedAt = hasAccessories ? (long) num(wrap.get("fetchedAt")) : 0;
                 }
             }
