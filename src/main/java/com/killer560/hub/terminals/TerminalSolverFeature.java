@@ -995,12 +995,12 @@ public final class TerminalSolverFeature {
         }
         if (clickedThisWireTick() || !ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
         sendBurst(screen, type, items, now, cfg.getBurstClicks(), retryTimeout);
-        // At least 40 ms even at delay 0: a lagging client runs catch-up ticks under 40 ms apart, and the server then took
+        // At least 75 ms (1.5 server ticks) even at delay 0: a lagging client runs catch-up ticks under 50 ms apart, and a server tick that ran late took two bursts 50 ms apart, and the server then took
         // two bursts in one of its ticks (Panes at 5 arrived as 9 in one server tick, testkit 1116-term-bmode-panes-5).
         nextAutoClickAllowedAtMs = now + Math.max(cfg.getBurstDelayMs(), MIN_BURST_GAP_MS);
     }
 
-    private static final long MIN_BURST_GAP_MS = 40;
+    private static final long MIN_BURST_GAP_MS = 75;
 
     /** One burst, in one tick, through the one click path: up to {@code limit} clicks. Numbers in their order, a Rubix pane as
      *  many times as it needs (right clicks for a negative count), every other type one click per highlight. A slot whose

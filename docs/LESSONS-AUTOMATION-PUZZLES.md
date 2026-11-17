@@ -162,10 +162,11 @@ The puzzle autos at run time (camera, timing, leaving, each puzzle). Part of the
   Numbers bursts again only once every answer is in. A Rubix pane clicked n times in one burst is ONE pending entry with
   `left = n`, counted down on each slot change, so a later burst never clicks it again before all n answers land. Burst
   mode is gated before Stream Safe in `tickAutoClick`, and Stream Safe's hand then applies to Melody only (`streamSafeHand`).
-  Bursts keep at least 40 ms apart even at Delay 0 (`MIN_BURST_GAP_MS`): under load the client runs catch-up ticks 6-25 ms
-  apart and two bursts then landed in one server tick (Panes at 5 arrived as 9). Even 40+ ms apart, a loaded test server
-  still merges two client ticks into one of its own, so the server's per-tick count is no test of the mod; the testkit
-  checks the wire (one burst per client tick, wire gap >= 15 ms: encode time on the IO thread shortens the gap to ~22 ms).
+  Bursts keep at least 75 ms apart even at Delay 0 (`MIN_BURST_GAP_MS`, termburstgap-1117): under load the client runs catch-up ticks 6-25 ms
+  apart and two bursts landed in one server tick (Panes at 5 arrived as 9); even 40 ms and 50 ms floors still let a late server tick take two
+  bursts (Panes at 1: 15 bursts on 14 server ticks). The proof is server-side, not a wall-clock gap: testkit 1116-term-bmode-* and
+  1117-term-bmode-catchup-* deal the server's container.click events (stamped with the server tick) to the wire bursts and fail if any
+  server tick carries clicks of two bursts.
   Test notes: Block Input While Auto Clicking (default ON) swallows his real screen clicks, so a same-tick screen-click
   case turns it off; a test attack must go at START_CLIENT_TICK like vanilla's, or it lands after the move and GrimAC Post
   flags the TEST. Whole-terminal bursts (size over 5) are clean on Grim but unproven on Hypixel.
