@@ -27,6 +27,12 @@ import com.killer560.hub.compat.McRender;
  */
 public final class WorldRenderUtils {
 
+    /** False for a removed or dying (health 0, death animation) entity: its outline must not be drawn, it flashes one frame at the corpse. */
+    public static boolean boxable(net.minecraft.world.entity.Entity e) {
+        return e != null && !e.isRemoved() && !(e instanceof net.minecraft.world.entity.LivingEntity l && l.isDeadOrDying());
+    }
+
+
     private WorldRenderUtils() {
     }
 

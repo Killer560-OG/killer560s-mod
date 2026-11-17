@@ -475,7 +475,7 @@ public final class MobEspFeature {
             float thickness = renderCfg.getWitherTracerThickness();
             for (Map.Entry<Integer, Integer> target : tracers.entrySet()) {
                 Entity entity = client.level.getEntity(target.getKey());
-                if (entity == null || entity.isRemoved()) continue;
+                if (!WorldRenderUtils.boxable(entity)) continue;
                 // Aim at the hitbox center rather than the feet: a wither's box is 3.5 blocks tall and a line to
                 // its origin reads as pointing at the floor underneath it.
                 Vec3 lerped = entity.getPosition(partialTick);
@@ -492,7 +492,7 @@ public final class MobEspFeature {
         LINE_WALLS.clear();
         for (Map.Entry<Integer, Box> target : current.entrySet()) {
             Entity entity = client.level.getEntity(target.getKey());
-            if (entity == null || entity.isRemoved()) continue;
+            if (!WorldRenderUtils.boxable(entity)) continue;
             Box box = target.getValue();
             // entity.getBoundingBox().move(entity.getPosition(partialTick).subtract(entity.position())), without the
             // three allocations.

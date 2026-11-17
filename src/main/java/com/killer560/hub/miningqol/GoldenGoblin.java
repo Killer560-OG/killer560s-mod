@@ -175,7 +175,7 @@ public final class GoldenGoblin {
         int n = 0;
         for (int id : ids) {
             Entity e = client.level.getEntity(id);
-            if (e == null || e.isRemoved()) {
+            if (!WorldRenderUtils.boxable(e)) {
                 continue;
             }
             bx[n] = e.getBoundingBox().move(Mth.lerp(pt, e.xo, e.getX()) - e.getX(),

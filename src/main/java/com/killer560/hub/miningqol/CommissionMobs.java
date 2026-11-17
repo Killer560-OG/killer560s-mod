@@ -287,7 +287,7 @@ public final class CommissionMobs {
         int n = 0;
         for (int id : ids) {
             Entity e = client.level.getEntity(id);
-            if (e == null || e.isRemoved()) continue;
+            if (!WorldRenderUtils.boxable(e)) continue;
             double dx = Mth.lerp(pt, e.xo, e.getX()) - e.getX();
             double dy = Mth.lerp(pt, e.yo, e.getY()) - e.getY();
             double dz = Mth.lerp(pt, e.zo, e.getZ()) - e.getZ();

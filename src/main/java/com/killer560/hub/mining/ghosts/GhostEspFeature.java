@@ -38,7 +38,7 @@ public final class GhostEspFeature {
         }
         List<AABB> boxes = new ArrayList<>();
         for (Entity e : client.level.entitiesForRendering()) {
-            if (e instanceof Creeper && e.isInvisible() && e.isAlive()) {
+            if (e instanceof Creeper && e.isInvisible() && e.isAlive() && com.killer560.hub.util.WorldRenderUtils.boxable(e)) {
                 boxes.add(e.getBoundingBox());
                 if (boxes.size() >= 64) {
                     break;

@@ -257,7 +257,7 @@ public final class PowderGhast {
         MiningQolConfig cfg = MiningQolConfig.getInstance();
         if (id < 0 || client.level == null || client.player == null || !cfg.isPowderGhast()) return;
         Entity e = client.level.getEntity(id);
-        if (e == null || e.isRemoved()) return;
+        if (!WorldRenderUtils.boxable(e)) return;
         float pt = client.getDeltaTracker().getGameTimeDeltaPartialTick(false);
         AABB box = e.getBoundingBox().move(Mth.lerp(pt, e.xo, e.getX()) - e.getX(),
                 Mth.lerp(pt, e.yo, e.getY()) - e.getY(), Mth.lerp(pt, e.zo, e.getZ()) - e.getZ());
