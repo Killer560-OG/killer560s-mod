@@ -57,6 +57,7 @@ public final class MenuSearch {
             {"hide", "hider", "remove", "invisible", "hidden"},
             {"color", "colour", "tint"},
             {"gray", "grey"},
+            {"channel", "party chat", "chat mode", "chat channel"},
             {"armor", "armour"},
             {"timer", "countdown", "clock", "split", "stopwatch"},
             {"chat", "message", "msg"},

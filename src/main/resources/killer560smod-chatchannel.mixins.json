@@ -1,0 +1,12 @@
+{
+	"required": true,
+	"minVersion": "0.8",
+	"compatibilityLevel": "JAVA_25",
+	"package": "com.killer560.hub.chatchannel.mixin",
+	"client": [
+		"ChatChannelScreenMixin"
+	],
+	"injectors": {
+		"defaultRequire": 0
+	}
+}

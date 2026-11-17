@@ -266,6 +266,7 @@ public final class ModPaths {
         t.put("chattidy", "social/chattidy");
         t.put("chathistory", "social/chathistory");
         t.put("chattabs", "social/chattabs");
+        t.put("chatchannel", "social/chatchannel");
         // Image Preview: its settings and its picture cache (killer560smod-imagepreview-cache/), 2026-10-27.
         t.put("imagepreview", "social/imagepreview");
         t.put("voice", "social/voicetotext");

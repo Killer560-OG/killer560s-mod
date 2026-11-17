@@ -24,6 +24,8 @@ public class ChatTab extends FolderTab {
                 new ChatHistoryTab(),
                 // Chat Tabs (to-do Doc 2026-11-01): All / Party / Guild / Officer / Co-op / Messages above the input.
                 new ChatTabsTab(),
+                // Chat Channel Indicator (killer560, 2026-11-16): "Chat: Party (5 members)" above the input.
+                new ChatChannelTab(),
                 // Image Preview (2026-10-27, killer560: "reimplement imgur... it lets you see pictures and things through links").
                 new ImagePreviewTab(),
                 new AutoMeowTab(),

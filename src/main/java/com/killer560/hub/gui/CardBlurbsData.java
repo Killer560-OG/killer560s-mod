@@ -63,6 +63,7 @@ final class CardBlurbsData {
         d.put("GyroOverlayTab", "Shows the Gyro wand's pull ring.");
         d.put("BazaarOrderHelperTab", "Colors outbid and filled orders.");
         d.put("ChatTabsTab", "Party, guild, DM tabs in chat.");
+        d.put("ChatChannelTab", "Shows current channel.");
         d.put("ScoreWarningTab", "Boss and crypt warnings.");
         d.put("LowHealthAlertTab", "Warns when a teammate is low.");
         d.put("HomeMainTab", "Update notice, HUD keys and scale.");

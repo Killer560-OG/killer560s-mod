@@ -91,6 +91,9 @@ final class SettingTooltipsData {
         d.put("chat tabs", "Shows tabs above the chat input (All, Party, Guild, Officer, Co-op, Messages): click one to see only that channel's messages.");
         d.put("switch channel", "Clicking a tab also puts you in that chat (/chat party and so on); with Messages, a line you type goes as /r.");
         d.put("filter closed chat", "Keeps showing only the selected tab's messages after you close the chat.");
+        d.put("chat channel indicator", "Draws a line above the chat input naming the channel your next message goes to (All, Party, Guild, Officer, Co-op or a private conversation), with the party size in Party.");
+        d.put("show member count", "Adds the number of members to the line while you are in Party chat.");
+        d.put("use hypixel colors", "Draws the line in Hypixel's channel colors with a green label; off takes the label and count from the menu theme.");
         d.put("rare room alerts", "Shows a title and plays a sound the first time Trinity, Tomioka or Duncan shows up on the dungeon map.");
         d.put("rare drop alerts", "Shows a title and plays a sound when an Ice Spray Wand or a Skeleton Master Chestplate drops.");
         d.put("duplicate class alert", "Shows a title naming the players who share a dungeon class, once per class each run.");

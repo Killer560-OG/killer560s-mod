@@ -129,6 +129,7 @@ API names that differ between 26.1.2 and 26.2 are in [COMPILING.md](COMPILING.md
 - A command the mod sends through `ServerCommands.toServer` never reaches Fabric's `ClientSendMessageEvents.ALLOW_COMMAND`
   (it leaves below the dispatcher). A rule over outgoing commands (Creation Cooldown's /joininstance block) needs both:
   ALLOW_COMMAND for typed ones and a check in `toServer` for the mod's own (the /f7 shortcuts, Party Commands).
+- Chat Channel Indicator (chatchannel-1116): the current channel is only what Hypixel's own lines say ("You are now in the X channel", "Opened a chat conversation with <name>", the two moved-back-to-ALL lines); Hypixel keeps the channel between sessions, so nothing is known at login and nothing is drawn until a line settles it. A typed /chat or /channel only predicts for 3 s (`ChatChannelFeature`), /pc /gc /ac /oc never change it, and the DISCONNECT listener (Netty thread) only resets volatile fields. The line draws from a HEAD inject on `ChatScreen.extractRenderState` (same hook as Chat Tabs, so command suggestions draw over it) and sits 13 px higher when Chat Tabs is on; the label and name strings are rebuilt only when the channel, party size or a setting changed. Testkit 1116-chatchannel-* reads the drawn text off `Frames.extract(...).texts()` and the line's y (`lastY`), not just the state.
 
 ## Java, javac and Windows
 
