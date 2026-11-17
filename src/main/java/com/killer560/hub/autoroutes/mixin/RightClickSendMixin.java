@@ -34,6 +34,8 @@ public abstract class RightClickSendMixin {
                 com.killer560.hub.util.PlaceRotationGuard.onPacketSent(packet);
                 // GrimAC MultiBreak: one block dug per server tick (util/DigWindow).
                 com.killer560.hub.util.DigWindow.onPacketSent(packet);
+                // GrimAC Reach cancelBuffer: whether a no-look entity click would be taken (util/GrimHitBuffer).
+                com.killer560.hub.util.GrimHitBuffer.onPacketSent(packet);
                 if (packet instanceof net.minecraft.network.protocol.game.ServerboundPlayerActionPacket a
                         && (a.getAction() == net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK
                         || a.getAction() == net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.STOP_DESTROY_BLOCK)) {

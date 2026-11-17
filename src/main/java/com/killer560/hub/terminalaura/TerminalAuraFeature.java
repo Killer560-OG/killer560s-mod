@@ -43,11 +43,21 @@ public final class TerminalAuraFeature {
 
     private static long lastClickMs = 0L;
 
+    /** Whether a Terminal Aura click went out in the last {@code ms} (AP3 carries on under the terminal it opens). */
+    public static boolean clickedWithinMs(long ms) {
+        return System.currentTimeMillis() - lastClickMs < ms;
+    }
+
     /** The body turn for a terminal the look misses; the camera stays put (see the class doc). */
     private static final BodyAim AIM = new BodyAim(() -> { });
     /** The stand the body was turned to last tick, clicked this tick; null when nothing is pending. */
     private static ArmorStand pendingStand;
     private static int pendingTicks;
+    /** Clicks on {@link #lastStandId} with no screen opened since; past {@link #RETRY_FREE} they go once a second. */
+    private static int unanswered;
+    private static int lastStandId = -1;
+    private static final int RETRY_FREE = 3;
+    private static final long RETRY_GAP_MS = 1000L;
 
     private TerminalAuraFeature() {
     }
@@ -55,6 +65,7 @@ public final class TerminalAuraFeature {
     public static void register() {
         if (!BuildVariant.CHEAT_FEATURES_ENABLED) return;
         TerminalAuraConfig.getInstance();
+        net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents.JOIN.register((h, snd, c) -> com.killer560.hub.util.GrimHitBuffer.reset());
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("TerminalAuraFeature.tick", TerminalAuraFeature::tick));
         LOGGER.debug("[TerminalAura] Registered (default OFF)");
     }
@@ -102,6 +113,7 @@ public final class TerminalAuraFeature {
         // Any open screen means a terminal (or anything else) is already up - clicking another one
         // underneath it would queue a second GUI on top of the one being solved.
         if (McCompat.screen(client) != null || player.isDeadOrDying()) {
+            unanswered = 0;
             logGate(player.isDeadOrDying() ? "dead" : "a screen is open");
             return;
         }
@@ -135,8 +147,47 @@ public final class TerminalAuraFeature {
             logGate("no terminal in range/FOV");
             return;
         }
+        if (t.stand().getId() == lastStandId && unanswered >= RETRY_FREE && now - lastClickMs < RETRY_GAP_MS) {
+            // No terminal opened for the last clicks on this stand: one click a second, never a click every tick.
+            logGate("no answer to " + unanswered + " clicks on " + TerminalStands.describe(t.stand()) + ": one a second");
+            return;
+        }
         logGate(null);
-        if (!t.lookHits() && cfg.isTurnToTerminal()) {
+        boolean keys = com.killer560.hub.util.PacketLook.keysHeld(player);
+        String how = t.lookHits() ? "its own look" : "a one-packet look";
+        if (!t.lookHits() && (keys || com.killer560.hub.ap3.Ap3Executor.isRunning())) {
+            // An AP3 route walks by this body, or he does: no turn (ap3auralook-1116; owner 11-16 "My auras can never
+            // affect my movement"). The aim rides one movement packet (util/PacketLook) and the click goes the tick after;
+            // a full aim must be grounded (airborne drew Hitboxes, 1116-movingclick-probe), a pitch-only one need not be.
+            net.minecraft.world.phys.AABB box = t.stand().getBoundingBox();
+            java.util.function.BiPredicate<net.minecraft.world.phys.Vec3, net.minecraft.world.phys.Vec3> ray =
+                    (a, b) -> box.contains(a) || box.clip(a, b).isPresent();
+            if (!com.killer560.hub.util.PacketLook.struck(player, ray, cfg.getRange() + 1.0)
+                    || !com.killer560.hub.util.PacketLook.standSafe()) {
+                if (!keys) {
+                    float[] aim = aimAt(player, t.stand());
+                    com.killer560.hub.util.PacketLook.request(player, aim[0], aim[1]);
+                    logGate("AP3 route runs: no turn, look misses " + TerminalStands.describe(t.stand()));
+                    return;
+                }
+                // Keys held: a pitch-only look, else the click goes with no look (Hitboxes, his accepted exception).
+                com.killer560.hub.util.PacketLook.Moving m = com.killer560.hub.util.PacketLook.whileMoving(player, t.hit(), ray,
+                        cfg.getRange() + 1.0);
+                if (m == com.killer560.hub.util.PacketLook.Moving.WAIT) {
+                    logGate("keys held: pitch-only look at " + TerminalStands.describe(t.stand()));
+                    return;
+                }
+                if (m == com.killer560.hub.util.PacketLook.Moving.NO_LOOK && !com.killer560.hub.util.GrimHitBuffer.clear()) {
+                    // A missed entity click in the last few makes the server cancel any click whose look misses
+                    // (GrimAC Reach cancelBuffer): wait for a look that meets the stand instead of clicking into nothing.
+                    logGate("keys held: no-look click would be canceled (missed-hit buffer "
+                            + com.killer560.hub.util.GrimHitBuffer.value() + ") at " + TerminalStands.describe(t.stand()));
+                    return;
+                }
+                how = m == com.killer560.hub.util.PacketLook.Moving.CLICK ? "a pitch-only look" : "no look (keys held)";
+            }
+        }
+        if (!t.lookHits() && cfg.isTurnToTerminal() && !keys && !com.killer560.hub.ap3.Ap3Executor.isRunning()) {
             // Turn this tick, click next tick, once this tick's movement packet has reported the turned look.
             float[] aim = aimAt(player, t.stand());
             AIM.turnTo(player, aim[0], aim[1]);
@@ -149,8 +200,7 @@ public final class TerminalAuraFeature {
         }
         if (ActionGate.tryAct(ActionGate.Actor.TERMINAL_AURA)) {
             interact(client, player, t.stand(), t.hit());
-            LOGGER.info("[TerminalAura] click sent: {} lookHits={} dist={} onGround={} tick={}", TerminalStands.describe(t.stand()),
-                    t.lookHits(), fmt(player.getEyePosition().distanceTo(t.hit())), player.onGround(), ActionGate.currentTick());
+            LOGGER.info("[TerminalAura] click sent with {}: {} dist={} onGround={} tick={}", how, TerminalStands.describe(t.stand()), fmt(player.getEyePosition().distanceTo(t.hit())), player.onGround(), ActionGate.currentTick());
             lastClickMs = now;
         } else {
             logGate("ActionGate refused (target " + TerminalStands.describe(t.stand()) + ")");
@@ -259,6 +309,8 @@ public final class TerminalAuraFeature {
 
     /** The interact and the swing; the caller has asked the ActionGate. */
     private static void interact(Minecraft client, Player player, ArmorStand stand, Vec3 hit) {
+        unanswered = stand.getId() == lastStandId ? unanswered + 1 : 1;
+        lastStandId = stand.getId();
         client.gameMode.interact(player, stand, new EntityHitResult(stand, hit), InteractionHand.MAIN_HAND);
         com.killer560.hub.compat.McCompat.swingUse(player);
     }

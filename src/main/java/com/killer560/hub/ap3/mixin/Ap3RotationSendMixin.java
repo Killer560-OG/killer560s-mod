@@ -50,6 +50,14 @@ public abstract class Ap3RotationSendMixin {
         // (util/BeforeMove, GrimAC RotationBreak's 15 ms lend) - as vanilla's dig precedes its sendPosition.
         com.killer560.hub.util.BeforeMove.beforeSendPosition();
         killer560smod$ap3HoldRotationInner();
+        // An aura's one-packet look (util/PacketLook: a full aim with no movement input, pitch-only with it); put back at RETURN.
+        LocalPlayer self = (LocalPlayer) (Object) this;
+        float liveYaw = self.getYRot(), livePitch = self.getXRot();
+        if (com.killer560.hub.util.PacketLook.apply(self, this.yRotLast) && !killer560smod$swapped) {
+            killer560smod$liveYaw = liveYaw;
+            killer560smod$livePitch = livePitch;
+            killer560smod$swapped = true;
+        }
         // Last, on whatever yaw is about to go out (AP3's swaps included): never repeat the turn before the last block
         // click (GrimAC DuplicateRotPlace, util/PlaceRotationGuard).
         killer560smod$unNudgedYaw = PlaceRotationGuard.beforeSend((LocalPlayer) (Object) this, this.yRotLast);

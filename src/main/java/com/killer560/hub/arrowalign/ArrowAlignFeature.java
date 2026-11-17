@@ -452,8 +452,10 @@ public final class ArrowAlignFeature {
         // so the movement packets always show him looking at the frame he clicks. GrimAC 2.3.74 itself never judges the
         // look on an item frame (Reach returns NONE for a non-living entity, javap aafast-1027; the Hitboxes flags of
         // testkit 415/418 were armor stands); the turn is for a server that does. False is the callers' "retry".
+        // While an AP3 route runs there is no turn at all (ap3auralook-1116, killer560: "i really need a way for auras to get
+        // things without rotating"): a turn moves the body the route walks by, and GrimAC never looks at a frame click.
         double turnReach = eye.distanceTo(hit) + 1.0;
-        if (!TURN.readyBox(client.player, box, hit, turnReach)
+        if (!noLook() && !TURN.readyBox(client.player, box, hit, turnReach)
                 // Turn And Click Same Tick (aafast-1027): the turn just written goes out in THIS tick's movement packet,
                 // right after this interact. GrimAC 2.3.74 judges a (living) entity interact at the next tick packet against
                 // that packet's look (Reach.tickBetterReachCheckWithAngle, javap), and an item frame not at all; testkit
@@ -634,6 +636,23 @@ public final class ArrowAlignFeature {
      * and the next frame is beside the last.
      */
     private static int pickAuraTarget(net.minecraft.client.player.LocalPlayer player, Vec3 eye, double rangeSq) {
+        if (noLook()) {
+            // No turn: the frame it is on until done, else the nearest (the look is irrelevant).
+            if (lastAuraIndex >= 0 && isAuraClickable(lastAuraIndex, eye, rangeSq)) {
+                return lastAuraIndex;
+            }
+            int best = -1;
+            double bestSq = Double.MAX_VALUE;
+            for (int i = 0; i < 25; i++) {
+                double d;
+                if (isAuraClickable(i, eye, rangeSq)
+                        && (d = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, frames[i].getBoundingBox())) < bestSq) {
+                    bestSq = d;
+                    best = i;
+                }
+            }
+            return best;
+        }
         Vec3 look = com.killer560.hub.util.TurnFirst.look(player);
         Vec3 end = eye.add(look.scale(Math.sqrt(rangeSq) + 1.0));
         if (lastAuraIndex >= 0 && isAuraClickable(lastAuraIndex, eye, rangeSq)
@@ -704,6 +723,12 @@ public final class ArrowAlignFeature {
     static boolean beforeS3() {
         return com.killer560.hub.fastleap.Floor7Tracker.inF7Boss()
                 && com.killer560.hub.fastleap.Floor7Tracker.getStage().number < 3;
+    }
+
+    /** Frames are clicked with the look as it is, never a body turn: while an AP3 route runs or he holds a movement key. */
+    private static boolean noLook() {
+        net.minecraft.client.player.LocalPlayer p = net.minecraft.client.Minecraft.getInstance().player;
+        return com.killer560.hub.ap3.Ap3Executor.isRunning() || p != null && com.killer560.hub.util.PacketLook.keysHeld(p);
     }
 
     private static boolean isAuraClickable(int index, Vec3 eye, double rangeSq) {

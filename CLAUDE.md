@@ -266,6 +266,16 @@ that flags is capped below or the setting removed (Arrow Align Frames Per Tick w
 brings back the pre-d2da5856 burst that GrimAC's experimental MultiBreak flags; its label says it flags, and tests accept
 MultiBreak* only while it is on.
 
+AURAS NEVER AFFECT MOVEMENT (killer560, 2026-11-16: "My auras can never affect my movement. If I am running and something
+is in range it auras without changing anything."): in a route or by hand, an aura never changes his keys, sprint, jump,
+body yaw or the packet yaw of a tick with keys held, and never waits for or asks for a key-free tick. Click order:
+(1) the heard look already meets the target, (2) keys held: a pitch-only look (the packet keeps the walk's yaw), the click
+the next tick, (3) a tick with no keys: the full aim in that packet, (4) a click with no look. Step 4 is always on in the
+cheat build with no setting ("No switch.", same day): the GrimAC RotationPlace (levers) and Hitboxes (terminal stands) a
+no-look click draws while movement keys are held is his accepted exception, nothing else. Frames always click with no
+look. Tests compare aura-on and aura-off walks tick for tick (positions, keys, sprint, yaw on keys ticks) and accept only
+RotationPlace / Hitboxes, only behind a logged no-look click (docs/AP3.md, ap3auralook-1116).
+
 (Added 2026-10-20: the working rules that now apply. Each is in the handoff file too, which is the fuller record.)
 
 (Added 2026-10-26, killer560:)

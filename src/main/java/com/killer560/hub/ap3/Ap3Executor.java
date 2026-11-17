@@ -417,6 +417,7 @@ public final class Ap3Executor {
         actPendingHit = null;
         termAuraStand = null;
         termAuraScreen = null;
+        termAuraByFeature = false;
         placedGraceTicks = 0;
         placedBlocking = false;
         blockWatchPos = null;
@@ -1209,6 +1210,14 @@ public final class Ap3Executor {
         net.minecraft.client.gui.screens.Screen now = McCompat.screen(Minecraft.getInstance());
         if (termAuraScreen != null && now != termAuraScreen) {
             termAuraScreen = null;
+            termAuraByFeature = false;
+        }
+        if (termAuraScreen == null && now instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>
+                && com.killer560.hub.terminalaura.TerminalAuraFeature.clickedWithinMs(1000L)) {
+            // Terminal Aura clicked a stand while he walked (ap3auralook-1116, "My auras can never affect my movement"): the
+            // terminal it opened must not stop the route, so the walk carries on under it like a Term Aura node's.
+            termAuraScreen = now;
+            termAuraByFeature = true;
         }
         return termAuraScreen != null;
     }
@@ -3256,6 +3265,8 @@ public final class Ap3Executor {
     private static long termAuraTurnTick = -1L;
     /** The terminal screen a Term Aura node opened: AP3 carries on under it (see {@link #screenAllowed}). */
     private static net.minecraft.client.gui.screens.Screen termAuraScreen;
+    /** {@link #termAuraScreen} was opened by Terminal Aura beside the walk, not by a node: the held walk goes on under it. */
+    private static boolean termAuraByFeature;
     /** The click part of the running Term Aura node is over (opened, gave up, nothing in range): it only brakes now. */
     private static boolean termAuraClickDone;
     /** {@link #tickCounter} of the last Term Aura click (a new run waits out its window open before clicking). */
@@ -3304,6 +3315,7 @@ public final class Ap3Executor {
                 endAim(player);
             }
             termAuraScreen = screen;
+            termAuraByFeature = false;
             termAuraFinish(player);
             return;
         }
@@ -5609,7 +5621,9 @@ public final class Ap3Executor {
             clearMovement(); // a momentum-keeping charge waiting for Blink to bank: brake, the walk resumes after
             return;
         }
-        if (McCompat.screen(Minecraft.getInstance()) != null) {
+        if (McCompat.screen(Minecraft.getInstance()) != null && !(termAuraScreenOpen() && termAuraByFeature)) {
+            // (A terminal Terminal Aura opened beside the walk is not the route's: the walk goes on under it, since an
+            // aura never changes his movement - killer560 2026-11-16.)
             // A screen the node asked for is open (a TERMINAL's GUI, a close gate, the leap menu): the run is kept
             // but nothing moves under it - vanilla releases every key when a screen opens, and moving with a
             // container open is the inventory walk he declined. It carries on when the screen closes.
@@ -5890,18 +5904,6 @@ public final class Ap3Executor {
         return new float[]{walkYaw - AIM_KEYS[0][2], walkYaw - AIM_KEYS[1][2]};
     }
 
-    /**
-     * For {@code util/TurnFirst.registerOffWalk}: the held walk's yaw while an aura with no walk-keyed look at its target
-     * (a lever beside the run, leverap3-1109) may bend the walk for its click's two ticks; NaN when no held walk drives or
-     * a jump is due or armed (a sprint jump's boost goes along the facing, so a turned body would throw the jump off).
-     */
-    public static float offWalkYaw() {
-        if (walkKeyedYaws() == null || wantJump || jumpPendingTicks > 0 || edgeArmedTicks > 0 || jumpNodeAtFeet()) {
-            return Float.NaN;
-        }
-        return (float) Math.toDegrees(Math.atan2(-holdDir.x, holdDir.z));
-    }
-
     /** The yaw the held walk faces for a body at {@code yaw}: the walk on a jump tick, else (45 Degree Strafe) its W+A / W+D yaw nearer. */
     private static float walkFacing(float yaw) {
         return walkFacing(yaw, walkYawDeg());
@@ -5924,32 +5926,6 @@ public final class Ap3Executor {
             return Float.NaN;
         }
         return walkFacing(from);
-    }
-
-    /**
-     * A JUMP / EDGE node (or one with a jump / edge modifier) not yet fired whose box he stands in or this tick's move
-     * enters: scanBoxes fires it then, after an aura's turn, so the pending-jump guard above is a tick late (leverkey-1110:
-     * Lever Aura's off-walk look turned him on the tick node 23's sprint-jump went). A turn the tick BEFORE that jump
-     * bends one ground move at route speed, and the deficit along the new walk cannot be steered back in the air
-     * (leverjump-1111: 7.3 degrees at 1.5 blocks a tick put him 0.35 short of the landing below, into the lava); the
-     * lever goes in the air after the jump instead (TurnFirst.offWalkLook), where a bend costs almost nothing.
-     */
-    private static boolean jumpNodeAtFeet() {
-        LocalPlayer p = Minecraft.getInstance().player;
-        if (chain == null || p == null) {
-            return false;
-        }
-        Vec3 now = p.position(), v = p.getDeltaMovement();
-        double h = Math.hypot(v.x, v.z);
-        double k = p.onGround() && h > 1e-3 ? 1.0 + Ap3AlignMath.groundSpeed((float) p.getSpeed(), blockFriction(p)) / h : 1.0;
-        Vec3 next = now.add(v.x * k, v.y, v.z * k);
-        for (Ap3Node n : chain.nodes()) {
-            if ((n.type == Ap3Node.Type.JUMP || n.type == Ap3Node.Type.EDGE || n.jumpMod != Ap3Node.JumpMod.NONE)
-                    && !inside.contains(n) && (n.contains(now) || n.contains(next))) {
-                return true;
-            }
-        }
-        return false;
     }
 
     /** The yaw the held walk's keys were picked at this tick; valid only while {@link #heldKeysValid}. */
@@ -6128,8 +6104,7 @@ public final class Ap3Executor {
      *  change in that packet is GrimAC BadPacketsJ (ap3holddig-1110: 12 in a run with a use every tick). */
     private static boolean useWentThisTick() {
         String o = com.killer560.hub.util.HotbarSelect.orderConflict();
-        // A Lever Aura turn-only flick (activated lever) counts as its click would, so both lever states walk the same.
-        return o != null && o.startsWith("use_item") || com.killer560.hub.leveraura.LeverAuraFeature.turnOnlyThisTick();
+        return o != null && o.startsWith("use_item");
     }
 
     /**

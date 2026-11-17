@@ -88,15 +88,6 @@ public final class TurnFirst {
         return null;
     }
 
-    /**
-     * The held walk's own yaw while an owner that opted in ({@link #offWalk()}) may bend that walk for the two ticks of
-     * one click when no walk-keyed yaw meets its target, NaN when not (leverap3-1109: a lever beside his AP3 run was never
-     * flipped, no W / W+A / W+D yaw met it in the ~6 ticks it was in reach).
-     */
-    private static final java.util.List<java.util.function.Supplier<Float>> OFF_WALK =
-            new java.util.concurrent.CopyOnWriteArrayList<>();
-
-    public static void registerOffWalk(java.util.function.Supplier<Float> s) { OFF_WALK.add(s); }
 
     /** The yaw a held walk faces now for a body that was at {@code from}, NaN when none drives: the hand-back goes there. */
     private static final java.util.List<java.util.function.UnaryOperator<Float>> HAND_BACK =
@@ -104,11 +95,14 @@ public final class TurnFirst {
 
     public static void registerHandBack(java.util.function.UnaryOperator<Float> h) { HAND_BACK.add(h); }
 
-    private boolean offWalk;
+    private boolean aura;
 
-    /** Lets this owner's turns bend a held walk for one click when no walk-keyed yaw reaches the target. */
-    public TurnFirst offWalk() {
-        offWalk = true;
+    /**
+     * A clicking aura (levers, secret levers, Lights): on a tick he holds a movement key or jump it never turns the body
+     * and never waits for a key-free tick (owner 2026-11-16, {@link PacketLook#whileMoving}).
+     */
+    public TurnFirst aura() {
+        aura = true;
         return this;
     }
 
@@ -136,11 +130,15 @@ public final class TurnFirst {
     private float prevYaw;
     private float prevPitch;
     private boolean pending;
+    /** The walk-keyed yaws the turn was picked from (null = no walk steering then); a different set now = the walk changed. */
+    private float[] turnWalk;
     private int pendingAge;
     private int ticksSinceTurn;
     /** {@link ViewFreeze#holdCount()} right after this owner's last hold: more since means somebody else holds too. */
     private long myLastHold;
     private int foreignWait;
+    /** A no-look click is being held for GrimAC RotationPlace's buffer (logged once per hold). */
+    private boolean placeHeld;
 
     public TurnFirst() { this(() -> { }); }
 
@@ -167,6 +165,13 @@ public final class TurnFirst {
             pending = false;
         }
         if (!turned) return;
+        if (pending && !java.util.Arrays.equals(turnWalk, yawConstraint())) {
+            // The walk the turn was keyed to has changed (an AP3 node fired, a jump came due) while the click still waited:
+            // the turned yaw is not the new walk's, and keys re-picked there drop W and the sprint (ap3auralook-1116: Arrow
+            // Align held -202.5 for six ticks while the route ran -112.5 on D alone and left the line). Give the body back.
+            pending = false;
+            LOGGER.info("[TurnFirst] the walk changed under the turn: given back before the click");
+        }
         if (player == null) {
             turned = false;
             release();
@@ -297,6 +302,46 @@ public final class TurnFirst {
         Vec3 d = aimPoint.subtract(player.getEyePosition());
         float yaw = (float) Math.toDegrees(Math.atan2(-d.x, d.z));
         float pitch = (float) -Math.toDegrees(Math.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z)));
+        boolean keys = aura && PacketLook.keysHeld(player);
+        if (keys || com.killer560.hub.ap3.Ap3Executor.isRunning()) {
+            // An AP3 route walks this body, or he does: never turn it (ap3auralook-1116, his "the look towards stuff for
+            // auras keeps messing things up" and "My auras can never affect my movement"). The look rides one movement
+            // packet (util/PacketLook) and the click goes the tick after; with keys held an aura uses a pitch-only look or
+            // clicks with no look at all.
+            if (PacketLook.struck(player, ray, reach)) {
+                pending = false;
+                foreignWait = 0;
+                LOGGER.info("[TurnFirst] click on {} with a one-packet look (body untouched)", what);
+                return true;
+            }
+            if (!keys) {
+                PacketLook.request(player, yaw, pitch);
+                method = "deferred";
+                return false;
+            }
+            PacketLook.Moving m = PacketLook.whileMoving(player, aimPoint, ray, reach);
+            if (m == PacketLook.Moving.WAIT) {
+                method = "deferred";
+                return false;
+            }
+            if (m == PacketLook.Moving.NO_LOOK && !GrimHitBuffer.placeClear()) {
+                // GrimAC RotationPlace cancels a missing block click while its buffer is up (one no-look click sets it):
+                // never send a click the server throws away; wait for a pitch-only look or a key-free tick instead.
+                if (!placeHeld) {
+                    LOGGER.info("[TurnFirst] no-look click on {} held: it would be canceled (place buffer {})", what,
+                            GrimHitBuffer.placeValue());
+                }
+                placeHeld = true;
+                method = "deferred";
+                return false;
+            }
+            placeHeld = false;
+            pending = false;
+            foreignWait = 0;
+            LOGGER.info("[TurnFirst] click on {} with {} (keys held, body untouched)", what,
+                    m == PacketLook.Moving.CLICK ? "a pitch-only look" : "no look");
+            return true;
+        }
         float[] allowed = yawConstraint();
         if (allowed != null) {
             // A walk is steering him: only a yaw that some key combination walks exactly along the walk at, with a pitch
@@ -307,21 +352,14 @@ public final class TurnFirst {
             // drop missed the low S2 lever every tick (leverap3-1109).
             Vec3 eyeNext = player.getEyePosition().add(v.x, player.onGround() ? 0.0 : v.y, v.z);
             float[] found = walkKeyedLook(allowed, eyeNext, pitch, ray, reach, 720);
-            boolean bent = false;
-            if (found == null && offWalk) {
-                found = offWalkLook(player, eyeNext, yaw, pitch, ray, reach);
-                bent = found != null;
-            }
             if (found == null) {
                 method = "deferred";
                 return false; // none this tick: no turn at all; the bearing moves as he walks, try again next tick
             }
             yaw = found[0];
             pitch = found[1];
-            method = String.format(java.util.Locale.US, bent
-                    ? "an off-walk look (yaw %.1f, pitch %.1f: the walk bent %.1f degrees for this click)"
-                    : "a walk-keyed look (yaw %.1f, pitch %.1f: the walk's path unchanged)", yaw, pitch,
-                    bent ? found[2] : 0f);
+            method = String.format(java.util.Locale.US,
+                    "a walk-keyed look (yaw %.1f, pitch %.1f: the walk's path unchanged)", yaw, pitch);
         } else {
             method = String.format(java.util.Locale.US, "a body turn (yaw %.1f, pitch %.1f)", yaw, pitch);
         }
@@ -342,6 +380,7 @@ public final class TurnFirst {
         onWrite.run();
         turned = true;
         current = this;
+        turnWalk = allowed;
         ticksSinceTurn = 0;
         pending = true;
         pendingAge = 0;
@@ -365,62 +404,6 @@ public final class TurnFirst {
             }
         }
         return null;
-    }
-
-    /**
-     * A look off the walk for one click (see {@link #registerOffWalk}): of the yaws within 30 degrees of the target whose
-     * ray meets it, the one whose nearest key combination keeps W (the sprint) and lies nearest a whole 45-degree step off
-     * the walk, so the walk's keys re-picked at that yaw (Ap3Executor.beforeInputInstall) bend it the least on the two ticks
-     * the body is turned. On the ground only W-keeping yaws (a W-less tick dropped the route's sprint, leverkey-1110); in
-     * the air any (the air push is a twentieth of a ground one, and sprint comes back with W the tick after): the high S2
-     * lever on the EE3 route is in reach with W only on the ground tick before node 23's jump, where the bend threw him
-     * short of the landing (leverjump-1111), and right after the jump with S+D at a 2-degree bend. None means the click waits.
-     * {yaw, pitch, bend in degrees}, or null.
-     */
-    private static float[] offWalkLook(LocalPlayer player, Vec3 eye, float yaw0, float pitch0,
-                                       java.util.function.BiPredicate<Vec3, Vec3> ray, double reach) {
-        float walk = Float.NaN;
-        for (java.util.function.Supplier<Float> s : OFF_WALK) {
-            Float w = s.get();
-            if (w != null && !w.isNaN()) {
-                walk = w;
-                break;
-            }
-        }
-        if (Float.isNaN(walk)) return null;
-        // The least bend is often a ray that only grazes the target's edge, and the eye lands a few hundredths off the
-        // predicted one (the re-picked keys move the air push): the S2 low lever was missed twice in a fall that way
-        // (leverap3-1109). So first a look that still strikes from the eye moved 0.06 any way, else any.
-        float[] sure = offWalkLook(player, eye, yaw0, pitch0, (a, b) -> {
-            for (Vec3 o : EYE_SLACK) {
-                if (!ray.test(a.add(o), b.add(o))) return false;
-            }
-            return true;
-        }, reach, walk);
-        return sure != null ? sure : offWalkLook(player, eye, yaw0, pitch0, ray, reach, walk);
-    }
-
-    private static final Vec3[] EYE_SLACK = {Vec3.ZERO, new Vec3(0.06, 0, 0), new Vec3(-0.06, 0, 0), new Vec3(0, 0.06, 0),
-            new Vec3(0, -0.06, 0), new Vec3(0, 0, 0.06), new Vec3(0, 0, -0.06)};
-
-    private static float[] offWalkLook(LocalPlayer player, Vec3 eye, float yaw0, float pitch0,
-                                       java.util.function.BiPredicate<Vec3, Vec3> ray, double reach, float walk) {
-        float[] best = null;
-        float bestScore = Float.MAX_VALUE;
-        for (int d = 0; d <= 60; d++) {
-            float yaw = yaw0 + (d % 2 == 0 ? d / 2 : -(d + 1) / 2);
-            float rel = Mth.wrapDegrees(walk - yaw); // the walk seen from this facing: W keeps while |rel| < 67.5
-            boolean keepsW = Math.abs(rel) < 67.5f;
-            if (!keepsW && player.onGround()) continue; // never drop W on the ground: the sprint stays held (leverkey-1110)
-            float bend = Math.abs(rel - 45f * Math.round(rel / 45f));
-            if (bend >= bestScore) continue;
-            float[] f = walkKeyedLook(new float[]{yaw}, eye, pitch0, ray, reach, 120);
-            if (f != null) {
-                best = new float[]{f[0], f[1], bend};
-                bestScore = bend;
-            }
-        }
-        return best;
     }
 
     /** The look the movement packets report: the body's rotation, NOT getViewVector (which a held camera answers). */

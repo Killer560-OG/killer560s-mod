@@ -16,7 +16,8 @@
      "Mining HUDs: the Fiesta Flask timer now counts down every second between tab reads and ends when the tab drops it or reads zero, and a mining ability you are using shows Active until it ends, then its cooldown.",
      "Auto Terminals (cheat) has a new Mode setting: Normal keeps paced clicks with Burst Finish, Burst sends every click in bursts of up to Max Clicks Per Burst with a Delay Between Bursts.",
      "Dungeon sim: InfiniLeap and Spirit Leap open the leap menu and teleport to a teammate, a new Sim Teammates setting places up to four standing teammates, Sim Class and Class Level settings pick Healer, Mage, Berserk, Archer or Tank with their Drop Stack and Drop abilities, and Bonzo's Mask and Spirit Mask save you from a lethal hit with 3 seconds of invulnerability while a fishing rod swaps your pet between Phoenix and Golden Dragon",
-     "Auto Terminals Burst mode now keeps bursts at least 75 ms apart even at a delay of 0, so a late server tick no longer takes two bursts at once."
+     "Auto Terminals Burst mode now keeps bursts at least 75 ms apart even at a delay of 0, so a late server tick no longer takes two bursts at once.",
+     "Auras no longer change your movement while you walk or run an AP3 route: Lever Aura, Terminal Aura, Secret Aura and Arrow Align click without touching your keys, sprint or turn, and AP3 keeps walking under a terminal Terminal Aura opens."
     ]
    }
   ]

@@ -201,7 +201,7 @@ public final class SecretAuraFeature {
     }
 
     /** The body turn for a secret the reported look does not reach (see util/TurnFirst); the camera never moves. */
-    private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst();
+    private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst().aura();
 
     static void tick(Minecraft client) {
         // First, always: a body turned for a click is held for it and given back the tick after, whatever gates below.

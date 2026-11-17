@@ -151,14 +151,57 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   the sprint kept, so `TurnFirst.registerYawConstraint` (AP3: `Ap3Executor.walkKeyedYaws`) lets an aura turn only to one
   of those, with any pitch whose ray meets the target from the eye after this tick's move; none this tick = no turn, the
   click waits. A/D/back yaws were allowed first and dropped the sprint, which bent the path after the next node by 0.65.
-- **Lever Aura may bend the walk for a lever beside the run (leverap3-1109).** With only the three walk-keyed yaws, an S2
+- **While AP3 runs, Arrow Align and Terminal Aura never turn him (ap3auralook-1116).** His S3 run, 7:02:07 PM 11-16
+  (logger ticks 4277-4285): Arrow Align's TurnFirst turned the body to -202.5 (walk-keyed for the RUN -157.5 walk), kept it
+  out for six ticks re-targeting frames 21, 11, 5 it never reached at a block a tick, while AP3's nodes moved on to RUN
+  -112.5 (keys re-picked at -202.5 = D alone, no sprint, ticks 4280-4282), -168.75 and -56.25; then it handed back to
+  -101.25 and the route ran off the line. Fixes: (1) an item frame click is never judged by GrimAC 2.3.74 (Reach returns
+  NONE for a non-living entity), so while `Ap3Executor.isRunning()` Arrow Align clicks with the look as it is and picks
+  the nearest frame needing clicks (testkit 1116-ap3aura-arrows: the walk is the same tick for tick with the Aura on or
+  off); (2) Terminal Aura's free BodyAim turn ignored AP3 entirely: on a route it now clicks only a stand the route's own
+  look meets (a stand the look misses is Hitboxes) and a route opens terminals with its TERM_AURA node; (3) a walk-keyed
+  TurnFirst turn whose walk changed before its click (a different `yawConstraint()` than at the turn) is given back the
+  next tick (Lever Aura's offWalk exception was removed in ap3auralook-1116).
+  A terminal Terminal Aura opens while AP3 walks no longer stops AP3 ("a screen opened"): `termAuraScreenOpen()` accepts
+  a container screen that opens within 1 s of a Terminal Aura click (`TerminalAuraFeature.clickedWithinMs`), so the
+  route carries on under it with its keys held (`termAuraByFeature`; a Term Aura node's own terminal still brakes) (testkit 1116-ap3aura-term-beside). By hand, a terminal opening still stops vanilla movement.
+  A step-4 (no look) click on a terminal STAND beside the walk draws Hitboxes and is not always taken: in round 6 the
+  first such click of a session opened the terminal (1116-ap3aura-term-beside, both configs), while in the next case both
+  were cancelled by GrimAC's Reach as "impossible" (testkit `[testkit-atkcancel]`); the stand is then opened by the next
+  pitch-only or keyless one-packet look.
+  Then (owner, 11-16: "My auras can never affect my movement. If I am running and something is in range it auras without
+  changing anything."; on a switch for the last step: "No switch."): an aura never changes his keys, sprint, jump, body
+  yaw or the packet yaw of a tick with keys held, in a route or by hand, and never waits for or asks for a key-free tick.
+  The click order (util/PacketLook, TurnFirst.aura(), Terminal Aura): (1) the look the server already heard meets the
+  target (`struck`); (2) keys held: a PITCH-ONLY look, the packet keeps the walk's own yaw and only the pitch changes
+  (`whileMoving`, which predicts the next eye and needs the target in the vertical plane of the walk's yaw), the click
+  the tick after; (3) a tick with no keys (a STOP's slide, standing): the full aim in that tick's packet, the click the
+  tick after (a stand only when that tick was on the ground or pitch-only, `standSafe`); (4) otherwise the click goes
+  with NO look. Step 4 is always on in the cheat build, no setting: its GrimAC RotationPlace (a lever) or Hitboxes (a
+  terminal stand) is his accepted exception, and nothing else is (CLAUDE.md safety rules). Frames (Arrow Align) always
+  click with no look (a frame is never judged by Reach). `util/PacketLook` writes the aim at the head of `sendPosition`
+  (Ap3RotationSendMixin, after AP3's own swaps; never while `TurnFirst.bodyOwned()`, never in a tick his own use_item
+  went: BadPacketsJ) and the RETURN puts the live look back; the click goes at the next tick's START. Measured (testkit
+  1116-movingclick-probe, default and experimental Grim, sprinting): pitch-only clean on the ground and in the air for a
+  lever and a stand ahead, and the clicks act; the look the walk already has is clean; a yaw change with keys held is
+  Simulation (Grim walks the input along the packet yaw); the references' same-spot PosRot form while sprinting gets the
+  interact CANCELLED and draws Simulation and TickTimer (plus BadPacketsV / PacketOrderO on experimental); the no-look
+  click ACTS (lever flips, the stand's interact arrives), draws only RotationPlace / Hitboxes and no setback. Pitch-only
+  covers only targets about dead ahead (within ~0.3 blocks of the walk line); a lever beside a run gets step 4. The AP3
+  finder plans nothing for auras (killer560s-mod-logs/ap3finder-1112/owner-s3-1116/AURA-LOOK-FINDINGS.md sections 3-4).
+  By hand the same: TurnFirst never turns the body while a movement key or jump is held; standing with no keys it may.
+  Testkit 1116-ap3aura-* and 1115-ap3-leverturn-* / 1116-leverfreeze-* / 1115-ap3-leveralways-* assert the aura-on and
+  aura-off walks move the same (positions, keys, sprint commands, yaw on keys ticks) tick for tick, and accept only
+  RotationPlace / Hitboxes and only behind a logged no-look click.
+- **REMOVED by ap3auralook-1116 (no aura changes the walk; `offWalk` is gone). History:** Lever Aura may bend the walk for a lever beside the run (leverap3-1109). With only the three walk-keyed yaws, an S2
   lever 2-4 blocks to the side of an HEE2 -> EE3 run never got its click: Lever Aura logged "turning body to lever ...
   first" every tick until out of range. `TurnFirst.offWalk()` (Lever Aura only) then tries yaws within 30 degrees of the
   lever, scored by the bend from the nearest whole 45-degree key step (`Ap3Executor.offWalkYaw`, the walk yaw; NaN while a
   jump is due or armed), keeping W on the ground so the sprint stays. The bend lasts the click's two ticks; AP3's held keys
   are re-picked at that yaw (`nearestKey8`). On a jump tick AP3 faces the walk whatever turn is out (the sprint-jump boost
   goes along the facing; a lever turn on the platform jump threw him into the lava), and the click turns again after.
-- **An already activated lever still turns the body while AP3 runs (ap3leverturn-1115).** A route is planned with both S2
+- **SUPERSEDED by ap3auralook-1116 (no turn-only flick any more; an activated lever gets nothing, `turnOnlyThisTick` and
+  `turnedThisPass` are gone). History:** An already activated lever still turned the body while AP3 ran (ap3leverturn-1115). A route is planned with both S2
   levers off, so its keys include each lever's turn; on a retry with the lever already on, no turn meant WD+sprint instead
   of SD and the walk drifted off the route. Lever Aura now gives an activated lever on a running AP3 route the same flick
   (gate, cooldown, TurnFirst turn and hand-back) with no use_block, and AP3 reads that tick as a flick tick

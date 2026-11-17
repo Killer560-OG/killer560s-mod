@@ -96,7 +96,7 @@ public final class LightsDeviceFeature {
     /** The tick a due flick first went to turning the body (TurnFirst), or -1: the flick is scheduled from there. */
     private static long turnStartTick = -1L;
     /** The body turn for a lever the reported look does not reach (see util/TurnFirst); the camera never moves. */
-    private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst();
+    private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst().aura();
 
     private static BlockPos pendingPos = null;
     private static long pendingDueTick = 0L;
