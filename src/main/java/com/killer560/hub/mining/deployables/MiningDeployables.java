@@ -121,6 +121,9 @@ public final class MiningDeployables {
         boolean seen;
         Vec3[] ring;
         double ringY = Double.NaN;
+        double sx, sy, sz, sr;
+        float[] scol;
+        Vec3 center;
 
         Tracked(Entity stand, Kind kind) {
             this.stand = stand;
@@ -137,6 +140,7 @@ public final class MiningDeployables {
     private static float[] insideRgba = WorldRenderUtils.argbToFloats(DEFAULT_INSIDE_COLOR);
     private static volatile String lastStyle = "";
     private static volatile long framesDrawn;
+    private static volatile int spheres;
 
     private MiningDeployables() {
     }
@@ -171,9 +175,14 @@ public final class MiningDeployables {
         boolean shaft = MiningState.mineshaft();
         double px = client.player.getX(), py = client.player.getY(), pz = client.player.getZ();
         for (Tracked t : tracked) {
-            t.x = t.stand.getX();
-            t.y = t.stand.getY();
-            t.z = t.stand.getZ();
+            // A stand bobs and sways; the deployable stays where it was first seen unless it really moved.
+            if (t.center == null || Math.abs(t.stand.getX() - t.x) > 1 || Math.abs(t.stand.getZ() - t.z) > 1
+                    || Math.abs(t.stand.getY() - t.y) > 2) {
+                t.x = t.stand.getX();
+                t.y = t.stand.getY();
+                t.z = t.stand.getZ();
+                t.center = new Vec3(t.x, t.y, t.z);
+            }
             double dx = px - t.x, dy = py - t.y, dz = pz - t.z;
             boolean in = (shaft && t.kind.wholeMineshaft) || dx * dx + dy * dy + dz * dz < (double) t.kind.radius * t.kind.radius;
             flipped |= in != t.inside;
@@ -272,12 +281,22 @@ public final class MiningDeployables {
             insideRgba = WorldRenderUtils.argbToFloats(ic);
         }
         boolean sphere = CFG.num("style") == STYLE_SPHERE;
+        spheres = 0;
         float width = CFG.num("thickness");
         double lift = CFG.num("lift") / 10.0;
         for (Tracked t : tracked) {
             float[] col = t.inside ? insideRgba : rgba;
             if (sphere) {
-                WorldRenderUtils.renderFilledSphere(context, t.stand.position(), t.kind.radius, 12, 24, col[0], col[1], col[2], col[3]);
+                if (t.center == null) {
+                    continue;
+                }
+                t.sx = t.center.x;
+                t.sy = t.center.y;
+                t.sz = t.center.z;
+                t.sr = t.kind.radius;
+                t.scol = col;
+                spheres++;
+                WorldRenderUtils.renderFilledSphere(context, t.center,t.kind.radius, 12, 24, col[0], col[1], col[2], col[3]);
                 continue;
             }
             if (t.ring == null || t.ring[0].x != t.x + t.kind.radius || t.ring[0].z != t.z || Double.isNaN(t.groundY)) {
@@ -315,6 +334,22 @@ public final class MiningDeployables {
     /** Frames that drew at least one circle or sphere. */
     public static long framesDrawn() {
         return framesDrawn;
+    }
+
+    /** The spheres the last frame drew, one "label|x|y|z|radius|rgba" each. */
+    public static List<String> sphereDraws() {
+        List<String> out = new ArrayList<>();
+        for (Tracked t : List.copyOf(tracked)) {
+            if (t.scol != null) {
+                out.add(t.kind.label + "|" + t.sx + "|" + t.sy + "|" + t.sz + "|" + t.sr + "|" + java.util.Arrays.toString(t.scol));
+            }
+        }
+        return out;
+    }
+
+    /** How many spheres the last frame drew. */
+    public static int sphereCount() {
+        return spheres;
     }
 
     /** "circle" or "sphere" for the last frame drawn, "" before any. */

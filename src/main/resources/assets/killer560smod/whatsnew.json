@@ -10,7 +10,8 @@
      "Inventory Sorter: Fetch Missing From Sacks now waits 3 seconds between /gfs commands and sends a refused one again instead of calling the item empty; items spread over several storage stacks are combined first, the extra goes back to storage, and only the exact rest comes from sacks.",
      "Main menu: with the custom title screen off, the vanilla title screen now has Dungeon Sim, Mod Settings, What's New, Mods and Swap Accounts as plain vanilla buttons",
      "Dungeon sim: etherwarping in the boss room no longer disconnects you.",
-     "none (test fix: the luck cases turn on the default-off RNG Meter and Experiments tracker; mod unchanged, lesson only)"
+     "none (test fix: the luck cases turn on the default-off RNG Meter and Experiments tracker; mod unchanged, lesson only)",
+     "Deployable range spheres and circles (Mining) now stay put: each deployable keeps the spot it was first seen at instead of following its bobbing label, so the sphere no longer shifts and flickers."
     ]
    }
   ]
