@@ -433,7 +433,7 @@ public final class SlotTextFeature {
         ABBREVIATIONS.put("delicate", "DEL");
         ABBREVIATIONS.put("depth_strider", "DS");
         ABBREVIATIONS.put("divine_gift", "DG");
-        ABBREVIATIONS.put("dragon_hunter", "DH");
+        ABBREVIATIONS.put("gravity", "GV");
         ABBREVIATIONS.put("efficiency", "EF");
         ABBREVIATIONS.put("ender_slayer", "ES");
         ABBREVIATIONS.put("execute", "EXE");
@@ -476,7 +476,7 @@ public final class SlotTextFeature {
         ABBREVIATIONS.put("piercing", "PI");
         ABBREVIATIONS.put("piscary", "PSC");
         ABBREVIATIONS.put("power", "POW");
-        ABBREVIATIONS.put("pristine", "PRI");
+        ABBREVIATIONS.put("prismatic", "PRI");
         ABBREVIATIONS.put("projectile_protection", "PP");
         ABBREVIATIONS.put("prosecute", "PRS");
         ABBREVIATIONS.put("prosperity", "PSP");
@@ -504,7 +504,10 @@ public final class SlotTextFeature {
         ABBREVIATIONS.put("stealth", "STL");
         ABBREVIATIONS.put("strong_mana", "SM");
         ABBREVIATIONS.put("sugar_rush", "SR");
-        ABBREVIATIONS.put("syphon", "SY");
+        ABBREVIATIONS.put("drain", "DR");
+        ABBREVIATIONS.put("dragon_tracer", "DT");
+        ABBREVIATIONS.put("pyroclasm", "PYR");
+        ABBREVIATIONS.put("woodsplitter", "WS");
         ABBREVIATIONS.put("tabasco", "TAB");
         ABBREVIATIONS.put("thorns", "TH");
         ABBREVIATIONS.put("thunderbolt", "TB");
@@ -515,10 +518,10 @@ public final class SlotTextFeature {
         ABBREVIATIONS.put("transylvanian", "TRN");
         ABBREVIATIONS.put("triple_strike", "TS");
         ABBREVIATIONS.put("true_protection", "TP");
-        ABBREVIATIONS.put("turbo_cactus", "TCC");
+        ABBREVIATIONS.put("turbo_cacti", "TCC");
         ABBREVIATIONS.put("turbo_cane", "TCN");
         ABBREVIATIONS.put("turbo_carrot", "TCR");
-        ABBREVIATIONS.put("turbo_coco", "TCO");
+        ABBREVIATIONS.put("turbo_cocoa", "TCO");
         ABBREVIATIONS.put("turbo_melon", "TME");
         ABBREVIATIONS.put("turbo_moonflower", "TMO");
         ABBREVIATIONS.put("turbo_mushrooms", "TMU");
@@ -566,7 +569,7 @@ public final class SlotTextFeature {
     public static String abbreviate(String enchantId) {
         String lower = enchantId.toLowerCase(Locale.ROOT);
         boolean ultimate = lower.startsWith("ultimate_");
-        String id = ultimate ? lower.substring("ultimate_".length()) : lower;
+        String id = com.killer560.hub.enchantcolors.EnchantColorsFeature.shownId(ultimate ? lower.substring("ultimate_".length()) : lower);
         String known = ultimate ? ULTIMATE_ABBREVIATIONS.get(id) : ABBREVIATIONS.get(id);
         if (known != null) return known;
         List<String> words = new ArrayList<>();

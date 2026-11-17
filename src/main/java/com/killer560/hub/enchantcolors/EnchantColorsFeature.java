@@ -152,6 +152,12 @@ public final class EnchantColorsFeature {
         return WHITESPACE_RUN.matcher(collapsed).replaceAll(" ").toLowerCase(Locale.ROOT);
     }
 
+    /** The id of the name Hypixel shows for an enchant id ("syphon" -> "drain", "arcane" -> "woodsplitter"); other ids come back as given. */
+    public static String shownId(String id) {
+        String shown = ID_TO_LORE_NAME.get(id);
+        return shown == null ? id : shown.replace(' ', '_').replace('-', '_');
+    }
+
     private static Map<String, String> buildIdAliases() {
         Map<String, String> m = new HashMap<>();
         m.put("counter_strike", "counter-strike");
