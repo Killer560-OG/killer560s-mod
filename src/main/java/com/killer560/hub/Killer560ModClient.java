@@ -480,6 +480,8 @@ public class Killer560ModClient implements ClientModInitializer {
         // Custom Party Finder (/pf), killer560's to-do item 1 (2026-10-18).
         com.killer560.hub.lfg.LfgFeature.register();
         com.killer560.hub.lfg.LfgCommands.register();
+        // Auto Accept Invites (killer560, 2026-10-20); after PartyTracker, whose party it reads.
+        com.killer560.hub.partyinvites.AutoAcceptInvitesFeature.register();
         com.killer560.hub.doorkeys.DoorKeysFeature.register();
         com.killer560.hub.clicksound.ClickSounds.register();
         com.killer560.hub.witherdoors.WitherDoorsFeature.register();

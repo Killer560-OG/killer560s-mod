@@ -16,7 +16,7 @@ Open the menu in game with `/killer560` or the Open Menu Key (backslash by defau
 
 **Chat** - Auto Correct, Auto Meow, Chat Channel Indicator, Chat Emotes, Chat Hider, Chat History, Chat Keybinds, Chat Tabs, Click Translate, Command Auto Correct, Command Prefixes, Copy Chat, Cringe, Image Preview, Mod Chat, Party Commands, Peek Chat, Song Tag, Spotify Lyrics, Translate, Voice To Text
 
-**Social & Supporters** - Best Friends, Friends List, Profile Viewer
+**Social & Supporters** - Auto Accept Invites, Best Friends, Friends List, Profile Viewer
 
 **Cosmetics** - Custom Items, Held Item Outline, Mod User Tag, Nickhider, Player Cosmetics (name changer, name color/fade/letter colors, name animation, player size, play as mob, held item transform, supporter sharing), Ribbon Trail (shareable by supporters), Trail (squares)
 

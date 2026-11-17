@@ -240,6 +240,7 @@ final class CardBlurbsData {
         d.put("InventorySorterTab", "Sorts to a saved layout.");
         d.put("BestFriendsTab", "Time partied and runs per player.");
         d.put("FriendsListTab", "This mod's Friends List for /fl.");
+        d.put("AutoAcceptInvitesTab", "Accepts party invites.");
         d.put("ProfileViewerTab", "/pv shows any Skyblock profile.");
         d.put("CustomItemsTab", "Client-side item recolors.");
         d.put("HeldOutlineTab", "Outlines your held item.");

@@ -249,6 +249,7 @@ public final class ModPaths {
         t.put("social", "social/friends");
         t.put("partycommands", "social/partycommands");
         t.put("partydata", "social/partycommands");
+        t.put("partyinvites", "social/partyinvites");
         t.put("chatcommands", "social/chatcommands");
         t.put("modchat", "social/modchat");
         t.put("playernames", "social/playernames");

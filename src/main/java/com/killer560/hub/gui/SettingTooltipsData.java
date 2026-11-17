@@ -127,6 +127,7 @@ final class SettingTooltipsData {
         invSortAndAutoSell(d);
         autoKick(d);
         customPartyFinder(d);
+        autoAcceptInvites(d);
         bazaarFlip(d);
         crosshair(d);
         autoSecret(d);
@@ -3152,6 +3153,13 @@ final class SettingTooltipsData {
     }
 
     /** Custom Party Finder (killer560's to-do item 1, 2026-10-18). Scoped to the tab's name. */
+    private static void autoAcceptInvites(Map<String, String> d) {
+        // killer560, 2026-10-20 (partyinvites/).
+        d.put("auto accept invites", "Accepts a party invite for you while you are not in a party.");
+        d.put("auto accept invites/auto accept invites", "Accepts a party invite for you while you are not in a party.");
+        d.put("auto accept invites/mode", "All Invites accepts any invite; Reinvites Only accepts one from someone in the party you left in the last 2 minutes.");
+    }
+
     private static void customPartyFinder(Map<String, String> d) {
         d.put("custom party finder", "Our own party finder (/pf or /partyfinder) for Dungeons, Diana, Fishing and Misc, shared by every mod user through the mod's relay.");
         d.put("custom party finder/open party finder", "Opens the Custom Party Finder menu (also /pf or /partyfinder).");

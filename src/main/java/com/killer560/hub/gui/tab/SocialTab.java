@@ -8,6 +8,7 @@ public class SocialTab extends FolderTab {
 
     public SocialTab() {
         super("Social", List.of(
+                new AutoAcceptInvitesTab(),
                 new BestFriendsTab(),
                 new FriendsListTab(),
                 new ProfileViewerTab()
