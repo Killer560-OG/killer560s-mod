@@ -51,6 +51,16 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   with the turned look, so sendPosition could not move it and the repeated turn reached the next block click
   (1105-same-lights-use, experimental, x2). `PlaceRotationGuard.beforeUse` (head of `MultiPlayerGameMode.useItem`) now
   moves the yaw before the use carries it and keeps it through that tick's sendPosition.
+  AP3's BLOCK click goes at the head of sendPosition, BEFORE the move that carries its aim, and the guard's nudge rides
+  that move: this is by design and clean (ap3blockturn-1117). GrimAC lends the place the move's look (testkit-gap probe:
+  "place -> movement packet: 1 ms, lends its rotation"), and every passing 1105-ap3-same-block-* run has the same wire
+  order and the same nudge with 0 Grim lines on default and experimental. A RightClick line reading "server look
+  -90.00/0.00" on a block-tp click only means his teleport accept had not gone before it; the server then drops the
+  click (vanilla skips use_item_on while it awaits an accept). The block-tp / boom failure chain of m1105-r3 (26.2) was
+  the CLIENT losing its slab and Superboom stacks while the server held them, which the test's same-stack
+  `item replace` never repaired (a no-op server-side sends no slot packet); a forced 10-try drop in the same setup was
+  repaired the next tick, so the loss is rare and its cause unseen. Do not reorder the click behind the move for it: the
+  click would lose its tick.
 - **His own action in the same server tick as a feature's (grimsame-1105, testkit `SameTick`).** Test a feature with him
   clicking, not idle: an idle-after case misses every flag below. His left click after a world aura's interact / use in
   one tick is PacketOrderI (`type=attack, rightClicking=true`) plus MultiInteractA on a second entity (1105-same-termaura-
