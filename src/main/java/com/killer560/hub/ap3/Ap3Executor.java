@@ -1101,6 +1101,10 @@ public final class Ap3Executor {
         if (node == activeNode || node == actNode) {
             return;
         }
+        if (node.skippedForBlinkOff()) {
+            LOGGER.info("[AP3] {} #{} skipped: Blink is off", node.type.label(), number(node));
+            return;
+        }
         if (stopSpent.contains(node)) {
             LOGGER.info("[AP3] {} #{}: already fired while you are in its box - fires again only after you leave and re-enter",
                     node.type.label(), number(node));
@@ -4645,6 +4649,19 @@ public final class Ap3Executor {
                 ModChat.dim(" - turn Blink on and it carries on"));
     }
 
+    /** Blink went off under a running Blink node (or it began after): end it with no brake, key or look change. */
+    private static boolean skipBlinkNode(Ap3Node node) {
+        if (!node.skippedForBlinkOff()) {
+            return false;
+        }
+        blinkFreezeNext = false;
+        blinkHoldPaused = false;
+        releaseWaiting = false;
+        LOGGER.info("[AP3] {} #{} skipped: Blink is off", node.type.label(), number(node));
+        finishNode();
+        return true;
+    }
+
     /** The bank a charge node fills: its number, or Blink's Charge Ticks setting; at most 20. */
     private static int blinkChargeTarget(Ap3Node node) {
         return node.blinkTicks > 0 ? Math.min(Ap3Node.MAX_BLINK_TICKS, node.blinkTicks)
@@ -4652,6 +4669,9 @@ public final class Ap3Executor {
     }
 
     private static void tickBlinkCharge(LocalPlayer player, Ap3Node node) {
+        if (skipBlinkNode(node)) {
+            return;
+        }
         blinkFreezeNext = false;
         blinkHoldPaused = false;
         if (node.blinkStop) {
@@ -4806,6 +4826,9 @@ public final class Ap3Executor {
     }
 
     private static void tickBlinkRelease(LocalPlayer player, Ap3Node node) {
+        if (skipBlinkNode(node)) {
+            return;
+        }
         if (step == Step.PREP && stepTicks == 1) {
             blinkWaitSaid = false;
         }

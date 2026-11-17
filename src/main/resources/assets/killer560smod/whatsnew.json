@@ -25,7 +25,8 @@
      "Dungeon sim co-op: Start At is now a drop-down that includes Clear (a fresh dungeon floor with everyone placed beside the host); guests can type the sim commands themselves, /item takes any item name or id, and /start works for them; Superboom TNT now gives a full stack of 64.",
      "Auto Sell now double-checks each slot is your own inventory and still holds the item it chose before every click, so a buyback can never be clicked",
      "Auto Accept Invites: accepts a Hypixel party invite for you while you are not in a party, every invite or only a reinvite from the party you just left (off by default)",
-     "Mob outlines: never draw a box for a dead or dying mob (Commission Mobs, Golden Goblin, Powder Ghast, Mob ESP, Ghost ESP)"
+     "Mob outlines: never draw a box for a dead or dying mob (Commission Mobs, Golden Goblin, Powder Ghast, Mob ESP, Ghost ESP)",
+     "AP3: Blink Charge and Blink Release nodes do nothing at all while Blink is off"
     ]
    }
   ]

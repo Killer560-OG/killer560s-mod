@@ -129,6 +129,7 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   its bank and AP3's cap (`BlinkCharge.handBack`, blink-keep 2026-10-27); only "AP3 turned off" ends it (`endFor`). A stop
   inside a shot tick ends the shot at its next tick (`shotAbort`), the rest is re-banked, and the hand-back keeps it. A
   release that spends the bank ends the charge, so ping answers go back to live. Testkit 1026-ap3-blink-*, 1026-ui-ap3-blink-nodes.
+- **Blink nodes are invisible while Blink is off (killer560, 2026-11-09: "just have that node do nothing").** With Blink off or in a legit build, `Ap3Node.skippedForBlinkOff()` is true: `Ap3Executor.trigger` never queues the node (one INFO line "[AP3] Blink Charge #N skipped: Blink is off", no chat), `keepsHoldNow` is true so it never ends the held walk or owns movement, and a node already running when Blink goes off ends at its next tick through `skipBlinkNode` (no brake, no key or look change). Testkit 1026-ap3-blink-off (Ap3BlinkOff1109Cases): per-tick positions and keys equal the route with the nodes deleted.
 - **A Blink shot's ticks are AP3 ticks (2026-10-27).** The first release design ran every shot tick on the keys AP3 chose at
   the END before the shot, so a 20-tick release replayed one frozen input: killer560's S2 blinkrelease #39 (Mod Only Test
   log 00:15:34) went 18.75 blocks straight off the platform (y 132 -> 115, a server correction) because the turns and nodes

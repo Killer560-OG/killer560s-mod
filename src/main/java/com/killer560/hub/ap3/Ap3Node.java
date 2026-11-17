@@ -547,7 +547,14 @@ public final class Ap3Node {
 
     /** This node leaves a held walk running ({@link Type#keepsHold}); a momentum-keeping Blink Charge does too. */
     public boolean keepsHoldNow() {
-        return type.keepsHold() || (type == Type.BLINK_CHARGE && !blinkStop);
+        return type.keepsHold() || (type == Type.BLINK_CHARGE && !blinkStop) || skippedForBlinkOff();
+    }
+
+    /** A Blink node while Blink is off (or not in this build) is invisible to AP3: nothing queues, stops or waits (killer560, 2026-11-09). */
+    public boolean skippedForBlinkOff() {
+        return (type == Type.BLINK_CHARGE || type == Type.BLINK_RELEASE)
+                && (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED
+                || !com.killer560.hub.blink.BlinkConfig.getInstance().isEnabled());
     }
 
     /** {@link Type#ownsMovement}, for this node ({@link #keepsHoldNow}). */
