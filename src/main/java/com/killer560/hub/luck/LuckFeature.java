@@ -94,7 +94,7 @@ public final class LuckFeature {
             if (!d.tracked() || out.size() >= 8) {
                 continue;
             }
-            double c = d.mf() ? LuckMath.withMagicFind(d, magicFind) : LuckScreen.chanceShown(d);
+            double c = LuckMath.withMagicFind(d, LuckScreen.chanceShown(d), magicFind);
             out.add(String.format(Locale.US, "%s (%s, %s): %s expected in %,d, %.1f%% for at least one",
                     d.name(), DropTable.get().activity(d.activity()).label(), LuckMath.oneIn(c),
                     LuckMath.expected(c * attempts), attempts, LuckMath.atLeastOne(c, attempts) * 100));

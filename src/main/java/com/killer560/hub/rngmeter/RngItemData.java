@@ -280,8 +280,6 @@ public final class RngItemData {
             new RngItem("Superpairs", "Thunderbolt VII", "ENCHANTMENT_THUNDERBOLT_7", BAZAAR, 150_000, false),
             new RngItem("Superpairs", "Growth VI", "ENCHANTMENT_GROWTH_6", BAZAAR, 150_000, false),
             new RngItem("Superpairs", "Growth VII", "ENCHANTMENT_GROWTH_7", BAZAAR, 150_000, false),
-            new RngItem("Superpairs", "Chance IV", "ENCHANTMENT_CHANCE_4", BAZAAR, 150_000, false),
-            new RngItem("Superpairs", "Chance V", "ENCHANTMENT_CHANCE_5", BAZAAR, 150_000, false),
             new RngItem("Superpairs", "Blast Protection VI", "ENCHANTMENT_BLAST_PROTECTION_6", BAZAAR, 150_000, false),
             new RngItem("Superpairs", "Blast Protection VII", "ENCHANTMENT_BLAST_PROTECTION_7", BAZAAR, 150_000, false),
             new RngItem("Superpairs", "Respite III", "ENCHANTMENT_RESPITE_3", BAZAAR, 150_000, false),

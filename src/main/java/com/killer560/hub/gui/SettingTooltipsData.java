@@ -2327,7 +2327,7 @@ final class SettingTooltipsData {
         d.put("drop chat line", "After a tracked drop, prints how many you got against how many the odds expected.");
         d.put("count dye pickups", "Counts a dye that lands in your inventory with no menu open. An item you dropped and picked back up never counts.");
         d.put("chest odds", "Dungeon chest odds: the wiki's chance with no bonuses, or with S+ and every chest bonus (Treasure Artifact, Boss Luck).");
-        d.put("how lucky are you/magic find", "Magic Find for slayer kills: the last value Hypixel printed on a drop line, or a value you set.");
+        d.put("how lucky are you/magic find", "Magic Find for every tracked drop (capped at 500): the last value Hypixel printed on a drop line, or a value you set.");
         d.put("share my luck", "Sends your overall luck and top drops to mod users in your relay room. Needs Show Me As A Mod User on.");
         d.put("leap order class", "Cycles this player's class override (None, Mage, Tank, Healer, Archer, Berserker). Right click goes back.");
         d.put("leap menu/set", "Saves the leap message typed in the box to the left.");

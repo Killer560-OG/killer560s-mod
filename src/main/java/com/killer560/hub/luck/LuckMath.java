@@ -17,16 +17,22 @@ public final class LuckMath {
     }
 
     /**
-     * A slayer drop's chance at {@code magicFind}%: Slayer#Boss Loot multiplies the weight of a Main/Extra item under 5%
-     * by (1 + MF/100). The pool's total weight grows by the same amount, which this leaves out: for the rare items MF
-     * applies to it is a fraction of a percent of the pool (Warden Heart's weight is 2 of 14,697), so the chance itself
-     * is scaled. Capped at 1.
+     * {@code chance} of drop {@code d} at {@code magicFind}%. Patch 0.27.3: "Magic Find now affects all drops instead of
+     * only drops with a below 5% drop-rate" and "behaves like a Fortune stat" (150 Magic Find on a 100% drop = 2.5x the
+     * items), so a mob or slayer drop's chance is scaled by (1 + MF/100) whatever its size; other activities keep the
+     * table's flag (the notes say nothing about chests). Capped at 1: a drop counts once per kill here, the extra copies
+     * the patch gives past 100% are not counted.
      */
-    public static double withMagicFind(DropTable.Drop d, double magicFind) {
-        if (!d.mf() || magicFind <= 0 || Double.isNaN(d.chance())) {
-            return d.chance();
+    public static double withMagicFind(DropTable.Drop d, double chance, double magicFind) {
+        if (magicFind <= 0 || Double.isNaN(chance) || !magicFindApplies(d)) {
+            return chance;
         }
-        return Math.min(1.0, d.chance() * (1.0 + magicFind / 100.0));
+        return Math.min(1.0, chance * (1.0 + magicFind / 100.0));
+    }
+
+    /** Whether Magic Find raises this drop. */
+    public static boolean magicFindApplies(DropTable.Drop d) {
+        return d.mf() || d.activity().startsWith("mob:") || d.activity().startsWith("slayer:");
     }
 
     /**
@@ -50,8 +56,8 @@ public final class LuckMath {
     }
 
     /**
-     * A drop's chance for one attempt with {@code b}: Looting first (mob drops: x(1 + 0.15 x level), Looting page), then
-     * Magic Find (slayers: the table's flag; mobs: only while the looted chance is under 5%, Magic Find page), then the RNG
+     * A drop's chance for one attempt with {@code b}: no Looting (patch 0.27.3: Looting is Magic Find now, and raises only collection items by 15%), then
+     * Magic Find (every mob and slayer drop, patch 0.27.3), then the RNG
      * Meter (Pity and RNG Meters: the selected drop's rate goes 1x to 3x as the meter fills, 100% once full; a slayer
      * Separate-pool drop is not raised until the meter is full). Capped at 1.
      */
@@ -60,14 +66,7 @@ public final class LuckMath {
         if (Double.isNaN(c)) {
             return c;
         }
-        if (d.loot() && b.looting() > 0) {
-            c *= 1.0 + 0.15 * Math.min(10, b.looting());
-        }
-        boolean mobDrop = d.activity().startsWith("mob:");
-        boolean mf = mobDrop ? c < 0.05 : d.mf();
-        if (mf && b.magicFind() > 0) {
-            c *= 1.0 + b.magicFind() / 100.0;
-        }
+        c = withMagicFind(d, c, b.magicFind());
         if (b.meterItem() != null && DropTable.normalize(b.meterItem()).equals(DropTable.normalize(d.name()))) {
             if (b.meterProgress() >= 1.0) {
                 c = 1.0;

@@ -50,7 +50,7 @@ public final class LuckConfig {
         }
     }
 
-    public static final int MAX_MAGIC_FIND = 1500;
+    public static final int MAX_MAGIC_FIND = 500;
 
     private static LuckConfig instance;
 

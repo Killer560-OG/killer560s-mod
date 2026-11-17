@@ -236,7 +236,7 @@ public class LuckScreen extends Screen implements MenuThemedScreen {
             stepIndex = SettingsButtonWidget.step(stepIndex, dir, STEPS.length);
             rebuildWidgets();
         }).bounds(detailX + 8 + half + 4, by, half, 16).build());
-        if (r.drop().mf()) {
+        if (LuckMath.magicFindApplies(r.drop())) {
             addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Magic Find: " + calcMf + "%"), btn -> {
                 calcMf = Math.min(LuckConfig.MAX_MAGIC_FIND, calcMf + 10);
                 rebuildWidgets();
@@ -405,7 +405,7 @@ public class LuckScreen extends Screen implements MenuThemedScreen {
         double chance = chanceShown(d);
         List<String> lines = new ArrayList<>();
         lines.add("Chance: " + LuckMath.oneIn(chance) + String.format(Locale.US, " (%.4f%%)", chance * 100)
-                + (d.mf() ? " + Magic Find" : ""));
+                + (LuckMath.magicFindApplies(d) ? " + Magic Find" : ""));
         lines.add(String.format(Locale.US, "Attempts: %,d", r.attempts()));
         lines.add("Expected: " + LuckMath.expected(r.expected()) + "   Got: " + r.got() + "   " + LuckMath.ratio(r.got(), r.expected()));
         lines.add(LuckMath.describe(r.percentile()) + String.format(Locale.US, " (%.0f%%)", r.percentile() * 100));
@@ -423,7 +423,7 @@ public class LuckScreen extends Screen implements MenuThemedScreen {
         MenuStyle.text(g, "CALCULATOR", x, y, MenuStyle.DIM);
         y += 11;
         if (calcAttempts > 0) {
-            double c = d.mf() ? LuckMath.withMagicFind(d, calcMf) : chance;
+            double c = LuckMath.withMagicFind(d, chance, calcMf);
             String calc = String.format(Locale.US, "%,d tries: %s expected, %.1f%% for at least one", calcAttempts,
                     LuckMath.expected(c * calcAttempts), LuckMath.atLeastOne(c, calcAttempts) * 100);
             for (var line : this.font.split(Component.literal(calc), w)) {

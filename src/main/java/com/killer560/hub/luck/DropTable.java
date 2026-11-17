@@ -39,8 +39,8 @@ public final class DropTable {
      * @param chance    base chance per attempt (chests: the wiki's "No Bonuses" average; slayers: every drop unlocked,
      *                  no Magic Find); NaN for an untracked drop
      * @param chanceMax chests: the wiki's "S+ Max Bonuses" average; NaN when the table has none
-     * @param mf        Magic Find raises it (Slayer#Boss Loot: Main/Extra items under 5%; mobs: under 5% after Looting)
-     * @param loot      a mob drop Looting raises (Looting page: x(1 + 0.15 x level); never slayers or pets)
+     * @param mf        Magic Find raises it (flag for chests and the like; every mob and slayer drop is raised since 0.27.3)
+     * @param loot      a mob drop the old Looting raised (no longer applied since 0.27.3)
      * @param mob       for a mob drop, the mob's name as its nametag shows it (the page title less any "(...)")
      * @param level     for a mob drop, the table's mob level (0 when the page gives none)
      */

@@ -15,9 +15,9 @@ import java.util.function.ToDoubleFunction;
  * Ranks the accessories worth buying next, from what the bag holds, the accessory list and prices. Pure: no game state,
  * so the testkit can call it with fixture data.
  * <p>
- * Magical Power per rarity is Hypixel's table (Common 3 ... Mythic 22, Divine 28, Special 3, Very Special 5). Only the best
+ * Magical Power per rarity is Hypixel's table (Common 3 ... Mythic 22, Divine 28, Special 0, Very Special 5; patch 0.27.3 "Removed Accessory Power from SPECIAL tier accessories"). Only the best
  * member of an upgrade family counts, so a family's current power is its best owned member's, and buying a higher member
- * gains the difference. Hegemony Artifact counts twice and the Rift Prism is a fixed 11. Owned rarity is the one the bag
+ * gains the difference. Hegemony Artifact counts twice (the Rift Prism is a normal accessory since patch 0.27.3). Owned rarity is the one the bag
  * shows (a recombobulated accessory counts one tier up); a buy is priced and counted at its base rarity.
  */
 public final class AccessoryRanker {
@@ -44,10 +44,8 @@ public final class AccessoryRanker {
     }
 
     public static int mp(String id, String tier) {
-        if ("RIFT_PRISM".equals(id)) {
-            return 11;
-        }
         int base = switch (tier == null ? "COMMON" : tier.toUpperCase(Locale.ROOT).replace(' ', '_')) {
+            case "SPECIAL" -> 0;
             case "UNCOMMON", "VERY_SPECIAL" -> 5;
             case "RARE" -> 8;
             case "EPIC" -> 12;
@@ -55,7 +53,7 @@ public final class AccessoryRanker {
             case "MYTHIC", "ADMIN" -> 22;
             case "DIVINE" -> 28;
             case "ULTIMATE", "SUPREME" -> 1;
-            default -> 3; // COMMON, SPECIAL
+            default -> 3; // COMMON
         };
         return "HEGEMONY_ARTIFACT".equals(id) ? base * 2 : base;
     }
