@@ -1,7 +1,6 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.bloodrush.BloodRushConfig;
-import com.killer560.hub.bloodrush.BloodRushSpots;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
@@ -22,13 +21,6 @@ public class BloodRushHelperTab extends BaseTab {
         super("Blood Rush Helper");
     }
 
-    /** The helper and its passive learner each run on their own flag (BloodRushHelperFeature.tick), so the card is ON
-     *  while either is on (CLAUDE.md masterToggles rule). */
-    @Override
-    public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
-        return switchRows(built, "Blood Rush Helper", "Learn Spawn Spots");
-    }
-
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> w = new ArrayList<>();
@@ -41,16 +33,9 @@ public class BloodRushHelperTab extends BaseTab {
         w.add(onOffButton("Blood Rush Helper", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild,
                 contentX, y, contentWidth, 20));
         y += 26;
-        // Learning runs while the helper is off too (bloodrush2-1104), so its row is built either way and it is one of the
-        // card's master toggles (CLAUDE.md masterToggles rule): the card reads ON while it learns.
-        w.add(onOffButton("Learn Spawn Spots", cfg::isLearnSpots, cfg::setLearnSpots, cfg::save, null,
-                contentX, y, colW, 18));
         if (!cfg.isEnabledRaw() && !isSearchScan()) {
             return w;
         }
-        w.add(onOffButton("Show Learned Spots", cfg::isShowLearned, cfg::setShowLearned, cfg::save, null,
-                colB, y, colW, 18));
-        y += 22;
 
         w.add(SettingsButtonWidget.cycling(killersText(cfg), (btn, dir) -> {
             cfg.setKillers(SettingsButtonWidget.step(cfg.getKillers() - 1, dir, BloodRushConfig.MAX_KILLERS) + 1);
@@ -85,8 +70,8 @@ public class BloodRushHelperTab extends BaseTab {
         }, colB, y, colW));
         y += 22;
 
-        w.add(color("Learned Spot Color", cfg.getLearnedColor(), BloodRushConfig.DEFAULT_LEARNED_COLOR, v -> {
-            cfg.setLearnedColor(v);
+        w.add(color("Unseen Box Color", cfg.getUnseenColor(), BloodRushConfig.DEFAULT_UNSEEN_COLOR, v -> {
+            cfg.setUnseenColor(v);
             cfg.save();
         }, contentX, y, colW));
         int fMin = BloodRushConfig.MIN_FILL;
@@ -108,12 +93,7 @@ public class BloodRushHelperTab extends BaseTab {
                 contentX, y, colW, 18));
         y += 22;
 
-        w.add(SettingsButtonWidget.builder(Component.literal("Forget Learned Spots (" + BloodRushSpots.counts().size()
-                + " rooms)"), btn -> {
-            BloodRushSpots.forgetAll();
-            btn.setMessage(Component.literal("Forget Learned Spots (0 rooms)"));
-        }).bounds(contentX, y, contentWidth, 18).build());
-        y += 26;
+        y += 4;
 
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             return w;

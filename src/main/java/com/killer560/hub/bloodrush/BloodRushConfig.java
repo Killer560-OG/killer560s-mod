@@ -19,7 +19,7 @@ public final class BloodRushConfig {
     public static final int MAX_KILLERS = 4;
     public static final int DEFAULT_MINE_COLOR = 0xFF55FF55;
     public static final int DEFAULT_OTHERS_COLOR = 0xFFAAAAAA;
-    public static final int DEFAULT_LEARNED_COLOR = 0xFFAA00AA;
+    public static final int DEFAULT_UNSEEN_COLOR = 0xFFAA00AA;
     public static final int MIN_FILL = 0;
     public static final int MAX_FILL = 60;
     /** The default box face opacity (12 until bloodrush2-1104: too faint to see in a lit room). */
@@ -35,12 +35,10 @@ public final class BloodRushConfig {
     private int killers = 1;
     private int role = 1;
     private boolean showOthers = true;
-    private boolean learnSpots = false;
-    private boolean showLearned = true;
     private boolean allRooms = false;
     private int mineColor = DEFAULT_MINE_COLOR;
     private int othersColor = DEFAULT_OTHERS_COLOR;
-    private int learnedColor = DEFAULT_LEARNED_COLOR;
+    private int unseenColor = DEFAULT_UNSEEN_COLOR;
     private int fillOpacity = DEFAULT_FILL;
     private boolean filled = true;
     private int outlineWidth = DEFAULT_OUTLINE;
@@ -75,8 +73,6 @@ public final class BloodRushConfig {
     private static final BoolFields<BloodRushConfig> BOOLS = new BoolFields<BloodRushConfig>()
             .add("enabled", false, c -> c.enabled, (c, v) -> c.enabled = v)
             .add("showOthers", true, c -> c.showOthers, (c, v) -> c.showOthers = v)
-            .add("learnSpots", false, c -> c.learnSpots, (c, v) -> c.learnSpots = v)
-            .add("showLearned", true, c -> c.showLearned, (c, v) -> c.showLearned = v)
             .add("allRooms", false, c -> c.allRooms, (c, v) -> c.allRooms = v)
             .add("filled", true, c -> c.filled, (c, v) -> c.filled = v)
             .add("throughWalls", false, c -> c.throughWalls, (c, v) -> c.throughWalls = v)
@@ -93,7 +89,7 @@ public final class BloodRushConfig {
             c.setRole(ConfigJson.getInt(o, "role", 1));
             c.mineColor = ConfigJson.getInt(o, "mineColor", DEFAULT_MINE_COLOR);
             c.othersColor = ConfigJson.getInt(o, "othersColor", DEFAULT_OTHERS_COLOR);
-            c.learnedColor = ConfigJson.getInt(o, "learnedColor", DEFAULT_LEARNED_COLOR);
+            c.unseenColor = ConfigJson.getInt(o, "learnedColor", DEFAULT_UNSEEN_COLOR); // the key predates the rename
             c.setFillOpacity(ConfigJson.getInt(o, "fillOpacity", DEFAULT_FILL));
             c.setOutlineWidth(ConfigJson.getInt(o, "outlineWidth", DEFAULT_OUTLINE));
             c.doorKills = ConfigJson.getEnum(o, "doorKills", DoorKills.class, DoorKills.NEVER);
@@ -109,7 +105,7 @@ public final class BloodRushConfig {
         o.addProperty("role", role);
         o.addProperty("mineColor", mineColor);
         o.addProperty("othersColor", othersColor);
-        o.addProperty("learnedColor", learnedColor);
+        o.addProperty("learnedColor", unseenColor);
         o.addProperty("fillOpacity", fillOpacity);
         o.addProperty("outlineWidth", outlineWidth);
         o.addProperty("doorKills", doorKills.name());
@@ -154,22 +150,6 @@ public final class BloodRushConfig {
         showOthers = v;
     }
 
-    public boolean isLearnSpots() {
-        return learnSpots;
-    }
-
-    public void setLearnSpots(boolean v) {
-        learnSpots = v;
-    }
-
-    public boolean isShowLearned() {
-        return showLearned;
-    }
-
-    public void setShowLearned(boolean v) {
-        showLearned = v;
-    }
-
     public boolean isAllRooms() {
         return allRooms;
     }
@@ -194,12 +174,12 @@ public final class BloodRushConfig {
         othersColor = v;
     }
 
-    public int getLearnedColor() {
-        return learnedColor;
+    public int getUnseenColor() {
+        return unseenColor;
     }
 
-    public void setLearnedColor(int v) {
-        learnedColor = v;
+    public void setUnseenColor(int v) {
+        unseenColor = v;
     }
 
     public int getFillOpacity() {

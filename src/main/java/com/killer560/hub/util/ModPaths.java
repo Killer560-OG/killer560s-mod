@@ -88,7 +88,8 @@ public final class ModPaths {
             "killer560smod-spotify-setup-guide.txt",                           // generated guide, no longer written
             "killer560smod-dungeonwaypoints.json",                             // Dungeon Waypoints, removed 2026-11-09
             "killer560smod-ghostblock.json",                                  // Ghost Block, removed 2026-11-09
-            "killer560smod-roompreview.json"                                   // Room Preview, removed (roompreviewdel-1109)
+            "killer560smod-roompreview.json",                                  // Room Preview, removed (roompreviewdel-1109)
+            "killer560smod-bloodrush-spots.json"                               // Blood Rush learned spots, removed (brboxes-only-1117)
     );
 
     /** Whether {@code name} is one of {@link #RETIRED_NAMES}. */

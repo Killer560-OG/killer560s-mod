@@ -4,7 +4,10 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import com.killer560.hub.autoroutes.RouteCoords;
 import com.killer560.hub.util.ModLog;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.phys.AABB;
 import org.slf4j.Logger;
 
 import java.io.InputStream;
@@ -19,17 +22,20 @@ import java.util.Set;
 /**
  * The shared blood rush table: every room's boxes (room-relative corners, the box NUMBER is the place in the room's list)
  * and the role plans per entry door and team size, so a player on this mod and one on a mod that uses the same table get
- * the same boxes and the same split (killer560, 2026-11-16). The only source of that data: everything else asks this
- * class, and the table is a versioned snapshot in the jar ({@code br-data.json}, built by tools/bloodrush/build-br-data.py).
- * Nothing here contacts a server.
+ * the same boxes and the same split (killer560, 2026-11-16). The ONLY source of spawn boxes in the mod (brboxes-only-1117:
+ * the mod's own learning is gone): Blood Rush Helper, the Dungeon Sim's starred mobs and Auto Clear ask this class
+ * ({@link #boxes}, {@link #worldBoxes}). Per room the shared table wins; only a room it has no boxes for falls back to the jar's
+ * static {@code fallback-boxes.json} (never mixed inside one room, {@link #isShared}); a room in neither has none. The table is a
+ * versioned snapshot in the jar ({@code br-data.json}, built by tools/bloodrush/build-br-data.py). Nothing here contacts a server.
  *
  * <p>TODO(shared api): when the shared service is ready, {@link #load()} is the one method that changes: fill {@link Data}
  * from it (snapshot as the offline fallback) and nothing else in the mod needs touching.
  */
-final class BloodRushData {
+public final class BloodRushData {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-bloodrush");
     static final String SNAPSHOT = "/assets/killer560smod/bloodrush/br-data.json";
+    static final String FALLBACK = "/assets/killer560smod/bloodrush/fallback-boxes.json";
     /** An entry door counts as the plan's door within this many blocks (Manhattan), else the room has no plan for it. */
     private static final int DOOR_REACH = 3;
 
@@ -43,7 +49,7 @@ final class BloodRushData {
 
     /** The whole table. */
     private record Data(String version, Map<String, int[][]> boxes, Map<String, List<Door>> normal, Map<String, List<Door>> master,
-                        Map<String, List<Door>> doorer, Map<String, List<Door>> doorerMaster, Set<String> mini) {
+                        Map<String, List<Door>> doorer, Map<String, List<Door>> doorerMaster, Set<String> mini, Map<String, int[][]> fallback) {
     }
 
     private static Data data;
@@ -70,11 +76,24 @@ final class BloodRushData {
             root.getAsJsonArray("mini").forEach(x -> mini.add(x.getAsString()));
             return new Data(root.get("v").getAsString(), boxes, plans(root.getAsJsonObject("p"), false),
                     plans(root.getAsJsonObject("m"), false), plans(root.getAsJsonObject("d"), true),
-                    plans(root.getAsJsonObject("dm"), true), mini);
+                    plans(root.getAsJsonObject("dm"), true), mini, fallback());
         } catch (Exception e) {
-            LOGGER.error("[BloodRush] box and role table unreadable, using learned spots only", e);
-            return new Data("none", Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Set.of());
+            LOGGER.error("[BloodRush] box and role table unreadable, no boxes anywhere", e);
+            return new Data("none", Map.of(), Map.of(), Map.of(), Map.of(), Map.of(), Set.of(), Map.of());
         }
+    }
+
+    /** Our own static boxes for rooms the shared table lacks ({@code fallback-boxes.json}, built once from the spots shipped before 2026-11-17). */
+    private static Map<String, int[][]> fallback() {
+        Map<String, int[][]> out = new HashMap<>();
+        try (InputStream in = BloodRushData.class.getResourceAsStream(FALLBACK)) {
+            for (Map.Entry<String, JsonElement> e : JsonParser.parseString(new String(in.readAllBytes(), StandardCharsets.UTF_8)).getAsJsonObject().getAsJsonObject("b").entrySet()) {
+                out.put(key(e.getKey()), ints(e.getValue().getAsJsonArray()));
+            }
+        } catch (Exception e) {
+            LOGGER.error("[BloodRush] fallback boxes unreadable", e);
+        }
+        return out;
     }
 
     private static int[][] ints(JsonArray rows) {
@@ -119,14 +138,64 @@ final class BloodRushData {
         return data().version;
     }
 
-    /** The room's boxes (x1,y1,z1,x2,y2,z2 in room coordinates, box number = index + 1), or null if the table has none. */
-    static int[][] boxes(String room) {
-        return data().boxes.get(key(room));
+    /** The room's boxes (x1,y1,z1,x2,y2,z2 in room coordinates, box number = index + 1), the shared table's, else the jar's fallback for a room it lacks, else null. */
+    public static int[][] boxes(String room) {
+        Data d = data();
+        int[][] b = d.boxes.get(key(room));
+        return b != null ? b : d.fallback.get(key(room));
+    }
+
+    /** True when the room's boxes and plans are the shared table's; false for a fallback room or a room with none. */
+    public static boolean isShared(String room) {
+        return data().boxes.containsKey(key(room));
+    }
+
+    /** The room's boxes in the world for its frame (a box spans its two corner blocks), in table order; empty if the table has none. */
+    public static List<AABB> worldBoxes(String room, RouteCoords.Frame frame) {
+        int[][] table = boxes(room);
+        List<AABB> out = new ArrayList<>();
+        for (int[] t : table == null || frame == null ? new int[0][] : table) {
+            BlockPos a = RouteCoords.toRealBlock(frame, new BlockPos(t[0], t[1], t[2]));
+            BlockPos b = RouteCoords.toRealBlock(frame, new BlockPos(t[3], t[4], t[5]));
+            out.add(new AABB(Math.min(a.getX(), b.getX()), Math.min(a.getY(), b.getY()), Math.min(a.getZ(), b.getZ()),
+                    Math.max(a.getX(), b.getX()) + 1, Math.max(a.getY(), b.getY()) + 1, Math.max(a.getZ(), b.getZ()) + 1));
+        }
+        return out;
     }
 
     /** A miniboss room: every role kills every box there, from any door. */
     static boolean isMini(String room) {
         return data().mini.contains(key(room));
+    }
+
+    /** Test hook: gives {@code room} these boxes as our own fallback ones (and takes it out of the shared table), until {@link #resetForTest}. */
+    public static void putForTest(String room, int[][] boxes) {
+        Data d = data();
+        d.boxes.remove(key(room));
+        d.fallback.put(key(room), boxes);
+    }
+
+    /** Test hook: adds fallback boxes for {@code room} WITHOUT touching the shared table, to prove the table still wins. */
+    public static void putFallbackForTest(String room, int[][] boxes) {
+        data().fallback.put(key(room), boxes);
+    }
+
+    /** Test hook: forgets {@link #putForTest} changes by loading the table again. */
+    public static synchronized void resetForTest() {
+        data = null;
+    }
+
+    /** Test hook: where a room's boxes come from, "shared", "fallback" or "none". */
+    public static String sourceForTest(String room) {
+        return isShared(room) ? "shared" : boxes(room) != null ? "fallback" : "none";
+    }
+
+    /** Test hook: each room with boxes (shared or fallback) and its box count. */
+    public static Map<String, Integer> countsForTest() {
+        Map<String, Integer> out = new HashMap<>();
+        data().fallback.forEach((k, v) -> out.put(k, v.length));
+        data().boxes.forEach((k, v) -> out.put(k, v.length));
+        return out;
     }
 
     /** Room names the table covers (tests). */

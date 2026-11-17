@@ -55,8 +55,8 @@ final class SettingTooltipsData {
         d.put("sim armor", "Dungeon Sim: wear four pieces of Infernal Terror (Hydra Strike always at 10 stacks: +150% damage, +30% arrow speed, two extra arrows at 75% damage on every Terminator shot) or Thermodynamic (Newton's Demise: Attack Speed sits at the raised 150 cap). Left click forward, right click back. Saved.");
         d.put("clear blocked inviters", "Lets the players you blocked from the invite message invite you again.");
         d.put("spawn withers", "Dungeon Sim F7 Boss: ON spawns the boss withers (Maxor, Storm, Goldor, Necron) as Hypixel does. OFF: no wither in any phase, so the arena stays quiet while you set up routes, waypoints and terminals. The phase names and chat lines still show.");
-        d.put("spawn starred mobs", "Dungeon Sim: the next floor gets starred mobs in every mob room (on the spawn spots Blood Rush Helper learned, where it has them), Fels, wither doors and keys. The same setting as the Map Designer's Mobs button. Off: no room mobs, and every mob room clears when you walk in.");
-        d.put("real mob looks", "Dungeon Sim, with Spawn Starred Mobs: a starred mob on a spot whose real mob Blood Rush Helper saw on Hypixel is spawned as that mob - its type, armor, skin and facing, turned with the room. Spots never seen keep the plain dummy. Learn Spawn Spots records them on your own runs.");
+        d.put("spawn starred mobs", "Dungeon Sim: the next floor gets starred mobs in every mob room (on Blood Rush Helper's spawn boxes, where a room has them), Fels, wither doors and keys. The same setting as the Map Designer's Mobs button. Off: no room mobs, and every mob room clears when you walk in.");
+        d.put("real mob looks", "Dungeon Sim, with Spawn Starred Mobs: a starred mob on a spawn box whose real mob was seen on Hypixel is spawned as that mob - its type, armor, skin and facing, turned with the room. Boxes with no recorded mob keep the plain dummy.");
         d.put("sim class", "Dungeon Sim: your dungeon class (Healer, Mage, Berserk, Archer or Tank), shown in the tab and on the sidebar. Drop (Q) uses its ultimate and Drop Stack (Ctrl+Q) its ability, with Hypixel's cooldowns and chat lines; only a Mage has the left-click beam. In co-op each player has their own. Left click forward, right click back.");
         d.put("sim class level", "Dungeon Sim: your class level, 1-50, shown in the tab (Mage L is 50) and scaling the class numbers (Archer's Explosive Shot cooldown and Rapid Fire length, Mage cooldown reduction, Healer heals). Left click up, right click down.");
         d.put("sim teammates", "Dungeon Sim: up to four teammates who stand where you were when the run starts, listed in the tab's party, so a Spirit Leap or InfiniLeap has someone to leap to. None: just you. Left click forward, right click back. Saved.");
@@ -68,15 +68,12 @@ final class SettingTooltipsData {
         d.put("blood rush helper/drop bottom after fairy", "With Door Kills After Fairy: once the rush reaches fairy, the highest numbered killer leaves the rush to clear (told in chat, only to you) and the rest go on with the door runner killing.");
         d.put("blood rush helper/show others' spots", "Also draws the other killers' spots, in gray, marked with their role and the player who claimed it in party chat. Once yours are done, theirs that are left show in gold as help either way.");
         d.put("blood rush helper/all rooms", "Shows spots in every mob room, not only rooms on the rush (the rooms beside a wither or blood door on your dungeon map).");
-        d.put("blood rush helper/learn spawn spots", "Remembers where each room's starred mobs spawn (a mob first seen standing with nobody near it, all run long until the boss, even while the helper itself is off), in the room's own coordinates, so they show in later runs at any rotation. Only on Hypixel, never in the Dungeon Sim.");
-        d.put("blood rush helper/show learned spots", "Draws the known spawn spots too (the ones you learned and the ones the mod ships with), so a room shows its spots before its mobs are in view.");
         d.put("blood rush helper/filled boxes", "Fills the boxes' faces in at the Fill Opacity, the next spot of yours more. Off draws outlines only.");
         d.put("blood rush helper/outline width", "How thick the boxes' outlines are, 1-10.");
         d.put("blood rush helper/my spots color", "The color of your spots.");
         d.put("blood rush helper/others' spots color", "The color of the other killers' spots.");
-        d.put("blood rush helper/learned spot color", "The color of a known spawn spot whose mob is not in view yet.");
+        d.put("blood rush helper/unseen box color", "The color of a spawn box whose mob is not in view yet.");
         d.put("blood rush helper/fill opacity", "How solid the boxes' faces are. The next spot of yours is filled in more.");
-        d.put("blood rush helper/forget learned spots", "Deletes every spawn spot you learned. The ones the mod ships with stay.");
         d.put("blood rush helper/through walls", "Cheat build: draws the boxes and numbers through walls.");
         d.put("blood rush helper/whole rush path", "Cheat build: every room on the rush path from the scanned dungeon at once (Entrance to Blood), including rooms your dungeon map does not show yet.");
         d.put("requeue same floor", "Sends /joininstance for the floor you are on once the 30 s creation cooldown and Auto Requeue's Requeue Delay have passed. Once a run.");

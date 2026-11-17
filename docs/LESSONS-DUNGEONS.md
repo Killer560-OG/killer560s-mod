@@ -155,6 +155,7 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
 
 ## Blood Rush Helper
 
+- brboxes-only-1117 (11-17): everything below about learned spots is HISTORY. Boxes now come only from `BloodRushData` (shared table, else the 1-room static fallback, else none); the API switch will be: in `BloodRushData.load()` replace the snapshot read with the API result behind ModNet (snapshot stays the offline fallback), keep `fallback()`. No setting is needed for the API; a failed call simply leaves the snapshot. Rooms with a mob type but no boxes at all show nothing.
 - Boxes "not loading in" (killer560, 2026-11-03): a room showed boxes only from spawn spots learned on earlier runs or
   from mobs already in view, and learning ran only during the rush (before the blood door) and only while the helper was
   on, so after a night of runs his file held 14 spots in 5 rooms. There is no public starred-mob spawn table (the one that exists is All

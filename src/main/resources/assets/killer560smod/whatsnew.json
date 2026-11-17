@@ -19,7 +19,8 @@
      "Auto Terminals Burst mode now keeps bursts at least 75 ms apart even at a delay of 0, so a late server tick no longer takes two bursts at once.",
      "Auras no longer change your movement while you walk or run an AP3 route: Lever Aura, Terminal Aura, Secret Aura and Arrow Align click without touching your keys, sprint or turn, and AP3 keeps walking under a terminal Terminal Aura opens.",
      "Dungeon sim: /start s4 (and p1 p2 s1 s2 s3 core p4 p5 stop) now starts the F7 boss at that phase, with tab completion; it used to say Unknown or incomplete command (it only worked as /simboss)",
-     "Lever Aura and other block-clicking automation no longer draw an anticheat flag when a teleport arrives right as they click"
+     "Lever Aura and other block-clicking automation no longer draw an anticheat flag when a teleport arrives right as they click",
+     "Blood Rush Helper and the Dungeon Sim now use one shared set of spawn boxes for every room it covers (our own boxes only for the one room it lacks); spawn learning, its switches and the learned-spots file are gone. NOTE for achype-1117: BloodRushSpots is deleted; read spots from BloodRushData.worldBoxes(room, frame) (AABB per box; old knownSpots point = ((minX+maxX)/2, minY, (minZ+maxZ)/2)) or BloodRushData.boxes(room) (room-relative)."
     ]
    }
   ]

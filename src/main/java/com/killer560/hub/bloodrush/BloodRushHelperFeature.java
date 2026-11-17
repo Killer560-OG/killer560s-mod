@@ -21,7 +21,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.decoration.ArmorStand;
-import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
@@ -59,9 +58,8 @@ import java.util.regex.Pattern;
  * no plan for that door) every box is plain and numbered. Once your own boxes are done, the others' that are left show as
  * help.
  *
- * <p><b>Fallback.</b> A room the table does not cover uses our own learned spots ({@link BloodRushSpots}: earlier sightings,
- * his own and the jar's shipped table, grouped within {@link #LINK} blocks) and, for mobs no learned box claims, the mobs
- * themselves where first seen. Those boxes are always plain.
+ * <p>A room the table does not cover uses the jar's static fallback boxes ({@link BloodRushData#boxes}; plain, no roles); a room in
+ * neither has none, nothing is guessed (the mod's own learning was removed, brboxes-only-1117).
  *
  * <p><b>Legit and cheat.</b> Legit: depth-tested, the rush and its doors read off the hotbar map. Cheat build only: Through
  * Walls, and Whole Rush Path (the scanned dungeon's path, every room on it at once).
@@ -70,27 +68,12 @@ public final class BloodRushHelperFeature {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-bloodrush");
 
-    /** Learned spots, and mobs no learned box claims, this close (each of x/z, 3 in y) are one box. */
-    static final double LINK = 3.5;
     /** A box further than this from a mob does not claim it. */
     static final double CLAIM_REACH = 5.0;
     /** Death rule: removed this close is dead... */
     static final double DIES_ALONE = 32.0;
     /** ...or this close on the same tick as its name tag. */
     static final double DIES_WITH_TAG = 48.0;
-    /** A spawn is learned only when no player stands this close to the mob (an untouched mob has not moved). */
-    static final double LEARN_ALONE = 10.0;
-    /**
-     * ...and only once it has stood on that spot this many client ticks (a mob first seen falling in, or already walking
-     * after someone, is not learned where it was first seen). Since bloodrush2-1104 a spot is learned all run long, not
-     * only on the rush, so the clear's rooms fill the table too.
-     */
-    static final int LEARN_STILL_TICKS = 10;
-    /** How far (blocks, each axis) a learning mob may drift and still be standing. */
-    static final double LEARN_STILL_DRIFT = 0.4;
-    /** A learning mob that moved restarts from where it stands at most this many times. */
-    static final int LEARN_RESTARTS = 3;
-
     private static final Pattern MORT_START = Pattern.compile("^\\[NPC\\] Mort: Here, I found this map when I first entered the dungeon\\.$");
     private static final Pattern BLOOD_DOOR_OPENED = Pattern.compile("^The BLOOD DOOR has been opened!?$");
     private static final Pattern WITHER_DOOR_OPENED = Pattern.compile("^[A-Za-z0-9_]{1,16} opened a WITHER door!?$");
@@ -116,14 +99,11 @@ public final class BloodRushHelperFeature {
         }
     }
 
-    /** A box: its space, the mobs it claimed, whether it came from learned spots. */
+    /** A box of the shared table (its number is its place in the room's list): its space and the mobs it claimed. */
     static final class Box {
         AABB box;
         final List<Integer> mobs = new ArrayList<>();
         int alive;
-        boolean learned;
-        /** From the shared table (its number is its place in the room's list), not from learned spots. */
-        boolean shared;
         double cx;
         double cz;
 
@@ -137,26 +117,10 @@ public final class BloodRushHelperFeature {
 
     /** One box as drawn, and the facts tests read. */
     record Spot(String room, AABB box, int argb, String label, boolean next, Look look, int order, int role, int mobs,
-                int alive, boolean learnedOnly) {
+                int alive, boolean unseen) {
     }
 
     private static final Map<Integer, Mob> MOBS = new HashMap<>();
-    /** Mobs first seen alone, waiting to be seen standing still before their spot is learned: id -> pending. */
-    private static final Map<Integer, Pending> LEARNING = new HashMap<>();
-
-    /** A spot being learned: where the mob stands, since when, in which room, and how often it moved off. */
-    private static final class Pending {
-        Vec3 at;
-        int since;
-        int room;
-        int restarts;
-
-        Pending(Vec3 at, int since, int room) {
-            this.at = at;
-            this.since = since;
-            this.room = room;
-        }
-    }
     /** The doorway (world x, z) he last walked into each room through. */
     private static final Map<Integer, double[]> WALKED_IN = new HashMap<>();
     /** Rooms the rush has been through, in order, and those it had when it reached fairy (null before). */
@@ -189,20 +153,17 @@ public final class BloodRushHelperFeature {
     private static boolean standLoaded = true;
     private static int lastScan = Integer.MIN_VALUE / 2;
     private static final int SCAN_EVERY = 20;
-    /** The learned-spot boxes of each room, by room name, while its frame and the spot table stay the same. */
-    private static final Map<String, Learned> LEARNED = new HashMap<>();
+    /** The table's boxes of each room in the world, by room name, while its frame stays the same. */
+    private static final Map<String, Cached> SHARED = new HashMap<>();
 
     /** Each room's wither or blood door (world x, z) from the last rush path; a door runner's plan is keyed by it. */
     private static final Map<Integer, double[]> EXITS = new HashMap<>();
 
-    private record Learned(int x, int z, int rot, int version, List<AABB> boxes) {
+    private record Cached(int x, int z, int rot, int[][] src, List<AABB> boxes) {
     }
     private static String status = "idle";
     private static int statusPath = -1;
     private static int statusShown = -1;
-    /** Test hook: learn spawn spots in the Dungeon Sim too (never on in play). */
-    public static volatile boolean learnInSimForTest;
-
     private BloodRushHelperFeature() {
     }
 
@@ -360,7 +321,6 @@ public final class BloodRushHelperFeature {
     /** A rejoin of the same run: entity ids and the drawn spots belong to the world left; the rush itself stays. */
     private static void resetEntities() {
         MOBS.clear();
-        LEARNING.clear();
         CACHED = List.of();
         inRushRoom = false;
         myTile = -1;
@@ -381,7 +341,7 @@ public final class BloodRushHelperFeature {
         droppedSaid = false;
         lastRoom = -1;
         numberedBy = null;
-        LEARNED.clear();
+        SHARED.clear();
     }
 
     /** A new layout snapshot numbers its rooms afresh (DungeonLayout.numbersLike): every kept room index is mapped into
@@ -410,9 +370,6 @@ public final class BloodRushHelperFeature {
         for (Mob m : MOBS.values()) {
             m.room = layout.sameRoom(old, m.room);
         }
-        for (Pending p : LEARNING.values()) {
-            p.room = layout.sameRoom(old, p.room);
-        }
         return layout;
     }
 
@@ -429,8 +386,6 @@ public final class BloodRushHelperFeature {
         int gen = LiveMapFeature.resetGeneration();
         boolean newRun = RUN.newRun(client.level);
         if (client.level != level || gen != generation || newRun) {
-            BloodRushSpots.saveIfDirty(true);
-            com.killer560.hub.roomsim.SimMobLooks.saveIfDirty(true);
             if (newRun) {
                 // Party-chat roles last until the dungeon they were for is over.
                 BloodRushRoles.newWorld(wasInDungeon);
@@ -458,34 +413,17 @@ public final class BloodRushHelperFeature {
         }
         DungeonLayout layout = renumber(DungeonLayout.current());
         if (!cfg.isEnabled()) {
-            // Helper off: Learn Spawn Spots still learns, passively (bloodrush2-1104, so his normal runs fill the table). The
-            // same starred-mob scan Mob ESP runs every frame, here every other tick, in a clear only; nothing drawn.
             if (!CACHED.isEmpty()) {
                 CACHED = List.of();
             }
-            boolean learn = cfg.isLearnSpots() && (!com.killer560.hub.roomsim.SimState.isActive() || learnInSimForTest);
-            status = learn ? "off (learning spawn spots)" : "off";
-            if (learn && ++ticks % 2 == 0) {
-                trackMobs(client, layout, true);
-                if (ticks % 200 == 0) {
-                    BloodRushSpots.saveIfDirty(false);
-                }
-            }
+            status = "off";
             return;
         }
         if (bloodOpened) {
-            // The rush is over and nothing shows, but the clear still teaches spawn spots for later runs.
             if (!CACHED.isEmpty()) {
                 CACHED = List.of();
             }
             status = "blood door open";
-            if (++ticks % 2 == 0 && cfg.isLearnSpots()
-                    && (!com.killer560.hub.roomsim.SimState.isActive() || learnInSimForTest)) {
-                trackMobs(client, layout, true);
-                if (ticks % 200 == 0) {
-                    BloodRushSpots.saveIfDirty(false);
-                }
-            }
             return;
         }
         trackSteps(client, layout);
@@ -493,12 +431,8 @@ public final class BloodRushHelperFeature {
         if (++ticks % 2 != 0) {
             return;
         }
-        boolean sim = com.killer560.hub.roomsim.SimState.isActive();
-        trackMobs(client, layout, cfg.isLearnSpots() && (!sim || learnInSimForTest));
+        trackMobs(client, layout);
         CACHED = build(client, layout, cfg);
-        if (ticks % 200 == 0) {
-            BloodRushSpots.saveIfDirty(false);
-        }
     }
 
     private static int tileAt(double x, double z) {
@@ -555,7 +489,7 @@ public final class BloodRushHelperFeature {
         }
     }
 
-    private static void trackMobs(Minecraft client, DungeonLayout layout, boolean learn) {
+    private static void trackMobs(Minecraft client, DungeonLayout layout) {
         boolean scan = standLoaded || clock - lastScan >= SCAN_EVERY;
         if (scan) {
             standLoaded = false;
@@ -575,16 +509,7 @@ public final class BloodRushHelperFeature {
                 continue;
             }
             Vec3 at = e.position();
-            int room = layout.roomAtWorld(at.x, at.z);
-            MOBS.put(e.getId(), new Mob(e.getId(), at, e.getBoundingBox(), room, e, tagOf(client, e)));
-            if (learn && room >= 0 && isMobRoom(layout, room) && alone(client, at)) {
-                LEARNING.put(e.getId(), new Pending(at, clock, room));
-            }
-        }
-        if (learn) {
-            confirmLearning(client, layout);
-        } else {
-            LEARNING.clear();
+            MOBS.put(e.getId(), new Mob(e.getId(), at, e.getBoundingBox(), layout.roomAtWorld(at.x, at.z), e, tagOf(client, e)));
         }
         Vec3 me = client.player.position();
         for (Mob m : MOBS.values()) {
@@ -604,44 +529,6 @@ public final class BloodRushHelperFeature {
         }
     }
 
-    /** Learns each waiting mob's spot once it has stood still long enough; a mob that moved or went is dropped. */
-    private static void confirmLearning(Minecraft client, DungeonLayout layout) {
-        java.util.Iterator<Map.Entry<Integer, Pending>> it = LEARNING.entrySet().iterator();
-        while (it.hasNext()) {
-            Map.Entry<Integer, Pending> en = it.next();
-            Pending p = en.getValue();
-            Mob m = MOBS.get(en.getKey());
-            Entity e = m == null ? null : m.entity;
-            if (e == null || m.dead || e.isRemoved() || !e.isAlive()) {
-                it.remove();
-                continue;
-            }
-            Vec3 now = e.position();
-            if (Math.abs(now.x - p.at.x) > LEARN_STILL_DRIFT || Math.abs(now.y - p.at.y) > LEARN_STILL_DRIFT
-                    || Math.abs(now.z - p.at.z) > LEARN_STILL_DRIFT) {
-                if (++p.restarts > LEARN_RESTARTS || layout.roomAtWorld(now.x, now.z) != p.room || !alone(client, now)) {
-                    it.remove();
-                } else {
-                    p.at = now;
-                    p.since = clock;
-                }
-                continue;
-            }
-            if (clock - p.since < LEARN_STILL_TICKS) {
-                continue;
-            }
-            it.remove();
-            int[] cr = layout.clayRotation(p.room);
-            String name = layout.name(p.room);
-            if (cr != null && name != null && !"Unknown".equals(name)) {
-                RouteCoords.Frame frame = new RouteCoords.Frame(name, cr[0], cr[1], cr[2]);
-                BloodRushSpots.learn(name, frame, BlockPos.containing(p.at));
-                // Its look too (type, gear, skin, name), for the sim's Real Mob Looks (simblood-1110).
-                com.killer560.hub.roomsim.SimMobLooks.record(name, frame, e, tagOf(client, e));
-            }
-        }
-    }
-
     /** The star name tag over a mob (the stand Mob ESP resolves it from), or null. */
     private static Entity tagOf(Minecraft client, Entity mob) {
         for (ArmorStand s : client.level.getEntitiesOfClass(ArmorStand.class, mob.getBoundingBox().inflate(0.6, 3.5, 0.6))) {
@@ -650,15 +537,6 @@ public final class BloodRushHelperFeature {
             }
         }
         return null;
-    }
-
-    private static boolean alone(Minecraft client, Vec3 at) {
-        for (Player p : client.level.players()) {
-            if (p.position().distanceToSqr(at) < LEARN_ALONE * LEARN_ALONE) {
-                return false;
-            }
-        }
-        return true;
     }
 
     private static String type(DungeonLayout layout, int room) {
@@ -838,7 +716,7 @@ public final class BloodRushHelperFeature {
         Map<Integer, double[]> doors = new HashMap<>();
         for (int room : shownRooms(layout, cfg, path)) {
             String name = layout.name(room);
-            List<Box> boxes = boxes(layout, room, name, cfg);
+            List<Box> boxes = boxes(layout, room, name);
             if (boxes.isEmpty()) {
                 continue;
             }
@@ -852,7 +730,7 @@ public final class BloodRushHelperFeature {
             doors.put(room, door);
             boolean late = late(room);
             Integer playing = BloodRushRoles.playing(cfg, late);
-            BloodRushData.Plan plan = boxes.get(0).shared ? planOf(layout, room, name, boxes.size(), door, cfg, late) : null;
+            BloodRushData.Plan plan = BloodRushData.isShared(name) ? planOf(layout, room, name, boxes.size(), door, cfg, late) : null;
             BloodRushData.Look[] looks = looks(boxes.size(), plan, playing);
             List<int[]> mine = new ArrayList<>(); // {order, box index}
             for (int i = 0; i < looks.length; i++) {
@@ -872,7 +750,7 @@ public final class BloodRushHelperFeature {
                 }
                 boolean next = !nextGiven;
                 nextGiven = true;
-                int argb = b.mobs.isEmpty() ? cfg.getLearnedColor() : cfg.getMineColor();
+                int argb = b.mobs.isEmpty() ? cfg.getUnseenColor() : cfg.getMineColor();
                 out.add(spot(name, b, argb, label(Integer.toString(m[0]), b), next, Look.MINE, m[0], role));
             }
             for (int i = 0; i < looks.length; i++) {
@@ -949,40 +827,28 @@ public final class BloodRushHelperFeature {
     }
 
     /**
-     * The room's boxes: learned spots grouped within {@link #LINK}, each claiming the mobs whose body overlapped it most
-     * where first seen, else the nearest within {@link #CLAIM_REACH}; mobs no learned box claims make boxes of their own.
+     * The room's boxes in table order ({@link BloodRushData#boxes}: the shared table's, else the jar's fallback; none for a room in
+     * neither), each claiming the mobs whose body overlapped it most where first seen, else the nearest within {@link #CLAIM_REACH}.
+     * A mob no box claims gets none.
      */
-    private static List<Box> boxes(DungeonLayout layout, int room, String name, BloodRushConfig cfg) {
-        List<Box> learned = new ArrayList<>();
+    private static List<Box> boxes(DungeonLayout layout, int room, String name) {
+        List<Box> out = new ArrayList<>();
         int[] cr = layout.clayRotation(room);
-        int[][] table = cr == null || name == null ? null : BloodRushData.boxes(name);
-        boolean shared = table != null;
-        if (shared) {
-            for (AABB a : sharedBoxes(name, cr, table)) {
-                Box bx = new Box();
-                bx.box = a;
-                bx.learned = true;
-                bx.shared = true;
-                learned.add(bx);
-            }
-        } else if (cfg.isShowLearned()) { // fallback: a room the shared table does not cover keeps our own learned spots
-            if (cr != null && name != null) {
-                for (AABB a : learnedBoxes(name, cr)) {
-                    Box bx = new Box();
-                    bx.box = a;
-                    bx.learned = true;
-                    learned.add(bx);
-                }
-            }
+        if (cr == null || name == null) {
+            return out;
         }
-        List<Mob> loose = new ArrayList<>();
+        for (AABB a : worldBoxes(name, cr)) {
+            Box bx = new Box();
+            bx.box = a;
+            out.add(bx);
+        }
         for (Mob m : MOBS.values()) {
             if (m.room != room) {
                 continue;
             }
             Box claim = null;
             double most = 0;
-            for (Box b : learned) {
+            for (Box b : out) {
                 double o = overlap(m.body, b.box);
                 if (o > most) {
                     most = o;
@@ -991,7 +857,7 @@ public final class BloodRushHelperFeature {
             }
             if (claim == null) {
                 double best = CLAIM_REACH * CLAIM_REACH;
-                for (Box b : learned) {
+                for (Box b : out) {
                     double g = gap(m.body, b.box);
                     if (g <= best) {
                         best = g;
@@ -1004,133 +870,21 @@ public final class BloodRushHelperFeature {
                 if (!m.dead) {
                     claim.alive++;
                 }
-            } else {
-                loose.add(m);
             }
-        }
-        List<Box> out = new ArrayList<>(learned);
-        List<Vec3> pts = new ArrayList<>();
-        for (Mob m : shared ? List.<Mob>of() : loose) { // the table's boxes are the whole room: a mob outside them gets none
-            pts.add(m.first);
-        }
-        for (List<Integer> g : clusterIdx(pts)) {
-            Box bx = new Box();
-            List<Vec3> ps = new ArrayList<>();
-            for (int i : g) {
-                Mob m = loose.get(i);
-                ps.add(m.first);
-                bx.mobs.add(m.id);
-                if (!m.dead) {
-                    bx.alive++;
-                }
-            }
-            bx.box = around(ps);
-            out.add(bx);
-        }
-        for (Box b : out) {
-            b.cx = (b.box.minX + b.box.maxX) / 2;
-            b.cz = (b.box.minZ + b.box.maxZ) / 2;
-        }
-        // Learned rooms get a stable number: west to east, then north to south. The table's keep their own order.
-        if (!shared) out.sort((a, b) -> a.cx != b.cx ? Double.compare(a.cx, b.cx) : Double.compare(a.cz, b.cz));
-        return out;
-    }
-
-    /** The table's boxes of a room in the world (a box spans its two corner blocks), cached until its frame changes. */
-    private static List<AABB> sharedBoxes(String name, int[] cr, int[][] table) {
-        Learned c = LEARNED.get("=" + name);
-        if (c != null && c.x == cr[0] && c.z == cr[1] && c.rot == cr[2]) {
-            return c.boxes;
-        }
-        RouteCoords.Frame f = new RouteCoords.Frame(name, cr[0], cr[1], cr[2]);
-        List<AABB> boxes = new ArrayList<>();
-        for (int[] t : table) {
-            BlockPos a = RouteCoords.toRealBlock(f, new BlockPos(t[0], t[1], t[2]));
-            BlockPos b = RouteCoords.toRealBlock(f, new BlockPos(t[3], t[4], t[5]));
-            boxes.add(new AABB(Math.min(a.getX(), b.getX()), Math.min(a.getY(), b.getY()), Math.min(a.getZ(), b.getZ()),
-                    Math.max(a.getX(), b.getX()) + 1, Math.max(a.getY(), b.getY()) + 1, Math.max(a.getZ(), b.getZ()) + 1));
-        }
-        LEARNED.put("=" + name, new Learned(cr[0], cr[1], cr[2], 0, List.copyOf(boxes)));
-        return boxes;
-    }
-
-    /** The room's learned spots grouped within {@link #LINK}, one box each; rebuilt when its frame or the table changes. */
-    private static List<AABB> learnedBoxes(String name, int[] cr) {
-        int version = BloodRushSpots.version();
-        Learned c = LEARNED.get(name);
-        if (c != null && c.x == cr[0] && c.z == cr[1] && c.rot == cr[2] && c.version == version) {
-            return c.boxes;
-        }
-        List<Vec3> pts = new ArrayList<>();
-        for (BlockPos b : BloodRushSpots.worldSpots(name, new RouteCoords.Frame(name, cr[0], cr[1], cr[2]))) {
-            pts.add(new Vec3(b.getX() + 0.5, b.getY(), b.getZ() + 0.5));
-        }
-        List<AABB> boxes = new ArrayList<>();
-        for (List<Vec3> g : cluster(pts)) {
-            boxes.add(around(g));
-        }
-        LEARNED.put(name, new Learned(cr[0], cr[1], cr[2], version, List.copyOf(boxes)));
-        return boxes;
-    }
-
-    private static List<List<Vec3>> cluster(List<Vec3> pts) {
-        List<List<Vec3>> out = new ArrayList<>();
-        for (List<Integer> g : clusterIdx(pts)) {
-            List<Vec3> l = new ArrayList<>();
-            for (int i : g) {
-                l.add(pts.get(i));
-            }
-            out.add(l);
         }
         return out;
     }
 
-    private static List<List<Integer>> clusterIdx(List<Vec3> pts) {
-        int n = pts.size();
-        int[] parent = new int[n];
-        for (int i = 0; i < n; i++) {
-            parent[i] = i;
+    /** The room's boxes in the world, cached until its frame or its table entry changes. */
+    private static List<AABB> worldBoxes(String name, int[] cr) {
+        Cached c = SHARED.get(name);
+        int[][] src = BloodRushData.boxes(name);
+        if (c != null && c.x == cr[0] && c.z == cr[1] && c.rot == cr[2] && c.src == src) {
+            return c.boxes;
         }
-        for (int i = 0; i < n; i++) {
-            for (int j = i + 1; j < n; j++) {
-                Vec3 a = pts.get(i);
-                Vec3 b = pts.get(j);
-                if (Math.abs(a.x - b.x) <= LINK && Math.abs(a.z - b.z) <= LINK && Math.abs(a.y - b.y) <= 3.0) {
-                    parent[find(parent, i)] = find(parent, j);
-                }
-            }
-        }
-        Map<Integer, List<Integer>> by = new java.util.LinkedHashMap<>();
-        for (int i = 0; i < n; i++) {
-            by.computeIfAbsent(find(parent, i), k -> new ArrayList<>()).add(i);
-        }
-        return new ArrayList<>(by.values());
-    }
-
-    private static int find(int[] p, int i) {
-        while (p[i] != i) {
-            p[i] = p[p[i]];
-            i = p[i];
-        }
-        return i;
-    }
-
-    private static AABB around(List<Vec3> pts) {
-        double x0 = Double.MAX_VALUE;
-        double y0 = Double.MAX_VALUE;
-        double z0 = Double.MAX_VALUE;
-        double x1 = -Double.MAX_VALUE;
-        double y1 = -Double.MAX_VALUE;
-        double z1 = -Double.MAX_VALUE;
-        for (Vec3 p : pts) {
-            x0 = Math.min(x0, p.x);
-            y0 = Math.min(y0, p.y);
-            z0 = Math.min(z0, p.z);
-            x1 = Math.max(x1, p.x);
-            y1 = Math.max(y1, p.y);
-            z1 = Math.max(z1, p.z);
-        }
-        return new AABB(x0 - 0.8, y0, z0 - 0.8, x1 + 0.8, y1 + 2.0, z1 + 0.8);
+        List<AABB> boxes = BloodRushData.worldBoxes(name, new RouteCoords.Frame(name, cr[0], cr[1], cr[2]));
+        SHARED.put(name, new Cached(cr[0], cr[1], cr[2], src, boxes));
+        return boxes;
     }
 
     private static double overlap(AABB a, AABB b) {
@@ -1236,13 +990,13 @@ public final class BloodRushHelperFeature {
         }
     }
 
-    /** Each box drawn now: "room|order|look|x0,y0,z0,x1,y1,z1|mobs|alive|learnedOnly|next|label|role". */
+    /** Each box drawn now: "room|order|look|x0,y0,z0,x1,y1,z1|mobs|alive|unseen|next|label|role". */
     public static List<String> spotsForTest() {
         List<String> out = new ArrayList<>();
         for (Spot s : CACHED) {
             AABB b = s.box();
             out.add(String.format(Locale.ROOT, "%s|%d|%s|%.2f,%.2f,%.2f,%.2f,%.2f,%.2f|%d|%d|%b|%b|%s|%d", s.room(), s.order(),
-                    s.look(), b.minX, b.minY, b.minZ, b.maxX, b.maxY, b.maxZ, s.mobs(), s.alive(), s.learnedOnly(),
+                    s.look(), b.minX, b.minY, b.minZ, b.maxX, b.maxY, b.maxZ, s.mobs(), s.alive(), s.unseen(),
                     s.next(), s.label(), s.role()));
         }
         return out;
@@ -1256,11 +1010,6 @@ public final class BloodRushHelperFeature {
             out.add(String.format(Locale.ROOT, "%s|%.2f,%.2f", layout.name(e.getKey()), e.getValue()[0], e.getValue()[1]));
         }
         return out;
-    }
-
-    /** Mobs waiting to be seen standing before their spot is learned. */
-    public static int learningForTest() {
-        return LEARNING.size();
     }
 
     /** Test hook: each tracked mob of a room as "id dead=.. entity=null|alive|removed first=x,y,z". */

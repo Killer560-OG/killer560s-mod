@@ -57,8 +57,8 @@ public final class SimLiveMobs {
     private static final Map<String, Integer> PLACED_IN = new java.util.concurrent.ConcurrentHashMap<>();
     /** Each room's first placed spot at the last GO, by room name (a key with no mob to kill drops here). */
     private static final Map<String, BlockPos> FIRST_SPOT = new java.util.concurrent.ConcurrentHashMap<>();
-    /** Rooms whose mobs went on learned spawn spots at the last GO (Blood Rush Helper's), and the blocks they stood on. */
-    private static final Map<String, List<BlockPos>> LEARNED_IN = new java.util.concurrent.ConcurrentHashMap<>();
+    /** Rooms whose mobs went on spawn-box spots at the last GO (Blood Rush Helper's boxes), and the blocks they stood on. */
+    private static final Map<String, List<BlockPos>> BOX_SPOTS_IN = new java.util.concurrent.ConcurrentHashMap<>();
     /** Clear-on-entry as it was before live mobs switched it off, to put it back. */
     private static volatile Boolean entryBefore = null;
 
@@ -148,10 +148,10 @@ public final class SimLiveMobs {
         Map<String, List<BlockPos>> tiles = new TreeMap<>();
         Map<String, Boolean> champion = new TreeMap<>();
         Map<String, Integer> roomIndex = new TreeMap<>();
-        Map<String, List<BlockPos>> spots = new TreeMap<>();
+        Map<String, int[][]> spots = new TreeMap<>();
         Map<String, com.killer560.hub.autoroutes.RouteCoords.Frame> frames = new HashMap<>();
         boolean looks = SimMenuPrefs.cached().realMobs;
-        LEARNED_IN.clear();
+        BOX_SPOTS_IN.clear();
         for (int i = 0; i < layout.roomCount(); i++) {
             RoomEntry e = layout.entry(i);
             String name = layout.name(i);
@@ -165,16 +165,16 @@ public final class SimLiveMobs {
             tiles.put(name, cs);
             champion.put(name, type.equals("CHAMPION"));
             roomIndex.put(name, i);
-            // The room's spawn spots, where Blood Rush Helper has learned them from real runs (killer560, 2026-11-03: "for
-            // our clear sim you should be able to add mobs in their blood rush helper spots since that is where they
-            // spawn"), turned with the room by its clay corner and rotation. A room with none keeps the seeded spots.
+            // The room's spawn boxes (Blood Rush Helper's: the shared table, else the jar's fallback; killer560, 2026-11-03: "for
+            // our clear sim you should be able to add mobs in their blood rush helper spots since that is where they spawn"),
+            // one spot at the middle of each, turned with the room by its clay corner and rotation. A room with none keeps the
+            // seeded spots.
             int[] cr = layout.clayRotation(i);
+            int[][] boxes = com.killer560.hub.bloodrush.BloodRushData.boxes(name);
             if (cr != null) {
-                var frame = new com.killer560.hub.autoroutes.RouteCoords.Frame(name, cr[0], cr[1], cr[2]);
-                frames.put(name, frame);
-                List<BlockPos> learned = com.killer560.hub.bloodrush.BloodRushSpots.worldSpots(name, frame);
-                if (!learned.isEmpty()) {
-                    spots.put(name, learned);
+                frames.put(name, new com.killer560.hub.autoroutes.RouteCoords.Frame(name, cr[0], cr[1], cr[2]));
+                if (boxes != null) {
+                    spots.put(name, boxes);
                 }
             }
         }
@@ -196,32 +196,27 @@ public final class SimLiveMobs {
                 java.util.Random rng = new java.util.Random((code + "|" + e.getKey()).hashCode());
                 int room = roomIndex.get(e.getKey());
                 List<BlockPos> got = new ArrayList<>();
-                List<BlockPos> learned = spots.get(e.getKey());
+                int[][] boxes = spots.get(e.getKey());
                 Map<BlockPos, SimMobLooks.Look> lookAt = new HashMap<>();
                 var frame = frames.get(e.getKey());
                 // A spot walled in behind a lever (Redstone Crypt) or sealed off is one Hypixel never spawns a mob at and Auto
                 // Clear cannot reach ("no etherwarp path", a key it cannot pick up): keep only spots a mob can walk to from the
                 // room's first tile, learned or seeded.
                 Set<Long> reach = reachable(level, layout, room, standable(level, e.getValue().get(0)));
-                if (learned != null) {
-                    for (BlockPos s : learned) {
-                        BlockPos feet = standable(level, s);
-                        if (feet != null && reach != null && !reach.contains(feet.asLong())) {
-                            LOGGER.info("[Sim] {}: learned spawn spot {} is walled in, no mob there", e.getKey(), s);
-                            continue;
-                        }
+                if (boxes != null) {
+                    for (int[] bx : boxes) {
+                        BlockPos feet = spotIn(level, frame, bx, reach);
                         if (feet != null && !got.contains(feet)) {
                             got.add(feet);
                             // Real Mob Looks (simblood-1110): what stood on this spot on Hypixel, if it was recorded.
-                            SimMobLooks.Look look = looks ? SimMobLooks.lookAt(e.getKey(),
-                                    com.killer560.hub.autoroutes.RouteCoords.toRelativeBlock(frame, s)) : null;
+                            SimMobLooks.Look look = looks ? SimMobLooks.lookIn(e.getKey(), bx) : null;
                             if (look != null) {
                                 lookAt.put(feet, look);
                             }
                         }
                     }
                     if (!got.isEmpty()) {
-                        LEARNED_IN.put(e.getKey(), List.copyOf(got));
+                        BOX_SPOTS_IN.put(e.getKey(), List.copyOf(got));
                     }
                 }
                 for (BlockPos c : got.isEmpty() ? e.getValue() : List.<BlockPos>of()) {
@@ -324,6 +319,29 @@ public final class SimLiveMobs {
         return null;
     }
 
+    /** Where a mob stands in the room-relative spawn box {@code bx}: the standable cell nearest its middle (a box can be tall, over
+     *  stairs), one a mob can walk to when {@code reach} is known, else null (Hypixel never spawns one in a walled-in box). */
+    private static BlockPos spotIn(ServerLevel level, com.killer560.hub.autoroutes.RouteCoords.Frame frame, int[] bx, Set<Long> reach) {
+        int x1 = Math.min(bx[0], bx[3]), x2 = Math.max(bx[0], bx[3]), z1 = Math.min(bx[2], bx[5]), z2 = Math.max(bx[2], bx[5]);
+        int cx = (x1 + x2) / 2, cz = (z1 + z2) / 2;
+        List<int[]> cols = new ArrayList<>();
+        for (int x = x1; x <= x2; x++) {
+            for (int z = z1; z <= z2; z++) {
+                cols.add(new int[]{x, z});
+            }
+        }
+        cols.sort(java.util.Comparator.comparingInt(c -> Math.abs(c[0] - cx) + Math.abs(c[1] - cz)));
+        for (int[] c : cols) {
+            for (int y = Math.min(bx[1], bx[4]); y <= Math.max(bx[1], bx[4]); y++) {
+                BlockPos feet = standable(level, com.killer560.hub.autoroutes.RouteCoords.toRealBlock(frame, new BlockPos(c[0], y, c[1])));
+                if (feet != null && (reach == null || reach.contains(feet.asLong()))) {
+                    return feet;
+                }
+            }
+        }
+        return null;
+    }
+
     /** Floor cells a mob can walk to inside {@code room} from {@code start} (steps up 1, drops up to 3), or null with no start. */
     private static Set<Long> reachable(ServerLevel level, DungeonLayout layout, int room, BlockPos start) {
         if (start == null) return null;
@@ -351,8 +369,8 @@ public final class SimLiveMobs {
         return seen;
     }
 
-    /** The rooms whose mobs stood on learned spawn spots at the last GO, and those spots, for tests. */
-    public static Map<String, List<BlockPos>> learnedSpotsPlaced() { return Map.copyOf(LEARNED_IN); }
+    /** The rooms whose mobs stood on spawn-box spots at the last GO, and those spots, for tests. */
+    public static Map<String, List<BlockPos>> boxSpotsPlaced() { return Map.copyOf(BOX_SPOTS_IN); }
 
     /** An open floor spot 2-4 blocks from {@code near}, in the same room and clear of {@code taken}, or null. */
     private static BlockPos besideSpot(ServerLevel level, DungeonLayout layout, int room, BlockPos near, List<BlockPos> taken,

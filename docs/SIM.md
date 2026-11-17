@@ -56,11 +56,10 @@ Sim lessons that sit with a feature rather than the sim are in [LESSONS-AUTOCLEA
 ## Blood camp and real mob looks (simblood-1110)
 
 `SimBloodCamp` (Sim Settings "Watcher Blood Camp", default OFF) runs the Watcher's camp on the server tick; `SimMobLooks`
-("Real Mob Looks", default OFF, shown with Spawn Starred Mobs) dresses a starred mob on a learned spot as its recorded look.
-Positions always come from Blood Rush's spots (learned + shipped table, 77 rooms / 552 spots at 2026-11-10); a look only adds
-type, gear, skin and yaw, recorded by `BloodRushHelperFeature.confirmLearning` on Hypixel into the shared store
-(`RecordCatalog.SIM_MOB_LOOKS`, `sim-mob-looks.json`). At 2026-11-10 no look is recorded yet, so every room falls back to dummies
-until he plays with Learn Spawn Spots on.
+("Real Mob Looks", default OFF, shown with Spawn Starred Mobs) dresses a starred mob in a spawn box as its recorded look.
+Positions always come from `BloodRushData.boxes` (the shared table, a static fallback for rooms it lacks; one spot at the middle of each box, brboxes-only-1117); a look only adds
+type, gear, skin and yaw, read from the shared store (`RecordCatalog.SIM_MOB_LOOKS`, `sim-mob-looks.json`) by `SimMobLooks.lookIn`. Nothing records new
+looks since brboxes-only-1117 (the recorder rode on Learn Spawn Spots); a recorder belongs in the logger mod if wanted again.
 
 Measured from his 2026-11 camp logs (ticks after the greeting): first wave 4 trips at +153, +153, +190, +235, 77-tick
 flights of 16.1 blocks; "Let's see how you can handle this." at ~+300; later trips 11.9 blocks in 39 ticks; mobs killable
