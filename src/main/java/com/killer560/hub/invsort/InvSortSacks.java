@@ -31,6 +31,8 @@ final class InvSortSacks {
     /** Only plain item ids go to /gfs: a rune or attribute id never names a sack item. */
     private static final Pattern PLAIN_ID = Pattern.compile("[A-Z0-9_]+");
 
+    private static final int MAX_TRIES = 3;
+
     private static InvSortSacks active;
 
     private record Ask(String id, int amount) {
@@ -41,6 +43,8 @@ final class InvSortSacks {
     private Ask sent;
     private int movedNow = -1;
     private boolean noneNow;
+    private boolean cooldownNow;
+    private int tries;
     private boolean fullNow;
     private boolean full;
     private int fetched;
@@ -64,6 +68,13 @@ final class InvSortSacks {
      */
     static Map<String, Integer> shortfall(InventoryLayout layout, net.minecraft.world.entity.player.Inventory inv) {
         Map<String, Integer> out = new java.util.LinkedHashMap<>();
+        lacking(layout, inv).forEach((key, n) -> out.merge(InvSortMatch.id(key).toUpperCase(Locale.ROOT), n, Integer::sum));
+        return out;
+    }
+
+    /** Per want key (exact or id only): how many the layout wants minus what the inventory holds; short keys only. */
+    static Map<String, Integer> lacking(InventoryLayout layout, net.minecraft.world.entity.player.Inventory inv) {
+        Map<String, Integer> out = new java.util.LinkedHashMap<>();
         Map<String, Integer> wanted = new java.util.LinkedHashMap<>();
         layout.wants().forEach((slot, key) -> wanted.merge(key, layout.counts().getOrDefault(slot, 1), Integer::sum));
         for (Map.Entry<String, Integer> w : wanted.entrySet()) {
@@ -75,7 +86,7 @@ final class InvSortSacks {
                 }
             }
             if (w.getValue() > held) {
-                out.merge(InvSortMatch.id(w.getKey()).toUpperCase(Locale.ROOT), w.getValue() - held, Integer::sum);
+                out.put(w.getKey(), w.getValue() - held);
             }
         }
         return out;
@@ -92,7 +103,9 @@ final class InvSortSacks {
 
     private void onChat(String plain) {
         Matcher m = MOVED.matcher(plain);
-        if (m.matches()) {
+        if (SackCommands.isCooldown(plain)) {
+            cooldownNow = true;
+        } else if (m.matches()) {
             movedNow = Integer.parseInt(m.group(1).replace(",", ""));
         } else if (NONE.matcher(plain).matches()) {
             noneNow = true;
@@ -122,9 +135,19 @@ final class InvSortSacks {
     /** One step. @return true when everything was asked (or it had to give up). */
     boolean tick(Minecraft client, boolean mayAct) {
         if (sent != null) {
-            if (SackCommands.awaiting() && movedNow < 0 && !noneNow && !fullNow) {
+            if (SackCommands.awaiting() && movedNow < 0 && !noneNow && !fullNow && !cooldownNow) {
                 return false;
             }
+            if (cooldownNow && movedNow < 0 && !noneNow && !fullNow && tries < MAX_TRIES) {
+                // Hypixel refused it ("on cooldown"): nothing was looked up, so ask the same thing again after the gap.
+                LOGGER.info("[InvSort] /gfs {} {} refused (cooldown), asking again (try {})", sent.id(), sent.amount(), ++tries);
+                todo.addFirst(sent);
+                sent = null;
+                cooldownNow = false;
+                return false;
+            }
+            tries = 0;
+            cooldownNow = false;
             if (movedNow > 0) {
                 fetched++;
             } else {
@@ -149,7 +172,7 @@ final class InvSortSacks {
             return false;
         }
         Ask next = todo.peek();
-        if (!SackCommands.send(client, next.id().toLowerCase(Locale.ROOT) + " " + next.amount())) {
+        if (!SackCommands.sendPaced(client, next.id().toLowerCase(Locale.ROOT) + " " + next.amount())) {
             if (!SackCommands.available(client)) { // not Skyblock, or an unknown-command reply: nothing more to ask
                 todo.forEach(a -> missing.add(a.id()));
                 todo.clear();

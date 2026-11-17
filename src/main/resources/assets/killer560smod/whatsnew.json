@@ -1,5 +1,18 @@
 [
  {
+  "date": "2026-11-17",
+  "summary": "Inventory Sorter: Fetch Missing From Sacks now waits 3 secon",
+  "sections": [
+   {
+    "title": "More",
+    "blurb": "Changes in this update.",
+    "items": [
+     "Inventory Sorter: Fetch Missing From Sacks now waits 3 seconds between /gfs commands and sends a refused one again instead of calling the item empty; items spread over several storage stacks are combined first, the extra goes back to storage, and only the exact rest comes from sacks."
+    ]
+   }
+  ]
+ },
+ {
   "date": "2026-11-16",
   "summary": "Auto Terminals: Burst Finish (cheat, off by default) sends a",
   "sections": [

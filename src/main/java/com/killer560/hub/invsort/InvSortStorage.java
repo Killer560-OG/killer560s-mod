@@ -111,14 +111,10 @@ final class InvSortStorage {
         Inventory inv = client.player.getInventory();
         // What the layout wants that the inventory does not have, matched by exact item (InvSortMatch): with two
         // runebooks, the one the layout was saved with (killer560, 2026-11-02: it fetched the wrong one).
-        List<String> unmet = new ArrayList<>();
-        claim(inv, layout, unmet);
-        Map<String, Integer> missing = new LinkedHashMap<>();
-        if (layout.fetchFromStorage()) {
-            for (String w : unmet) {
-                missing.merge(w, 1, Integer::sum);
-            }
-        }
+        // By ITEM COUNT (invsortgfs-1116): the layout's saved amount per slot minus what the inventory holds, so several
+        // partial storage stacks are combined and an inventory that holds only part of an item still visits storage.
+        Map<String, Integer> missing = layout.fetchFromStorage()
+                ? new LinkedHashMap<>(InvSortSacks.lacking(layout, inv)) : new LinkedHashMap<>();
         boolean dump = layout.dumpPage() != null && !dumpSlots(client).isEmpty();
         // Which pages hold the missing items: the dump page first (it is visited anyway), then Ender Chest pages, then
         // backpacks, in number order.
@@ -147,8 +143,9 @@ final class InvSortStorage {
                     if (want == null) {
                         continue;
                     }
-                    byPage.computeIfAbsent(page, p -> new LinkedHashMap<>()).merge(want, 1, Integer::sum);
-                    missing.merge(want, -1, Integer::sum);
+                    int take = Math.min(stack.getCount(), missing.get(want));
+                    byPage.computeIfAbsent(page, p -> new LinkedHashMap<>()).merge(want, take, Integer::sum);
+                    missing.merge(want, -take, Integer::sum);
                 }
             }
             for (Map.Entry<String, Integer> e : missing.entrySet()) {
@@ -255,14 +252,16 @@ final class InvSortStorage {
     private List<Integer> dumpSlots(Minecraft client) {
         Inventory inv = client.player.getInventory();
         boolean[] kept = claim(inv, layout, null);
+        Map<String, Integer> lack = InvSortSacks.lacking(layout, inv);
         List<Integer> out = new ArrayList<>();
         for (int i = 0; i < 36; i++) {
             ItemStack stack = inv.getItem(i);
             String id = ItemIdentity.of(stack);
             // Item Protect / Lock In Place do not keep an item out of storage here (killer560, 2026-11-03: "The item lock
             // shouldnt apply to this"): storage is not losing it, and the sorter's own clicks never go through slotClicked.
-            if (kept[i] || layout.isFree(i) || stack.isEmpty() || id == null || SKYBLOCK_MENU.equalsIgnoreCase(id)) {
-                continue;
+            if (kept[i] || layout.isFree(i) || stack.isEmpty() || id == null || SKYBLOCK_MENU.equalsIgnoreCase(id)
+                    || lack.keySet().stream().anyMatch(k -> InvSortMatch.matches(stack, k))) {
+                continue; // still short of that item: a second partial stack is kept, not put away and fetched again
             }
             out.add(i);
         }
@@ -329,6 +328,14 @@ final class InvSortStorage {
                 if (!ActionGate.tryAct(ActionGate.Actor.INVENTORY_SORTER, acs)) {
                     return Result.RUNNING;
                 }
+                if (next.length > 2) { // a cursor click of an excess split
+                    client.gameMode.handleContainerInput(acs.getMenu().containerId, next[0], next[2], ContainerInput.PICKUP,
+                            client.player);
+                    clicks++;
+                    pending.poll();
+                    InventorySorterExecutor.paced();
+                    return Result.RUNNING;
+                }
                 client.gameMode.handleContainerInput(acs.getMenu().containerId, next[0], 0, ContainerInput.QUICK_MOVE,
                         client.player);
                 clicks++;
@@ -354,6 +361,9 @@ final class InvSortStorage {
     private int[] nextClick(Minecraft client, AbstractContainerMenu menu) {
         int pageSlots = Math.max(0, menu.slots.size() - 36);
         Inventory inv = client.player.getInventory();
+        if (!pending.isEmpty()) {
+            return pending.peek();
+        }
         if (visit.dump()) {
             boolean room = false;
             for (int i = 9; i < pageSlots; i++) {
@@ -381,17 +391,36 @@ final class InvSortStorage {
             }
         }
         if (visit.fetch().values().stream().anyMatch(v -> v > 0) && hasEmptySlot(inv)) {
+            int best = -1;
+            String bestWant = null;
+            int bestKey = 0;
             for (int i = 9; i < pageSlots; i++) {
                 if (clickedPageSlots.contains(i)) {
                     continue; // already taken: a late packet can show it back for a tick
                 }
-                // The live page decides, by exact item: the cache only chose which page to open.
-                String want = pick(visit.fetch(), InvSortMatch.exact(menu.slots.get(i).getItem()));
+                // The live page decides, by exact item: the cache only chose which page to open. A stack that fits the
+                // rest of the wanted count is taken first (largest first), else the smallest one that overshoots it.
+                ItemStack st = menu.slots.get(i).getItem();
+                String want = pick(visit.fetch(), InvSortMatch.exact(st));
                 if (want != null) {
-                    visit.fetch().merge(want, -1, Integer::sum);
-                    clickedPageSlots.add(i);
-                    return new int[]{i, 0};
+                    int key = st.getCount() <= visit.fetch().get(want) ? 1000 + st.getCount() : 1000 - st.getCount();
+                    if (best < 0 || key > bestKey) {
+                        best = i;
+                        bestWant = want;
+                        bestKey = key;
+                    }
                 }
+            }
+            if (best >= 0) {
+                int c = menu.slots.get(best).getItem().getCount();
+                int r = visit.fetch().get(bestWant);
+                clickedPageSlots.add(best);
+                visit.fetch().merge(bestWant, -Math.min(c, r), Integer::sum);
+                if (c > r && queueExcess(menu, inv, best, c, r)) {
+                    fetched++;
+                    return pending.peek();
+                }
+                return new int[]{best, 0};
             }
         }
         for (Map.Entry<String, Integer> e : visit.fetch().entrySet()) {
@@ -401,6 +430,47 @@ final class InvSortStorage {
             }
         }
         return null;
+    }
+
+    /** Clicks still to send for a stack that holds more than wanted: {menu slot, 0, mouse button}, all PICKUP. */
+    private final java.util.ArrayDeque<int[]> pending = new java.util.ArrayDeque<>();
+
+    /**
+     * Take exactly {@code r} of the {@code c} in page slot {@code p} and leave the excess on the page (invsortgfs-1116).
+     * With the stack on the cursor, a right click on an empty inventory slot sets one down: r of them, then the rest goes
+     * back to the page slot (r + 2 clicks); when the excess is the smaller number it goes back one by one instead
+     * (excess + 4 clicks: all into the inventory slot, pick it up again, excess right clicks on the page slot, the rest back).
+     * @return false when no inventory slot is empty to work in (the caller shift-clicks it all)
+     */
+    private boolean queueExcess(AbstractContainerMenu menu, Inventory inv, int p, int c, int r) {
+        int d = -1;
+        for (int i = 9; i < 44 && d < 0; i++) {
+            int inv9 = i % 36; // 9..35 first, then the hotbar 0..7 (8 is the locked slot)
+            if (inv9 != 8 && inv.getItem(inv9).isEmpty() && playerSlot(menu, inv, inv9) != null) {
+                d = playerSlot(menu, inv, inv9).index;
+            }
+        }
+        if (d < 0) {
+            return false;
+        }
+        int excess = c - r;
+        pending.add(new int[]{p, 0, 0});
+        if (r + 2 <= excess + 4) {
+            for (int k = 0; k < r; k++) {
+                pending.add(new int[]{d, 0, 1});
+            }
+            pending.add(new int[]{p, 0, 0});
+        } else {
+            pending.add(new int[]{d, 0, 0});
+            pending.add(new int[]{d, 0, 0});
+            for (int k = 0; k < excess; k++) {
+                pending.add(new int[]{p, 0, 1});
+            }
+            pending.add(new int[]{d, 0, 0});
+        }
+        LOGGER.info("[InvSort] taking {} of {} from page slot {}: {} click(s), the excess stays on the page", r, c, p,
+                pending.size());
+        return true;
     }
 
     private static boolean hasEmptySlot(Inventory inv) {

@@ -76,10 +76,29 @@ public final class SackCommands {
         return true;
     }
 
+    /** Hypixel's own cooldown between two /gfs; an automatic sender that sends several in a row waits this long. */
+    public static final long MIN_GAP_MS = 3000;
+
+    /** Hypixel's refusal of a /gfs sent too soon: nothing was moved and nothing was looked up. */
+    private static final Pattern COOLDOWN = Pattern.compile("^Command Failed: This command is on cooldown!.*$");
+
+    public static boolean isCooldown(String plain) {
+        return plain != null && COOLDOWN.matcher(plain).matches();
+    }
+
+    /** {@link #send} for an automatic sender: also waits {@link #MIN_GAP_MS} after the last /gfs (measured from the send). */
+    public static boolean sendPaced(Minecraft client, String args) {
+        return System.currentTimeMillis() - sentAtMs >= MIN_GAP_MS && send(client, args);
+    }
+
     /** The sender saw its answer (the items arrived, or Hypixel said the sack is empty). */
     public static void answered() { awaiting = false; }
 
     static void onChat(String plain, boolean unknownKey) {
+        if (awaiting && isCooldown(plain)) {
+            awaiting = false; // refused, not answered: the sender may send again (after its own gap)
+            return;
+        }
         if (plain == null || !awaiting || !(unknownKey || UNKNOWN_COMMAND.matcher(plain).matches())) return;
         awaiting = false;
         if (!dead) {
