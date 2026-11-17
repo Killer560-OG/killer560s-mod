@@ -442,7 +442,8 @@ public final class CollectionTracker {
         Catalog cat = catalog();
         List<String> out = new ArrayList<>(TRACKS.size() + 1);
         out.add("§6§lCollections");
-        if (TRACKS.isEmpty()) {
+        boolean editor = HudVisibility.editorOpen();
+        if (TRACKS.isEmpty() && editor) {
             out.add("§7Pick collections in the menu");
         }
         for (Map.Entry<String, Track> e : TRACKS.entrySet()) {
@@ -450,12 +451,12 @@ public final class CollectionTracker {
             CollectionItem it = cat == null ? null : cat.byId().get(e.getKey());
             out.add(line(it == null ? e.getKey() : it.name(), it == null ? new long[0] : it.tiers(), e.getValue(), rate, now));
         }
-        if (recent && out.size() == 1 && !TRACKS.isEmpty()) {
-            out.add("§7Nothing gained recently");
+        if (out.size() == 1 && !editor) {
+            out.clear(); // in game an empty tracker draws nothing, not even the title
         }
         lines = Collections.unmodifiableList(out);
         var font = Minecraft.getInstance().font;
-        int w = 60;
+        int w = out.isEmpty() ? 0 : 60;
         for (String s : out) {
             w = Math.max(w, font.width(s));
         }
