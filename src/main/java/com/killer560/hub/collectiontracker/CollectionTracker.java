@@ -98,20 +98,37 @@ public final class CollectionTracker {
     private static final class Track {
         long amount = -1;
         long gained;
-        long since = System.currentTimeMillis();
-        /** When the count last went up (ms); 0 = not this session. Memory only. */
-        long lastGain;
+        /** When the count last went up and first went up this session (ms); 0 = not yet. Memory only. */
+        long lastGain, firstGain;
         long invGain, invGainAt, invLoss, invLossAt;
+        /** Gains per second, a ring of the last {@link #RING} seconds (made at the first gain); ringSec is the second of the newest bucket. */
+        long[] ring;
+        long ringSec;
     }
+
+    private static final int RING = CollectionTrackerConfig.RECENT_MAX;
+    /** The rate never divides by less than this, so one early batch does not read as a huge hourly figure. */
+    private static final long MIN_RATE_MS = 30_000L;
+    private static final int RATE_WINDOW_SEC = 300;
+
+    /** A picked collection's id and how many of it one item stands for: Enchanted Gold is 160 Gold Ingot, its block 25,600. */
+    private record Form(String base, long mult) {
+    }
+
+    private static final Form NONE = new Form(null, 0);
+    private static final String[] BASE_SUFFIX = {"", "_INGOT", "_ORE", "_ITEM"};
+    private static final int FORMS_MAX = 256;
+    /** Item id -> its picked base form (NONE when it is no picked collection); cleared on a new pick and bounded. */
+    private static final Map<String, Form> FORMS = new HashMap<>();
 
     private static volatile Catalog catalog;
     private static CompletableFuture<Catalog> catalogLoad;
     private static boolean remoteAsked;
     private static final Map<String, Track> TRACKS = new LinkedHashMap<>();
-    /** Inventory counts of the picked ids at the last scan; null = take a fresh snapshot without counting. */
-    private static Map<String, Long> invSnapshot;
+    /** Base-equivalent counts of the picked ids in the inventory (and, with a screen open, in the menu's other slots plus the cursor), now and at the scan before. */
+    private static Map<String, Long> invCur = new HashMap<>(), invPrev = new HashMap<>(), contCur = new HashMap<>(), contPrev = new HashMap<>();
+    private static boolean haveSnap;
     private static Object lastLevel;
-    private static boolean screenSeen;
     private static int ticks;
     private static long apiAt, apiTriedAt;
     private static volatile boolean apiInFlight;
@@ -193,8 +210,89 @@ public final class CollectionTracker {
         for (String id : sel) {
             TRACKS.computeIfAbsent(id, k -> new Track());
         }
-        invSnapshot = null;
+        haveSnap = false;
+        FORMS.clear();
         version++;
+    }
+
+    /** The picked collection {@code id} counts toward (itself, or the base of an enchanted form), or null. */
+    private static Form form(String id) {
+        Form f = FORMS.get(id);
+        if (f != null) return f.base == null ? null : f;
+        f = NONE;
+        if (TRACKS.containsKey(id)) {
+            f = new Form(id, 1);
+        } else if (id.startsWith("ENCHANTED_")) {
+            String s = id.substring(10);
+            long m = 160;
+            if (s.endsWith("_BLOCK")) {
+                s = s.substring(0, s.length() - 6);
+                m = 160 * 160;
+            }
+            String special = s.equals("LAPIS_LAZULI") ? "INK_SACK:4" : s.equals("COCOA_BEANS") ? "INK_SACK:3" : null;
+            if (special != null && TRACKS.containsKey(special)) {
+                f = new Form(special, m);
+            } else {
+                for (String suf : BASE_SUFFIX) {
+                    if (TRACKS.containsKey(s + suf)) {
+                        f = new Form(s + suf, m);
+                        break;
+                    }
+                }
+            }
+        }
+        if (FORMS.size() >= FORMS_MAX) FORMS.clear();
+        FORMS.put(id, f);
+        return f.base == null ? null : f;
+    }
+
+    /** Adds {@code n} to {@code t}'s current second. */
+    private static void bucket(Track t, long now, long n) {
+        long sec = now / 1000;
+        if (t.ring == null) {
+            t.ring = new long[RING];
+            t.ringSec = sec;
+        }
+        advance(t, sec);
+        t.ring[(int) (t.ringSec % RING)] += n;
+    }
+
+    /** Moves the ring's newest bucket to second {@code sec}, clearing the seconds in between. */
+    private static void advance(Track t, long sec) {
+        if (t.ring == null || sec <= t.ringSec) return;
+        if (sec - t.ringSec >= RING) {
+            java.util.Arrays.fill(t.ring, 0);
+        } else {
+            for (long k = t.ringSec + 1; k <= sec; k++) t.ring[(int) (k % RING)] = 0;
+        }
+        t.ringSec = sec;
+    }
+
+    /** What {@code t} gained in the last {@code windowSec} seconds (clamped at 0 after take-backs). */
+    private static long recent(Track t, long now, int windowSec) {
+        if (t.ring == null) return 0;
+        advance(t, now / 1000);
+        long sum = 0;
+        for (int k = 0; k < windowSec; k++) sum += t.ring[(int) (((t.ringSec - k) % RING + RING) % RING)];
+        return Math.max(0, sum);
+    }
+
+    /** Gain per hour over the last {@code windowSec} seconds, or since the first gain when that is shorter (never under 30 s, never over the window); 0 with no gain in the window. */
+    private static long perHour(Track t, long now, int windowSec) {
+        long sum = recent(t, now, windowSec);
+        if (sum <= 0 || t.firstGain == 0) return 0;
+        long ms = Math.min(windowSec * 1000L, Math.max(MIN_RATE_MS, now - t.firstGain));
+        return sum * 3_600_000L / ms;
+    }
+
+    private static void gain(Track t, long n) {
+        long now = System.currentTimeMillis();
+        t.gained += n;
+        bucket(t, now, n);
+        if (n > 0) {
+            t.lastGain = now;
+            if (t.firstGain == 0) t.firstGain = now;
+        }
     }
 
     private static boolean active() {
@@ -208,8 +306,7 @@ public final class CollectionTracker {
         if (t.amount >= 0) {
             t.amount = Math.max(0, t.amount + n);
         }
-        t.gained += n;
-        if (n > 0) t.lastGain = System.currentTimeMillis();
+        gain(t, n);
         version++;
     }
 
@@ -220,8 +317,7 @@ public final class CollectionTracker {
         if (t.amount < 0 || trusted) {
             t.amount = amount;
         } else if (amount > t.amount) {
-            t.gained += amount - t.amount;
-            t.lastGain = System.currentTimeMillis();
+            gain(t, amount - t.amount);
             t.amount = amount;
         } else {
             return;
@@ -245,7 +341,7 @@ public final class CollectionTracker {
         }
         if (client.level != lastLevel) {
             lastLevel = client.level;
-            invSnapshot = null;
+            haveSnap = false;
         }
         if (++ticks % 10 != 0) {
             return;
@@ -255,14 +351,6 @@ public final class CollectionTracker {
         maybeFetchApi(client);
         if (McCompat.screen(client) instanceof AbstractContainerScreen<?> screen) {
             readMenu(screen);
-        }
-        if (McCompat.screen(client) != null) {
-            screenSeen = true;
-            return;
-        }
-        if (screenSeen) {
-            screenSeen = false;
-            invSnapshot = null;
         }
         scanInventory(client);
     }
@@ -312,30 +400,55 @@ public final class CollectionTracker {
         return pick == null ? CompletableFuture.completedFuture(null) : pick.extras().thenApply(ex -> ex.collections);
     }
 
+    /** Adds the stack to {@code into} as base-equivalent units of the picked collection it counts toward, if any. */
+    private static void tally(ItemStack st, Map<String, Long> into) {
+        if (st.isEmpty()) return;
+        String id = com.killer560.hub.autoroutes.ItemIdentity.skyblockId(st);
+        Form f = id == null ? null : form(id);
+        if (f != null) into.merge(f.base, (long) st.getCount() * f.mult, Long::sum);
+    }
+
+    /**
+     * Counts what entered the inventory since the last scan, open screen or not. Items moved between the inventory and
+     * the open menu (or the cursor) are not gains: the menu's other slots and the cursor are tallied too, so a take-out
+     * lowers them as much as it raises the inventory. A menu filling up (its count rising) is never a gain, and
+     * compacting 160 Gold Ingot into one Enchanted Gold changes nothing (both count in Gold Ingot units).
+     */
     private static void scanInventory(Minecraft client) {
-        Map<String, Long> now = new HashMap<>();
+        Map<String, Long> swap = invPrev;
+        invPrev = invCur;
+        invCur = swap;
+        swap = contPrev;
+        contPrev = contCur;
+        contCur = swap;
+        invCur.clear();
+        contCur.clear();
         var inv = client.player.getInventory();
         for (int i = 0; i < 36; i++) {
-            ItemStack st = inv.getItem(i);
-            if (st.isEmpty()) continue;
-            String id = com.killer560.hub.autoroutes.ItemIdentity.skyblockId(st);
-            if (id != null && TRACKS.containsKey(id)) {
-                now.merge(id, (long) st.getCount(), Long::sum);
-            }
+            tally(inv.getItem(i), invCur);
         }
-        Map<String, Long> before = invSnapshot;
-        invSnapshot = now;
-        if (before == null) return;
+        if (McCompat.screen(client) instanceof AbstractContainerScreen<?> screen) {
+            for (var slot : screen.getMenu().slots) {
+                if (slot.container != inv) tally(slot.getItem(), contCur);
+            }
+            tally(screen.getMenu().getCarried(), contCur);
+        }
+        boolean had = haveSnap;
+        haveSnap = true;
+        if (!had) return;
         long t = System.currentTimeMillis();
         for (Map.Entry<String, Track> e : TRACKS.entrySet()) {
-            long d = now.getOrDefault(e.getKey(), 0L) - before.getOrDefault(e.getKey(), 0L);
+            String id = e.getKey();
+            long dInv = invCur.getOrDefault(id, 0L) - invPrev.getOrDefault(id, 0L);
+            long dCont = contCur.getOrDefault(id, 0L) - contPrev.getOrDefault(id, 0L);
+            long d = dInv + Math.min(dCont, 0);
             Track tr = e.getValue();
             if (d > 0) {
                 tr.invGain = (t - tr.invGainAt < PAIR_MS ? tr.invGain : 0) + d;
                 tr.invGainAt = t;
-                add(e.getKey(), d);
-            } else if (d < 0) {
-                tr.invLoss = (t - tr.invLossAt < PAIR_MS ? tr.invLoss : 0) - d;
+                add(id, d);
+            } else if (dInv + dCont < 0) {
+                tr.invLoss = (t - tr.invLossAt < PAIR_MS ? tr.invLoss : 0) - (dInv + dCont);
                 tr.invLossAt = t;
             }
         }
@@ -391,10 +504,14 @@ public final class CollectionTracker {
             for (String line : ChatObserver.stripCodes(h.getString()).split("\n")) {
                 Matcher m = SACK_ITEM.matcher(line);
                 if (!m.matches()) continue;
-                String id = cat.idByName().get(m.group(2).trim().toLowerCase(Locale.ROOT));
-                Track tr = id == null ? null : TRACKS.get(id);
+                String name = m.group(2).trim();
+                String sid = cat.idByName().get(name.toLowerCase(Locale.ROOT));
+                // An enchanted form is not in the list: its id is its name, counted as the base it is made of.
+                Form f = form(sid != null ? sid : name.toUpperCase(Locale.ROOT).replace(' ', '_'));
+                Track tr = f == null ? null : TRACKS.get(f.base());
                 if (tr == null) continue;
-                long n = parse(m.group(1).substring(1));
+                String id = f.base();
+                long n = parse(m.group(1).substring(1)) * f.mult();
                 if (m.group(1).charAt(0) == '+') {
                     // Items put into the sack from the inventory were already counted when they were picked up.
                     long paired = t - tr.invLossAt < PAIR_MS ? Math.min(n, tr.invLoss) : 0;
@@ -439,6 +556,8 @@ public final class CollectionTracker {
         recentView = recent;
         builtAt = now;
         long cutoff = now - cfg.getRecentSeconds() * 1000L;
+        // The rate window follows Only Recent's seconds when that is on, else the last 5 minutes.
+        int window = cfg.isOnlyRecent() ? cfg.getRecentSeconds() : RATE_WINDOW_SEC;
         Catalog cat = catalog();
         List<String> out = new ArrayList<>(TRACKS.size() + 1);
         out.add("§6§lCollections");
@@ -449,7 +568,7 @@ public final class CollectionTracker {
         for (Map.Entry<String, Track> e : TRACKS.entrySet()) {
             if (recent && e.getValue().lastGain < cutoff) continue;
             CollectionItem it = cat == null ? null : cat.byId().get(e.getKey());
-            out.add(line(it == null ? e.getKey() : it.name(), it == null ? new long[0] : it.tiers(), e.getValue(), rate, now));
+            out.add(line(it == null ? e.getKey() : it.name(), it == null ? new long[0] : it.tiers(), e.getValue(), rate, now, window));
         }
         if (out.size() == 1 && !editor) {
             out.clear(); // in game an empty tracker draws nothing, not even the title
@@ -464,7 +583,7 @@ public final class CollectionTracker {
         return lines;
     }
 
-    static String line(String name, long[] tiers, Track t, boolean rate, long now) {
+    static String line(String name, long[] tiers, Track t, boolean rate, long now, int window) {
         StringBuilder sb = new StringBuilder("§e").append(name);
         if (t.amount < 0) {
             sb.append("§7: §8loading");
@@ -485,9 +604,7 @@ public final class CollectionTracker {
             }
         }
         if (rate) {
-            long ms = now - t.since;
-            sb.append(" §a").append(ms < 60_000 || t.gained <= 0 ? "+0" : "+" + ChocolateFactoryMenu.compact(t.gained * 3_600_000L / ms))
-                    .append("/h");
+            sb.append(" §a+").append(ChocolateFactoryMenu.compact(perHour(t, now, window))).append("/h");
         }
         return sb.toString();
     }
@@ -556,6 +673,18 @@ public final class CollectionTracker {
         apiAt = System.currentTimeMillis();
         apiPending = null;
         selectionChanged();
+    }
+
+    /** Testkit: the HUD's per-hour rate for {@code id} over {@code windowSec}, Long.MIN_VALUE when not picked. */
+    public static long rateForTest(String id, int windowSec) {
+        Track t = TRACKS.get(id);
+        return t == null ? Long.MIN_VALUE : perHour(t, System.currentTimeMillis(), windowSec);
+    }
+
+    /** Testkit: this session's gain for {@code id}, Long.MIN_VALUE when not picked. */
+    public static long gainedForTest(String id) {
+        Track t = TRACKS.get(id);
+        return t == null ? Long.MIN_VALUE : t.gained;
     }
 
     /** Testkit: the tracked amount for {@code id}, -1 when unknown, Long.MIN_VALUE when not picked. */

@@ -37,7 +37,8 @@
      "Collection Tracker HUD now hides while nothing was gained recently (Only Recent on, or no collections picked); it returns the moment something is gained, and the HUD editor still shows it. Based on crashfix-colltrack-1116 (same file as colltrack-rate-1116, which says it ships after this).",
      "Luck Tracker no longer floods the game log and slows the game down when you mine or when a big stack of items comes back into your inventory.",
      "AP3: a run node walking into an align whose point is past a drop no longer aims off the platform at it, so the align starts at the edge and settles as close as is safe again.",
-     "Enchanted book slot text now abbreviates Drain, Pyroclasm, Woodsplitter, Gravity and Dragon Tracer by the name shown, not the old internal name (Drain was SY, now DR)."
+     "Enchanted book slot text now abbreviates Drain, Pyroclasm, Woodsplitter, Gravity and Dragon Tracer by the name shown, not the old internal name (Drain was SY, now DR).",
+     "Collection Tracker: the per-hour rate now follows how fast you are gaining right now (a recent window, the Only Recent seconds or 5 minutes) instead of the whole session average and reads 0/h after an idle window; gains made with a menu open are no longer lost (moving items between a menu and your inventory is not a gain); compacted forms like Enchanted Gold count at their base value (160 each) without double counting sack lines. Ships after colltrack-hide-1116 (same files)."
     ]
    }
   ]
