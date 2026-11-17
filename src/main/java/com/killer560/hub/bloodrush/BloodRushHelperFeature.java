@@ -7,6 +7,7 @@ import com.killer560.hub.livemap.DungeonLayout;
 import com.killer560.hub.livemap.HeldMap;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
+import com.killer560.hub.secrets.DungeonRun;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModLog;
@@ -168,6 +169,8 @@ public final class BloodRushHelperFeature {
     private static volatile Map<Integer, double[]> LAST_DOORS = Map.of();
     private static Object level;
     private static int generation = Integer.MIN_VALUE;
+    /** A same-run rejoin keeps the rush (rooms rushed, roles, blood open); only the world's entities are dropped. */
+    private static final DungeonRun.Tracker RUN = new DungeonRun.Tracker();
     private static boolean bloodOpened;
     /** Set by build(): the player stands in a room on the rush path (read each frame by Secret Waypoints). */
     private static volatile boolean inRushRoom;
@@ -354,9 +357,18 @@ public final class BloodRushHelperFeature {
         return beforeFairy != null && !beforeFairy.contains(room);
     }
 
-    private static void resetWorld() {
+    /** A rejoin of the same run: entity ids and the drawn spots belong to the world left; the rush itself stays. */
+    private static void resetEntities() {
         MOBS.clear();
         LEARNING.clear();
+        CACHED = List.of();
+        inRushRoom = false;
+        myTile = -1;
+        standLoaded = true;
+    }
+
+    private static void resetWorld() {
+        resetEntities();
         WALKED_IN.clear();
         RUSHED.clear();
         rushedVersion++;
@@ -364,16 +376,12 @@ public final class BloodRushHelperFeature {
         nextRoom = -1;
         pathCache = null;
         pathLayout = null;
-        CACHED = List.of();
-        inRushRoom = false;
         bloodOpened = false;
         mortSeen = false;
         droppedSaid = false;
-        myTile = -1;
         lastRoom = -1;
         numberedBy = null;
         LEARNED.clear();
-        standLoaded = true;
     }
 
     /** A new layout snapshot numbers its rooms afresh (DungeonLayout.numbersLike): every kept room index is mapped into
@@ -419,17 +427,23 @@ public final class BloodRushHelperFeature {
     private static void tickBody(Minecraft client) {
         clock++;
         int gen = LiveMapFeature.resetGeneration();
-        if (client.level != level || gen != generation) {
+        boolean newRun = RUN.newRun(client.level);
+        if (client.level != level || gen != generation || newRun) {
             BloodRushSpots.saveIfDirty(true);
             com.killer560.hub.roomsim.SimMobLooks.saveIfDirty(true);
-            if (client.level != level) {
+            if (newRun) {
                 // Party-chat roles last until the dungeon they were for is over.
                 BloodRushRoles.newWorld(wasInDungeon);
                 wasInDungeon = false;
             }
+            boolean sameRun = !newRun && gen == generation;
             level = client.level;
             generation = gen;
-            resetWorld();
+            if (sameRun) {
+                resetEntities();
+            } else {
+                resetWorld();
+            }
         }
         BloodRushConfig cfg = BloodRushConfig.getInstance();
         if (DungeonState.isInDungeon()) {

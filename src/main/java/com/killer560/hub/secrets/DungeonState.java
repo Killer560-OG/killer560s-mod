@@ -156,8 +156,15 @@ public final class DungeonState {
             if (bossPhaseActive && !f7OrM7Now) {
                 LOGGER.info("[Secrets] Boss phase ended (left F7/M7, floor now '{}')", floor);
                 bossPhaseActive = false;
+            } else if (!bossPhaseActive && f7OrM7Now && DungeonRun.resumed() && client.player != null
+                    && client.player.getX() >= 0 && client.player.getZ() >= 0) {
+                // A rejoin lands past Maxor's opening line, the only other start: the F7 arena is the only part of
+                // the dungeon at x, z >= 0 (the rooms are at negative x/z).
+                LOGGER.info("[Secrets] Boss phase started (rejoined the run inside the {} boss arena)", floor);
+                bossPhaseActive = true;
             }
         }));
+        DungeonRun.register();
     }
 
     private static void onChatMessage(Component message) {
@@ -354,7 +361,7 @@ public final class DungeonState {
         return null;
     }
 
-    private static String readSidebarText() {
+    static String readSidebarText() {
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.level == null) return "";
         Scoreboard scoreboard = client.level.getScoreboard();

@@ -4,6 +4,7 @@ import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomDatabase;
 import com.killer560.hub.roomdatabase.RoomEntry;
+import com.killer560.hub.secrets.DungeonRun;
 import com.killer560.hub.secrets.DungeonState;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
@@ -366,7 +367,7 @@ public final class SecretWaypointsFeature {
         int generation = LiveMapFeature.resetGeneration();
         boolean newRun = generation != lastGeneration;
         lastGeneration = generation;
-        if ((!inDungeon && wasInDungeon) || newRun) {
+        if ((!inDungeon && wasInDungeon && !DungeonRun.holding()) || newRun) {
             LOGGER.info("[SecretWaypoints] run state cleared: reason={} collected={} crypts={} leverChunks={} generation={}",
                     newRun ? "new run (map reset generation)" : "left the dungeon", COLLECTED.size(), CRYPTS.size(),
                     LEVERS_BY_CHUNK.size(), generation);

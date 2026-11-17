@@ -136,13 +136,13 @@ public final class PerTickServerClock {
         }));
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             untrust();
-            StallLag.reset();
+            StallLag.newConnection();
             setHypixel(forcedHypixel != null ? forcedHypixel : AttackCooldown.onHypixel(client)
                     && !isLocal(handler.getConnection().getRemoteAddress()));
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             untrust();
-            StallLag.reset();
+            StallLag.newConnection();
             setHypixel(forcedHypixel != null && forcedHypixel);
         });
     }

@@ -31,7 +31,8 @@
      "AP3: a walk or run node crossed during an align no longer takes over from the node you stand on when the align ends",
      "Blood Rush Helper now shows the same boxes and role split as other mods that use the shared Blood Rush table, and reads party role claims in the shared chat format; rooms the table lacks keep our learned spots.",
      "New Fiesta Flask Timer (Mining, off by default): a movable HUD line counting down your Fiesta Flask effect, with an expiry alert and an optional warning before it ends",
-     "Auto i4: new Terror Aim (default on) - with 2+ Terror Armor pieces at 10 Hydra Strike stacks your Machine Gun Shortbow's wider spread is aimed to cover more targets (the Terminator's usual aim already covers the row); Auto i4 also no longer shoots in the same tick as your own attack or hotbar key."
+     "Auto i4: new Terror Aim (default on) - with 2+ Terror Armor pieces at 10 Hydra Strike stacks your Machine Gun Shortbow's wider spread is aimed to cover more targets (the Terminator's usual aim already covers the row); Auto i4 also no longer shoots in the same tick as your own attack or hotbar key.",
+     "Dungeon features keep working when you leave and rejoin the same run mid-dungeon (map, collected secrets, splits, score, run timer, puzzles, boss phase, Blood Camp timer and stats, Blood Rush Helper, Leap Counter)"
     ]
    }
   ]

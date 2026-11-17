@@ -16,6 +16,7 @@ import com.killer560.hub.interop.PartyInteropState;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.scoreboard.ScoreboardExtraData;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.secrets.DungeonRun;
 import com.killer560.hub.translate.TranslateFeature;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ConfigJson;
@@ -24,7 +25,6 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
@@ -40,7 +40,6 @@ import net.minecraft.world.scores.Scoreboard;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
-import java.lang.ref.WeakReference;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -124,7 +123,8 @@ public final class ScoreCalculatorFeature {
     private static final long ELECTION_RETRY_MS = 60 * 1000L;
     private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
 
-    private static WeakReference<ClientLevel> runLevel = new WeakReference<>(null);
+    /** A rejoin of the same run keeps its score state: mimic, prince, the 270/300 lines already sent (DungeonRun). */
+    private static final DungeonRun.Tracker RUN = new DungeonRun.Tracker();
     private static long runStartMs = 0L;
     private static int runTicks = 0;
     private static int pollCounter = 0;
@@ -204,8 +204,8 @@ public final class ScoreCalculatorFeature {
     private static void tick(Minecraft client) {
         ScoreCalculatorConfig cfg = ScoreCalculatorConfig.getInstance();
         if (!estimateWanted() || client.level == null || client.player == null || !DungeonState.isInDungeon()) return;
-        if (client.level != runLevel.get()) {
-            resetRun(client.level);
+        if (RUN.newRun(client.level)) {
+            resetRun();
         }
         runTicks++;
         try {
@@ -230,8 +230,7 @@ public final class ScoreCalculatorFeature {
         }
     }
 
-    private static void resetRun(ClientLevel level) {
-        runLevel = new WeakReference<>(level);
+    private static void resetRun() {
         runStartMs = System.currentTimeMillis();
         runTicks = 0;
         pollCounter = 0;

@@ -3,6 +3,7 @@ package com.killer560.hub.splittimers;
 import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.secrets.DungeonRun;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -55,7 +56,7 @@ public final class TerminalTimersFeature {
     private static boolean gateBlown = false;
     private static long sectionTimerMs = 0L;
     private static long phaseTimerMs = 0L;
-    private static Object lastLevel = null;
+    private static final DungeonRun.Tracker RUN = new DungeonRun.Tracker();
     private static String lastRewrittenPlain = null;
     private static long lastRewrittenAtMs = 0L;
 
@@ -76,8 +77,7 @@ public final class TerminalTimersFeature {
         ChatObserver.addRewriter(TerminalTimersFeature::rewrite);
         ChatObserver.subscribe(TerminalTimersFeature::onChatLine);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("TerminalTimersFeature", client -> {
-            if (client.level != lastLevel) {
-                lastLevel = client.level;
+            if (RUN.newRun(client.level)) {
                 breakdown.clear();
                 resetSection(true); // LevelEvent.Load
             }

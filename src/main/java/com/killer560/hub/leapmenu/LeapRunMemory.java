@@ -3,6 +3,7 @@ package com.killer560.hub.leapmenu;
 import com.killer560.hub.dungeonclass.ClassOverrides;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.secrets.DungeonRun;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.util.ChatObserver;
@@ -133,6 +134,14 @@ public final class LeapRunMemory {
     private static void tick() {
         // A run ends with its dungeon: leaving it, or a new world (a requeue straight into the next dungeon), so the next
         // dungeon's party is never read as a mid-run change of this one.
+        // A rejoin of the same run (DungeonRun) keeps it: away, nothing is read; back, the new world is the run's.
+        if (inRun && DungeonRun.holding()) {
+            midRunSeen = null;
+            return;
+        }
+        if (inRun && DungeonRun.resumed() && DungeonState.isInDungeon()) {
+            runLevel = Minecraft.getInstance().level;
+        }
         if (inRun && (!DungeonState.isInDungeon() || Minecraft.getInstance().level != runLevel)) {
             inRun = false;
             midRunSeen = null;

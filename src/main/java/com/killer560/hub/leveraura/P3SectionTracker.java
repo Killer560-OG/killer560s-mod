@@ -2,6 +2,7 @@ package com.killer560.hub.leveraura;
 
 import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.secrets.DungeonRun;
 import com.killer560.hub.util.ChatObserver;
 import net.minecraft.client.Minecraft;
 
@@ -50,7 +51,7 @@ public final class P3SectionTracker {
     /** Whether Goldor's opening line was seen this run - p3sim.net can skip it (see {@link #onChat}). */
     private static boolean sawGoldorStart = false;
     private static int generation = 0;
-    private static Object lastLevel = null;
+    private static final DungeonRun.Tracker RUN = new DungeonRun.Tracker();
     private static boolean registered = false;
 
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-leveraura");
@@ -110,8 +111,7 @@ public final class P3SectionTracker {
 
     /** Called at the top of each user's tick: a new world is a new run. Idempotent within a tick. */
     public static void poll(Minecraft client) {
-        if (client.level != lastLevel) {
-            lastLevel = client.level;
+        if (RUN.newRun(client.level)) {
             resetRun();
         }
     }

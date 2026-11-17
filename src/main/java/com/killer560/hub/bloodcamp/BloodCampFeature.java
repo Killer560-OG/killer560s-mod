@@ -687,7 +687,7 @@ public final class BloodCampFeature {
             COMPANIONS_LOGGED.clear();
             TAGGED_AT.clear();
             watcherEntityId = null;
-            BloodCampMoveTimer.reset();
+            BloodCampMoveTimer.worldChanged();
             AIM.reset(null);
             reportedYaw = Float.NaN;
             reportedPitch = Float.NaN;
@@ -695,6 +695,7 @@ public final class BloodCampFeature {
             lastKillSoundTick = Long.MIN_VALUE / 2;
             lastLineOfFireLogTick = Long.MIN_VALUE / 2;
         }
+        BloodCampMoveTimer.tick();
         boolean activeNow = isActive();
         if (activeNow != lastActiveLogged) {
             lastActiveLogged = activeNow;

@@ -9,6 +9,7 @@ import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudText;
 import com.killer560.hub.scorecalc.ScoreCalculatorFeature;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.secrets.DungeonRun;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.TabText;
@@ -80,7 +81,7 @@ public final class PuzzleHudFeature {
     private static Recent lastFail;
     private static int total;
     private static int ticks;
-    private static Object lastLevel;
+    private static final DungeonRun.Tracker RUN = new DungeonRun.Tracker();
     private static volatile Block current;
     private static Block editorBlock;
 
@@ -94,12 +95,11 @@ public final class PuzzleHudFeature {
     }
 
     private static void tick(Minecraft client) {
-        if (client.level != lastLevel) {
-            lastLevel = client.level;
+        if (RUN.newRun(client.level)) {
             clear();
         }
         if (!PuzzleHudConfig.getInstance().isEnabled() || !DungeonState.isInDungeon()) {
-            if (current != null) {
+            if (current != null && !DungeonRun.holding()) {
                 clear();
             }
             return;

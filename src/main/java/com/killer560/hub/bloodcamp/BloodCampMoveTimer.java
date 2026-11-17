@@ -4,6 +4,7 @@ import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
+import com.killer560.hub.secrets.DungeonRun;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
@@ -84,6 +85,13 @@ public final class BloodCampMoveTimer {
     private static boolean firstSpawns = true;
     /** "That will be enough for now." - the Watcher has sent his last mob. */
     private static boolean spawningDone;
+    /** Lag-free ticks since the greeting as of the last tick in the camp's world, and when (wall ms). */
+    private static long lastElapsed = -1L;
+    private static long lastAtMs;
+    /** A same-run rejoin may come ({@link DungeonRun#holding()}): the greeting is kept as these ticks at {@link #heldAtMs},
+     *  and put back on the new world's clocks with the time away added (the server kept ticking), or dropped with the run. */
+    private static long heldElapsed = -1L;
+    private static long heldAtMs;
 
     private BloodCampMoveTimer() {
     }
@@ -111,7 +119,7 @@ public final class BloodCampMoveTimer {
 
     /** Whether the greeting was seen in this level. */
     static boolean greetingSeen() {
-        return bloodOpenTick >= 0;
+        return bloodOpenTick >= 0 || heldElapsed >= 0;
     }
 
     /**
@@ -144,6 +152,42 @@ public final class BloodCampMoveTimer {
         return bloodOpenTick < 0 ? 0L : com.killer560.hub.util.PerTickServerClock.stallTicksSince(bloodOpenMark) * 50L;
     }
 
+    /** Every tick of Blood Camp's: remembers the camp's progress, and settles a held greeting once the run resumes or goes. */
+    static void tick() {
+        if (heldElapsed >= 0) {
+            if (DungeonRun.resumed() && nowTick() >= 0) {
+                long e = heldElapsed + (System.currentTimeMillis() - heldAtMs) / 50L;
+                bloodOpenTick = nowTick() - e;
+                bloodOpenClock = com.killer560.hub.util.PerTickServerClock.now() - e;
+                heldElapsed = -1L;
+                LOGGER.info("[BloodCamp] rejoined the run: greeting kept, {} ticks after it", e);
+            } else if (!DungeonRun.holding()) {
+                reset();
+            }
+            return;
+        }
+        if (bloodOpenTick >= 0) {
+            lastElapsed = elapsedSinceGreeting();
+            lastAtMs = System.currentTimeMillis();
+        }
+    }
+
+    /** The world changed: keep the greeting for a same-run rejoin ({@link DungeonRun}), else forget the camp. */
+    static void worldChanged() {
+        boolean keep = DungeonRun.holding() || DungeonRun.resumed();
+        if (keep && heldElapsed >= 0) {
+            return;
+        }
+        if (keep && bloodOpenTick >= 0 && lastElapsed >= 0) {
+            heldElapsed = lastElapsed;
+            heldAtMs = lastAtMs;
+            bloodOpenTick = -1L;
+            LOGGER.info("[BloodCamp] world change in a held run: greeting kept at {} ticks", heldElapsed);
+            return;
+        }
+        reset();
+    }
+
     static void reset() {
         if (bloodOpenTick >= 0 || moveAtElapsed >= 0 || !firstSpawns) {
             LOGGER.info("[BloodCamp] move timer reset (greeting tick {}, move tick {}, firstSpawns {})", bloodOpenTick,
@@ -153,6 +197,8 @@ public final class BloodCampMoveTimer {
         moveAtElapsed = -1L;
         firstSpawns = true;
         spawningDone = false;
+        lastElapsed = -1L;
+        heldElapsed = -1L;
     }
 
     private static void onChat(Component message) {
@@ -198,6 +244,7 @@ public final class BloodCampMoveTimer {
             BloodCampStats.onCampCleared();
         } else if (BLOOD_OPEN.matcher(plain).matches() || (bloodOpenTick < 0 && WATCHER_ANY.matcher(plain).matches())) {
             bloodOpenTick = now;
+            heldElapsed = -1L;
             bloodOpenMark = com.killer560.hub.util.PerTickServerClock.mark();
             bloodOpenClock = com.killer560.hub.util.PerTickServerClock.now();
             moveAtElapsed = -1L;
@@ -283,6 +330,9 @@ public final class BloodCampMoveTimer {
      * once open, 0 with no greeting (nothing to wait for), {@link Long#MAX_VALUE} / 4 while the last wave is not out.
      */
     static long ticksUntilKillOpen(int lateTicks) {
+        if (heldElapsed >= 0) {
+            return Long.MAX_VALUE / 4; // away from a held run: nothing is attacked and KILL waits for the rejoin
+        }
         if (bloodOpenTick < 0) {
             return 0L;
         }

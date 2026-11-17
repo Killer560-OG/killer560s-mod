@@ -5,6 +5,7 @@ import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
+import com.killer560.hub.secrets.DungeonRun;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ModChat;
 import net.minecraft.client.Minecraft;
@@ -50,7 +51,8 @@ public final class BloodCampStats {
     private static long campLagMs;
     private static boolean camped;
     private static boolean sentThisRun;
-    private static Object lastLevel;
+    /** A same-run rejoin keeps the camp's stats (secrets.DungeonRun). */
+    private static final DungeonRun.Tracker RUN = new DungeonRun.Tracker();
     private static long lastClock = com.killer560.hub.util.PerTickServerClock.now();
     /** Testkit: the last party message sent (or that would have been, with Party Message on). */
     private static String lastMessage;
@@ -96,9 +98,8 @@ public final class BloodCampStats {
     /** Every server tick. */
     private static void onServerTick() {
         Minecraft client = Minecraft.getInstance();
-        if (client.level != lastLevel) {
-            lastLevel = client.level;
-            reset("world change");
+        if (RUN.newRun(client.level)) {
+            reset("new run");
             return;
         }
         if (client.level == null || phase == Phase.IDLE || phase == Phase.DONE) {

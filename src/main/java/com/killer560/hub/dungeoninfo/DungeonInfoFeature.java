@@ -8,6 +8,7 @@ import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.secrets.DungeonRun;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -91,7 +92,20 @@ public final class DungeonInfoFeature {
     private static void tick() {
         boolean inDungeonNow = DungeonState.isInDungeon();
         Minecraft client = Minecraft.getInstance();
-        if (inDungeonNow && !wasInDungeon) {
+        if (inDungeonNow && DungeonRun.holding()) {
+            return; // judged within a few ticks: a rejoin of the run left keeps its timer (DungeonRun)
+        }
+        if (inDungeonNow && DungeonRun.resumed() && runStartAtMs > 0 && client.level != null && client.level != runLevel.get()) {
+            // Rebase the game-time start on the new world: the ticks run before leaving plus the wall time away.
+            long ran = Math.max(0, (runEndedGameTime >= 0 ? runEndedGameTime : lastInDungeonGameTime) - runStartGameTime);
+            long away = runEndedAtMs > 0 ? (System.currentTimeMillis() - runEndedAtMs) / 50L : 0L;
+            lastInDungeonGameTime = client.level != null ? client.level.getGameTime() : lastInDungeonGameTime;
+            runStartGameTime = lastInDungeonGameTime - ran - away;
+            runLevel = new WeakReference<>(client.level);
+            runEndedAtMs = -1;
+            runEndedGameTime = -1;
+            LOGGER.info("[DungeonInfo] Run timer kept across the rejoin (floor={}, started gameTime={})", DungeonState.getFloor(), runStartGameTime);
+        } else if (inDungeonNow && !wasInDungeon) {
             runStartAtMs = System.currentTimeMillis();
             runStartGameTime = client.level != null ? client.level.getGameTime() : -1;
             lastInDungeonGameTime = runStartGameTime;

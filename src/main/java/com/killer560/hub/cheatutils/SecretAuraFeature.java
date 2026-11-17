@@ -2,6 +2,7 @@ package com.killer560.hub.cheatutils;
 
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
+import com.killer560.hub.secrets.DungeonRun;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.secrets.SecretsFeature;
 import net.minecraft.client.Minecraft;
@@ -112,7 +113,7 @@ public final class SecretAuraFeature {
      * found, any player can put it on the room's redstone block (hypixelskyblock.minecraft.wiki, Redstone Key).
      */
     private static boolean keyFound = false;
-    private static Object lastLevel = null;
+    private static final DungeonRun.Tracker RUN = new DungeonRun.Tracker();
     private static int lastGeneration = 0;
     private static boolean wasActive = false;
 
@@ -214,8 +215,7 @@ public final class SecretAuraFeature {
         // on everything that starts a run - a world change, entering a dungeon, a sim floor being published - so
         // it is the run boundary the done-set belongs to, on Hypixel and in the sim alike.
         int generation = LiveMapFeature.resetGeneration();
-        if (client.level != lastLevel) {
-            lastLevel = client.level;
+        if (RUN.newRun(client.level)) {
             lastGeneration = generation;
             reset("world change");
         } else if (generation != lastGeneration) {
@@ -223,7 +223,7 @@ public final class SecretAuraFeature {
             reset("map reset (new run)");
         }
         boolean inDungeon = DungeonState.isInDungeon();
-        if (wasActive && !inDungeon) {
+        if (wasActive && !inDungeon && !DungeonRun.holding()) {
             reset("left dungeon");
         }
         wasActive = inDungeon;

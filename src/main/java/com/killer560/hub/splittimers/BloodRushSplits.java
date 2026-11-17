@@ -8,6 +8,7 @@ import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.livemap.DungeonLayout;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.secrets.DungeonRun;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModChat;
@@ -94,7 +95,7 @@ public final class BloodRushSplits {
     private static Room current;
     private static boolean started;
     private static boolean done;
-    private static Object lastLevel;
+    private static final DungeonRun.Tracker RUN = new DungeonRun.Tracker();
     /** Wither/blood door cells and whether each read locked last tick, for the open moment. */
     private static final Map<Integer, Boolean> doorLocked = new HashMap<>();
     private static final Set<Integer> keyStandsSeen = new HashSet<>();
@@ -213,8 +214,7 @@ public final class BloodRushSplits {
 
 
     private static void tick(Minecraft client) {
-        if (client.level != lastLevel) {
-            lastLevel = client.level;
+        if (RUN.newRun(client.level)) {
             reset();
         }
         if (!isActive() || !BloodRushSplitsConfig.getInstance().isActive() || client.player == null

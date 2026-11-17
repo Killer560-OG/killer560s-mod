@@ -2,6 +2,7 @@ package com.killer560.hub.leapcounter;
 
 import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.leapmenu.PartyTracker;
+import com.killer560.hub.secrets.DungeonRun;
 import com.killer560.hub.splittimers.CoreArea;
 import com.killer560.hub.util.ModLog;
 import org.slf4j.Logger;
@@ -88,6 +89,8 @@ public final class LeapTracker {
     /** Ticks after entering a section during which a "just became tracked" arrival is NOT counted: on P3 start (and
      *  on a world load into boss) the whole party appears at once around you, and none of them leapt. */
     private static final int WARMUP_TICKS = 10;
+    /** Warm-up after a same-run rejoin: players arrive in the new world over its first ticks. */
+    private static final int REJOIN_WARMUP_TICKS = 40;
     /** Own movement per tick above this = walking, not standing on a spot (sprint is ~0.28/tick). */
     private static final double STATIONARY_MAX_DELTA = 0.2;
 
@@ -98,8 +101,9 @@ public final class LeapTracker {
 
     /** Entity id -> recent positions, newest last. Kept across section changes, cleared on world change. */
     private static final Map<Integer, ArrayDeque<Sample>> HISTORY = new HashMap<>();
-    /** Entity id -> wall-clock ms it was counted (insertion order = arrival order). */
-    private static final Map<Integer, Long> COUNTED = new LinkedHashMap<>();
+    /** Teammate name (or "#id" without one) -> wall-clock ms it was counted (insertion order = arrival order). By name, so
+     *  a same-run rejoin (secrets.DungeonRun), which gives every player a new entity id, keeps the count. */
+    private static final Map<String, Long> COUNTED = new LinkedHashMap<>();
 
     private static Object lastLevel = null;
     private static int tick = 0;
@@ -195,9 +199,20 @@ public final class LeapTracker {
     static void tick(Minecraft client) {
         if (client.level != lastLevel) {
             lastLevel = client.level;
-            deactivate();
-            HISTORY.clear();
-            lastSelfLeapMs = 0L;
+            HISTORY.clear(); // entity ids belong to the world
+            LOGGED.clear();
+            lastSelfPos = null;
+            if (DungeonRun.holding() || DungeonRun.resumed()) {
+                // A same-run rejoin keeps the spot's count. Teammates show up as newly tracked in the new world, so a
+                // longer warm-up than a section change's keeps them from reading as leaps.
+                ticksInSection = WARMUP_TICKS - REJOIN_WARMUP_TICKS;
+            } else {
+                deactivate();
+                lastSelfLeapMs = 0L;
+            }
+        }
+        if (DungeonRun.holding()) {
+            return; // away from a run that may be rejoined: keep the count as it was
         }
         if (client.player == null || client.level == null) {
             deactivate();
@@ -295,7 +310,8 @@ public final class LeapTracker {
         while (hist.size() > WINDOW_TICKS + 1) {
             hist.pollFirst();
         }
-        if (kind == NONE || COUNTED.containsKey(id)) {
+        String key = name != null ? name : "#" + id;
+        if (kind == NONE || COUNTED.containsKey(key)) {
             return;
         }
         // Why an arrival was dropped is logged once per teammate per spot, so a miss shows its cause in the log.
@@ -308,7 +324,7 @@ public final class LeapTracker {
             return;
         }
         if (why.isEmpty()) {
-            COUNTED.put(id, nowMs);
+            COUNTED.put(key, nowMs);
             LOGGED.remove(id);
             LOGGER.info("Leap counted: {} in {} ({}/{})", name, section, COUNTED.size(), target);
         } else if (LOGGED.size() < 32 && LOGGED.add(id)) {

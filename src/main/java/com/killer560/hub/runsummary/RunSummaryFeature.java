@@ -8,6 +8,7 @@ import com.killer560.hub.runstats.RunStatsTracker;
 import com.killer560.hub.scorecalc.ScoreCalculator;
 import com.killer560.hub.scorecalc.ScoreCalculatorFeature;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.secrets.DungeonRun;
 import com.killer560.hub.splittimers.SplitTimersConfig;
 import com.killer560.hub.splittimers.SplitTimersFeature;
 import com.killer560.hub.util.ChatObserver;
@@ -116,7 +117,7 @@ public final class RunSummaryFeature {
 
     private static int finishDelayTicks = -1;
     private static int pollCounter = 0;
-    private static Object lastLevel = null;
+    private static final DungeonRun.Tracker RUN = new DungeonRun.Tracker();
     private static String lastDevicePlain = null;
     private static long lastDeviceAtMs = 0L;
 
@@ -135,8 +136,7 @@ public final class RunSummaryFeature {
             return;
         }
         if (!RunSummaryConfig.getInstance().isEnabled()) return;
-        if (client.level != lastLevel) {
-            lastLevel = client.level;
+        if (RUN.newRun(client.level)) {
             if (active) {
                 if (runEndMs > 0L) {
                     // The end-of-run line was already seen - Auto Requeue or a warp just beat the assembly

@@ -66,8 +66,23 @@ public final class StallLag {
     private StallLag() {
     }
 
-    /** Start over (a fresh connection; testkit). */
+    /** Lag counted on earlier connections: a rejoin of the same run keeps it, so a split begun before the rejoin still
+     *  reads only real lag when it subtracts across it. */
+    private static long baseMs;
+
+    /** A new or dropped connection: start the count over, keeping what was counted so far. */
+    public static synchronized void newConnection() {
+        baseMs += shownMs;
+        clear();
+    }
+
+    /** Start over from zero (testkit). */
     public static synchronized void reset() {
+        baseMs = 0L;
+        clear();
+    }
+
+    private static void clear() {
         deficitMs = 0L;
         blockStartMs = 0L;
         blockLowMs = Long.MAX_VALUE;
@@ -161,6 +176,6 @@ public final class StallLag {
         long cap = shownAtMs == 0L ? lag : shownMs + Math.max(0L, now - shownAtMs);
         shownMs = Math.min(lag, cap);
         shownAtMs = now;
-        return shownMs;
+        return baseMs + shownMs;
     }
 }

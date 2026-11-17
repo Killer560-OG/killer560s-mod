@@ -16,6 +16,7 @@ import com.killer560.hub.puzzlesolvers.WeirdosSolverConfig;
 import com.killer560.hub.roomdatabase.RoomDatabase;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.secrets.DungeonRun;
 import com.killer560.hub.secretwaypoints.SecretWaypointsConfig;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
@@ -103,6 +104,7 @@ public final class LiveMapFeature {
     private static long lastScanAtMs = 0;
     private static boolean wasInDungeon = false;
     private static Object lastLevel = null;
+    private static int runGeneration = DungeonRun.generation();
     /** Latched once the player is seen inside the current floor's boss room; cleared on grid reset. */
     private static boolean bossLatched = false;
     /** Real bug found and fixed (2026-09-14 review pass): right after a world change the player sits at the
@@ -302,17 +304,24 @@ public final class LiveMapFeature {
         tickCounter++;
         Minecraft client = Minecraft.getInstance();
         boolean inDungeon = DungeonState.isInDungeon();
+        // A rejoin of the same run keeps the map: same layout, same coordinates, and the per-run memories keyed on
+        // resetGeneration (secrets taken, route memory, key rooms) with it (DungeonRun, rejoin-1111).
+        boolean keep = DungeonRun.holding() || DungeonRun.resumed();
         if (client.level != lastLevel) {
             // Real bug found and fixed (2026-09-14): dungeon -> dungeon warps can keep isInDungeon()
             // true across the server switch, leaving the previous run's rooms/rotations in the grid.
             lastLevel = client.level;
             bossLatchGraceTicks = BOSS_LATCH_GRACE_TICKS;
-            if (inDungeon || wasInDungeon) {
+            if ((inDungeon || wasInDungeon) && !keep) {
                 resetGrid("World changed");
             }
         }
-        if (inDungeon && !wasInDungeon) {
+        if (inDungeon && !wasInDungeon && !keep) {
             resetGrid("Dungeon entered");
+        }
+        if (runGeneration != DungeonRun.generation()) {
+            runGeneration = DungeonRun.generation();
+            resetGrid("Held run dropped");
         }
         wasInDungeon = inDungeon;
         updateBossState(client, inDungeon);

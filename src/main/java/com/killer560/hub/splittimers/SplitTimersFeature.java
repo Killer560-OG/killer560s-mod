@@ -6,6 +6,7 @@ import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.HudSeen;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.secrets.DungeonRun;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -182,7 +183,7 @@ public final class SplitTimersFeature {
     }
 
     private static boolean wasInDungeon = false;
-    private static Object lastLevel = null;
+    private static final DungeonRun.Tracker RUN = new DungeonRun.Tracker();
 
     private static void resetAll() {
         run = new RunState();
@@ -193,15 +194,13 @@ public final class SplitTimersFeature {
 
     private static void tick() {
         Minecraft client = Minecraft.getInstance();
-        // The reference resets its splits on LevelEvent.Load - same here, on any real level change.
-        if (client.level != lastLevel) {
-            if (lastLevel != null) {
-                resetAll();
-            }
-            lastLevel = client.level;
+        // Splits reset on any real level change, except a rejoin of the same run, which keeps its splits
+        // (DungeonRun; the wall clock kept running while he was away).
+        if (RUN.newRun(client.level)) {
+            resetAll();
         }
         boolean inDungeon = DungeonState.isInDungeon();
-        if (!inDungeon && wasInDungeon) {
+        if (!inDungeon && wasInDungeon && !DungeonRun.holding()) {
             resetAll();
         }
         wasInDungeon = inDungeon;
@@ -777,7 +776,7 @@ public final class SplitTimersFeature {
 
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
-            if (!isEnabledInSettings() || HudVisibility.hidesHud()) return;
+            if (!isEnabledInSettings() || HudVisibility.hidesHud() || DungeonRun.holding()) return;
             List<Line> lines = layout();
             for (Line line : lines) {
                 graphics.text(Minecraft.getInstance().font, line.text(), x + line.dx(), y + line.dy(), 0xFFFFFFFF, false);
