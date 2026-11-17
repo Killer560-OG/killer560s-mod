@@ -32,6 +32,11 @@ public final class McPackets {
         return p.getYRot();
     }
 
+    /** The yaw a teleport accept reports: none on 26.2 (the client's PosRot after it carries the look), so NaN. */
+    public static float acceptYRot(net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket p) {
+        return Float.NaN;
+    }
+
     public static float useItemXRot(ServerboundUseItemPacket p) {
         return p.getXRot();
     }

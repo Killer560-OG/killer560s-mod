@@ -51,6 +51,13 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   with the turned look, so sendPosition could not move it and the repeated turn reached the next block click
   (1105-same-lights-use, experimental, x2). `PlaceRotationGuard.beforeUse` (head of `MultiPlayerGameMode.useItem`) now
   moves the yaw before the use carries it and keeps it through that tick's sendPosition.
+  GrimAC also DROPS a block click it never judges (leverfreeze-tp-1117, 1116-leverfreeze-tp on experimental Grim, 4 of 10):
+  a `use_item_on` that reaches the server while a teleport is unanswered (`shouldBlockMovement`) or that a place check
+  cancels is never queued, so DuplicateRotPlace keeps the turn of the click before it. Wire: flicks after 180.01, 180.00
+  (sent just before a teleport accept, dropped), then a turn the guard steered off 180.00 onto 180.01 = flag x=0.0 y=13.94.
+  The guard now keeps the turns of the last clicks and misses all of them back to one surely judged (4 back, older than
+  1 s, met no accept), and on 26.3 counts a teleport accept's look as a turn heard (GrimAC runs it through handleFlying).
+  Read a server's `[testkit-gap] place ->` lines first: a click with no such line was dropped.
   AP3's BLOCK click goes at the head of sendPosition, BEFORE the move that carries its aim, and the guard's nudge rides
   that move: this is by design and clean (ap3blockturn-1117). GrimAC lends the place the move's look (testkit-gap probe:
   "place -> movement packet: 1 ms, lends its rotation"), and every passing 1105-ap3-same-block-* run has the same wire

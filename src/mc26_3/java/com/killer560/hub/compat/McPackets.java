@@ -39,6 +39,11 @@ public final class McPackets {
         return p.xRot();
     }
 
+    /** The yaw a teleport accept reports (26.3 carries the look; GrimAC counts it as a rotation), NaN where it has none. */
+    public static float acceptYRot(net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket p) {
+        return p.yRot();
+    }
+
     public static int useItemSequence(ServerboundUseItemPacket p) {
         return p.sequence();
     }

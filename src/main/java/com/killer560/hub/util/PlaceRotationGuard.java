@@ -1,7 +1,9 @@
 package com.killer560.hub.util;
 
+import com.killer560.hub.compat.McPackets;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ServerboundAcceptTeleportationPacket;
 import net.minecraft.network.protocol.game.ServerboundMovePlayerPacket;
 import net.minecraft.network.protocol.game.ServerboundUseItemOnPacket;
 
@@ -26,12 +28,23 @@ public final class PlaceRotationGuard {
     private static final float MIN_TURN = 2f;
 
     private static boolean sentKnown;
+    /** The yaw the server last heard: a movement packet's or (26.3) a teleport accept's, which GrimAC counts as a turn too. */
     private static float sentYaw;
-    /** The yaw turn of the last movement packet that carried a look, and whether one went since the last block click. */
+    /** The yaw turn of the last look the server heard. */
     private static float lastTurn;
-    private static boolean turnedSinceClick;
-    /** The turn the server counted for the last block click. */
-    private static float clickTurn = Float.NaN;
+    /**
+     * The turn the server last heard before each recent block click, newest at {@code clicks - 1}. GrimAC judges a click
+     * against the last one it did NOT drop, and it drops a click that arrives while a teleport of its own is unanswered
+     * (shouldBlockMovement) or one a place check cancelled (leverfreeze-tp-1117: a lever flick sent just before a teleport
+     * accept was dropped, the guard steered the next turn off its 180.00 back onto the 180.01 of the click before, and
+     * DuplicateRotPlace flagged). So a turn must miss every click that may still be the last one judged.
+     */
+    private static final float[] CLICK_TURN = new float[8];
+    private static final long[] CLICK_AT = new long[8];
+    private static final boolean[] CLICK_DROPPABLE = new boolean[8];
+    private static int clicks;
+    /** A click newer than this when a teleport accept leaves may have met that teleport unanswered at the server. */
+    private static final long TELEPORT_WINDOW_NS = 1_000_000_000L;
     private static int nudges;
     /** An item use (which carries its own look) has left since the last movement packet or tick end. */
     private static boolean useSinceMove;
@@ -47,17 +60,40 @@ public final class PlaceRotationGuard {
             useSinceMove = false;
         }
         if (p instanceof ServerboundMovePlayerPacket move && move.hasRotation()) {
-            float yaw = move.getYRot(sentYaw);
-            if (sentKnown) {
-                lastTurn = Math.abs(yaw - sentYaw);
-                turnedSinceClick = true;
+            heard(move.getYRot(sentYaw));
+        } else if (p instanceof ServerboundAcceptTeleportationPacket accept) {
+            long now = System.nanoTime();
+            for (int i = Math.max(0, clicks - CLICK_AT.length); i < clicks; i++) {
+                if (now - CLICK_AT[i % CLICK_AT.length] < TELEPORT_WINDOW_NS) CLICK_DROPPABLE[i % CLICK_AT.length] = true;
             }
-            sentYaw = yaw;
-            sentKnown = true;
-        } else if (p instanceof ServerboundUseItemOnPacket && turnedSinceClick) {
-            clickTurn = lastTurn;
-            turnedSinceClick = false;
+            float yaw = McPackets.acceptYRot(accept);
+            if (!Float.isNaN(yaw)) heard(yaw);
+        } else if (p instanceof ServerboundUseItemOnPacket) {
+            int i = clicks++ % CLICK_TURN.length;
+            CLICK_TURN[i] = lastTurn; // a click with no turn since the last one leaves GrimAC's count where it was: the same turn
+            CLICK_AT[i] = System.nanoTime();
+            CLICK_DROPPABLE[i] = false;
         }
+    }
+
+    private static void heard(float yaw) {
+        if (sentKnown) lastTurn = Math.abs(yaw - sentYaw);
+        sentYaw = yaw;
+        sentKnown = true;
+    }
+
+    /**
+     * Whether {@code turn} could repeat the turn GrimAC compares the next click with: any click back to the newest one
+     * that is surely judged (four back, older than the teleport window, met no teleport accept).
+     */
+    private static boolean repeats(float turn) {
+        long now = System.nanoTime();
+        for (int k = 0; k < Math.min(clicks, CLICK_TURN.length); k++) {
+            int i = (clicks - 1 - k) % CLICK_TURN.length;
+            if (Math.abs(turn - CLICK_TURN[i]) < 10 * SAME) return true;
+            if (k >= 3 && !CLICK_DROPPABLE[i] && now - CLICK_AT[i] > TELEPORT_WINDOW_NS) return false;
+        }
+        return false;
     }
 
     /**
@@ -75,7 +111,7 @@ public final class PlaceRotationGuard {
             useUnNudged = Float.NaN;
             return yaw;
         }
-        if (Float.isNaN(clickTurn) || useSinceMove) {
+        if (clicks == 0 || useSinceMove) {
             // An item use went out since the last tick packet: it carries this tick's look, and GrimAC BadPacketsJ wants
             // the movement packet to report exactly that look - nothing may move it (62-argrim-1020-acbat, gridexp-1102).
             return Float.NaN;
@@ -93,28 +129,33 @@ public final class PlaceRotationGuard {
      * (grimsame-1105: the Lights Aura's turn plus his right click in one tick drew DuplicateRotPlace, 1105-same-lights-use).
      */
     public static void beforeUse(LocalPlayer self) {
-        if (useSinceMove || !Float.isNaN(useUnNudged) || Float.isNaN(clickTurn)
+        if (useSinceMove || !Float.isNaN(useUnNudged) || clicks == 0
                 || !(self instanceof com.killer560.hub.blink.mixin.BlinkReminderAccessor a)) {
             return;
         }
         useUnNudged = nudge(self, a.killer560$yRotLast());
     }
 
-    /** Moves the yaw by {@link #NUDGE} when its turn would repeat the click turn; returns the yaw it had, or NaN. */
+    /**
+     * Moves the yaw by a few {@link #NUDGE}s when its turn from the yaw the server last heard would repeat a click turn;
+     * returns the yaw it had, or NaN. Only a yaw change vanilla sends anyway is moved: no look packet is added.
+     */
     private static float nudge(LocalPlayer self, float yRotLast) {
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             return Float.NaN; // a legit jar never touches what his own mouse sends; the automation it guards is cheat-only
         }
         float yaw = self.getYRot();
-        float turn = Math.abs(yaw - yRotLast);
-        if (turn <= MIN_TURN || Math.abs(turn - clickTurn) >= 10 * SAME) return Float.NaN;
-        float nudged = yaw + (yaw >= yRotLast ? NUDGE : -NUDGE);
+        float from = sentKnown ? sentYaw : yRotLast; // a teleport accept can have moved what the server heard
+        float turn = Math.abs(yaw - from);
+        if (yaw == yRotLast || turn <= MIN_TURN || !repeats(turn)) return Float.NaN;
+        float step = yaw >= from ? NUDGE : -NUDGE;
+        float nudged = yaw + step;
+        for (int k = 2; k <= CLICK_TURN.length + 1 && repeats(Math.abs(nudged - from)); k++) nudged = yaw + k * step;
         self.setYRot(nudged);
         nudges++;
         if (nudges <= 20 || nudges % 100 == 0) {
-            ModLog.get("killer560smod-rightclick").info("[PlaceRotationGuard] yaw turn {} would repeat the {} before the "
-                    + "last block click (GrimAC DuplicateRotPlace) - sent {} instead of {} (nudge #{})", turn, clickTurn,
-                    nudged, yaw, nudges);
+            ModLog.get("killer560smod-rightclick").info("[PlaceRotationGuard] yaw turn {} would repeat a turn before a recent "
+                    + "block click (GrimAC DuplicateRotPlace) - sent {} instead of {} (nudge #{})", turn, nudged, yaw, nudges);
         }
         return yaw;
     }
