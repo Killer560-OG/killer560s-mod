@@ -1,5 +1,6 @@
 package com.killer560.hub.miningqol;
 
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.BasicHud;
 import com.killer560.hub.hud.HudSeen;
@@ -14,6 +15,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -51,6 +53,8 @@ public final class AbilityReadyAlert {
     private static final java.util.Set<String> PICKAXE_SEEN = java.util.concurrent.ConcurrentHashMap.newKeySet();
     private static final Pattern READY = Pattern.compile("^([A-Z][A-Za-z' ]{1,30}) is now available!$");
     private static final Pattern USED = Pattern.compile("^You used your ([A-Z][A-Za-z' ]{1,30}) Pickaxe Ability!$");
+    /** "Your Maniac Miner has expired!" (seen in his log); ends the Active state. */
+    private static final Pattern ENDED = Pattern.compile("^Your ([A-Z][A-Za-z' ]{1,30}) has expired!$");
     private static final Pattern COOLDOWN = Pattern.compile("^This ability is on cooldown for (\\d{1,4})s\\.$");
     /** " Pickobulus: 34s", "Mining Speed Boost: 1m 5s", "Pickobulus: Available". */
     private static final Pattern TAB = Pattern.compile("^([A-Z][A-Za-z' ]{1,30}): (?:Available|(?:(\\d{1,2})m ?)?(\\d{1,3})s)$");
@@ -66,6 +70,15 @@ public final class AbilityReadyAlert {
     /** A new tab reading moves the deadline only when it disagrees by more than this (the widget rounds to a second). */
     static final long RESYNC_MS = 1500;
     private static String lastUsed = null;
+    /** Marks a timer line drawn in the theme color (an ability that is Active), stripped before drawing. */
+    static final char ACTIVE_MARK = (char) 1;
+    /** Abilities with no active time: they fire once. */
+    private static final java.util.Set<String> INSTANT = java.util.Set.of("Pickobulus", "Pickobolus");
+    /** Ability -> when its active time began; ability -> active ms measured this session (use line to expired line). */
+    private static final Map<String, Long> ACTIVE_AT = new LinkedHashMap<>();
+    private static final Map<String, Long> ACTIVE_LEARNED = new LinkedHashMap<>();
+    /** Fail-safe when no expired line comes and no duration was measured yet. */
+    static final long ACTIVE_CAP_MS = 60_000;
 
     private static volatile String popupText = null;
     private static volatile long popupUntil = 0;
@@ -102,12 +115,21 @@ public final class AbilityReadyAlert {
             PICKAXE_SEEN.add(name);
             USED_AT.put(name, now);
             lastUsed = name;
+            if (!INSTANT.contains(name)) ACTIVE_AT.put(name, now);
             Long learned = LEARNED.get(name);
             if (learned != null) {
                 READY_AT.put(name, now + learned);
             }
             // The tab still shows the old "Available" for a few seconds: only its next change counts.
             LAST_TAB.put(name, currentTab(name));
+            return;
+        }
+        m = ENDED.matcher(raw);
+        if (m.matches()) {
+            Long began = ACTIVE_AT.remove(m.group(1).trim());
+            if (began != null && now - began > 1000 && now - began < 5 * 60_000L) {
+                ACTIVE_LEARNED.put(m.group(1).trim(), now - began);
+            }
             return;
         }
         m = COOLDOWN.matcher(raw);
@@ -148,12 +170,25 @@ public final class AbilityReadyAlert {
     private static List<String> render(long now) {
         List<String> out = new ArrayList<>();
         READY_AT.entrySet().removeIf(e -> e.getValue() <= now);
+        for (Iterator<Map.Entry<String, Long>> it = ACTIVE_AT.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<String, Long> a = it.next();
+            Long known = ACTIVE_LEARNED.get(a.getKey());
+            long end = a.getValue() + (known != null ? known : ACTIVE_CAP_MS);
+            if (end <= now) {
+                it.remove();
+            } else {
+                out.add(ACTIVE_MARK + a.getKey() + ": Active" + (known == null ? "" : " " + clock((end - now + 999) / 1000)));
+            }
+        }
         for (Map.Entry<String, Long> e : READY_AT.entrySet()) {
+            if (ACTIVE_AT.containsKey(e.getKey())) continue;
             long left = Math.max(0, (e.getValue() - now + 999) / 1000);
-            out.add("§6" + e.getKey() + ": §e" + (left >= 60 ? (left / 60) + "m " + (left % 60) + "s" : left + "s"));
+            out.add("§6" + e.getKey() + ": §e" + clock(left));
         }
         return List.copyOf(out);
     }
+
+    private static String clock(long left) { return left >= 60 ? (left / 60) + "m " + (left % 60) + "s" : left + "s"; }
 
     /**
      * The tab widget is the server's own number, but Hypixel refreshes it only every ~3 s. Each reading that CHANGED
@@ -194,6 +229,7 @@ public final class AbilityReadyAlert {
     static void reset() {
         LAST_TAB.clear();
         READY_AT.clear();
+        ACTIVE_AT.clear();
         USED_AT.clear();
         lastUsed = null;
         popupText = null;
@@ -208,6 +244,9 @@ public final class AbilityReadyAlert {
     public static int popupFrames() { return popupFrames; }
 
     public static List<String> timer() { return timerLines; }
+
+    /** Testkit: the timer lines at {@code readAt} without feeding the tab. */
+    public static List<String> timerAtForTest(long readAt) { return render(readAt); }
 
     /** Testkit: feeds tab lines at a given wall-clock time and returns the timer lines at {@code readAt}. */
     public static List<String> timerAtForTest(List<String> tab, long now, long readAt) {
@@ -228,6 +267,7 @@ public final class AbilityReadyAlert {
     public static void resetForTest() {
         reset();
         LEARNED.clear();
+        ACTIVE_LEARNED.clear();
     }
 
     public static Long learnedMs(String name) { return LEARNED.get(name); }
@@ -296,6 +336,8 @@ public final class AbilityReadyAlert {
             super(TIMER_ID, "Ability Timer", 10, 200);
         }
 
+        private static String plain(String s) { return !s.isEmpty() && s.charAt(0) == ACTIVE_MARK ? s.substring(1) : s; }
+
         private List<String> shown() {
             List<String> l = timerLines;
             if (l.isEmpty() && HudVisibility.editorOpen()) return List.of("§6Pickobulus: §e34s");
@@ -307,7 +349,7 @@ public final class AbilityReadyAlert {
             Font font = Minecraft.getInstance().font;
             int w = 60;
             for (String s : shown()) {
-                w = Math.max(w, font.width(s));
+                w = Math.max(w, font.width(plain(s)));
             }
             return w;
         }
@@ -328,7 +370,8 @@ public final class AbilityReadyAlert {
             Font font = Minecraft.getInstance().font;
             int lineY = y;
             for (String s : shown()) {
-                graphics.text(font, s, x, lineY, 0xFFFFFFFF, true);
+                boolean active = !s.isEmpty() && s.charAt(0) == ACTIVE_MARK;
+                graphics.text(font, plain(s), x, lineY, active ? ThemeAccent.onDark(ThemeAccent.accent(0xFFFFAA00)) : 0xFFFFFFFF, true);
                 lineY += 10;
             }
             if (!timerLines.isEmpty()) {

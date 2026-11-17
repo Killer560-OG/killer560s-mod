@@ -73,6 +73,15 @@ public final class FiestaFlask {
     private static int startedCount;
     private static int alerts;
     private static boolean loaded;
+    /** The tab showed the flask and has not stopped showing it; consecutive scans without its line; the line last acted on. */
+    private static boolean tabSeen;
+    private static int tabMisses;
+    private static String lastTabLine;
+    /** The second and pause state the HUD text was built for, so it is rebuilt only when one changes. */
+    private static long shownSec = -1;
+    private static boolean shownRunning;
+    /** A tab reading with no time shows the flask over: "expired", "inactive", "none" or a zero unit. */
+    private static final Pattern OVER = Pattern.compile("(?i)expired|inactive|none|\\b0\\s*[hms]\\b");
 
     private FiestaFlask() {
     }
@@ -127,8 +136,12 @@ public final class FiestaFlask {
         }
         if (!loaded) onJoin();
         if (pendingTick >= 0) checkConsumed(client.player, cfg);
-        if (ticks % 20 != 0) return;
         long now = System.currentTimeMillis();
+        if (ticks % 20 != 0) {
+            // Between tab reads the countdown still moves every tick; the text is rebuilt only when the shown second changes.
+            if (remainingMs >= 0) step(now, cfg);
+            return;
+        }
         List<String> tab = new ArrayList<>();
         for (PlayerInfo info : TabOrder.listed(client)) {
             String plain = TabText.plain(info);
@@ -155,6 +168,9 @@ public final class FiestaFlask {
         remainingMs = ms;
         lastMs = now;
         warned = false;
+        tabSeen = false;
+        tabMisses = 0;
+        lastTabLine = null;
         startedCount++;
         save(now);
         step(now, MiningQolConfig.getInstance());
@@ -163,24 +179,49 @@ public final class FiestaFlask {
     /** One look at the tab and sidebar lines: fiesta state, a server reading of the flask, then the countdown. */
     static void scan(List<String> tab, List<String> sidebar, long now, MiningQolConfig cfg) {
         boolean seen = false;
+        boolean flask = false;
+        long ms = 0;
+        long res = 0;
+        String flaskLine = null;
+        String rest = "";
         for (List<String> lines : List.of(tab, sidebar)) {
             for (String line : lines) {
                 String low = line.toLowerCase(java.util.Locale.ROOT);
                 if (low.contains("mining fiesta")) seen = true;
                 if (low.contains("fiesta flask")) {
-                    long ms = parseMs(line.substring(low.indexOf("fiesta flask") + 12));
+                    flask = true;
+                    flaskLine = line;
+                    rest = line.substring(low.indexOf("fiesta flask") + 12);
+                    ms = parseMs(rest);
+                    res = resolution(rest);
                     if (now < observeUntil && observed < 20) {
                         observed++;
                         LOG.info("[FiestaFlask] line: {}", line.length() > 160 ? line.substring(0, 160) : line);
                     }
-                    if (ms > 0 && (remainingMs < 0 || Math.abs(ms - remainingMs) > 1500)) {
-                        remainingMs = ms;
-                        lastMs = now;
-                        warned = false;
-                        save(now);
-                    }
                 }
             }
+        }
+        if (flask) {
+            tabSeen = true;
+            tabMisses = 0;
+            if (ms > 0) {
+                // A new reading re-syncs only when it CHANGED and disagrees by more than its own resolution (a tab
+                // that shows whole minutes rounds, so it must not pull a consistent countdown back and forth).
+                if (!flaskLine.equals(lastTabLine) && (remainingMs < 0 || Math.abs(ms - remainingMs) > Math.max(1500, res))) {
+                    remainingMs = ms;
+                    lastMs = now;
+                    warned = false;
+                    save(now);
+                }
+                lastTabLine = flaskLine;
+            } else if (remainingMs >= 0 && OVER.matcher(rest).find()) {
+                remainingMs = 0;
+            }
+        } else if (tabSeen && ++tabMisses >= 2) {
+            // The tab listed the flask and no longer does: it ran out (two reads, so one blank refresh never ends it).
+            tabSeen = false;
+            lastTabLine = null;
+            if (remainingMs >= 0) remainingMs = 0;
         }
         if (seen != fiesta) {
             // Count up to the change at the old state's rate, then switch.
@@ -188,6 +229,18 @@ public final class FiestaFlask {
             fiesta = seen;
         }
         step(now, cfg);
+    }
+
+    /** How coarse a tab reading is in ms: 0 with seconds shown, a minute or an hour otherwise. */
+    static long resolution(String s) {
+        Matcher m = UNIT.matcher(s);
+        boolean minute = false, hour = false;
+        while (m.find()) {
+            if (m.group(2).equals("s")) return 0;
+            minute |= m.group(2).equals("m");
+            hour |= m.group(2).equals("h");
+        }
+        return minute ? 60_000L : hour ? 3_600_000L : 0;
     }
 
     /** The time in "1h 5m 3s", "59m 12s" or "59:12" after the flask's name; 0 with none. */
@@ -231,7 +284,12 @@ public final class FiestaFlask {
             ModChat.send("Fiesta Flask", ModChat.text("Your Fiesta Flask ends in " + format(remainingMs) + "."));
             playPling();
         }
-        text = "Fiesta Flask: " + format(remainingMs) + (running ? "" : " (paused)");
+        long sec = (remainingMs + 999) / 1000;
+        if (sec != shownSec || running != shownRunning || text == null) {
+            shownSec = sec;
+            shownRunning = running;
+            text = "Fiesta Flask: " + format(remainingMs) + (running ? "" : " (paused)");
+        }
         if (now - savedMs >= 30_000L) save(now);
     }
 
@@ -294,6 +352,10 @@ public final class FiestaFlask {
 
     public static void resetForTest() {
         remainingMs = -1;
+        tabSeen = false;
+        tabMisses = 0;
+        lastTabLine = null;
+        shownSec = -1;
         text = null;
         pendingTick = -1;
         fiesta = false;
@@ -310,6 +372,8 @@ public final class FiestaFlask {
     }
 
     /** Testkit: the server confirmed a drink. */
+    public static void stepForTest(long now) { step(now, MiningQolConfig.getInstance()); }
+
     public static void startForTest(long now, long ms) { start(now, ms); }
 
     /** The HUD line, theme-colored; a sample in the editor. */
