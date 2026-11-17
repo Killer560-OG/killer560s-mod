@@ -235,7 +235,10 @@ public final class MainMenuTitleLayout {
         appliedTo = new WeakReference<>(null);
         MainMenuChrome.clearCard();
         playingAsY = -1;
-        if (!MainMenuTheme.active()) return;
+        if (!MainMenuTheme.active()) {
+            applyVanilla(screen);
+            return;
+        }
         SwapAccountsButton swap = null;
         try {
             List<AbstractWidget> widgets = Screens.getWidgets(screen);
@@ -506,6 +509,137 @@ public final class MainMenuTitleLayout {
                 }
             }
         }
+    }
+
+    /** Themed menu OFF (killer560, 2026-11-16: "move the swap account buttons and the dungeon sim button and other stuff
+     *  that is needed onto the normal lines and make it fit the default minecraft theme"): plain vanilla Buttons in the
+     *  vanilla column, under whatever vanilla (and other mods) put above Options. Rows: Dungeon Sim | Mod Settings,
+     *  What's New | Mods (What's New alone when Mod Menu owns Mods), Swap Accounts with the account name. The lower
+     *  vanilla rows move down by the rows added; a short window first lifts the column, then tightens the row step. */
+    private static void applyVanilla(Screen screen) {
+        try {
+            List<AbstractWidget> widgets = Screens.getWidgets(screen);
+            AbstractWidget options = null;
+            for (AbstractWidget w : widgets) {
+                if (KEY_OPTIONS.equals(translationKey(w))) {
+                    options = w;
+                    break;
+                }
+            }
+            if (options == null) return;
+            Minecraft mc = Minecraft.getInstance();
+            int cx = screen.width / 2;
+            int left = cx - COLUMN_WIDTH / 2;
+            int rowY = options.getY();
+            List<AbstractWidget> above = new ArrayList<>();
+            List<AbstractWidget> tail = new ArrayList<>();
+            int lastBottom = Integer.MIN_VALUE;
+            int firstY = rowY;
+            for (AbstractWidget w : widgets) {
+                if (w instanceof net.minecraft.client.gui.components.PlainTextButton || !w.visible) continue;
+                if (w.getY() < rowY) {
+                    above.add(w);
+                    lastBottom = Math.max(lastBottom, w.getY() + w.getHeight());
+                    firstY = Math.min(firstY, w.getY());
+                } else {
+                    tail.add(w);
+                }
+            }
+            if (above.isEmpty()) return;
+            int gap = rowY - lastBottom;
+            boolean modMenu = net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("modmenu");
+            Screen parent = screen;
+            Button sim = vanillaButton("Dungeon Sim", btn -> McCompat.setScreen(mc, com.killer560.hub.roomsim.SimMenuScreen.open(parent)));
+            Button settings = vanillaButton("Mod Settings", btn -> McCompat.setScreen(mc, new com.killer560.hub.gui.ModScreen(parent)));
+            Button news = vanillaButton("What's New", btn -> McCompat.setScreen(mc, new com.killer560.hub.whatsnew.WhatsNewScreen(parent)));
+            Button mods = modMenu ? null : vanillaButton("Mods", btn -> McCompat.setScreen(mc, new com.killer560.hub.modlist.ModsScreen(parent)));
+            Button swap = vanillaButton(swapLabel(mc.font), btn -> McCompat.setScreen(mc,
+                    new com.killer560.hub.accounts.gui.AccountSwitcherScreen(parent)));
+            Button[][] rows = {{sim, settings}, {news, mods}, {swap}};
+            int n = rows.length;
+            int step = ROW_STEP;
+            int limit = screen.height - 14;
+            int tailBottom = rowY + ROW_HEIGHT;
+            for (AbstractWidget w : tail) tailBottom = Math.max(tailBottom, w.getY() + w.getHeight());
+            // dy: how far the lower vanilla rows move; up: how far everything lifts (never above a logo-clear first row)
+            int minFirst = 78;
+            int dy = n * step;
+            int up = Math.max(0, Math.min(tailBottom + dy - limit, firstY - minFirst));
+            if (tailBottom + dy - up > limit) {
+                step = Math.max(SHORT_STEP, step - (int) Math.ceil((tailBottom + dy - up - limit) / (double) n));
+                dy = n * step;
+                up = Math.max(0, Math.min(tailBottom + dy - limit, firstY - minFirst));
+            }
+            if (tailBottom + dy - up > limit && sideRows(screen, widgets, options, above, left, sim, settings, news, mods, swap)) {
+                return; // no room under the column: the buttons sit beside its first rows instead
+            }
+            int y = lastBottom + (step - ROW_HEIGHT) - up;
+            int at = widgets.indexOf(options);
+            for (Button[] row : rows) {
+                int count = 0;
+                for (Button b : row) if (b != null) count++;
+                int i = 0;
+                for (Button b : row) {
+                    if (b == null) continue;
+                    int w = count == 1 ? COLUMN_WIDTH : HALF_WIDTH;
+                    b.setX(i == 0 ? left : left + COLUMN_WIDTH - w);
+                    b.setY(y);
+                    b.setWidth(w);
+                    widgets.add(at++, b);
+                    i++;
+                }
+                y += step;
+            }
+            for (AbstractWidget w : above) w.setY(w.getY() - up);
+            for (AbstractWidget w : tail) w.setY(w.getY() + dy - up);
+        } catch (Throwable t) {
+            MainMenuTheme.fail("vanilla title buttons", t);
+        }
+    }
+
+    /** A window too short for extra rows under the column: Dungeon Sim and Mod Settings go right of Singleplayer and
+     *  Multiplayer, What's New, Mods and Swap Accounts (name in its tooltip) left of the first three rows. False when the
+     *  column has fewer than three rows or the sides are too narrow. */
+    private static boolean sideRows(Screen screen, List<AbstractWidget> widgets, AbstractWidget options,
+            List<AbstractWidget> above, int left, Button sim, Button settings, Button news, Button mods, Button swap) {
+        List<AbstractWidget> col = new ArrayList<>();
+        for (AbstractWidget w : above) {
+            if (w.getWidth() == COLUMN_WIDTH && w.getX() == left) col.add(w);
+        }
+        col.sort(Comparator.comparingInt(AbstractWidget::getY));
+        int xl = left - 4 - HALF_WIDTH;
+        int xr = left + COLUMN_WIDTH + 4;
+        if (col.size() < 3 || xl < 2 || xr + HALF_WIDTH > screen.width - 2) return false;
+        swap.setMessage(Component.literal("Swap Accounts"));
+        swap.setTooltip(Tooltip.create(Component.literal("Playing as " + playerName())));
+        Button[] right = {sim, settings};
+        Button[] lefts = {news, mods, swap};
+        int at = widgets.indexOf(options);
+        for (int i = 0, j = 0; i < lefts.length; i++) {
+            if (lefts[i] == null) continue;
+            lefts[i].setX(xl);
+            lefts[i].setY(col.get(j++).getY());
+            lefts[i].setWidth(HALF_WIDTH);
+            widgets.add(at++, lefts[i]);
+        }
+        for (int i = 0; i < right.length; i++) {
+            right[i].setX(xr);
+            right[i].setY(col.get(i).getY());
+            right[i].setWidth(HALF_WIDTH);
+            widgets.add(at++, right[i]);
+        }
+        return true;
+    }
+
+    private static Button vanillaButton(String label, Button.OnPress press) {
+        return Button.builder(Component.literal(label), press).bounds(0, 0, COLUMN_WIDTH, ROW_HEIGHT).build();
+    }
+
+    /** "Swap Accounts: name", the name cut with an ellipsis to fit the 200-wide row. The real account's name, never Name Changer's. */
+    private static String swapLabel(net.minecraft.client.gui.Font font) {
+        String label = "Swap Accounts: " + playerName();
+        int room = COLUMN_WIDTH - 12;
+        return font.width(label) <= room ? label : font.plainSubstrByWidth(label, room - font.width("...")) + "...";
     }
 
     private static void removeWidget(Screen screen, List<AbstractWidget> widgets, AbstractWidget w) {
