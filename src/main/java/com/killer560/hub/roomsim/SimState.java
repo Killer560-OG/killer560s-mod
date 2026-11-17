@@ -24,6 +24,23 @@ public final class SimState {
     /** True only inside a sim world the mod itself opened. */
     public static boolean isActive() { return active; }
 
+    private static int extraPositions;
+
+    /**
+     * Server thread, 26.3 only ({@code mixin/SimMovePerTickMixin}): a second position-carrying move packet before the
+     * client's tick end. Hypixel takes it (older-protocol zero-ping etherwarps answer a landing with their own PosRot beside
+     * the tick's move); 26.3's vanilla server kicks it with "Invalid move player packet received", so in the sim it passes.
+     * NaN and non-finite looks are still kicked by vanilla's own check before this one.
+     */
+    public static boolean allowExtraPosition() {
+        if (!active) return false;
+        extraPositions++;
+        return true;
+    }
+
+    /** Positions {@link #allowExtraPosition} let through (testkit). */
+    public static int extraPositions() { return extraPositions; }
+
     /**
      * Whether sim behavior may act right now.
      *

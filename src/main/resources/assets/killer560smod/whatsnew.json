@@ -8,7 +8,8 @@
     "blurb": "Changes in this update.",
     "items": [
      "Inventory Sorter: Fetch Missing From Sacks now waits 3 seconds between /gfs commands and sends a refused one again instead of calling the item empty; items spread over several storage stacks are combined first, the extra goes back to storage, and only the exact rest comes from sacks.",
-     "Main menu: with the custom title screen off, the vanilla title screen now has Dungeon Sim, Mod Settings, What's New, Mods and Swap Accounts as plain vanilla buttons"
+     "Main menu: with the custom title screen off, the vanilla title screen now has Dungeon Sim, Mod Settings, What's New, Mods and Swap Accounts as plain vanilla buttons",
+     "Dungeon sim: etherwarping in the boss room no longer disconnects you."
     ]
    }
   ]
