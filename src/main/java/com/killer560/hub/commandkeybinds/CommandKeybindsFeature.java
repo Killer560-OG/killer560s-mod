@@ -91,7 +91,7 @@ public final class CommandKeybindsFeature {
         if (line.charAt(0) == '/') {
             String command = line.substring(1);
             if (!command.isEmpty()) {
-                client.player.connection.sendCommand(command);
+                if (!com.killer560.hub.roomsim.SimCommandRoots.dispatch(command)) client.player.connection.sendCommand(command);
                 LOGGER.info("[CommandKeybinds] sent /{}", command);
             }
             return;

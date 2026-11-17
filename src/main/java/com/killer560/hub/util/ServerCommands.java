@@ -50,7 +50,7 @@ public final class ServerCommands {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
         if (player == null || player.connection == null) return false;
-        if (simChat(player, command)) return true;
+        if (com.killer560.hub.roomsim.SimCommandRoots.dispatch(command) || simChat(player, command)) return true;
         player.connection.send(new ServerboundChatCommandPacket(command));
         return true;
     }

@@ -65,7 +65,7 @@ public final class SimTeleportCommands {
             // Registered twice, as /goto and /tpto - killer560 asked for "either". Both are the same node
             // built twice rather than a redirect, because a redirect to a gated node does not tab-complete
             // its argument reliably and the whole point of this command is the completion.
-            for (String name : new String[]{"goto", "tpto"}) {
+            for (String name : new String[]{"goto", "tpto", "warp"}) {
                 dispatcher.register(ClientCommands.literal(name)
                         .requires(src -> SimState.canAct(Minecraft.getInstance()))
                         .then(ClientCommands.argument("room", StringArgumentType.greedyString())

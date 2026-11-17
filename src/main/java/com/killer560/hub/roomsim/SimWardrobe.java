@@ -20,11 +20,7 @@ import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.ItemLore;
 
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Sim Wardrobe and Stats (simwardrobe-1115, killer560 2026-11-15: "add in custom wardrobe and stats menu and stuff to swap
@@ -37,7 +33,10 @@ public final class SimWardrobe {
 
     private static final String[] ROOTS = {"wardrobe", "wd", "equipment", "stats", "eq"};
     static final int[] SET_SLOTS = {20, 22, 24};
-    private static final Pattern STAT = Pattern.compile("^([A-Za-z ]+): [+]?(-?\\d+)%?$");
+    /** The stats menu's four armor slots (helmet to boots), shown in the chest half. */
+    static final int[] ARMOR_SLOTS = {20, 21, 22, 23};
+    static final net.minecraft.world.entity.EquipmentSlot[] WORN = {net.minecraft.world.entity.EquipmentSlot.HEAD,
+            net.minecraft.world.entity.EquipmentSlot.CHEST, net.minecraft.world.entity.EquipmentSlot.LEGS, net.minecraft.world.entity.EquipmentSlot.FEET};
     private static volatile int opened;
 
     private SimWardrobe() {
@@ -70,29 +69,25 @@ public final class SimWardrobe {
 
     private static void show(ServerPlayer sp, boolean stats) {
         SimpleContainer box = new SimpleContainer(54);
-        fill(box, stats, SimArmor.current());
+        fill(box, stats, SimArmor.current(), sp);
         sp.openMenu(new SimpleMenuProvider((id, inv, p) -> new Menu(id, inv, box, stats),
                 Component.literal(stats ? "Your Equipment and Stats" : "Wardrobe")));
         opened++;
     }
 
     /** Menu items for the current state: the sets and a Stats button, or the stats sheet. */
-    private static void fill(SimpleContainer box, boolean stats, SimArmor worn) {
+    private static void fill(SimpleContainer box, boolean stats, SimArmor worn, ServerPlayer sp) {
         box.clearContent();
         ItemStack filler = new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(
                 net.minecraft.resources.Identifier.withDefaultNamespace("black_stained_glass_pane")));
         filler.set(DataComponents.CUSTOM_NAME, Component.literal(""));
         for (int i = 0; i < 54; i++) box.setItem(i, filler.copy());
         if (stats) {
-            int slot = 10;
-            for (Map.Entry<String, String> e : statLines(worn).entrySet()) {
-                ItemStack s = new ItemStack(Items.PAPER);
-                s.set(DataComponents.CUSTOM_NAME, Component.literal(e.getKey()).withStyle(ChatFormatting.GREEN)
-                        .withStyle(st -> st.withItalic(false)));
-                s.set(DataComponents.LORE, new ItemLore(List.of(Component.literal(e.getValue()).withStyle(ChatFormatting.WHITE)
-                        .withStyle(st -> st.withItalic(false)))));
-                box.setItem(slot, s);
-                slot += slot % 9 == 7 ? 3 : 1;
+            ItemStack empty = labeled(net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(
+                    net.minecraft.resources.Identifier.withDefaultNamespace("gray_stained_glass_pane")), "Empty", ChatFormatting.GRAY, null);
+            for (int i = 0; i < 4; i++) {
+                ItemStack on = sp.getItemBySlot(WORN[i]);
+                box.setItem(ARMOR_SLOTS[i], on.isEmpty() ? empty.copy() : on.copy());
             }
             box.setItem(49, labeled(Items.BARRIER, "Close", ChatFormatting.RED, null));
             return;
@@ -124,49 +119,17 @@ public final class SimWardrobe {
         return s;
     }
 
-    /**
-     * What is worn, as label -> value text: each stat the worn pieces' lore lists, summed over the four pieces, then the
-     * live Attack Speed, arrows per shot and the set bonus. Empty-handed it still lists Attack Speed and arrows.
-     */
-    public static Map<String, String> statLines() {
-        return statLines(SimArmor.current());
-    }
-
-    private static Map<String, String> statLines(SimArmor set) {
-        Map<String, Integer> sum = new LinkedHashMap<>();
-        if (set != SimArmor.NONE) {
-            for (int i = 0; i < 4; i++) {
-                ItemLore lore = set.piece(i).get(DataComponents.LORE);
-                if (lore == null) continue;
-                for (Component c : lore.lines()) {
-                    String plain = c.getString().replaceAll("§.", "").strip();
-                    Matcher m = STAT.matcher(plain);
-                    if (m.matches()) sum.merge(m.group(1), Integer.parseInt(m.group(2)), Integer::sum);
-                }
-            }
-        }
-        Map<String, String> out = new LinkedHashMap<>();
-        for (Map.Entry<String, Integer> e : sum.entrySet()) out.put(e.getKey(), String.valueOf(e.getValue()));
-        out.put("Attack Speed (effective)", String.valueOf(SimAttackSpeed.ATTACK_SPEED + set.attackSpeedBonus()));
-        out.put("Bow Arrows Per Shot", String.valueOf(3 + (set == SimArmor.TERROR ? SimArmor.HYDRA_EXTRA_ARROWS : 0)));
-        out.put("Arrow Damage Multiplier", String.valueOf(set == SimArmor.TERROR ? 1 + SimArmor.HYDRA_STACKS * SimArmor.HYDRA_DAMAGE_PER_STACK : 1.0));
-        out.put("Set Bonus", switch (set) {
-            case TERROR -> "Hydra Strike (10 stacks)";
-            case THERMODYNAMIC -> "Newton's Demise";
-            default -> "None";
-        });
-        return out;
-    }
-
     /** Wardrobe and stats menus opened since the game started, for tests. */
     public static int openedForTest() { return opened; }
 
-    /** A helmet-slot item (a mask, any helmet) clicked in the inventory half of the stats menu swaps with the worn one, as on Hypixel. */
-    private static boolean isHelmet(ItemStack it) {
+
+    /** The armor slot index (0 helmet .. 3 boots) an item goes in, or -1: a mask or helmet id, else the item's own equippable slot. */
+    private static int armorIndex(ItemStack it) {
         var eq = it.get(DataComponents.EQUIPPABLE);
         String id = com.killer560.hub.cheatutils.CheatUtils.skyblockId(it);
-        return eq != null && eq.slot() == net.minecraft.world.entity.EquipmentSlot.HEAD
-                || id != null && (id.contains("MASK") || id.endsWith("_HELMET"));
+        if (id != null && (id.contains("MASK") || id.endsWith("_HELMET"))) return 0;
+        for (int i = 0; i < 4; i++) if (eq != null && eq.slot() == WORN[i]) return i;
+        return -1;
     }
 
     private static final class Menu extends ChestMenu {
@@ -180,20 +143,47 @@ public final class SimWardrobe {
             this.stats = stats;
         }
 
-        private void swapHelmet(ServerPlayer sp, int slot) {
-            ItemStack clicked = getSlot(slot).getItem();
-            if (clicked.isEmpty() || !isHelmet(clicked)) return;
-            ItemStack old = sp.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD).copy();
-            sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, clicked.copy());
-            getSlot(slot).set(old);
-            sp.inventoryMenu.sendAllDataToRemote(); // the helmet slot belongs to the inventory menu, which the open menu does not sync
+        /** A worn piece clicked in the chest half goes to the first free inventory slot; a piece clicked in the inventory swaps with the one worn. */
+        private void swapArmor(ServerPlayer sp, int slot) {
+            int worn = -1;
+            for (int i = 0; i < 4; i++) if (slot == ARMOR_SLOTS[i]) worn = i;
+            if (worn >= 0) {
+                ItemStack on = sp.getItemBySlot(WORN[worn]);
+                if (on.isEmpty()) return;
+                for (int s = 54; s < slots.size(); s++) {
+                    if (getSlot(s).getItem().isEmpty()) {
+                        getSlot(s).set(on.copy());
+                        sp.setItemSlot(WORN[worn], ItemStack.EMPTY);
+                        break;
+                    }
+                }
+            } else {
+                ItemStack clicked = getSlot(slot).getItem();
+                int i = clicked.isEmpty() ? -1 : armorIndex(clicked);
+                if (i < 0) return;
+                ItemStack old = sp.getItemBySlot(WORN[i]).copy();
+                sp.setItemSlot(WORN[i], clicked.copy());
+                getSlot(slot).set(old);
+            }
+            sp.inventoryMenu.sendAllDataToRemote(); // the armor slots belong to the inventory menu, which the open menu does not sync
+            for (SimArmor a : SimArmor.values()) {
+                boolean all = a != SimArmor.NONE, none = true;
+                for (int i = 0; i < 4; i++) {
+                    String id = com.killer560.hub.cheatutils.CheatUtils.skyblockId(sp.getItemBySlot(WORN[i]));
+                    all &= id != null && id.equals(a.pieceId(i));
+                    none &= id == null || !(id.startsWith("INFERNAL_TERROR_") || id.startsWith("THERMODYNAMIC_"));
+                }
+                if (all || a == SimArmor.NONE && none) { this.worn = a; break; }
+            }
+            SimArmor now = this.worn;
+            if (now != SimArmor.current()) Minecraft.getInstance().execute(() -> SimLoadout.setArmor(now));
         }
 
         @Override
         public void clicked(int slot, int button, ContainerInput input, Player player) {
             if (player instanceof ServerPlayer sp && slot >= 0 && (slot < 54 || stats)) {
-                if (stats && slot >= 54) {
-                    swapHelmet(sp, slot);
+                if (stats && slot != 49) {
+                    swapArmor(sp, slot);
                 } else if (stats ? slot == 49 : slot == 53) {
                     sp.closeContainer();
                     return;
@@ -206,7 +196,7 @@ public final class SimWardrobe {
                         }
                     }
                 }
-                fill(box, stats, worn);
+                fill(box, stats, worn, sp);
             }
             setCarried(ItemStack.EMPTY);
             broadcastFullState();

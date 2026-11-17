@@ -199,7 +199,7 @@ public final class SimItems {
             // command for the items to be /simitem or /item." Both are gated on being in the
             // sim, so /item cannot shadow a server command on Hypixel - the same reasoning that
             // kept it off /item in the first place, now satisfied by requires() instead.
-            for (String name : new String[]{"simitem", "item"}) {
+            for (String name : new String[]{"simitem", "item", "items"}) {
                 // /item is gated with requires(), so outside the sim the command does not exist at all: it
                 // does not tab-complete and Hypixel's own /item, if it ever has one, is untouched. That gate
                 // is what makes the short name safe - the old comment here refused /item outright for want of
