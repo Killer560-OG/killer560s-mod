@@ -19,7 +19,6 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -113,12 +112,54 @@ public final class LuckDetector {
     private static final Set<String> SEEN_UUIDS = new HashSet<>();
     /** Item names whose stacks have carried a Skyblock UUID. */
     private static final Set<String> UUID_NAMES = new HashSet<>();
-    private record Loss(String name, long atMs) {
+    /** Units per item name, kept as (time, count) batches oldest first, so a 2,000-unit stack is one entry and a
+     *  match is O(batches), not O(units). */
+    private static final class Ledger {
+        private record Batch(long atMs, int[] n) {
+        }
+        private final Map<String, Deque<Batch>> byName = new HashMap<>();
+
+        void add(String name, int n, long now) {
+            Deque<Batch> q = byName.computeIfAbsent(name, k -> new ArrayDeque<>());
+            Batch last = q.peekLast();
+            if (last != null && last.atMs() == now) {
+                last.n()[0] += n;
+            } else {
+                q.addLast(new Batch(now, new int[] {n}));
+            }
+        }
+
+        /** Takes up to {@code want} units of {@code name}, oldest first; returns how many it took. */
+        int take(String name, int want) {
+            Deque<Batch> q = byName.get(name);
+            int got = 0;
+            while (q != null && got < want && !q.isEmpty()) {
+                Batch b = q.peekFirst();
+                int t = Math.min(want - got, b.n()[0]);
+                b.n()[0] -= t;
+                got += t;
+                if (b.n()[0] == 0) {
+                    q.removeFirst();
+                }
+            }
+            return got;
+        }
+
+        void expire(long now, long maxAgeMs) {
+            byName.values().removeIf(q -> {
+                while (!q.isEmpty() && now - q.peekFirst().atMs() > maxAgeMs) {
+                    q.removeFirst();
+                }
+                return q.isEmpty();
+            });
+        }
+
+        void clear() {
+            byName.clear();
+        }
     }
-    private static final Deque<Loss> LOSSES = new ArrayDeque<>();
-    private record Credit(String name, long atMs) {
-    }
-    private static final Deque<Credit> CREDITS = new ArrayDeque<>();
+    private static final Ledger LOSSES = new Ledger();
+    private static final Ledger CREDITS = new Ledger();
 
     // Test hooks (testkit reads them).
     static volatile String lastDecision = "";
@@ -392,7 +433,7 @@ public final class LuckDetector {
         String key = keyFor(table, name);
         LuckStore.drop(key, amount, source, mf);
         if ("chat".equals(source)) {
-            CREDITS.addLast(new Credit(DropTable.normalize(name), System.currentTimeMillis()));
+            CREDITS.add(DropTable.normalize(name), 1, System.currentTimeMillis());
         }
         lastDecision = "drop " + key + " (" + source + ")";
         LOGGER.info("[Luck] Drop {} x{} from {} at {}% MF", key, amount, source, mf);
@@ -562,12 +603,8 @@ public final class LuckDetector {
 
     private static void scanInventory(Minecraft mc) {
         long now = System.currentTimeMillis();
-        while (!LOSSES.isEmpty() && now - LOSSES.peekFirst().atMs() > LOSS_MEMORY_MS) {
-            LOSSES.removeFirst();
-        }
-        while (!CREDITS.isEmpty() && now - CREDITS.peekFirst().atMs() > CHAT_CREDIT_MS) {
-            CREDITS.removeFirst();
-        }
+        LOSSES.expire(now, LOSS_MEMORY_MS);
+        CREDITS.expire(now, CHAT_CREDIT_MS);
         Map<String, Integer> now0 = new HashMap<>();
         Map<String, String> newUuidName = new HashMap<>();
         DropTable table = DropTable.get();
@@ -597,27 +634,31 @@ public final class LuckDetector {
         }
         for (Map.Entry<String, Integer> e : before.entrySet()) {
             int lost = e.getValue() - now0.getOrDefault(e.getKey(), 0);
-            for (int k = 0; k < lost; k++) {
-                LOSSES.addLast(new Loss(e.getKey(), now));
+            if (lost > 0) {
+                LOSSES.add(e.getKey(), lost, now);
             }
         }
         for (Map.Entry<String, Integer> e : now0.entrySet()) {
             int gained = e.getValue() - before.getOrDefault(e.getKey(), 0);
-            for (int k = 0; k < gained; k++) {
-                onGain(e.getKey(), newUuidName, table);
+            if (gained > 0) {
+                onGain(e.getKey(), gained, newUuidName, table);
             }
         }
     }
 
-    private static void onGain(String norm, Map<String, String> newUuidName, DropTable table) {
-        if (takeFirst(LOSSES, l -> l.name().equals(norm))) {
-            excludedPickups++;
+    private static void onGain(String norm, int gained, Map<String, String> newUuidName, DropTable table) {
+        int back = LOSSES.take(norm, gained);
+        if (back > 0) {
+            excludedPickups += back;
             lastDecision = "gain of " + norm + " ignored: it left the inventory in the last 10 minutes";
-            LOGGER.info("[Luck] {} came back into the inventory (thrown or moved out and picked up) - not a drop", norm);
-            return;
+            LOGGER.info("[Luck] {} x{} came back into the inventory (thrown or moved out and picked up) - not a drop", norm, back);
         }
-        if (takeFirst(CREDITS, c -> c.name().equals(norm))) {
-            lastDecision = "gain of " + norm + " is the drop line's";
+        int left = gained - back;
+        left -= CREDITS.take(norm, left);
+        if (left <= 0) {
+            if (back == 0) {
+                lastDecision = "gain of " + norm + " is the drop line's";
+            }
             return;
         }
         boolean dye = false;
@@ -634,29 +675,26 @@ public final class LuckDetector {
             lastDecision = "gain of " + norm + " left to its drop line / claim";
             return;
         }
-        if (UUID_NAMES.contains(norm)) {
-            // Stacks of this item carry a Skyblock UUID: a real drop is a UUID never seen in his inventory before.
-            String fresh = newUuidName.entrySet().stream().filter(e -> DropTable.normalize(e.getValue()).equals(norm))
-                    .map(Map.Entry::getKey).findFirst().orElse(null);
-            if (fresh == null) {
-                excludedPickups++;
-                lastDecision = "gain of " + norm + " ignored: no new item UUID (an item he already had)";
-                LOGGER.info("[Luck] {} came back with a UUID already seen - not a drop", norm);
-                return;
+        boolean uuid = UUID_NAMES.contains(norm);
+        int skipped = 0;
+        for (int k = 0; k < left; k++) {
+            if (uuid) {
+                // Stacks of this item carry a Skyblock UUID: a real drop is a UUID never seen in his inventory before.
+                String fresh = newUuidName.entrySet().stream().filter(e -> DropTable.normalize(e.getValue()).equals(norm))
+                        .map(Map.Entry::getKey).findFirst().orElse(null);
+                if (fresh == null) {
+                    skipped = left - k;
+                    break;
+                }
+                newUuidName.remove(fresh);
             }
-            newUuidName.remove(fresh);
+            onDrop(name, 1, "inventory", magicFind());
         }
-        onDrop(name, 1, "inventory", magicFind());
-    }
-
-    private static <T> boolean takeFirst(Deque<T> q, java.util.function.Predicate<T> p) {
-        for (Iterator<T> it = q.iterator(); it.hasNext(); ) {
-            if (p.test(it.next())) {
-                it.remove();
-                return true;
-            }
+        if (skipped > 0) {
+            excludedPickups += skipped;
+            lastDecision = "gain of " + norm + " ignored: no new item UUID (an item he already had)";
+            LOGGER.info("[Luck] {} x{} came back with a UUID already seen - not a drop", norm, skipped);
         }
-        return false;
     }
 
     /** Test hook: forget the inventory baseline, seen UUIDs, losses and slayer memory. */

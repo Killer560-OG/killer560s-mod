@@ -34,7 +34,8 @@
      "Auto i4: new Terror Aim (default on) - with 2+ Terror Armor pieces at 10 Hydra Strike stacks your Machine Gun Shortbow's wider spread is aimed to cover more targets (the Terminator's usual aim already covers the row); Auto i4 also no longer shoots in the same tick as your own attack or hotbar key.",
      "Dungeon features keep working when you leave and rejoin the same run mid-dungeon (map, collected secrets, splits, score, run timer, puzzles, boss phase, Blood Camp timer and stats, Blood Rush Helper, Leap Counter)",
      "Dungeon sim: /wd opens the wardrobe, /stats, /eq and /equipment open Your Equipment and Stats where a click on a mask or helmet in your inventory swaps it with the one you wear, the wardrobe lists only armor sets, Terror and Thermodynamic armor are the real pieces in their real dyes, and /tpto i4 and /tpto sharpshooter take you to the section 4 device",
-     "Collection Tracker HUD now hides while nothing was gained recently (Only Recent on, or no collections picked); it returns the moment something is gained, and the HUD editor still shows it. Based on crashfix-colltrack-1116 (same file as colltrack-rate-1116, which says it ships after this)."
+     "Collection Tracker HUD now hides while nothing was gained recently (Only Recent on, or no collections picked); it returns the moment something is gained, and the HUD editor still shows it. Based on crashfix-colltrack-1116 (same file as colltrack-rate-1116, which says it ships after this).",
+     "Luck Tracker no longer floods the game log and slows the game down when you mine or when a big stack of items comes back into your inventory."
     ]
    }
   ]
