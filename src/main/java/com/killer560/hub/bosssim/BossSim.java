@@ -28,6 +28,7 @@ import net.minecraft.world.entity.boss.enderdragon.EndCrystal;
 
 import org.slf4j.Logger;
 
+import java.util.List;
 import java.util.Locale;
 
 /**
@@ -166,19 +167,35 @@ public final class BossSim {
             return BossFight.usePylon(sp) ? InteractionResult.SUCCESS : InteractionResult.PASS;
         });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, access) -> {
-            dispatcher.register(ClientCommands.literal("simboss")
-                    .requires(src -> {
-                        Minecraft mc = Minecraft.getInstance();
-                        return mc.getCurrentServer() == null && (mc.getSingleplayerServer() == null || SimState.canAct(mc));
-                    })
-                    .executes(ctx -> command("p1", null))
-                    .then(ClientCommands.argument("phase", StringArgumentType.word())
-                            .executes(ctx -> command(StringArgumentType.getString(ctx, "phase"), null))
-                            .then(ClientCommands.argument("mode", StringArgumentType.word())
-                                    .executes(ctx -> command(StringArgumentType.getString(ctx, "phase"),
-                                            StringArgumentType.getString(ctx, "mode"))))));
+            // /start is the short name he types (simstart-1116); same tree, same handler.
+            for (String name : new String[]{"simboss", "start"}) {
+                dispatcher.register(ClientCommands.literal(name)
+                        .requires(src -> {
+                            Minecraft mc = Minecraft.getInstance();
+                            return mc.getCurrentServer() == null && (mc.getSingleplayerServer() == null || SimState.canAct(mc));
+                        })
+                        .executes(ctx -> command("p1", null))
+                        .then(ClientCommands.argument("phase", StringArgumentType.word())
+                                .suggests((ctx, sb) -> suggest(PHASES, sb))
+                                .executes(ctx -> command(StringArgumentType.getString(ctx, "phase"), null))
+                                .then(ClientCommands.argument("mode", StringArgumentType.word())
+                                        .suggests((ctx, sb) -> suggest(List.of("floor7", "master"), sb))
+                                        .executes(ctx -> command(StringArgumentType.getString(ctx, "phase"),
+                                                StringArgumentType.getString(ctx, "mode"))))));
+            }
         });
         BossPortal.register();
+    }
+
+    private static final List<String> PHASES = List.of("p1", "p2", "s1", "s2", "s3", "s4", "core", "p4", "p5", "stop");
+
+    private static java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions> suggest(
+            List<String> words, com.mojang.brigadier.suggestion.SuggestionsBuilder sb) {
+        String typed = sb.getRemainingLowerCase();
+        for (String w : words) {
+            if (w.startsWith(typed)) sb.suggest(w);
+        }
+        return sb.buildFuture();
     }
 
     private static int command(String phase, String mode) {
@@ -205,7 +222,7 @@ public final class BossSim {
         };
         if (start == null) {
             com.killer560.hub.util.ModChat.send("Sim", com.killer560.hub.util.ModChat.text(
-                    "Use /simboss p1|p2|s1|s2|s3|s4|core|p4|p5|stop [floor7|master]"));
+                    "Use /start p1|p2|s1|s2|s3|s4|core|p4|p5|stop [floor7|master]"));
             return 0;
         }
         boolean master = mode == null ? !"F7".equalsIgnoreCase(SimState.floorLabel()) || start == BossFight.Start.P5
