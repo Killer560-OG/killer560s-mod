@@ -112,6 +112,32 @@ public class SimSettingsTab extends BaseTab implements KeyCaptureTab {
                 com.killer560.hub.roomsim.SimLoadout::armor, com.killer560.hub.roomsim.SimLoadout::setArmor, () -> { })
                 .bounds(contentX, y, contentWidth, 18).build());
         y += 22;
+        // Sim Teammates (siminfleap-1116): standing teammates to leap to and to fill the tab's party, 0-4.
+        w.add(SettingsButtonWidget.cycling(teammatesText(), (btn, dir) -> {
+            com.killer560.hub.roomsim.SimMenuPrefs prefs = com.killer560.hub.roomsim.SimMenuPrefs.load();
+            prefs.teammates = SettingsButtonWidget.step(prefs.teammates, dir, com.killer560.hub.roomsim.SimTeammates.MAX + 1);
+            prefs.save();
+            btn.setMessage(teammatesText());
+        }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
+        // Sim Class and level (simclasses-1116): the class Drop / Drop Stack use, shown in the tab and sidebar.
+        w.add(SettingsButtonWidget.cycling(classText(), (btn, dir) -> {
+            com.killer560.hub.roomsim.SimMenuPrefs prefs = com.killer560.hub.roomsim.SimMenuPrefs.load();
+            com.killer560.hub.dungeonclass.DungeonClass[] all = com.killer560.hub.dungeonclass.DungeonClass.values();
+            prefs.simClass = all[SettingsButtonWidget.step(prefs.simClass.ordinal(), dir, all.length)];
+            prefs.save();
+            com.killer560.hub.roomsim.SimClasses.selfChanged(true);
+            btn.setMessage(classText());
+        }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
+        w.add(SettingsButtonWidget.cycling(classLevelText(), (btn, dir) -> {
+            com.killer560.hub.roomsim.SimMenuPrefs prefs = com.killer560.hub.roomsim.SimMenuPrefs.load();
+            prefs.classLevel = 1 + SettingsButtonWidget.step(prefs.classLevel - 1, dir, com.killer560.hub.roomsim.SimClasses.MAX_LEVEL);
+            prefs.save();
+            com.killer560.hub.roomsim.SimClasses.selfChanged(false);
+            btn.setMessage(classLevelText());
+        }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
         // Receive Sim Invites (coopsim phase 3): ON keeps the relay socket a room owner's invite arrives through.
         var coop = com.killer560.hub.roomsim.SimCoopConfig.get();
         w.add(onOffButton("Receive Sim Invites", coop::receiveInvites, coop::setReceiveInvites, () -> { }, null,
@@ -148,6 +174,20 @@ public class SimSettingsTab extends BaseTab implements KeyCaptureTab {
         }
         String name = code == KeyUtil.NONE ? "§7Not Set" : "§e" + KeyUtil.bindDisplayName(code);
         return Component.literal(label + " Key: " + name + " §8" + command);
+    }
+
+    private static Component classText() {
+        return Component.literal("Sim Class: " + com.killer560.hub.roomsim.SimClasses.name(
+                com.killer560.hub.roomsim.SimMenuPrefs.cached().simClass));
+    }
+
+    private static Component classLevelText() {
+        return Component.literal("Sim Class Level: " + com.killer560.hub.roomsim.SimMenuPrefs.cached().classLevel);
+    }
+
+    private static Component teammatesText() {
+        int n = com.killer560.hub.roomsim.SimMenuPrefs.cached().teammates;
+        return Component.literal("Sim Teammates: " + (n == 0 ? "None" : String.valueOf(n)));
     }
 
     private static Component echoesText() {

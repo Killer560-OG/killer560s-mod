@@ -78,6 +78,54 @@ the skull (Hypixel's are player models).
 Testkit 1110-sim-reallooks, 1110-sim-bloodcamp, 1110-sim-bloodcamp-off, 1110-sim-switches; 1104-bloodrush-known checks the
 recorder (a look per learned room, saved to the store).
 
+## Spirit Leap and InfiniLeap (siminfleap-1116)
+
+`SimLeap` answers a use of `SPIRIT_LEAP` (ENDER_PEARL, RARE) or `INFINITE_SPIRIT_LEAP` ("InfiniLeap™", a SKULL_ITEM with
+its own skin, EPIC; api.hypixel.net 2026-11-16) on the sim's server, so a co-op guest leaps through the same code. Facts used:
+the wiki's ability text, cooldowns (5 s / 2 s), "one leap used up per teleport" and "1 second of immunity after teleporting,
+cancelled upon dealing damage"; from his 26.3 logs the menu title "Spirit Leap" (297 opens with the InfiniLeap), the line
+"You have teleported to Name!" (739 times), Hypixel's generic "This ability is on cooldown for Ns." and clicked slots 11-15;
+from fastleap/LeapRotation the teleport's look (the target's, absolute; relative 0/0 within about 1 s of another teleport).
+"Teleport to Player" is the ghost menu, not the InfiniLeap's. Trap rooms refuse leaps (the wiki says so).
+
+**Sim Teammates** (Sim Settings, 0-4, default none; `SimTeammates`): standing FakePlayers named Teammate1..4, placed round
+him on the next server tick at a run's countdown and when a sim opens, listed in the tab's party after the real players
+(`SimCoop.partyNames`), and skipped by every real-player loop (`SimMiniboss.isPlaced`). They never move, take no damage and
+are leap targets only.
+
+**Estimated:** head slots (1: 13; 2: 12, 14; 3: 11, 13, 15; 4: 11, 12, 14, 15), the black glass filler, the heads' green
+name with no lore, the line's colors (light purple, name aqua), the cooldown line in red, and that the cooldown starts at the
+teleport, not at the use. Refine from a real leap menu if a log ever records one.
+
+## Dungeon classes (simclasses-1116)
+
+`SimClasses` holds each player's class and level (his own from `SimMenuPrefs.simClass` / `classLevel`; a co-op guest's
+from the `sim_class` payload; Sim Teammates take the classes he does not play, Healer, Tank, Archer, Berserk, Mage). The tab's
+party rows read `[100] Name (Mage L)` and the sidebar gets Hypixel's teammate lines `[M] Name 20❤` (green over half, yellow
+over a quarter, else red), so PartyTracker, Fast Leap's class targets, Auto Ult and Low Health Alert read the sim as they read
+Hypixel. `SimClassAbilities` takes Drop (ultimate) and Drop Stack (ability) on the sim's server (`SimDropActionMixin`, HEAD of
+`handlePlayerAction`, server thread only) and never drops the item.
+
+Facts used: the wiki's class pages (Healing Circle 2 s, Wish 120 s heals to full and shields 20% +1% a level, Guided Sheep 30 s,
+Thunderstorm 10-block radius for 15 s, Efficient Spells 25%, Throwing Axe 10 s, Ragnarok 60 s for 15 s, Explosive Shot 40 s
+less 2 s every 5 levels with a 4-block blast, Rapid Fire 5 arrows a second for 4 s +1 s every 10 levels, Seismic Wave 15 s,
+Castle of Stone 150 s for 20 s, 70% reduction; drop is the ultimate, Ctrl+drop the ability) and his 26.3 logs (the lines
+"Used Healing Circle!", "Healing Circle is now available!", "Thunderstorm is ready to use! Press DROP to activate it!",
+"Your Archer ULTIMATE Rapid Fire is now available!", "This ability is on cooldown for 1s.", "Your Guided Sheep hit N enemies
+for N damage.", the three Wish heal lines and no "Used Wish!", "You have selected the Archer Dungeon Class!", "Your Mage stats
+are doubled because you are the only player using this class!"; measured cooldowns Explosive Shot ~24 s, Rapid Fire 100 s,
+Guided Sheep 9-10 s, Thunderstorm 154 s, Castle of Stone 152-157 s, Seismic Wave 15 s).
+
+**Estimated:** the Mage cut (25% + 1% every other level, that part doubled as the only Mage, at most 75%: fits his 9-10 s
+sheep and 154 s storm from a 500 s base), the reminder timing (21 s after GO, then every 30 s while the ultimate waits: his
+logs show 21-22 s and then ~30 s), Healing Circle's base radius 3 and 2 s length, the sheep's 0.6 blocks a tick for 3 s and
+4-block blast, Thunderstorm striking once a second, Seismic Wave 12 blocks long and 2 wide, Throwing Axe's 20-block reach,
+vanilla Resistance III (60%) standing in for Castle of Stone's 70%, the sidebar's health colors, teammates at level 50, and
+the "stats are doubled" line at GO. Not simulated: milestones and every damage passive (sim mobs have 1 health and there are
+no damage numbers), Healing Aura, Ragnarok's speed and minions, Castle of Stone's aggro, Thunderstorm hit lines (cadence
+unknown), ghost abilities, and lore on the leap menu heads. Hypixel shows cooldowns only as these chat lines (nothing on the
+wiki says otherwise), so the sim draws no HUD for them.
+
 ## Where the old sections went
 
 Code comments cite sections of this file by title. Each old title, and the file that now holds it:

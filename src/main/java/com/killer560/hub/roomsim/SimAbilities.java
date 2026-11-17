@@ -106,6 +106,7 @@ public final class SimAbilities {
         });
         // The insertion's return is the server's own timer, as on Hypixel.
         ServerTickEvents.END_SERVER_TICK.register(SimAbilities::serverTick);
+        SimLeap.register();
         // UseItemCallback and UseBlockCallback are COMMON events: in singleplayer each click fires them once on
         // the client (MultiPlayerGameMode, before the packet is sent) and once on the integrated server
         // (ServerPlayerGameMode, when the packet arrives). The server copy is the ability; the client copy only
@@ -792,6 +793,7 @@ public final class SimAbilities {
      */
     private static void serverTick(MinecraftServer server) {
         SimLaunchItems.tick(server);
+        SimTeammates.tick(server);
         if (!storedClicks.isEmpty()) {
             expireAbilityClicks(server);
         }
@@ -820,6 +822,7 @@ public final class SimAbilities {
         // level() rather than serverLevel(): ServerPlayer has no serverLevel() accessor in 26.1.2, and a
         // ServerPlayer's level is always a ServerLevel.
         sp.teleportTo((ServerLevel) sp.level(), x, y, z, Set.of(Relative.Y_ROT, Relative.X_ROT), 0f, 0f, false);
+        SimLeap.noteTeleport(sp);
         // Ice Fill judges every landing, not one position a tick: two hops handled in one server tick are two
         // tiles stood on (2026-10-05).
         com.killer560.hub.roomsim.puzzles.SimIceFillPuzzle.onTeleport(sp);
@@ -839,5 +842,7 @@ public final class SimAbilities {
         storedClicks.clear();
         heardLook.clear();
         SimLaunchItems.reset();
+        SimLeap.reset();
+        SimTeammates.reset();
     }
 }

@@ -1,7 +1,6 @@
 package com.killer560.hub.roomsim;
 
 import com.killer560.hub.util.FeatureGuard;
-import com.killer560.hub.util.ModChat;
 
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
@@ -16,7 +15,8 @@ import net.minecraft.world.phys.Vec3;
 
 
 /**
- * The only class the sim has: mage, with the left-click beam.
+ * The Mage's left-click beam (Mage Staff). Since simclasses-1116 the sim has every class ({@link SimClasses},
+ * {@link SimClassAbilities}); this beam fires only while his Sim Class is Mage.
  *
  * <p>killer560 (2026-09-28): "make it so the only class you can be is mage with the left. Click beam. It does
  * not need the sheep or the ultimate just the beam you can make it so all mobs have one HP and all damage does
@@ -55,17 +55,6 @@ public final class SimClass {
                 FeatureGuard.start("SimClass.tick", SimClass::tick));
     }
 
-    /**
-     * Puts the player in the sim's only class.
-     *
-     * <p>There is nothing to switch away from, so this is mostly a message - but it is worth saying out loud
-     * that the class is fixed, rather than leaving him to wonder why the class selection he expects is missing.
-     */
-    public static void applyMageOnly(Minecraft client) {
-        ModChat.send("Sim", ModChat.text("Class: "), ModChat.value("Mage"),
-                ModChat.dim(" (left-click beam; no sheep, no ultimate)"));
-    }
-
     private static void tick(Minecraft client) {
         tickCounter++;
         if (!SimState.canAct(client) || client.options == null) {
@@ -99,6 +88,8 @@ public final class SimClass {
         // teleport as well." A right-click ability makes the client swing, which reads here as a left click
         // and fired the beam on every teleport.
         if (SimAbilities.usedAbilityRecently()) return;
+        // The beam is the Mage's Mage Staff passive; other classes swing as vanilla does (simclasses-1116).
+        if (SimClasses.self().cls() != com.killer560.hub.dungeonclass.DungeonClass.MAGE) return;
         lastBeamTick = tickCounter;
         fire(client);
     }

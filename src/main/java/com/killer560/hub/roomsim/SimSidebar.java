@@ -75,6 +75,7 @@ public final class SimSidebar {
     private static int inTotal;
     private static String inRoom;
     private static int inCleared = -1;
+    private static List<String> inTeam;
 
     private SimSidebar() {
     }
@@ -114,16 +115,18 @@ public final class SimSidebar {
         int total = SimScore.secretsTotal();
         String room = SimState.currentRoomName();
         int cleared = SimScore.roomsCleared();
-        if (!lastLines.isEmpty() && floor.equals(inFloor) && found == inFound && total == inTotal
+        List<String> team = SimClasses.teamLines();
+        if (!lastLines.isEmpty() && team == inTeam && floor.equals(inFloor) && found == inFound && total == inTotal
                 && java.util.Objects.equals(room, inRoom) && cleared == inCleared) {
             return;
         }
         inCleared = cleared;
+        inTeam = team;
         inFloor = floor;
         inFound = found;
         inTotal = total;
         inRoom = room;
-        List<String> lines = compose(floor, found, total, room);
+        List<String> lines = compose(floor, found, total, room, team);
         if (lines.equals(lastLines)) return;
         lastLines = lines;
         // On the server thread: the scoreboard belongs to the server, and touching it from the render thread
@@ -142,7 +145,7 @@ public final class SimSidebar {
      * reset (his 2026-10-04 log, the three lines right after "Dungeon floor changed"), and Hypixel shows it too.
      * {@code SkyblockGate} reads only the objective TITLE, which stays "SKYBLOCK".
      */
-    private static List<String> compose(String floor, int found, int total, String room) {
+    private static List<String> compose(String floor, int found, int total, String room, List<String> team) {
         List<String> lines = new ArrayList<>();
         lines.add(INFO_TITLE);
         lines.add("");
@@ -157,6 +160,11 @@ public final class SimSidebar {
         }
         lines.add("Room: " + (room == null || room.isBlank() ? "Entrance" : room));
         lines.add("");
+        // The other party members with their class letter and health, as Hypixel lists them ({@link SimClasses}).
+        if (!team.isEmpty()) {
+            lines.addAll(team);
+            lines.add("");
+        }
         lines.add(DISCORD);
         return lines;
     }

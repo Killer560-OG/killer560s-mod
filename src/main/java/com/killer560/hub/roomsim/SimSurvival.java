@@ -38,6 +38,11 @@ public final class SimSurvival {
     /** Remembered by the builder once it knows where the room's floor is. */
     public static void setHome(BlockPos pos) { homePoint = pos == null ? null : pos.immutable(); }
 
+    private static int deaths;
+
+    /** Deaths that sent a player home (a test hook: a save does not count). */
+    public static int deaths() { return deaths; }
+
     public static void register() {
         // No fall damage. Checked per damage rather than by resetting fallDistance every tick: resetting it
         // silently changes what the game thinks happened, while refusing the damage leaves everything else -
@@ -75,6 +80,9 @@ public final class SimSurvival {
             // it in the middle of the room, so a sim miniboss could never die (midas-1020: King Midas "died" eleven
             // times in 8 s under Auto Clear's Hyperion and stood up again each time).
             if (!(entity instanceof ServerPlayer player) || SimMiniboss.isPlaced(entity) || !SimState.isActive()) return true;
+            // A mask or the Phoenix pet saves him in place (simmasks-1116); only an unsaved death goes home below.
+            if (SimMasks.saveFromDeath(player)) return false;
+            deaths++;
             player.setHealth(player.getMaxHealth());
             player.getFoodData().eat(20, 1.0f);
             player.clearFire();

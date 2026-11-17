@@ -338,12 +338,30 @@ public final class SimItemLore {
             "",
             "§a§lUNCOMMON",
         }),
+        // The wiki's ability text and cooldowns (siminfleap-1116); line breaks and colors are estimates (docs/SIM.md).
         Map.entry("SPIRIT_LEAP", new String[]{
             "§9Spirit Leap",
-            "§6Ability: Leap  §e§lRIGHT CLICK",
-            "§7Teleport to a party member.",
+            "§6Ability: Spirit Leap  §e§lRIGHT CLICK",
+            "§7Allows you to teleport to any",
+            "§7teammate! Grants §a1 §7second of",
+            "§7immunity after teleporting,",
+            "§7immunity is cancelled upon",
+            "§7dealing damage.",
+            "§8Cooldown: §a5s",
             "",
-            "§9§lRARE",
+            "§9§lRARE DUNGEON ITEM",
+        }),
+        Map.entry("INFINITE_SPIRIT_LEAP", new String[]{
+            "§5InfiniLeap™",
+            "§6Ability: Spirit Leap  §e§lRIGHT CLICK",
+            "§7Allows you to teleport to any",
+            "§7teammate! Grants §a1 §7second of",
+            "§7immunity after teleporting,",
+            "§7immunity is cancelled upon",
+            "§7dealing damage.",
+            "§8Cooldown: §a2s",
+            "",
+            "§5§lEPIC DUNGEON ITEM",
         })
     );
 

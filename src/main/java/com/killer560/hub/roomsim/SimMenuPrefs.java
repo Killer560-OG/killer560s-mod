@@ -55,6 +55,12 @@ public final class SimMenuPrefs {
     public boolean realMobs = false;
     /** Watcher Blood Camp (simblood-1110): the Watcher and his waves in the floor's Blood room ({@link SimBloodCamp}). Off. */
     public boolean bloodCamp = false;
+    /** Sim Teammates (siminfleap-1116): standing teammates in a sim, 0-4 ({@link SimTeammates}). 0. */
+    public int teammates = 0;
+    /** Sim Class (simclasses-1116): his dungeon class in a sim ({@link SimClasses}). Mage. */
+    public com.killer560.hub.dungeonclass.DungeonClass simClass = com.killer560.hub.dungeonclass.DungeonClass.MAGE;
+    /** Sim Class Level (simclasses-1116): 1-50, shown in the tab and scaling the class numbers. 50. */
+    public int classLevel = SimClasses.MAX_LEVEL;
 
     /** The last read or saved prefs, for readers on a tick or at GO (no file read there); {@link #reload} drops it. */
     private static volatile SimMenuPrefs cached;
@@ -74,6 +80,9 @@ public final class SimMenuPrefs {
                 p.mobs = ConfigJson.getBool(o, "mobs", p.mobs);
                 p.realMobs = ConfigJson.getBool(o, "realMobs", p.realMobs);
                 p.bloodCamp = ConfigJson.getBool(o, "bloodCamp", p.bloodCamp);
+                p.teammates = Math.max(0, Math.min(SimTeammates.MAX, ConfigJson.getInt(o, "teammates", p.teammates)));
+                p.simClass = ConfigJson.getEnum(o, "simClass", com.killer560.hub.dungeonclass.DungeonClass.class, p.simClass);
+                p.classLevel = Math.max(1, Math.min(SimClasses.MAX_LEVEL, ConfigJson.getInt(o, "classLevel", p.classLevel)));
             }
         } catch (Exception e) {
             LOGGER.warn("Could not read {}, using the defaults: {}", FILE.getFileName(), e.toString());
@@ -102,6 +111,9 @@ public final class SimMenuPrefs {
         o.addProperty("mobs", mobs);
         o.addProperty("realMobs", realMobs);
         o.addProperty("bloodCamp", bloodCamp);
+        o.addProperty("teammates", teammates);
+        o.addProperty("simClass", simClass.name());
+        o.addProperty("classLevel", classLevel);
         cached = this;
         ConfigJson.write(FILE, o);
     }

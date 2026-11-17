@@ -240,7 +240,7 @@ public final class SimMiniboss {
      * anything in the sim that walks the player list now sees minibosses too. Whatever the list is being used
      * for - waking a Fel, finding where "the player" is - it means the real one.
      */
-    static boolean isPlaced(Entity entity) { return entity instanceof Miniboss; }
+    static boolean isPlaced(Entity entity) { return entity instanceof Miniboss || SimTeammates.isDummy(entity); }
 
     /**
      * A version-2 UUID, which is what {@code MobEspFeature.isMiniboss} tests for and what Hypixel's NPCs carry.

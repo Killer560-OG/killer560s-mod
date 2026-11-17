@@ -65,8 +65,6 @@ public final class SimTabList {
 
     /** A placeholder Skyblock level: the sim has no profile, and nothing reads the number. */
     private static final int SKYBLOCK_LEVEL = 100;
-    /** The sim's only class ({@link SimClass}) at its in-sim level, in Hypixel's roman numerals. */
-    private static final String CLASS_TEXT = "Mage L";
 
     private static final UUID[] IDS = new UUID[SLOTS];
     private static final GameProfile[] PROFILES = new GameProfile[SLOTS];
@@ -164,11 +162,13 @@ public final class SimTabList {
         int crypts = SimScore.cryptsBlown();
         int found = SimScore.secretsFound();
         int puzzles = puzzleStates();
-        boolean same = !lastComposed.isEmpty()
+        int classes = SimClasses.version();
+        boolean same = !lastComposed.isEmpty() && classes == inClasses
                 && self.equals(inSelf) && cleared == inCleared && Double.compare(percent, inPercent) == 0
                 && second == inSecond && deaths == inDeaths && crypts == inCrypts && found == inFound
                 && puzzles == inPuzzleCount && samePuzzles(puzzles);
         if (same) return lastComposed;
+        inClasses = classes;
         inSelf = self;
         inCleared = cleared;
         inPercent = percent;
@@ -185,6 +185,8 @@ public final class SimTabList {
         curPuzzleStates = st;
         return compose(client);
     }
+
+    private static int inClasses;
 
     private static boolean samePuzzles(int count) {
         for (int i = 0; i < count; i++) {
@@ -241,7 +243,7 @@ public final class SimTabList {
         slot[a++] = "Party (" + party.size() + ")";
         for (String name : party) {
             if (a >= ROWS) break;
-            slot[a++] = "[" + SKYBLOCK_LEVEL + "] " + name + " (" + CLASS_TEXT + ")";
+            slot[a++] = "[" + SKYBLOCK_LEVEL + "] " + name + " (" + SimClasses.of(name).tabText() + ")";
         }
 
         // Column B: the dungeon and its puzzles.

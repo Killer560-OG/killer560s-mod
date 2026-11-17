@@ -14,7 +14,8 @@
      "Deployable range spheres and circles (Mining) now stay put: each deployable keeps the spot it was first seen at instead of following its bobbing label, so the sphere no longer shifts and flickers.",
      "New Chat Channel Indicator (off by default, Chat category): a line just above the chat input, \"Chat: Party (5 members)\", names the Hypixel chat channel your next message goes to (All, Party, Guild, Officer, Skyblock Co-op or a private conversation), with Show Member Count and Use Hypixel Colors settings.",
      "Mining HUDs: the Fiesta Flask timer now counts down every second between tab reads and ends when the tab drops it or reads zero, and a mining ability you are using shows Active until it ends, then its cooldown.",
-     "Auto Terminals (cheat) has a new Mode setting: Normal keeps paced clicks with Burst Finish, Burst sends every click in bursts of up to Max Clicks Per Burst with a Delay Between Bursts."
+     "Auto Terminals (cheat) has a new Mode setting: Normal keeps paced clicks with Burst Finish, Burst sends every click in bursts of up to Max Clicks Per Burst with a Delay Between Bursts.",
+     "Dungeon sim: InfiniLeap and Spirit Leap open the leap menu and teleport to a teammate, a new Sim Teammates setting places up to four standing teammates, Sim Class and Class Level settings pick Healer, Mage, Berserk, Archer or Tank with their Drop Stack and Drop abilities, and Bonzo's Mask and Spirit Mask save you from a lethal hit with 3 seconds of invulnerability while a fishing rod swaps your pet between Phoenix and Golden Dragon"
     ]
    }
   ]

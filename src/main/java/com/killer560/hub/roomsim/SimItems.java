@@ -98,18 +98,34 @@ public final class SimItems {
         // Hypixel's own materials (api.hypixel.net, 2026-11-05): blaze rod, golden horse armor, chainmail boots.
         BONZO_STAFF("BONZO_STAFF", Items.BLAZE_ROD, "Bonzo's Staff", 1),
         JERRY_STAFF("JERRY_STAFF", Items.GOLDEN_HORSE_ARMOR, "Jerry-chine Gun", 1),
-        SPRING_BOOTS("SPRING_BOOTS", Items.CHAINMAIL_BOOTS, "Spring Boots", 1);
+        SPRING_BOOTS("SPRING_BOOTS", Items.CHAINMAIL_BOOTS, "Spring Boots", 1),
+        // siminfleap-1116, api.hypixel.net 2026-11-16: Spirit Leap is an ENDER_PEARL (consumed per leap, SimLeap), the
+        // InfiniLeap a SKULL_ITEM with its own skin (never consumed).
+        SPIRIT_LEAP("SPIRIT_LEAP", Items.ENDER_PEARL, "Spirit Leap", 16),
+        INFINILEAP("INFINITE_SPIRIT_LEAP", Items.PLAYER_HEAD, "InfiniLeap™", 1,
+                "377d4a206d7757f479f332ec1a2bbbee57cef97568dd88df81f4864aee7d3d98"),
+        // Masks are player heads (head skins from Hypixel's items resource), the rod is vanilla's (simmasks-1116).
+        BONZO_MASK("BONZO_MASK", Items.PLAYER_HEAD, "Bonzo's Mask", 1),
+        SPIRIT_MASK("SPIRIT_MASK", Items.PLAYER_HEAD, "Spirit Mask", 1),
+        FISHING_ROD("FISHING_ROD", Items.FISHING_ROD, "Fishing Rod", 1);
 
         final String skyblockId;
         final Item base;
         final String displayName;
         final int count;
+        /** A player head's texture hash (textures.minecraft.net), or null. */
+        final String skin;
 
         GiveItem(String skyblockId, Item base, String displayName, int count) {
+            this(skyblockId, base, displayName, count, null);
+        }
+
+        GiveItem(String skyblockId, Item base, String displayName, int count, String skin) {
             this.skyblockId = skyblockId;
             this.base = base;
             this.displayName = displayName;
             this.count = count;
+            this.skin = skin;
         }
     }
 
@@ -337,7 +353,8 @@ public final class SimItems {
 
     /** The exact inverse of {@code CheatUtils.skyblockId}: a plain stack with "id" set in CUSTOM_DATA. */
     private static ItemStack build(GiveItem item) {
-        ItemStack stack = new ItemStack(item.base, item.count);
+        ItemStack stack = item.skin == null ? new ItemStack(item.base, item.count)
+                : SimLaunchItems.head(item.skin, item.displayName);
         stack.set(DataComponents.CUSTOM_NAME, Component.literal(item.displayName));
         CompoundTag tag = new CompoundTag();
         tag.putString("id", item.skyblockId);
@@ -353,6 +370,8 @@ public final class SimItems {
             tag.putInt("ethermerge", 1);
         }
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
+        String skin = SimMasks.skinUrl(item.skyblockId);
+        if (skin != null) stack.set(DataComponents.PROFILE, SimMasks.profile(skin));
         applySkyblockTooltip(stack, item.skyblockId);
         return stack;
     }
@@ -416,6 +435,7 @@ public final class SimItems {
             }
             case "BONZO_STAFF", "STARRED_BONZO_STAFF", "JERRY_STAFF" -> SimLaunchItems.use(sp, skyblockId);
             case "ARCHITECT_FIRST_DRAFT" -> architectDraft(sp);
+            case "SPIRIT_LEAP", "INFINITE_SPIRIT_LEAP" -> SimLeap.use(sp, skyblockId);
             case "SUPERBOOM_TNT" -> {
                 if (onBlock != null) {
                     yield superboom(sp, onBlock.getBlockPos().immutable(), onBlock.getDirection());
@@ -447,7 +467,7 @@ public final class SimItems {
         if (skyblockId == null) return false;
         return switch (skyblockId) {
             case "BAT_WAND", "TERMINATOR", SimTerminator.MACHINE_GUN_ID, "ARCHITECT_FIRST_DRAFT", "SUPERBOOM_TNT", "BONZO_STAFF", "STARRED_BONZO_STAFF",
-                 "JERRY_STAFF" -> true;
+                 "JERRY_STAFF", "SPIRIT_LEAP", "INFINITE_SPIRIT_LEAP" -> true;
             // Ender pearls and the Dungeon Breaker are deliberately absent: the pearl is plain vanilla and
             // the breaker is a left-click tool.
             default -> false;

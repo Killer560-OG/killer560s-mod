@@ -79,6 +79,7 @@ public final class SimArrival {
     static void move(ServerPlayer sp, ServerLevel level, double x, double y, double z, Set<Relative> relatives,
                      float yaw, float pitch) {
         sp.teleportTo(level, x, y, z, relatives, yaw, pitch, false);
+        SimLeap.noteTeleport(sp);
         sp.fallDistance = 0;
         level.getChunkSource().move(sp);
     }

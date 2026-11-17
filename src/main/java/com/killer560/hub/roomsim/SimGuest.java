@@ -118,6 +118,15 @@ public final class SimGuest {
                 && client.getSingleplayerServer() == null && client.getCurrentServer() != null;
     }
 
+    static boolean isGuest() { return isGuest(Minecraft.getInstance()); }
+
+    /** Guest -> host: this player's Sim Class and level ({@link SimClasses}); a host without it just never hears it. */
+    static void sendClass(boolean announce) {
+        if (current == null || !ClientPlayNetworking.canSend(SimCoop.CLASS_PICK)) return;
+        SimClasses.Pick p = SimClasses.self();
+        ClientPlayNetworking.send(new SimCoop.ClassPick(p.cls().ordinal(), p.level(), announce));
+    }
+
     /** The host's last word, or null when not a guest. */
     public static SimCoop.Info info() { return current; }
 
@@ -148,6 +157,7 @@ public final class SimGuest {
                         com.killer560.hub.autoupdate.BuildInfo.shortCommit(),
                         com.killer560.hub.autoupdate.BuildInfo.variant(), pending == null ? "" : pending.nonce()));
             }
+            sendClass(false);
         }
         boolean boss = !info.phase().equals("IDLE") && !info.phase().equals("DONE");
         if (boss && !com.killer560.hub.secrets.DungeonState.isSimBoss()) {

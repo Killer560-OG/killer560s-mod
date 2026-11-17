@@ -76,6 +76,7 @@ public final class SimState {
 
     public static void enter(String code) {
         active = true;
+        SimMasks.reset();
         mapCode = code == null ? "" : code;
         // The dungeon gate is set HERE rather than on the world-load path, so it can never disagree with this
         // flag. Secret routes, auto routes, the map and every other clear feature gate on DungeonState, and a

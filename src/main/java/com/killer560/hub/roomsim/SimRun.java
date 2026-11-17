@@ -86,7 +86,8 @@ public final class SimRun {
         running = false;
         ticksLeft = COUNTDOWN_SECONDS * TICKS_PER_SECOND;
         lastSecondAnnounced = -1;
-        SimClass.applyMageOnly(client);
+        // The Sim Teammates start the run in the start room with him (placed again round him on the next server tick).
+        SimTeammates.reset();
         ModChat.send("Sim", ModChat.text("Run starting in "), ModChat.value(String.valueOf(COUNTDOWN_SECONDS)),
                 ModChat.text("..."));
     }

@@ -318,7 +318,7 @@ public final class SimLaunchItems {
         return jerryHead;
     }
 
-    private static ItemStack head(String hash, String name) {
+    static ItemStack head(String hash, String name) {
         String json = "{\"textures\":{\"SKIN\":{\"url\":\"http://textures.minecraft.net/texture/" + hash + "\"}}}";
         Multimap<String, Property> backing = LinkedHashMultimap.create();
         backing.put("textures", new Property("textures",

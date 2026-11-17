@@ -126,7 +126,13 @@ public final class SimCoop {
         public Type<PartyMsg> type() { return PARTY_MSG; }
     }
 
+    /** Guest -> host: its Sim Class and level ({@link SimClasses}); {@code announce} when picked in Sim Settings. */
+    public record ClassPick(int cls, int level, boolean announce) implements CustomPacketPayload {
+        public Type<ClassPick> type() { return CLASS_PICK; }
+    }
+
     public static final CustomPacketPayload.Type<PartyMsg> PARTY_MSG = type("sim_pc");
+    public static final CustomPacketPayload.Type<ClassPick> CLASS_PICK = type("sim_class");
     public static final CustomPacketPayload.Type<Info> HELLO = type("sim_hello");
     public static final CustomPacketPayload.Type<Info> STATE = type("sim_state");
     public static final CustomPacketPayload.Type<Ack> ACK = type("sim_hello_ack");
@@ -207,6 +213,12 @@ public final class SimCoop {
         PayloadTypeRegistry.serverboundPlay().register(PARTY_MSG, CustomPacketPayload.codec(
                 (m, b) -> b.writeUtf(m.text(), 256), b -> new PartyMsg(b.readUtf(256))));
         ServerPlayNetworking.registerGlobalReceiver(PARTY_MSG, (m, ctx) -> SimPartyChat.say(ctx.player(), m.text()));
+        PayloadTypeRegistry.serverboundPlay().register(CLASS_PICK, CustomPacketPayload.codec(
+                (m, b) -> b.writeVarInt(m.cls()).writeVarInt(m.level()).writeBoolean(m.announce()),
+                b -> new ClassPick(b.readVarInt(), b.readVarInt(), b.readBoolean())));
+        ServerPlayNetworking.registerGlobalReceiver(CLASS_PICK,
+                (m, ctx) -> SimClasses.guestPick(ctx.player(), m.cls(), m.level(), m.announce()));
+        SimClasses.register();
         ServerTickEvents.END_SERVER_TICK.register(SimCoop::serverTick);
         SimGuest.register();
         SimRequests.register();
@@ -245,16 +257,33 @@ public final class SimCoop {
     /** The tab's party: the real players while anyone joined, else just him (the single-player tab, unchanged). */
     static List<String> partyNames(Minecraft client) {
         Party p = party;
-        if (p.names().size() > 1) return p.names();
-        return List.of(client.player == null ? "" : client.player.getGameProfile().name());
+        List<String> real = p.names().size() > 1 ? p.names()
+                : List.of(client.player == null ? "" : client.player.getGameProfile().name());
+        List<String> mates = SimTeammates.names();
+        if (mates.isEmpty()) return real;
+        List<String> all = new ArrayList<>(real);
+        all.addAll(mates);
+        return all;
     }
 
     /** One string that changes whenever {@link #partyNames} would, for the tab's change check. */
     static String partyKey(Minecraft client) {
         Party p = party;
-        if (p.names().size() > 1) return p.key();
-        return client.player == null ? "" : client.player.getGameProfile().name();
+        String real = p.names().size() > 1 ? p.key() : client.player == null ? "" : client.player.getGameProfile().name();
+        List<String> mates = SimTeammates.names();
+        if (mates.isEmpty()) return real;
+        // Asked every client tick by the tab: build the joined key only when either part changed.
+        if (!real.equals(keyReal) || mates != keyMates) {
+            keyReal = real;
+            keyMates = mates;
+            key = real + "+" + String.join(",", mates);
+        }
+        return key;
     }
+
+    private static String keyReal;
+    private static List<String> keyMates;
+    private static String key;
 
     public static int acksForTest() { return acks; }
 
