@@ -228,7 +228,6 @@ public final class MiningQolConfig {
     private boolean fiestaFlask = false;
     private boolean fiestaFlaskAlert = true;
     private boolean fiestaFlaskPause = true;
-    private int fiestaFlaskMinutes = 60;
     private int fiestaFlaskWarn = 0;
 
     private MiningQolConfig() {
@@ -334,7 +333,6 @@ public final class MiningQolConfig {
                 cfg.fiestaFlask = ConfigJson.getBool(o, "fiestaFlask", cfg.fiestaFlask);
                 cfg.fiestaFlaskAlert = ConfigJson.getBool(o, "fiestaFlaskAlert", cfg.fiestaFlaskAlert);
                 cfg.fiestaFlaskPause = ConfigJson.getBool(o, "fiestaFlaskPause", cfg.fiestaFlaskPause);
-                cfg.fiestaFlaskMinutes = Math.max(1, Math.min(240, intOr(o, "fiestaFlaskMinutes", cfg.fiestaFlaskMinutes)));
                 cfg.fiestaFlaskWarn = Math.max(0, Math.min(600, intOr(o, "fiestaFlaskWarn", cfg.fiestaFlaskWarn)));
             } catch (Exception e) {
                 cfg = new MiningQolConfig();
@@ -425,7 +423,6 @@ public final class MiningQolConfig {
         o.addProperty("fiestaFlask", fiestaFlask);
         o.addProperty("fiestaFlaskAlert", fiestaFlaskAlert);
         o.addProperty("fiestaFlaskPause", fiestaFlaskPause);
-        o.addProperty("fiestaFlaskMinutes", fiestaFlaskMinutes);
         o.addProperty("fiestaFlaskWarn", fiestaFlaskWarn);
         ConfigJson.write(CONFIG_PATH, o);
         MithrilStone.settingsChanged();
@@ -1103,17 +1100,11 @@ public final class MiningQolConfig {
 
     public void setFiestaFlaskPause(boolean v) { fiestaFlaskPause = v; }
 
-    public int getFiestaFlaskMinutes() { return fiestaFlaskMinutes; }
-
     public int getFiestaFlaskWarn() { return fiestaFlaskWarn; }
-
-    /** Steps the duration through 30/45/60/90/120 minutes (wraps). */
-    public void stepFiestaFlaskMinutes(int dir) { fiestaFlaskMinutes = stepIn(FLASK_MINUTES, fiestaFlaskMinutes, dir); }
 
     /** Steps the warning through off/30 s/1/2/5 minutes (wraps). */
     public void stepFiestaFlaskWarn(int dir) { fiestaFlaskWarn = stepIn(FLASK_WARN, fiestaFlaskWarn, dir); }
 
-    private static final int[] FLASK_MINUTES = {30, 45, 60, 90, 120};
     private static final int[] FLASK_WARN = {0, 30, 60, 120, 300};
 
     private static int stepIn(int[] values, int cur, int dir) {

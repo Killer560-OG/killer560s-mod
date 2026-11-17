@@ -47,6 +47,8 @@ import java.util.regex.Pattern;
 public final class FiestaFlask {
 
     public static final String ID = "mining_fiesta_flask";
+    /** Hypixel's fixed flask length; a time Hypixel shows wins over it. */
+    static final long FLASK_MS = 60 * 60_000L;
     static final int CONFIRM_TICKS = 40;
     static final long OBSERVE_MS = 5000;
     private static final Logger LOG = ModLog.get("killer560smod-fiestaflask");
@@ -141,7 +143,7 @@ public final class FiestaFlask {
         if (!same || s.getCount() < pendingCount) {
             LOG.info("[FiestaFlask] consumed: slot {} count {} -> {}", pendingSlot + 1, pendingCount, same ? s.getCount() : 0);
             pendingTick = -1;
-            start(System.currentTimeMillis(), cfg.getFiestaFlaskMinutes() * 60_000L);
+            start(System.currentTimeMillis(), FLASK_MS);
         } else if (ticks - pendingTick > CONFIRM_TICKS) {
             LOG.info("[FiestaFlask] no stack change within {} ticks: not consumed, timer unchanged", CONFIRM_TICKS);
             pendingTick = -1;
