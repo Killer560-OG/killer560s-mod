@@ -27,18 +27,21 @@ public final class I4SensorsConfig {
     public static final int MAX_PREFIRE_LEAD_MS = 3000;
 
     public enum Weapon {
-        TERMINATOR("Terminator", "TERMINATOR", "Terminator"),
-        MACHINE_GUN_SHORTBOW("Machine Gun Shortbow", "MACHINE_GUN_BOW", "Machine Gun Shortbow");
+        TERMINATOR("Terminator", "TERMINATOR", "Terminator", 3),
+        MACHINE_GUN_SHORTBOW("Machine Gun Shortbow", "MACHINE_GUN_BOW", "Machine Gun Shortbow", 1);
 
         public final String label;
         /** Real Skyblock ids from Hypixel's own items resource (hypixelskyblock.minecraft.wiki infobox agrees). */
         public final String skyblockId;
         public final String nameFallback;
+        /** Arrows one shot fires without Hydra Strike (wiki: Terminator 3, Machine Gun Shortbow 1). */
+        public final int baseArrows;
 
-        Weapon(String label, String skyblockId, String nameFallback) {
+        Weapon(String label, String skyblockId, String nameFallback, int baseArrows) {
             this.label = label;
             this.skyblockId = skyblockId;
             this.nameFallback = nameFallback;
+            this.baseArrows = baseArrows;
         }
     }
 
@@ -98,6 +101,9 @@ public final class I4SensorsConfig {
     private int autoI4PrefireLeadMs = 1000;
     private boolean autoI4Predictions = true;
     private Weapon autoI4Weapon = Weapon.TERMINATOR;
+    // Terror Aim (i4terror-1116): ON by default because it acts only while Terror at 10 Hydra Strike stacks is detected;
+    // without that the aim is the same as with it off.
+    private boolean autoI4TerrorAim = true;
     private boolean autoSwapToBow = false;
     private boolean autoMask = false;
     private int maskOrderIndex = 0;
@@ -151,6 +157,7 @@ public final class I4SensorsConfig {
         cfg.setAutoI4PrefireLeadMs(ConfigJson.getInt(obj, "autoI4PrefireLeadMs", 1000));
         cfg.autoI4Predictions = ConfigJson.getBool(obj, "autoI4Predictions", true);
         cfg.autoI4Weapon = ConfigJson.getEnum(obj, "autoI4Weapon", Weapon.class, Weapon.TERMINATOR);
+        cfg.autoI4TerrorAim = ConfigJson.getBool(obj, "autoI4TerrorAim", true);
         cfg.autoSwapToBow = ConfigJson.getBool(obj, "autoSwapToBow", false);
         cfg.autoMask = ConfigJson.getBool(obj, "autoMask", false);
         cfg.setMaskOrderIndex(readMaskOrderIndex(obj));
@@ -181,6 +188,7 @@ public final class I4SensorsConfig {
         obj.addProperty("autoI4PrefireLeadMs", autoI4PrefireLeadMs);
         obj.addProperty("autoI4Predictions", autoI4Predictions);
         obj.addProperty("autoI4Weapon", autoI4Weapon.name());
+        obj.addProperty("autoI4TerrorAim", autoI4TerrorAim);
         obj.addProperty("autoSwapToBow", autoSwapToBow);
         obj.addProperty("autoMask", autoMask);
         obj.addProperty("maskOrderIndex", maskOrderIndex);
@@ -277,6 +285,14 @@ public final class I4SensorsConfig {
 
     public void setAutoI4Predictions(boolean autoI4Predictions) {
         this.autoI4Predictions = autoI4Predictions;
+    }
+
+    public boolean isAutoI4TerrorAim() {
+        return autoI4TerrorAim;
+    }
+
+    public void setAutoI4TerrorAim(boolean autoI4TerrorAim) {
+        this.autoI4TerrorAim = autoI4TerrorAim;
     }
 
     public Weapon getAutoI4Weapon() {

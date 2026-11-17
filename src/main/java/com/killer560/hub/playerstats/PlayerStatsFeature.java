@@ -293,6 +293,9 @@ public final class PlayerStatsFeature {
         noteManaShort(message.getString());
         // The area on the action bar (mining-1103): the mining features' area check reads it with the HUD off too.
         com.killer560.hub.pathfinding.IslandDetector.noteActionBar(message.getString());
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            com.killer560.hub.i4sensors.TerrorAim.noteActionBar(message.getString());
+        }
         if (!PlayerStatsConfig.getInstance().isEnabled()) return;
         try {
             read(message.getString());

@@ -63,7 +63,7 @@ public class I4SensorsTab extends BaseTab {
                 requestRebuild, contentX, y, contentWidth, 18));
         y += 22;
 
-        if (cfg.isAutoI4Enabled()) {
+        if (cfg.isAutoI4Enabled() || isSearchScan()) {
             widgets.add(SettingsButtonWidget.cycling(rotateText(cfg), (btn, dir) -> {
                         cfg.setAutoI4Rotate(!cfg.isAutoI4Rotate());
                         cfg.save();
@@ -124,6 +124,9 @@ public class I4SensorsTab extends BaseTab {
             }
 
             widgets.add(onOffButton("Auto Swap To Bow", cfg::isAutoSwapToBow, cfg::setAutoSwapToBow, cfg::save,
+                    null, contentX, y, contentWidth, 18));
+            y += 22;
+            widgets.add(onOffButton("Terror Aim", cfg::isAutoI4TerrorAim, cfg::setAutoI4TerrorAim, cfg::save,
                     null, contentX, y, contentWidth, 18));
             y += 22;
 

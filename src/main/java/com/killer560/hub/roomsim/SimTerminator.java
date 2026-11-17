@@ -66,9 +66,14 @@ import java.util.UUID;
 public final class SimTerminator {
 
     public static final String ITEM_ID = "TERMINATOR";
+    /** The Machine Gun Shortbow (wiki: one arrow a shot, no draw); its ordinary shot is this class's, with one base arrow. */
+    public static final String MACHINE_GUN_ID = "MACHINE_GUN_BOW";
 
     /** Three arrows a shot: one straight, two angled. */
     private static final int ARROWS_PER_SHOT = 3;
+
+    /** Arrows one ordinary shot of {@code skyblockId} fires before Hydra Strike: the Terminator 3, the Machine Gun 1. */
+    static int baseArrows(String skyblockId) { return MACHINE_GUN_ID.equals(skyblockId) ? 1 : ARROWS_PER_SHOT; }
 
     /**
      * Degrees either side of the look for the two outer arrows.
@@ -262,8 +267,13 @@ public final class SimTerminator {
             salvation(client, who);
             return true;
         }
-        shoot(client, guest);
+        shoot(client, guest, ARROWS_PER_SHOT);
         return true;
+    }
+
+    /** A right-click shot of a shortbow firing {@code baseArrows} (the Machine Gun Shortbow's 1, the Terminator's 3). */
+    static void shootBow(Minecraft client, UUID guest, int baseArrows) {
+        if (SimState.canAct(client) && client.player != null) shoot(client, guest, baseArrows);
     }
 
     /**
@@ -273,7 +283,7 @@ public final class SimTerminator {
      * write in this package - see {@code SimDoors}' class doc. The yaw and pitch are read on the client,
      * because that is the only place that knows where the crosshair is right now; only the spawn crosses over.
      */
-    private static void shoot(Minecraft client, UUID guest) {
+    private static void shoot(Minecraft client, UUID guest, int baseArrows) {
         var server = client.getSingleplayerServer();
         if (server == null || client.player == null) return;
         // SimAim: the rotation the use packet carried when the server fired this shot, his own otherwise.
@@ -292,7 +302,7 @@ public final class SimTerminator {
         server.execute(() -> {
             ServerPlayer sp = server.getPlayerList().getPlayer(who);
             if (sp == null || !(sp.level() instanceof ServerLevel level)) return;
-            final int arrows = ARROWS_PER_SHOT + SimArmor.extraArrows();
+            final int arrows = baseArrows + SimArmor.extraArrows();
             final double dmg = DAMAGE * SimArmor.damageMultiplier();
             final float speed = (float) (ARROW_VELOCITY * SimArmor.arrowSpeedMultiplier());
             final double[] damages = new double[arrows];
@@ -309,7 +319,7 @@ public final class SimTerminator {
                 arrow.shot = shot;
                 arrow.lane = i - (arrows - 1) / 2;
                 // Terror's Hydra Strike: the two outermost arrows are the extras, at a share of the arrow damage.
-                damages[i] = Math.abs(arrow.lane) > (ARROWS_PER_SHOT - 1) / 2 ? dmg * SimArmor.HYDRA_EXTRA_ARROW_DAMAGE : dmg;
+                damages[i] = Math.abs(arrow.lane) > (baseArrows - 1) / 2 ? dmg * SimArmor.HYDRA_EXTRA_ARROW_DAMAGE : dmg;
                 arrow.setBaseDamage(damages[i]);
                 arrow.shoot(dir.x, dir.y, dir.z, speed, ARROW_INACCURACY);
                 if (level.addFreshEntity(arrow)) {

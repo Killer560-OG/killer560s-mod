@@ -121,6 +121,8 @@ public final class AutoI4Feature {
     // wherever the next light can appear. Lit targets and the watchdog re-shoot always take priority (they're queued
     // first; a newly lit target also interrupts a prefire mid-aim).
     private static boolean deviceStarted = false;
+    /** Terror Aim this light (TerrorAim.active, read once per lit target). */
+    private static boolean terrorActive = false;
     private static BlockPos activeTarget = null;
     private static long lastShotAtActiveMs = 0L;
     private static boolean completed = false;
@@ -386,6 +388,8 @@ public final class AutoI4Feature {
         }
         deviceStarted = true;
         lastShotAtActiveMs = 0L;
+        Minecraft client = Minecraft.getInstance();
+        terrorActive = TerrorAim.active(I4SensorsConfig.getInstance(), client, client.player);
         // Same real log: prefires kept getting thrown away mid-turn whenever a new target lit - even when the prefire
         // was already aimed at a spot that covers the new target (a Terminator aim point hits both columns beside it).
         // Keep that shot and let it fire; it now counts as the shot at the new target.
@@ -430,7 +434,7 @@ public final class AutoI4Feature {
             }
             chosen = candidate;
             chosenAim = aimPointFor(candidate);
-            if (litAim == null || !chosenAim.equals(litAim)) {
+            if (litAim == null || !chosenAim.equals(litAim) && !(terrorActive && covers(litAim, candidate))) {
                 break;
             }
             excluded.add(candidate);
@@ -484,6 +488,7 @@ public final class AutoI4Feature {
         lastWall.clear();
         predictionCounts.clear();
         pinnedAims.clear();
+        terrorActive = false;
         deviceStarted = false;
         sessionBaseCps = 0.0;
         nextClickAtMs = 0L;
@@ -580,9 +585,29 @@ public final class AutoI4Feature {
      *  Machine Gun Shortbow (one arrow): the block's own x center, same drop-compensated y and z. */
     private static Vec3 aimPointFor(BlockPos pos) {
         int i = Math.max(0, indexOf(pos));
+        Weapon weapon = I4SensorsConfig.getInstance().getAutoI4Weapon();
+        Vec3 usual = usualAim(pos, i, weapon);
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (!terrorActive || player == null) {
+            return usual;
+        }
+        // Terror Aim: Hydra Strike's two extra arrows widen the fan; aim it so it holds this target well inside one
+        // lane and covers as many still-needed targets of the row as it can (a lit target the server moves on to
+        // while the arrows fly then counts too), when that covers more than the usual aim's wider fan.
+        List<BlockPos> dev = I4SensorsFeature.DEV_BLOCKS;
+        int need = 1 << i;
+        for (int k = 0; k < dev.size(); k++) {
+            if (!doneTargets.contains(dev.get(k))) {
+                need |= 1 << k;
+            }
+        }
+        return TerrorAim.choose(player.getEyePosition(), i, need, TerrorAim.arrows(weapon, true), usual);
+    }
+
+    private static Vec3 usualAim(BlockPos pos, int i, Weapon weapon) {
         int col = i % 3;
         int row = i / 3;
-        if (I4SensorsConfig.getInstance().getAutoI4Weapon() == Weapon.MACHINE_GUN_SHORTBOW) {
+        if (weapon == Weapon.MACHINE_GUN_SHORTBOW) {
             return new Vec3(pos.getX() + 0.5, 131 - 2.0 * row, 50);
         }
         List<BlockPos> dev = I4SensorsFeature.DEV_BLOCKS;
@@ -688,8 +713,10 @@ public final class AutoI4Feature {
         }
         boolean settled = shot != null && (!cfg.isAutoI4Rotate() || progress(shot, now) >= 1.0);
         // Clicking only once the device has started, holding the bow, with no menu open.
+        // His attack or hotbar key goes out later this tick, and vanilla never sends either after a use in one tick
+        // (experimental GrimAC PacketOrderI): the shot waits a tick.
         if (sessionBaseCps <= 0 || McCompat.screen(client) != null || !player.getMainHandItem().is(Items.BOW)
-                || now < nextClickAtMs) {
+                || now < nextClickAtMs || com.killer560.hub.util.ActionGate.hisAttackOrSwapQueued(client)) {
             return;
         }
         if (shot == null && !cfg.isAutoI4Rotate()) {
@@ -776,10 +803,27 @@ public final class AutoI4Feature {
             }
             Vec3 v = arrow.getDeltaMovement();
             if (v.lengthSqr() > 0.01 && v.normalize().dot(want) >= minDot) {
+                if (shot.aimedClicks == 1) {
+                    TerrorAim.noteShotArrows(newArrows(client, player, shot), I4SensorsConfig.getInstance().getAutoI4Weapon());
+                }
                 return true;
             }
         }
         return false;
+    }
+
+    /** New arrows of his near his eye since the shot's first aimed click: the arrows one shot fired (Hydra Strike's +2). */
+    private static int newArrows(Minecraft client, LocalPlayer player, Shot shot) {
+        Vec3 eye = player.getEyePosition();
+        int n = 0;
+        for (Entity entity : client.level.entitiesForRendering()) {
+            if (entity instanceof AbstractArrow arrow && !shot.arrowsBefore.contains(entity.getId())
+                    && (arrow.getOwner() == null || arrow.getOwner() == player)
+                    && arrow.position().distanceToSqr(eye) <= ARROW_SEEN_RANGE * ARROW_SEEN_RANGE) {
+                n++;
+            }
+        }
+        return n;
     }
 
     private static void onFired(Shot shot) {
@@ -813,7 +857,12 @@ public final class AutoI4Feature {
      *  covers {@code pos}: x 67.5 covers columns 0-1 (x 68/66), x 65.5 covers columns 1-2 (x 66/64). */
     private static boolean covers(Vec3 aim, BlockPos pos) {
         int index = indexOf(pos);
-        if (index < 0 || I4SensorsConfig.getInstance().getAutoI4Weapon() != Weapon.TERMINATOR) {
+        Weapon weapon = I4SensorsConfig.getInstance().getAutoI4Weapon();
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (index >= 0 && terrorActive && player != null) {
+            return (TerrorAim.hitMask(player.getEyePosition(), aim, TerrorAim.arrows(weapon, true)) & 1 << index) != 0;
+        }
+        if (index < 0 || weapon != Weapon.TERMINATOR) {
             return false;
         }
         int row = index / 3;

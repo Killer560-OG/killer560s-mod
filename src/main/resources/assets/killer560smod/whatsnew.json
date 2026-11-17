@@ -30,7 +30,8 @@
      "Blink Charge keeps its bank through teleports with no anticheat flags: a teleport sends its waiting answers and confirm at once (no more ~1 s teleport holds), warps in quick succession keep what the server covers, a second press joins a waiting shot, and Hypixel key releases fire within 50 ms; a mob teleported back near you while answers are held is held too, so hitting it during a delayed shot no longer flags; the lag threshold remembers your connection across Charge on and off",
      "AP3: a walk or run node crossed during an align no longer takes over from the node you stand on when the align ends",
      "Blood Rush Helper now shows the same boxes and role split as other mods that use the shared Blood Rush table, and reads party role claims in the shared chat format; rooms the table lacks keep our learned spots.",
-     "New Fiesta Flask Timer (Mining, off by default): a movable HUD line counting down your Fiesta Flask effect, with an expiry alert and an optional warning before it ends"
+     "New Fiesta Flask Timer (Mining, off by default): a movable HUD line counting down your Fiesta Flask effect, with an expiry alert and an optional warning before it ends",
+     "Auto i4: new Terror Aim (default on) - with 2+ Terror Armor pieces at 10 Hydra Strike stacks your Machine Gun Shortbow's wider spread is aimed to cover more targets (the Terminator's usual aim already covers the row); Auto i4 also no longer shoots in the same tick as your own attack or hotbar key."
     ]
    }
   ]

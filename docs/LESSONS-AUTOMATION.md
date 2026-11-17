@@ -258,6 +258,14 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   UP to 50 ms). Testkit 786-788 and 831-835 require clean. Secret Triggerbot and the Auto Door Opener were already on the
   tick and still time their delay with `System.currentTimeMillis`, so on a slow client their delay is fewer ticks than
   ms/50 while the P3 trigger bots' is exactly that many ticks; the testkit judges each in its own unit (preexisting-1026).
+- A use_item at START_CLIENT_TICK followed by his own attack from that tick's handleKeybinds is experimental GrimAC
+  PacketOrderI (attack while rightClicking): Auto i4 flagged it on every shot of 1116-same-i4terror-mg-attack once the
+  attack really reached an entity (i4terror-1116). Anything that shoots or uses at START waits a tick while
+  `ActionGate.hisAttackOrSwapQueued` (vanilla itself never sends an attack or hotbar key after a use in one tick).
+- Terror Aim (i4terror-1116): with Hydra Strike's 2 extra arrows at the assumed 5 degrees a lane (about 1.27 blocks at the
+  i4 wall from the plate), the Terminator's usual between-column aim (x 65.5/67.5) already reaches all three columns of a
+  row, so no aim of its own covers more and `TerrorAim.choose` keeps the usual one; only the Machine Gun Shortbow (3
+  arrows) gains. A sim volley count with the same aim on both sides differs by up to 4 of 16 from cadence jitter alone.
   Arrow Align's Trigger Bot has had a CPS range instead of a delay since b4b6e44f (the first click waits one gap).
 - **An aura's click is judged against the rotation the movement packets report, not the camera.** A block use the reported
   look misses is GrimAC RotationPlace (and dropped); an entity interact is Hitboxes. Turn the BODY first with

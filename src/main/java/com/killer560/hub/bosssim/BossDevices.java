@@ -699,7 +699,10 @@ public final class BossDevices {
         // A hit on the current target counts even before it shows (but not before the attempt's first emerald).
         BlockPos cur = targetCell(order.get(targetHits));
         AABB box = new AABB(cur.getX() - 0.3, cur.getY() - 0.3, cur.getZ() - 0.6, cur.getX() + 1.3, cur.getY() + 1.3, cur.getZ() + 0.3);
-        List<AbstractArrow> hits = level.getEntitiesOfClass(AbstractArrow.class, box, a -> !a.isRemoved());
+        // An arrow counts only if it struck the block itself: its center inside the block's x span (the box test alone
+        // took the arrow's own 0.5 box too, so an arrow stuck in the wall up to 0.55 beside the target counted).
+        List<AbstractArrow> hits = level.getEntitiesOfClass(AbstractArrow.class, box,
+                a -> !a.isRemoved() && a.getX() >= cur.getX() - 0.05 && a.getX() <= cur.getX() + 1.05);
         if (hits.isEmpty()) {
             return;
         }

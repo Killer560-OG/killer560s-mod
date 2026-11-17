@@ -216,6 +216,17 @@ public final class SimItemLore {
             "",
             "§6§lLEGENDARY BOW",
         }),
+        Map.entry("MACHINE_GUN_BOW", new String[]{
+            "§9Machine Gun Shortbow",
+            "§6Shortbow: Instantly shoots!",
+            "§6Ability: Rapid Fire §e§lLEFT CLICK",
+            "§7Shoots §a5 §7arrows per second for",
+            "§a8 §7seconds! Arrows deal §a70% §7of what",
+            "§7they would normally deal.",
+            "§8Cooldown: §a100s",
+            "",
+            "§9§lRARE DUNGEON BOW",
+        }),
         Map.entry("SUPERBOOM_TNT", new String[]{
             "§9Superboom TNT",
             "§7Blast the fragile walls in §cThe",

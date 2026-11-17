@@ -85,6 +85,8 @@ public final class SimItems {
         // untouched, which is what everything else in the mod actually reads.
         SPIRIT_SCEPTRE("BAT_WAND", Items.ALLIUM, "Spirit Sceptre", 1),
         TERMINATOR("TERMINATOR", Items.BOW, "Terminator", 1),
+        // One arrow a shot, same shortbow cooldown (wiki, Machine Gun Shortbow); Rapid Fire (left click) is not modeled.
+        MACHINE_GUN_BOW(SimTerminator.MACHINE_GUN_ID, Items.BOW, "Machine Gun Shortbow", 1),
         // Paper is right for this one - it IS a blueprint.
         ARCHITECT_FIRST_DRAFT("ARCHITECT_FIRST_DRAFT", Items.PAPER,
                 "Architect's First Draft", 1),
@@ -400,13 +402,14 @@ public final class SimItems {
             // (2026-09-30): "The terminator still doesnt insta shoot nor does it work without an arrow." The shot
             // spawns real arrows on the server and consumes no ammunition; the fire rate decides whether this
             // particular click produces one. Right click is always the shot, never Salvation.
-            case "TERMINATOR" -> {
+            case "TERMINATOR", SimTerminator.MACHINE_GUN_ID -> {
                 SimAim.Aim aim = SimAim.of(sp);
                 // A co-op guest shoots from itself with its own fire rate; the host's path is unchanged (guest null).
                 java.util.UUID guest = SimCoop.isHost(sp) ? null : sp.getUUID();
+                int base = SimTerminator.baseArrows(skyblockId);
                 SimAbilities.onClient(() -> {
                     if (SimTerminator.readyToFire(guest)) {
-                        SimAim.with(aim, () -> SimTerminator.use(Minecraft.getInstance(), false, guest));
+                        SimAim.with(aim, () -> SimTerminator.shootBow(Minecraft.getInstance(), guest, base));
                     }
                 });
                 yield true;
@@ -443,7 +446,7 @@ public final class SimItems {
     public static boolean consumesUse(String skyblockId) {
         if (skyblockId == null) return false;
         return switch (skyblockId) {
-            case "BAT_WAND", "TERMINATOR", "ARCHITECT_FIRST_DRAFT", "SUPERBOOM_TNT", "BONZO_STAFF", "STARRED_BONZO_STAFF",
+            case "BAT_WAND", "TERMINATOR", SimTerminator.MACHINE_GUN_ID, "ARCHITECT_FIRST_DRAFT", "SUPERBOOM_TNT", "BONZO_STAFF", "STARRED_BONZO_STAFF",
                  "JERRY_STAFF" -> true;
             // Ender pearls and the Dungeon Breaker are deliberately absent: the pearl is plain vanilla and
             // the breaker is a left-click tool.

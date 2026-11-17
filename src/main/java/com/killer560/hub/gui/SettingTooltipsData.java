@@ -2268,6 +2268,7 @@ final class SettingTooltipsData {
         d.put("sharp shooter (i4)/solver", "Highlights the i4 targets you still need to hit and draws dots showing where to aim.");
         d.put("sharp shooter (i4)/mode", "Rotate turns your camera to each target before shooting; No Rotate only sends the aim with the shot (cheat build only).");
         d.put("sharp shooter (i4)/weapon", "Which bow Auto i4 uses: Terminator or Machine Gun Shortbow (cheat build only).");
+        d.put("sharp shooter (i4)/terror aim", "While you wear Terror Armor (2+ pieces) at 10 Hydra Strike stacks, your Terminator or Machine Gun Shortbow fires 2 extra arrows: Auto i4 then aims the wider spread to cover the most targets still needed, never missing the lit one. Detected by itself; without Terror or stacks it aims as usual (cheat build only).");
         d.put("sharp shooter (i4)/prefire lead", "How long before P3 starts (Goldor's first line, about 1 s after Storm dies; it never starts before Storm dies) the Terminator starts prefiring the device, 0-3000 ms (cheat build only).");
         d.put("sharp shooter (i4)/rotation time", "How long the camera takes to turn to each target, 0-400 ms (cheat build only).");
         d.put("sharp shooter (i4)/predictions", "Also fires at the likely next target so the arrow is already in flight (cheat build only).");
