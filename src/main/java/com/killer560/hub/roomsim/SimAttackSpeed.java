@@ -60,7 +60,7 @@ public final class SimAttackSpeed {
      * at the cap.
      */
     public static int attackSpeed() {
-        return SimArmor.current() == SimArmor.THERMODYNAMIC ? ATTACK_SPEED + SimArmor.NEWTONS_DEMISE_CAP_BONUS : ATTACK_SPEED;
+        return ATTACK_SPEED + SimArmor.current().attackSpeedBonus();
     }
 
     /** {@link #BASE_ATTACK_INTERVAL_TICKS} at the live Attack Speed. */

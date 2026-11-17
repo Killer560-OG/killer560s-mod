@@ -35,7 +35,7 @@ import java.util.regex.Pattern;
  */
 public final class SimWardrobe {
 
-    private static final String[] ROOTS = {"wardrobe", "equipment"};
+    private static final String[] ROOTS = {"wardrobe", "wd", "equipment", "stats", "eq"};
     static final int[] SET_SLOTS = {20, 22, 24};
     private static final Pattern STAT = Pattern.compile("^([A-Za-z ]+): [+]?(-?\\d+)%?$");
     private static volatile int opened;
@@ -49,7 +49,7 @@ public final class SimWardrobe {
                 dispatcher.register(ClientCommands.literal(name)
                         .requires(src -> SimState.canAct(Minecraft.getInstance()))
                         .executes(ctx -> {
-                            open(Minecraft.getInstance(), name.equals("equipment"));
+                            open(Minecraft.getInstance(), !name.equals("wardrobe") && !name.equals("wd"));
                             return 1;
                         }));
             }
@@ -94,7 +94,7 @@ public final class SimWardrobe {
                 box.setItem(slot, s);
                 slot += slot % 9 == 7 ? 3 : 1;
             }
-            box.setItem(49, labeled(Items.ARROW, "Back to Wardrobe", ChatFormatting.GREEN, null));
+            box.setItem(49, labeled(Items.BARRIER, "Close", ChatFormatting.RED, null));
             return;
         }
         SimArmor[] sets = SimArmor.values();
@@ -113,7 +113,6 @@ public final class SimWardrobe {
             if (set == worn) s.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
             box.setItem(SET_SLOTS[i], s);
         }
-        box.setItem(49, labeled(Items.BOOK, "Stats", ChatFormatting.GREEN, "Your Equipment and Stats"));
         box.setItem(53, labeled(Items.BARRIER, "Close", ChatFormatting.RED, null));
     }
 
@@ -162,9 +161,17 @@ public final class SimWardrobe {
     /** Wardrobe and stats menus opened since the game started, for tests. */
     public static int openedForTest() { return opened; }
 
+    /** A helmet-slot item (a mask, any helmet) clicked in the inventory half of the stats menu swaps with the worn one, as on Hypixel. */
+    private static boolean isHelmet(ItemStack it) {
+        var eq = it.get(DataComponents.EQUIPPABLE);
+        String id = com.killer560.hub.cheatutils.CheatUtils.skyblockId(it);
+        return eq != null && eq.slot() == net.minecraft.world.entity.EquipmentSlot.HEAD
+                || id != null && (id.contains("MASK") || id.endsWith("_HELMET"));
+    }
+
     private static final class Menu extends ChestMenu {
         private final SimpleContainer box;
-        private boolean stats;
+        private final boolean stats;
         private SimArmor worn = SimArmor.current();
 
         Menu(int id, Inventory inv, SimpleContainer box, boolean stats) {
@@ -173,14 +180,21 @@ public final class SimWardrobe {
             this.stats = stats;
         }
 
+        private void swapHelmet(ServerPlayer sp, int slot) {
+            ItemStack clicked = getSlot(slot).getItem();
+            if (clicked.isEmpty() || !isHelmet(clicked)) return;
+            ItemStack old = sp.getItemBySlot(net.minecraft.world.entity.EquipmentSlot.HEAD).copy();
+            sp.setItemSlot(net.minecraft.world.entity.EquipmentSlot.HEAD, clicked.copy());
+            getSlot(slot).set(old);
+            sp.inventoryMenu.sendAllDataToRemote(); // the helmet slot belongs to the inventory menu, which the open menu does not sync
+        }
+
         @Override
         public void clicked(int slot, int button, ContainerInput input, Player player) {
-            if (player instanceof ServerPlayer sp && slot >= 0 && slot < 54) {
-                if (stats) {
-                    if (slot == 49) stats = false;
-                } else if (slot == 49) {
-                    stats = true;
-                } else if (slot == 53) {
+            if (player instanceof ServerPlayer sp && slot >= 0 && (slot < 54 || stats)) {
+                if (stats && slot >= 54) {
+                    swapHelmet(sp, slot);
+                } else if (stats ? slot == 49 : slot == 53) {
                     sp.closeContainer();
                     return;
                 } else {

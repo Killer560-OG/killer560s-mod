@@ -27,6 +27,8 @@ public final class BossSpots {
             new Spot("s1", 100.5, Double.NaN, 40.5, 0f, 1, false),                          // BossFight's section 1 start (ground scan)
             new Spot("hee2", 60.5, 132.0, 139.0, 0f, 2, true),                              // Posmsg "EE2 (High - Lever Device)"
             new Spot("ee3", 2.5, 109.0, 105.5, -90f, 3, true),                              // Posmsg "EE3 (Low)"
+            new Spot("i4", 63.5, 127.0, 35.5, 0f, 4, false),                                // BossDevices.TARGET_PLATE, the S4 device's pressure plate; the targets are south (z 50)
+            new Spot("sharpshooter", 63.5, 127.0, 35.5, 0f, 4, false),                      // same spot, the device's other name
             new Spot("outcore", 54.5, 115.0, 50.5, 0f, 4, true),                            // Posmsg "Outcore"
             new Spot("storm", 73.5, Double.NaN, 53.5, 0f, 0, false),                        // centre of Storm's route (73, 53), ground scan
             new Spot("maxor", 73.5, BossArena.P1_FLOOR + 1, 14.5, 0f, 0, false),            // BossFight.P1_SPAWN

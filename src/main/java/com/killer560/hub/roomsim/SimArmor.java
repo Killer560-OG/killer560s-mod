@@ -45,26 +45,41 @@ public enum SimArmor {
 
     /** Damage multiplier of a shot (1 + stacks x 15%) and arrow speed multiplier, 1 without Terror. */
     public static double damageMultiplier() {
-        return current() == TERROR ? 1 + HYDRA_STACKS * HYDRA_DAMAGE_PER_STACK : 1;
+        return bonus(TERROR) ? 1 + HYDRA_STACKS * HYDRA_DAMAGE_PER_STACK : 1;
     }
 
     public static double arrowSpeedMultiplier() {
-        return current() == TERROR ? 1 + HYDRA_STACKS * HYDRA_ARROW_SPEED_PER_STACK : 1;
+        return bonus(TERROR) ? 1 + HYDRA_STACKS * HYDRA_ARROW_SPEED_PER_STACK : 1;
     }
 
     /** Attack Speed this set adds to the effective value (Newton's Demise raises the cap by 50, and the player sits at it). */
     int attackSpeedBonus() {
-        return this == THERMODYNAMIC ? NEWTONS_DEMISE_CAP_BONUS : 0;
+        return this == THERMODYNAMIC && headIntact(this) ? NEWTONS_DEMISE_CAP_BONUS : 0;
     }
 
     public static int extraArrows() {
-        return current() == TERROR ? HYDRA_EXTRA_ARROWS : 0;
+        return bonus(TERROR) ? HYDRA_EXTRA_ARROWS : 0;
+    }
+
+    /** The 4-piece bonus needs the set's own helmet: a mask swapped onto the head (the stats menu) breaks it, as on Hypixel. */
+    private static boolean bonus(SimArmor set) {
+        return current() == set && headIntact(set);
+    }
+
+    private static boolean headIntact(SimArmor set) {
+        var player = net.minecraft.client.Minecraft.getInstance().player;
+        return player == null || set.pieceId(0).equals(com.killer560.hub.cheatutils.CheatUtils.skyblockId(player.getItemBySlot(EquipmentSlot.HEAD)));
     }
 
     private static final EquipmentSlot[] SLOTS =
             {EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
     private static final Item[] BASES =
-            {Items.LEATHER_HELMET, Items.LEATHER_CHESTPLATE, Items.LEATHER_LEGGINGS, Items.LEATHER_BOOTS};
+            {Items.PLAYER_HEAD, Items.LEATHER_CHESTPLATE, Items.LEATHER_LEGGINGS, Items.LEATHER_BOOTS};
+    /** Hypixel's item data (items resource): dye per piece (helmets are heads) and the helmet's skin url. */
+    private static final int[] TERROR_DYE = {-1, 0x3E05AF, 0x5D23D1, 0x7C44EC};
+    private static final String TERROR_SKIN = "http://textures.minecraft.net/texture/4eadf2954f1629d793d7f467181c449e18d89aa4941bec3ea5211e5909bb567";
+    private static final String THERMO_SKIN = "http://textures.minecraft.net/texture/cad67cf33188a54b6f55d2ef5248cd3b72176994e1d203731e86b365a8581726";
+    private static final int THERMO_DYE = 0xFF700A;
     private static final String[] PIECES = {"HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS"};
 
     /** Skyblock id of a piece (index 0 helmet .. 3 boots), or null for NONE. */
@@ -82,7 +97,13 @@ public enum SimArmor {
         CompoundTag tag = new CompoundTag();
         tag.putString("id", id);
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
-        stack.set(DataComponents.DYED_COLOR, new DyedItemColor(this == TERROR ? 0x8B1A1A : 0xD9B26F));
+        if (i == 0) {
+            String url = this == TERROR ? TERROR_SKIN : THERMO_SKIN;
+            stack.set(DataComponents.PROFILE, com.killer560.hub.armourdye.ArmourDye.headProfile(java.util.Base64.getEncoder()
+                    .encodeToString(("{\"textures\":{\"SKIN\":{\"url\":\"" + url + "\"}}}").getBytes(java.nio.charset.StandardCharsets.UTF_8))));
+        } else {
+            stack.set(DataComponents.DYED_COLOR, new DyedItemColor(this == TERROR ? TERROR_DYE[i] : THERMO_DYE));
+        }
         stack.set(DataComponents.CUSTOM_NAME, Component.literal(id));
         SimItemLore.apply(stack, id);
         return stack;

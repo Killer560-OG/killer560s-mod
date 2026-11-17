@@ -163,15 +163,6 @@ public final class SimTerminator {
     /** Arrows actually put in the world, so a test can prove the weapon acted rather than trust a log line. */
     private static volatile int arrowsFired;
 
-    /**
-     * Ticks between shots - the SHORTBOW rate, from Hypixel's own formula.
-     *
-     * <p>Was 10, which is the ZERO attack speed value; at the 100 Attack Speed the sim assumes it is 5, i.e.
-     * 4.00 shots a second. See {@link SimAttackSpeed} for the formulas and why bows round differently from
-     * melee.
-     */
-    private static final int SHOT_COOLDOWN_TICKS = SimAttackSpeed.SHORTBOW_INTERVAL_TICKS;
-
     private SimTerminator() {
     }
 
