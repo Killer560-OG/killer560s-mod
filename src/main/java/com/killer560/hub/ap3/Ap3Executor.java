@@ -5740,7 +5740,8 @@ public final class Ap3Executor {
             double up = next.y - p.getY();
             boolean step = up >= 0.05 && up <= 0.6 && p.getY() < holdNode.y - 0.6;
             boolean toAlign = next.type.isAlign() && Math.abs(up) <= 0.6
-                    && Math.hypot(next.x - p.getX(), next.z - p.getZ()) > 0.5;
+                    && Math.hypot(next.x - p.getX(), next.z - p.getZ()) > 0.5
+                    && supportedAt(p, next.x, p.getY(), next.z, p.getY()) && !hazardAt(p, next.x, p.getY(), next.z);
             return !step && !toAlign ? Float.NaN
                     : (float) Math.toDegrees(Math.atan2(p.getX() - next.x, next.z - p.getZ()));
         }
