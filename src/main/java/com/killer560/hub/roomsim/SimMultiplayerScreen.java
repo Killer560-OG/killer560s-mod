@@ -4,6 +4,7 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.CommitEditBox;
+import com.killer560.hub.gui.DropdownWidget;
 import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
@@ -163,26 +164,22 @@ public final class SimMultiplayerScreen extends Screen {
         passwordBox.pressOnEnter(create);
     }
 
-    /** The start portion, from the single-player sim's own list; in a running room a click moves everyone there. */
+    /** The start list: Clear, then the single-player sim's boss sections; in a running room Move sends everyone there. */
     private void addStartAt(int x, int y, int w, boolean live) {
-        var starts = com.killer560.hub.bosssim.BossFight.Start.values();
-        Component[] label = new Component[1];
-        label[0] = startLabel(live);
+        var options = new java.util.ArrayList<DropdownWidget.Option<String>>();
+        String pre = live ? "Move everyone to: " : "Start at: ";
+        options.add(new DropdownWidget.Option<>(SimCoopConfig.CLEAR, "Clear", pre + "Clear"));
+        for (var s : com.killer560.hub.bosssim.BossFight.Start.values()) {
+            String l = com.killer560.hub.bosssim.BossStartScreen.label(s);
+            options.add(new DropdownWidget.Option<>(s.name(), l, pre + l));
+        }
         int btnW = live ? w - 54 : w;
-        addRenderableWidget(SettingsButtonWidget.cycling(startLabel(live), (b, dir) -> {
-            var cur = SimCoopConfig.get().startAt();
-            SimCoopConfig.get().setStartAt(starts[SettingsButtonWidget.step(cur.ordinal(), dir, starts.length)]);
-            b.setMessage(startLabel(live));
-        }).bounds(x, y, btnW, live ? 18 : 20).build());
+        addRenderableWidget(DropdownWidget.of(x, y, btnW, live ? 18 : 20, options, SimCoopConfig.get().startName(),
+                SimCoopConfig.get()::setStartName).within(this.width, this.height));
         if (live) {
             addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Move"),
-                    b -> SimHost.moveTo(this.minecraft, SimCoopConfig.get().startAt())).bounds(x + w - 50, y, 50, 18).build());
+                    b -> SimHost.moveTo(this.minecraft, SimCoopConfig.get().startName())).bounds(x + w - 50, y, 50, 18).build());
         }
-    }
-
-    private static Component startLabel(boolean live) {
-        return Component.literal((live ? "Move everyone to: " : "Start at: ")
-                + com.killer560.hub.bosssim.BossStartScreen.label(SimCoopConfig.get().startAt()));
     }
 
     private void create() {

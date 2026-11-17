@@ -277,6 +277,9 @@ public final class BossFight {
         LATER.add(new Later(clock + Math.max(1, ticks), gen, what, r));
     }
 
+    /** Ends a running fight before the sim goes back to the clear. */
+    public static void stopForClear() { stop("back to the clear"); }
+
     /** Clears every entity and all state; the blocks are the arena's (rebuilt before a new fight). */
     static void stop(String why) {
         if (phase != Phase.IDLE) {

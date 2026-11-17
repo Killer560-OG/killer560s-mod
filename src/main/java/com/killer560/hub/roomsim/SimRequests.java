@@ -29,7 +29,8 @@ public final class SimRequests {
         SPEED("Guests May Change Speed", "change speed"),
         FLY("Guests May Fly", "fly"),
         LOADOUT("Guests May Apply Loadouts", "apply a loadout"),
-        ITEM("Guests May Take Items", "take items");
+        ITEM("Guests May Take Items", "take items"),
+        COMMAND("Guests May Use Sim Commands", "use sim commands");
 
         public final String label;
         final String verb;
@@ -151,6 +152,17 @@ public final class SimRequests {
             }
             case ITEM -> {
                 return SimItems.giveTo(sp, arg) ? "Gave " + arg + "." : "!" + arg + " is not a sim item.";
+            }
+            case COMMAND -> {
+                // A world-wide sim command (floor, boss, mobs, score...) runs as the owner's client does: the same command,
+                // on the owner's sim. Only the roots SimGuestCommands lists reach here.
+                String root = arg.split("\\s+", 2)[0].toLowerCase(java.util.Locale.ROOT);
+                if (!SimGuestCommands.HOST_ROOTS.contains(root)) return "!/" + root + " is not a sim command.";
+                Minecraft mc = Minecraft.getInstance();
+                mc.execute(() -> {
+                    if (mc.player != null && mc.player.connection != null) mc.player.connection.sendCommand(arg);
+                });
+                return "Ran /" + arg + " on the owner's sim.";
             }
         }
         return "!Unknown request.";

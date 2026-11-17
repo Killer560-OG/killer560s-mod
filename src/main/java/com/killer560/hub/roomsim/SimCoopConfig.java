@@ -23,19 +23,22 @@ public final class SimCoopConfig {
             .add("guestsFly", true, c -> c.fly, (c, v) -> c.fly = v)
             .add("guestsLoadout", true, c -> c.loadout, (c, v) -> c.loadout = v)
             .add("guestsItems", true, c -> c.items, (c, v) -> c.items = v)
+            .add("guestsCommands", true, c -> c.commands, (c, v) -> c.commands = v)
             .add("receiveInvites", true, c -> c.receiveInvites, (c, v) -> c.receiveInvites = v);
     /** Most blocked inviters kept (the relay takes 100 a socket). */
     static final int MAX_BLOCKED = 100;
 
     private static final SimCoopConfig INSTANCE = new SimCoopConfig();
 
-    volatile boolean teleport = true, speed = true, fly = true, loadout = true, items = true, receiveInvites = true;
+    volatile boolean teleport = true, speed = true, fly = true, loadout = true, items = true, commands = true, receiveInvites = true;
     /** Blocked inviters, uuid (as the relay sent it) -> name, oldest first. Replaced whole on change. */
     private volatile java.util.Map<String, String> blocked = java.util.Map.of();
     volatile String roomName = "";
     volatile int maxPlayers = 5;
-    /** Where the sim starts and is moved to: a {@code BossFight.Start} name. */
+    /** Where the sim starts and is moved to: {@link #CLEAR} or a {@code BossFight.Start} name. */
     volatile String startAt = "P1";
+    /** The dungeon clear (a fresh F7 floor) as a start; any other value is a {@code BossFight.Start} name. */
+    public static final String CLEAR = "CLEAR";
 
     private SimCoopConfig() {
     }
@@ -89,6 +92,7 @@ public final class SimCoopConfig {
             case FLY -> fly;
             case LOADOUT -> loadout;
             case ITEM -> items;
+            case COMMAND -> commands;
         };
     }
 
@@ -99,6 +103,7 @@ public final class SimCoopConfig {
             case FLY -> fly = on;
             case LOADOUT -> loadout = on;
             case ITEM -> items = on;
+            case COMMAND -> commands = on;
         }
         save();
     }
@@ -148,7 +153,16 @@ public final class SimCoopConfig {
     }
 
     public void setStartAt(com.killer560.hub.bosssim.BossFight.Start s) {
-        startAt = s.name();
+        setStartName(s.name());
+    }
+
+    /** The saved start: {@link #CLEAR} or a Start name (an unknown saved value reads as P1). */
+    public String startName() {
+        return CLEAR.equals(startAt) ? CLEAR : startAt().name();
+    }
+
+    public void setStartName(String name) {
+        startAt = name;
         save();
     }
 

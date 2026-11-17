@@ -109,10 +109,34 @@ public final class SimHost {
         }
     }
 
-    /** Moves everyone to {@code at} (the host's world rebuilds that part); host only. Client thread. */
-    public static void moveTo(Minecraft mc, com.killer560.hub.bosssim.BossFight.Start at) {
-        SimCoopConfig.get().setStartAt(at);
+    /** Moves everyone to the saved start name (CLEAR or a boss section); host only. Client thread. */
+    public static void moveTo(Minecraft mc, String at) {
+        SimCoopConfig.get().setStartName(at);
         if (mc.getSingleplayerServer() == null || !SimState.isActive()) return;
+        moveTo(mc);
+    }
+
+    /** Starts the saved start: a fresh F7 clear, or the boss section. In a running sim the world is not reopened. */
+    private static void startSaved(Minecraft mc) {
+        if (!SimCoopConfig.CLEAR.equals(SimCoopConfig.get().startName())) {
+            com.killer560.hub.bosssim.BossSim.start(mc, SimCoopConfig.get().startAt(), false);
+            return;
+        }
+        var floor = SimFloorGen.Floor.F7;
+        var rnd = java.util.concurrent.ThreadLocalRandom.current();
+        int blood = SimFloorGen.MIN_ROOMS_TO_BLOOD + rnd.nextInt(floor.maxRoomsToBlood() - SimFloorGen.MIN_ROOMS_TO_BLOOD + 1);
+        int puzzles = SimFloorGen.MIN_PUZZLES + rnd.nextInt(floor.maxPuzzles(blood) - SimFloorGen.MIN_PUZZLES + 1);
+        com.killer560.hub.bosssim.BossFight.stopForClear();
+        SimState.setFloorLabel(floor.code);
+        SimFloorGen.generate(mc, floor, puzzles, blood);
+    }
+
+    private static void moveTo(Minecraft mc) {
+        if (SimCoopConfig.CLEAR.equals(SimCoopConfig.get().startName())) {
+            startSaved(mc);
+            return;
+        }
+        var at = SimCoopConfig.get().startAt();
         var fight = com.killer560.hub.bosssim.BossFight.running();
         boolean master = at == com.killer560.hub.bosssim.BossFight.Start.P5
                 || fight && com.killer560.hub.bosssim.BossFight.master();
@@ -177,7 +201,7 @@ public final class SimHost {
         pendingOpen = true;
         openTicks = 0;
         status = "Opening the sim world...";
-        com.killer560.hub.bosssim.BossSim.start(mc, SimCoopConfig.get().startAt(), false);
+        startSaved(mc);
         return null;
     }
 

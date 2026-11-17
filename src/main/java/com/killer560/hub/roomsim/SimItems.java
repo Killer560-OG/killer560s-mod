@@ -90,7 +90,7 @@ public final class SimItems {
         // Paper is right for this one - it IS a blueprint.
         ARCHITECT_FIRST_DRAFT("ARCHITECT_FIRST_DRAFT", Items.PAPER,
                 "Architect's First Draft", 1),
-        SUPERBOOM_TNT("SUPERBOOM_TNT", Items.TNT, "Superboom TNT", 8),
+        SUPERBOOM_TNT("SUPERBOOM_TNT", Items.TNT, "Superboom TNT", 64),
         ENDER_PEARL("ENDER_PEARL", Items.ENDER_PEARL, "Ender Pearl", 16),
         // Moved off the blaze rod so it is not the same item in the hand as the Spirit Sceptre above.
         TACTICAL_INSERTION("TACTICAL_INSERTION", Items.BLAZE_ROD, "Tactical Insertion", 1),
@@ -226,6 +226,14 @@ public final class SimItems {
     }
 
     private static String literalName(GiveItem item) { return item.name().toLowerCase(java.util.Locale.ROOT); }
+
+    /** The sky id of an item typed as /item names it (its command word or its id, any case), or null. */
+    static String idOf(String typed) {
+        for (GiveItem item : GiveItem.values()) {
+            if (literalName(item).equalsIgnoreCase(typed) || item.skyblockId.equalsIgnoreCase(typed)) return item.skyblockId;
+        }
+        return null;
+    }
 
     /**
      * Gives one item. Registered as both {@code /simitem <item>} and {@code /item <item>}; the short
