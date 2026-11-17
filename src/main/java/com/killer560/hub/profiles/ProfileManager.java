@@ -60,6 +60,7 @@ public final class ProfileManager {
             // Mining history (chport-1104): Lobby Tracker's lobby visits, Nucleus Run Profit's runs, Profit Per Hour's
             // session - records, not settings (their settings are the *-settings.json / config files).
             "killer560smod-mining-lobbies.json",
+            "killer560smod-mining-fiestaflask.json",
             "killer560smod-nucleus-profit.json",
             "killer560smod-mining-profit.json",
             "killer560smod-account-proxies.json",

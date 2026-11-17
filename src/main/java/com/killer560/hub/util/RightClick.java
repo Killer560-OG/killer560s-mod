@@ -206,6 +206,7 @@ public final class RightClick {
             barePairedUses++;
         }
         lastUseSequence = McPackets.useItemSequence(p);
+        com.killer560.hub.miningqol.FiestaFlask.onUse(player, McPackets.useItemHand(p));
         String line = String.format(Locale.US, "[RightClick] use seq %d with %s (slot %d) rot %.2f/%.2f | server look %s"
                         + " | shift %s | screen %s | %s | server ray %s%s", McPackets.useItemSequence(p), itemId(player, McPackets.useItemHand(p)),
                 player.getInventory().getSelectedSlot() + 1, McPackets.useItemYRot(p), McPackets.useItemXRot(p), sentLook(),

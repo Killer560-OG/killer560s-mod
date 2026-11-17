@@ -46,6 +46,7 @@ public final class MenuSearch {
     private static final String[][] SYNONYMS = {
             {"esp", "highlight", "hitbox", "glow", "outline", "box", "wallhack", "xray", "chams"},
             {"effect", "potion", "buff"},
+            {"flask", "fiesta", "bottle"},
             {"dump", "deposit", "stash", "unload"},
             {"mob", "monster", "enemy", "entity"},
             {"waypoint", "marker", "beacon", "pin"},

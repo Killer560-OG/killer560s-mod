@@ -26,6 +26,7 @@ final class CardBlurbsData {
         d.put("MiningRaffleTab", "Boxes raffle tickets.");
         d.put("MiningCommissionColorsTab", "Shows ores you need.");
         d.put("MiningPowderGhastTab", "Powder Ghast alert and box.");
+        d.put("MiningFiestaFlaskTab", "Flask effect countdown");
         d.put("TreasureChestHighlightTab", "Boxes your chests.");
         d.put("TreasureChestAlertTab", "Chest spawn sound.");
         d.put("MiningGoldenGoblinTab", "Boxes Golden and Diamond Goblins.");

@@ -22,6 +22,7 @@ public final class MiningQolFeatures {
     public static void register() {
         WorldRenderUtils.initThroughWalls();
         AbilityReadyAlert.register();
+        FiestaFlask.register();
         PickobulusEstimate.register();
         AttackHoldProbe.register();
         PowderGhast.register();
@@ -51,6 +52,7 @@ public final class MiningQolFeatures {
             CommissionHud.tick(client);
             CommissionMobs.tick(client);
             AbilityReadyAlert.tick(client);
+            FiestaFlask.tick(client);
             WrongArmorAlert.tick(client);
             JunglePickAlert.tick(client);
             PickobulusEstimate.tick(client);

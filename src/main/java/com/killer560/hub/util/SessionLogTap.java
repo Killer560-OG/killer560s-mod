@@ -31,7 +31,7 @@ public final class SessionLogTap {
             "killer560smod-players", "killer560smod-bestfriends", "killer560smod-friendslist-sync", "killer560smod-modusers",
             "killer560smod-supporters", "killer560smod-imagepreview", "killer560smod-voicetotext", "killer560smod-automeow",
             "killer560smod-quizlog", "killer560smod-spotify", "killer560smod-leapmessage", "killer560smod-sharedrecords",
-            "killer560smod-profileviewer", "killer560smod-playerstats", "killer560smod-autokick");
+            "killer560smod-profileviewer", "killer560smod-playerstats", "killer560smod-autokick", "killer560smod-fiestaflask");
 
     private static final DateTimeFormatter TIME = DateTimeFormatter.ofPattern("HH:mm:ss");
     private static final ArrayDeque<String> LINES = new ArrayDeque<>();
