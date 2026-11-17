@@ -175,7 +175,12 @@ public final class TerminalSolverFeature {
     // stays pending until its slot is actually observed to change (see #checkPendingClicks), order-free
     // types just pick a different, non-pending highlight in the meantime, and a click that never
     // confirms is retried after #retryTimeoutMs (scaled to the user's own delay + measured latency).
-    private record PendingClick(int slot, long firstSentAtMs, long sentAtMs, ItemStack snapshot, int attempt) {
+    /** {@code left}: clicks sent on this slot whose answers are still due (a Rubix pane burst several times), so the pane
+     *  stays pending until its last answer and is never clicked again from a half-answered color. */
+    private record PendingClick(int slot, long firstSentAtMs, long sentAtMs, ItemStack snapshot, int attempt, int left) {
+        PendingClick(int slot, long firstSentAtMs, long sentAtMs, ItemStack snapshot, int attempt) {
+            this(slot, firstSentAtMs, sentAtMs, snapshot, attempt, 1);
+        }
     }
 
     private static final Map<Integer, PendingClick> pendingClicks = new LinkedHashMap<>();
@@ -358,9 +363,10 @@ public final class TerminalSolverFeature {
      *  click there), so it can never pin the pending set forever. */
     private static void checkPendingClicks(List<ItemStack> items, long now) {
         if (pendingClicks.isEmpty()) return;
-        var it = pendingClicks.values().iterator();
+        var it = pendingClicks.entrySet().iterator();
         while (it.hasNext()) {
-            PendingClick pending = it.next();
+            var entry = it.next();
+            PendingClick pending = entry.getValue();
             if (pending.slot() < 0 || pending.slot() >= items.size()) {
                 it.remove();
                 continue;
@@ -368,7 +374,15 @@ public final class TerminalSolverFeature {
             ItemStack current = items.get(pending.slot());
             if (current.isEmpty()) continue;
             boolean changed = !ItemStack.matches(current, pending.snapshot());
-            if (!changed && currentHighlights.containsKey(pending.slot())) continue;
+            boolean highlighted = currentHighlights.containsKey(pending.slot());
+            // A burst's later numbers are not highlighted yet (only the next few are), but they wait for their answer too.
+            if (!changed && (highlighted || (currentType == TerminalType.NUMBERS && now - pending.sentAtMs() < 1500))) continue;
+            if (changed && highlighted && pending.left() > 1) {
+                // One of several clicks on a Rubix pane answered: wait for the rest from the color it shows now.
+                entry.setValue(new PendingClick(pending.slot(), pending.firstSentAtMs(), pending.sentAtMs(), current.copy(),
+                        pending.attempt(), pending.left() - 1));
+                continue;
+            }
             it.remove();
             if (!changed) continue;
             long latency = now - pending.sentAtMs();
@@ -621,7 +635,7 @@ public final class TerminalSolverFeature {
         checkPendingClicks(items, now);
         maybeClearAccidentalCarriedItem(screen);
         boolean autoThisType = cfg.isAutoTerminalsEnabled() && isAutoTypeEnabled(type, cfg);
-        FakeCursor.setShowing(cfg.isAutoStreamSafe() && autoThisType);
+        FakeCursor.setShowing(streamSafeHand(cfg, type) && autoThisType);
         if (hasStabilizedOnce && clickContentStabilized) {
             tickAutoClick(screen, type, items);
             // Hover Terminals (2026-09-16) - same frame-driven loop and the same two gates Auto
@@ -778,7 +792,7 @@ public final class TerminalSolverFeature {
             // finish before this class ever attempts its first click against it. Stream Safe's hand already sets off
             // meanwhile (killer560, 2026-11-01: "The first click is really slow"): it used to start its reaction and move
             // only once this window had passed, so the first click came a whole reaction plus a move after it.
-            if (cfg.isAutoStreamSafe() && isAutoTypeEnabled(type, cfg)) {
+            if (streamSafeHand(cfg, type) && isAutoTypeEnabled(type, cfg)) {
                 preAimStreamSafe(screen, type);
             }
             return;
@@ -798,6 +812,10 @@ public final class TerminalSolverFeature {
             return;
         }
         if (currentHighlights.isEmpty()) return;
+        if (cfg.isBurstMode()) {
+            tickBurstMode(screen, type, items, cfg);
+            return;
+        }
         if (cfg.isAutoStreamSafe()) {
             // Stream Safe (2026-10-27): the human cursor is the clock; the Min/Max delays do not apply.
             tickHumanAutoClick(screen, type, items, cfg);
@@ -822,7 +840,7 @@ public final class TerminalSolverFeature {
                 }
                 if (left <= cfg.getBurstSize()) {
                     if (clickedThisWireTick() || !ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
-                    sendBurst(screen, type, items, now);
+                    sendBurst(screen, type, items, now, Integer.MAX_VALUE, retryTimeout);
                     nextAutoClickAllowedAtMs = now + cfg.rollAutoClickDelayMs();
                     return;
                 }
@@ -947,24 +965,67 @@ public final class TerminalSolverFeature {
         }
     }
 
-    /** Burst Finish: every click left on the board, in one tick, through the one click path. Numbers in their order, a Rubix
-     *  pane as many times as it needs (right clicks for a negative count), every other type one click per highlight. Each
-     *  slot is pending as usual, so a lost click is re-sent after the retry timeout. */
-    private static void sendBurst(ContainerScreen screen, TerminalType type, List<ItemStack> items, long now) {
+    /** Stream Safe's drawn hand runs this type: always in Normal mode, only Melody in Burst mode. */
+    private static boolean streamSafeHand(TerminalSolverConfig cfg, TerminalType type) {
+        return cfg.isAutoStreamSafe() && (type == TerminalType.MELODY || !cfg.isBurstMode());
+    }
+
+    /** Mode: Burst (termburstonly-1116): no single paced click. Once the board is loaded and solved, a burst of up to Max Clicks
+     *  Per Burst goes out in one wire tick, Delay Between Bursts after the last (0 = the next tick). Order-free types (Panes,
+     *  Select, Starts With, Rubix) leave the slots still awaiting an answer to the next burst; Numbers waits for every answer,
+     *  since a lost click would make the rest out of order. An answer overdue past the retry timeout goes out again. */
+    private static void tickBurstMode(ContainerScreen screen, TerminalType type, List<ItemStack> items, TerminalSolverConfig cfg) {
+        long now = System.currentTimeMillis();
+        if (now < nextAutoClickAllowedAtMs) return;
+        long retryTimeout = retryTimeoutMs(cfg);
+        if (type == TerminalType.NUMBERS) {
+            for (PendingClick p : pendingClicks.values()) {
+                if (now - p.sentAtMs() < retryTimeout) return;
+            }
+        } else {
+            boolean any = false;
+            for (int slot : currentHighlights.keySet()) {
+                PendingClick p = pendingClicks.get(slot);
+                if (p == null || now - p.sentAtMs() >= retryTimeout) {
+                    any = true;
+                    break;
+                }
+            }
+            if (!any) return;
+        }
+        if (clickedThisWireTick() || !ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
+        sendBurst(screen, type, items, now, cfg.getBurstClicks(), retryTimeout);
+        // At least 40 ms even at delay 0: a lagging client runs catch-up ticks under 40 ms apart, and the server then took
+        // two bursts in one of its ticks (Panes at 5 arrived as 9 in one server tick, testkit 1116-term-bmode-panes-5).
+        nextAutoClickAllowedAtMs = now + Math.max(cfg.getBurstDelayMs(), MIN_BURST_GAP_MS);
+    }
+
+    private static final long MIN_BURST_GAP_MS = 40;
+
+    /** One burst, in one tick, through the one click path: up to {@code limit} clicks. Numbers in their order, a Rubix pane as
+     *  many times as it needs (right clicks for a negative count), every other type one click per highlight. A slot whose
+     *  click still awaits its answer is skipped; an overdue one goes again. Each slot is pending as usual, so a lost click is
+     *  re-sent after the retry timeout. */
+    private static void sendBurst(ContainerScreen screen, TerminalType type, List<ItemStack> items, long now, int limit, long retryTimeout) {
         int sent = 0;
         List<Integer> slots = type == TerminalType.NUMBERS ? numberOrder(items) : new ArrayList<>(currentHighlights.keySet());
         for (int slot : slots) {
+            if (sent >= limit) break;
+            PendingClick before = pendingClicks.get(slot);
+            if (before != null && now - before.sentAtMs() < retryTimeout) continue;
             int times = 1;
             int button = 0;
             ContainerInput input = ContainerInput.CLONE;
             if (type == TerminalType.RUBIX) {
                 int n = rubixClicks(currentHighlights.get(slot));
-                times = Math.max(1, Math.abs(n));
+                times = Math.min(Math.max(1, Math.abs(n)), limit - sent);
                 button = n < 0 ? 1 : 0;
                 input = ContainerInput.PICKUP;
             }
             ItemStack snapshot = slot < items.size() ? items.get(slot).copy() : ItemStack.EMPTY;
-            pendingClicks.put(slot, new PendingClick(slot, now, now, snapshot, 1));
+            pendingClicks.put(slot, before != null
+                    ? new PendingClick(slot, before.firstSentAtMs(), now, before.snapshot(), before.attempt() + 1, times)
+                    : new PendingClick(slot, now, now, snapshot, 1, times));
             for (int i = 0; i < times; i++) {
                 if (!sendTerminalClick(screen, slot, button, input)) {
                     pendingClicks.remove(slot);

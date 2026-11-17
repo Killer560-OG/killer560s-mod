@@ -55,6 +55,8 @@ public final class TerminalSolverConfig {
     /** The most terminal clicks Burst Finish sends in one tick. */
     public static final int MAX_BURST_SIZE = 21;
     public static final int DEFAULT_BURST_SIZE = 5;
+    /** Delay Between Bursts tops out where the Min/Max Delay does. */
+    public static final int MAX_BURST_DELAY_MS = MAX_AUTO_CLICK_DELAY_MS;
     public static final int MIN_CURSOR_REACTION_MS = 60;
     public static final int MAX_CURSOR_REACTION_MS = 400;
     /** Stream Safe's Miss Chance and Overshoot Chance, percent of moves. */
@@ -211,6 +213,11 @@ public final class TerminalSolverConfig {
     /** Burst Finish (killer560 2026-11-11): once the clicks left are at most Burst Size, send them all in one tick. */
     private boolean burstFinish = false;
     private int burstSize = DEFAULT_BURST_SIZE;
+    /** Mode: Burst (killer560 2026-11-16, "a burst mode as a whole where it only uses burst"): no single paced click, every
+     *  click goes in bursts of up to Max Clicks Per Burst, Delay Between Bursts apart. Melody is the same in both modes. */
+    private boolean burstMode = false;
+    private int burstClicks = DEFAULT_BURST_SIZE;
+    private int burstDelayMs = 0;
     private int cursorReactionMs = 130;
     private int cursorMissChance = 6;
     private int cursorOvershootChance = 18;
@@ -319,6 +326,7 @@ public final class TerminalSolverConfig {
             .add("autoStreamSafe", false, c -> c.autoStreamSafe, (c, v) -> c.autoStreamSafe = v)
             .add("queueTerms", false, c -> c.queueTerms, (c, v) -> c.queueTerms = v)
             .add("burstFinish", false, c -> c.burstFinish, (c, v) -> c.burstFinish = v)
+            .add("burstMode", false, c -> c.burstMode, (c, v) -> c.burstMode = v)
             .add("blockInputWhileAutoClicking", true, c -> c.blockInputWhileAutoClicking, (c, v) -> c.blockInputWhileAutoClicking = v)
             .add("announceCompletionTime", true, c -> c.announceCompletionTime, (c, v) -> c.announceCompletionTime = v)
             .add("hoverTerminalsEnabled", false, c -> c.hoverTerminalsEnabled, (c, v) -> c.hoverTerminalsEnabled = v)
@@ -340,6 +348,8 @@ public final class TerminalSolverConfig {
             // Same min <= max invariant the setters enforce (a hand-edited file could otherwise load min > max).
             cfg.firstClickDelayMs = clamp(ConfigJson.getInt(obj, "firstClickDelayMs", 300), MIN_FIRST_CLICK_DELAY_MS, MAX_FIRST_CLICK_DELAY_MS);
             cfg.burstSize = clamp(ConfigJson.getInt(obj, "burstSize", DEFAULT_BURST_SIZE), 1, MAX_BURST_SIZE);
+            cfg.burstClicks = clamp(ConfigJson.getInt(obj, "burstClicks", DEFAULT_BURST_SIZE), 1, MAX_BURST_SIZE);
+            cfg.burstDelayMs = clamp(ConfigJson.getInt(obj, "burstDelayMs", 0), 0, MAX_BURST_DELAY_MS);
             cfg.cursorReactionMs = clamp(ConfigJson.getInt(obj, "cursorReactionMs", 130), MIN_CURSOR_REACTION_MS, MAX_CURSOR_REACTION_MS);
             cfg.cursorMissChance = clamp(ConfigJson.getInt(obj, "cursorMissChance", 6), 0, MAX_CURSOR_MISS_CHANCE);
             cfg.cursorOvershootChance = clamp(ConfigJson.getInt(obj, "cursorOvershootChance", 18), 0, MAX_CURSOR_OVERSHOOT_CHANCE);
@@ -386,6 +396,8 @@ public final class TerminalSolverConfig {
             obj.addProperty("autoClickMaxDelayMs", autoClickMaxDelayMs);
             obj.addProperty("firstClickDelayMs", firstClickDelayMs);
             obj.addProperty("burstSize", burstSize);
+            obj.addProperty("burstClicks", burstClicks);
+            obj.addProperty("burstDelayMs", burstDelayMs);
             obj.addProperty("cursorReactionMs", cursorReactionMs);
             obj.addProperty("cursorMissChance", cursorMissChance);
             obj.addProperty("cursorOvershootChance", cursorOvershootChance);
@@ -582,6 +594,21 @@ public final class TerminalSolverConfig {
     public int getBurstSize() { return burstSize; }
 
     public void setBurstSize(int size) { this.burstSize = clamp(size, 1, MAX_BURST_SIZE); }
+
+    /** Mode: Burst in force (cheat build only). */
+    public boolean isBurstMode() { return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && burstMode; }
+
+    public boolean isBurstModeRaw() { return burstMode; }
+
+    public void setBurstMode(boolean burstMode) { this.burstMode = burstMode; }
+
+    public int getBurstClicks() { return burstClicks; }
+
+    public void setBurstClicks(int clicks) { this.burstClicks = clamp(clicks, 1, MAX_BURST_SIZE); }
+
+    public int getBurstDelayMs() { return burstDelayMs; }
+
+    public void setBurstDelayMs(int ms) { this.burstDelayMs = clamp(ms, 0, MAX_BURST_DELAY_MS); }
 
     public void setFirstClickDelayMs(int ms) {
         this.firstClickDelayMs = clamp(ms, MIN_FIRST_CLICK_DELAY_MS, MAX_FIRST_CLICK_DELAY_MS);

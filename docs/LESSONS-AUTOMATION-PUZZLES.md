@@ -156,6 +156,19 @@ The puzzle autos at run time (camera, timing, leaving, each puzzle). Part of the
 
 ## Terminals
 
+- **Burst mode (termburstonly-1116).** `checkPendingClicks` used to drop any pending click whose slot was no longer
+  highlighted, and Numbers highlights only the next 2-3 panes, so a whole-board Numbers burst lost track of its later clicks
+  at once and the next burst re-sent them; a Numbers pending click now stays up to 1500 ms while its slot is unchanged, and
+  Numbers bursts again only once every answer is in. A Rubix pane clicked n times in one burst is ONE pending entry with
+  `left = n`, counted down on each slot change, so a later burst never clicks it again before all n answers land. Burst
+  mode is gated before Stream Safe in `tickAutoClick`, and Stream Safe's hand then applies to Melody only (`streamSafeHand`).
+  Bursts keep at least 40 ms apart even at Delay 0 (`MIN_BURST_GAP_MS`): under load the client runs catch-up ticks 6-25 ms
+  apart and two bursts then landed in one server tick (Panes at 5 arrived as 9). Even 40+ ms apart, a loaded test server
+  still merges two client ticks into one of its own, so the server's per-tick count is no test of the mod; the testkit
+  checks the wire (one burst per client tick, wire gap >= 15 ms: encode time on the IO thread shortens the gap to ~22 ms).
+  Test notes: Block Input While Auto Clicking (default ON) swallows his real screen clicks, so a same-tick screen-click
+  case turns it off; a test attack must go at START_CLIENT_TICK like vanilla's, or it lands after the move and GrimAC Post
+  flags the TEST. Whole-terminal bursts (size over 5) are clean on Grim but unproven on Hypixel.
 - **Burst Finish (termburst-1111).** Up to 5 container clicks in one client tick, all under one `ActionGate` grant, are
   clean on GrimAC default and experimental for every terminal type, including a Rubix pane clicked twice in the same tick
   and his own click plus a hotbar swap in that tick (testkit 1111-menu-term-burst-*). The burst waits only for the server

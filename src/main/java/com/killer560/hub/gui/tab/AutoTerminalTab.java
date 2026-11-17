@@ -95,7 +95,27 @@ public class AutoTerminalTab extends BaseTab {
                         }).bounds(contentX, y, contentWidth, 18).build());
                 y += 22;
             }
-            if (!streamSafe) {
+            // Mode (termburstonly-1116): Normal paces single clicks (with an optional Burst Finish); Burst sends every click in
+            // bursts. Melody is the same in both. The other mode's rows are hidden, their values kept.
+            boolean burstMode = cfg().isBurstModeRaw();
+            boolean scan = isSearchScan();
+            widgets.add(SettingsButtonWidget.cycling(Component.literal("Mode: " + (burstMode ? "Burst" : "Normal")), (btn, dir) -> {
+                        cfg().setBurstMode(!cfg().isBurstModeRaw());
+                        cfg().save();
+                        requestRebuild.run();
+                    }).bounds(contentX, y, 220, 20).build());
+            y += 24;
+            if (burstMode || scan) {
+                widgets.add(intSlider(contentX, y, 220, 1, TerminalSolverConfig.MAX_BURST_SIZE,
+                        () -> cfg().getBurstClicks(), v -> cfg().setBurstClicks(v),
+                        () -> Component.literal("Max Clicks Per Burst: " + cfg().getBurstClicks())));
+                y += 24;
+                widgets.add(intSlider(contentX, y, 220, 0, TerminalSolverConfig.MAX_BURST_DELAY_MS,
+                        () -> cfg().getBurstDelayMs(), v -> cfg().setBurstDelayMs(v),
+                        () -> Component.literal("Delay Between Bursts: " + cfg().getBurstDelayMs() + "ms")));
+                y += 24;
+            }
+            if ((!streamSafe && !burstMode) || scan) {
                 // Click Order: which highlighted slot goes next. Stream Safe has its own human order.
                 widgets.add(SettingsButtonWidget.cycling(Component.literal("Click Order: " + cfg().getAutoClickOrder().label), (btn, dir) -> {
                             cfg().setAutoClickOrder(cfg().getAutoClickOrder().next(dir));
@@ -107,7 +127,7 @@ public class AutoTerminalTab extends BaseTab {
                 widgets.add(onOffButton("Burst Finish", () -> cfg().isBurstFinishRaw(), v -> cfg().setBurstFinish(v), () -> cfg().save(),
                         requestRebuild, contentX, y, 220, 20));
                 y += 24;
-                if (cfg().isBurstFinishRaw()) {
+                if (cfg().isBurstFinishRaw() || scan) {
                     widgets.add(intSlider(contentX, y, 220, 1, TerminalSolverConfig.MAX_BURST_SIZE,
                             () -> cfg().getBurstSize(), v -> cfg().setBurstSize(v),
                             () -> Component.literal("Burst Size: " + cfg().getBurstSize())));
@@ -143,7 +163,7 @@ public class AutoTerminalTab extends BaseTab {
             y += 30;
 
             int half = (contentWidth - 8) / 2;
-            if (!streamSafe) {
+            if ((!streamSafe && !burstMode) || scan) {
                 double minNormalized = (TerminalSolverConfig.getInstance().getAutoClickMinDelayMs() - TerminalSolverConfig.MIN_AUTO_CLICK_DELAY_MS)
                         / (double) (TerminalSolverConfig.MAX_AUTO_CLICK_DELAY_MS - TerminalSolverConfig.MIN_AUTO_CLICK_DELAY_MS);
                 widgets.add(new ThemedSliderButton(contentX, y, half, 20, minDelayText(), minNormalized) {
