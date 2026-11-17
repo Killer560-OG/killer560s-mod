@@ -22,7 +22,8 @@
      "Lever Aura and other block-clicking automation no longer draw an anticheat flag when a teleport arrives right as they click",
      "Blood Rush Helper and the Dungeon Sim now use one shared set of spawn boxes for every room it covers (our own boxes only for the one room it lacks); spawn learning, its switches and the learned-spots file are gone. NOTE for achype-1117: BloodRushSpots is deleted; read spots from BloodRushData.worldBoxes(room, frame) (AABB per box; old knownSpots point = ((minX+maxX)/2, minY, (minZ+maxZ)/2)) or BloodRushData.boxes(room) (room-relative).",
      "Magic Find now raises every mob and slayer drop in How Lucky Are You (cap 500), Looting no longer changes its odds, Special accessories give no Magical Power in the Accessory Advisor, and the Rift Prism counts as a normal accessory.",
-     "Dungeon sim co-op: Start At is now a drop-down that includes Clear (a fresh dungeon floor with everyone placed beside the host); guests can type the sim commands themselves, /item takes any item name or id, and /start works for them; Superboom TNT now gives a full stack of 64."
+     "Dungeon sim co-op: Start At is now a drop-down that includes Clear (a fresh dungeon floor with everyone placed beside the host); guests can type the sim commands themselves, /item takes any item name or id, and /start works for them; Superboom TNT now gives a full stack of 64.",
+     "Auto Sell now double-checks each slot is your own inventory and still holds the item it chose before every click, so a buyback can never be clicked"
     ]
    }
   ]

@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
@@ -269,6 +270,13 @@ public final class AutoSellFeature {
             }
             return;
         }
+        String refused = refuseClick(menu, next, cfg);
+        if (refused != null) {
+            // Cannot happen with the stacks read this tick; if it ever does, end the visit rather than click.
+            LOGGER.warn("[AutoSell] not clicking: {}", refused);
+            stop("refused a click (" + refused + ")");
+            return;
+        }
         if (!ActionGate.tryAct(ActionGate.Actor.AUTO_SELL, screen)) {
             return; // gate denied this tick - retry next tick, nothing marked clicked
         }
@@ -313,11 +321,46 @@ public final class AutoSellFeature {
 
     /** The real container slots that are the player's OWN inventory - the last 36 real slots of whatever menu
      *  is open, real main storage (27) then real hotbar (9), the same real order every vanilla container
-     *  appends them in. Never the NPC's own custom slots ahead of them. */
+     *  appends them in. Never the NPC's own custom slots ahead of them: on Hypixel's sell menus slot 49 is the
+     *  hopper whose lore ends "Click to buyback" ({@code ItemProtect.lossScreenOf}), and a click there buys the last
+     *  sold item back. Each slot must also really belong to the player's {@link Inventory} (main or hotbar), so a
+     *  menu with fewer slots than expected can never hand an NPC slot to the clicker. */
     private static List<Slot> playerSlots(AbstractContainerMenu menu) {
         int total = menu.slots.size();
         int start = Math.max(0, total - 36);
-        return menu.slots.subList(start, total);
+        List<Slot> out = new ArrayList<>(36);
+        for (Slot slot : menu.slots.subList(start, total)) {
+            if (isOwnInventorySlot(slot)) {
+                out.add(slot);
+            }
+        }
+        return out;
+    }
+
+    private static boolean isOwnInventorySlot(Slot slot) {
+        return slot.container instanceof Inventory && slot.getContainerSlot() >= 0 && slot.getContainerSlot() < 36;
+    }
+
+    /** The last check before a click goes out: the slot is one of the player's own main or hotbar slots and holds,
+     *  right now, the item the visit chose, which is on the sell list and not on the never-sell list. */
+    private static String refuseClick(AbstractContainerMenu menu, AutoSellVisit.Stack next, AutoSellConfig cfg) {
+        int total = menu.slots.size();
+        if (next.slot() < Math.max(0, total - 36) || next.slot() >= total) {
+            return "slot " + next.slot() + " is not one of the last 36 slots of a " + total + "-slot menu";
+        }
+        Slot slot = menu.slots.get(next.slot());
+        if (!isOwnInventorySlot(slot)) {
+            return "slot " + next.slot() + " is not the player's own inventory";
+        }
+        ItemStack stack = slot.getItem();
+        String identity = stack.isEmpty() ? null : identityOf(stack);
+        if (identity == null || !identity.equals(next.identity())) {
+            return "slot " + next.slot() + " now holds " + identity + ", not " + next.identity();
+        }
+        if (!AutoSellVisit.sellable(lists(cfg), identity)) {
+            return identity + " is not sellable by the lists";
+        }
+        return null;
     }
 
     /**
