@@ -389,6 +389,13 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   (`clearRotationPlace`, 12 aimed clicks on the floor). `util/GrimHitBuffer` mirrors it from every block click at the send
   tap (miss of the full cube with the heard look = 1, strike -0.1), and TurnFirst holds a no-look block click while it is
   above 0 ("would be canceled (place buffer ...)"), so nothing is sent that Grim drops; the owner's click order is unchanged.
+- **That buffer drains only by striking clicks, never by time (leverplace0-1117)**: after one no-look lever click every later
+  one is canceled until 11 aimed ones, at any Lever Aura cooldown, so the EE3 route's second lever sat held and walked out of
+  range. A held click must find a striking look while he walks: the pitch-only search and the heard-look check judge the FULL
+  cube within 4.5 (all RotationPlace tests), not the small lever outline, and a flick the lever does not answer within the
+  round trip is sent again (LeverAuraFeature `notTaken`, at most 3). Testkit 1117-leverplace-* prime the buffer first.
+  A lever in reach for exactly one tick (the EE3 route's high lever) needs its packet look requested on the APPROACH tick:
+  `TurnFirst.preLook`, called from `LeverAuraFeature.preTurn` while AP3 runs or keys are held, so the look rides that tick's packet.
 
 ## Right clicks on Hypixel's 1.8 server (`util/RightClick`)
 

@@ -56,6 +56,9 @@ public final class LeverAuraFeature {
     private static final Set<Long> clickedEarly = new HashSet<>();
     /** Levers clicked after S2 opened (per run). */
     private static final Set<Long> clickedS2 = new HashSet<>();
+    /** Per lever (two at most), its last flick: {tick sent, powered then (1/0), retries so far}; cleared each run. */
+    private static final Map<Long, long[]> sentFlicks = new HashMap<>();
+    private static final int MAX_RETRIES = 3;
     /** ActionGate tick the next flick is due on, fractional so a CPS between whole ticks keeps its average. */
     private static double nextClickDueTick = 0.0;
     /** The tick a due flick first went to turning the body (TurnFirst), or -1: the flick is scheduled from there. */
@@ -180,7 +183,8 @@ public final class LeverAuraFeature {
                     continue;
                 }
                 long key = pos.asLong();
-                boolean wasClicked = (s2Open ? clickedS2 : clickedEarly).contains(key);
+                boolean wasClicked = (s2Open ? clickedS2 : clickedEarly).contains(key)
+                        && !notTaken(client, pos, st, s2Open ? clickedS2 : clickedEarly);
                 // An activated lever gets nothing (ap3auralook-1116: no aura turns the body while AP3 runs, so the
                 // ap3leverturn-1115 turn-only flick that kept AP3's keys the same in both lever states is gone).
                 if (wasClicked || !hasNotActivatedStand(client, pos)) {
@@ -245,6 +249,12 @@ public final class LeverAuraFeature {
      */
     private static boolean preTurn(Minecraft client, BlockPos pos, Vec3 eyeNext) {
         BlockHitResult hit = bestHit(client, pos, eyeNext);
+        if (hit != null && (com.killer560.hub.ap3.Ap3Executor.isRunning()
+                || com.killer560.hub.util.PacketLook.keysHeld(client.player))) {
+            // The walk owns the body: no turn, but the look rides this tick's packet so the flick can go next tick.
+            TURN.preLook(client.player, pos, hit.getLocation(), eyeNext, eyeNext.distanceTo(hit.getLocation()) + 1.0);
+            return true;
+        }
         // Already turned (a slow approach): keep that hold; asking again would read "hits" and give the body back early.
         // Never while AP3 runs or he holds a movement key: an aura never turns the walking body (owner 2026-11-16).
         if (hit != null && !TURN.isTurned() && !com.killer560.hub.ap3.Ap3Executor.isRunning()
@@ -292,6 +302,11 @@ public final class LeverAuraFeature {
             hit = onLook;
         }
         (s2Open ? clickedS2 : clickedEarly).add(pos.asLong());
+        BlockState before = client.level.getBlockState(pos);
+        long[] prev = sentFlicks.get(pos.asLong());
+        sentFlicks.put(pos.asLong(), new long[]{ActionGate.currentTick(),
+                before.getBlock() == Blocks.LEVER && before.getValue(net.minecraft.world.level.block.LeverBlock.POWERED) ? 1 : 0,
+                prev == null ? 0 : prev[2]});
         client.gameMode.useItemOn(client.player, InteractionHand.MAIN_HAND, hit);
         LOGGER.info("[LeverAura] flick sent: lever {} ({}) face={} dist={} entry={} box={} powered={} swing={} tick={}",
                 pos.toShortString(), reason, hit.getDirection(), String.format(java.util.Locale.ROOT, "%.3f",
@@ -329,6 +344,34 @@ public final class LeverAuraFeature {
         return hit;
     }
 
+    /**
+     * True when a flick sent earlier was not taken: a round trip later the lever still shows the state it had when the flick
+     * went and its "Not Activated" stand is still there (the server dropped it - GrimAC cancels a missed block click while
+     * its place buffer is up - or it never arrived). The lever then leaves the clicked set so it is flicked again, at most
+     * {@link #MAX_RETRIES} times a run (leverplace0-1117: a route's lever must never be left unflicked). A changed lever
+     * is taken and its record dropped.
+     */
+    private static boolean notTaken(Minecraft client, BlockPos pos, BlockState st, Set<Long> clicked) {
+        long[] f = sentFlicks.get(pos.asLong());
+        if (f == null) {
+            return false;
+        }
+        boolean powered = st.getValue(net.minecraft.world.level.block.LeverBlock.POWERED);
+        if (powered != (f[1] == 1)) {
+            sentFlicks.remove(pos.asLong()); // taken
+            return false;
+        }
+        long wait = Math.max(4, Math.min(40, Math.round(com.killer560.hub.util.PingTracker.automationMs() / 50.0) + 4));
+        if (f[2] >= MAX_RETRIES || ActionGate.currentTick() - f[0] < wait || !hasNotActivatedStand(client, pos)) {
+            return false;
+        }
+        f[2]++;
+        clicked.remove(pos.asLong());
+        LOGGER.info("[LeverAura] flick on {} not taken ({} ticks later the lever is unchanged and not activated): retry {} of {}",
+                pos.toShortString(), ActionGate.currentTick() - f[0], f[2], MAX_RETRIES);
+        return true;
+    }
+
     /** One cooldown between flicks: the set ms, +-10%. */
     private static double gapMs(LeverAuraConfig cfg) {
         return cfg.getCooldownMs() * (0.9 + ThreadLocalRandom.current().nextDouble() * 0.2);
@@ -349,6 +392,7 @@ public final class LeverAuraFeature {
         lastHeldKey = null;
         clickedEarly.clear();
         clickedS2.clear();
+        sentFlicks.clear();
         nextClickDueTick = 0.0;
         turnStartTick = -1L;
         lastSection = P3SectionTracker.section();

@@ -266,7 +266,35 @@ public final class TurnFirst {
         java.util.function.BiPredicate<Vec3, Vec3> ray = (a, b) -> (shape.isEmpty() ? cube.clip(a, b).isPresent()
                 : shape.clip(a, b, pos) != null)
                 && (cube.contains(a) || cube.clip(a, a.add(b.subtract(a).normalize().scale(range))).isPresent());
-        return settle(player, ray.test(eye, end), aimPoint, ray, reach, pos.toShortString());
+        // With keys held only the pitch may move, so the look is judged as GrimAC RotationPlace judges it: the full cube
+        // within the interaction range, outline or not (the click's hit point is the outline's either way). A lever whose
+        // outline lies off the walk's plane but whose cube does not then gets a flag-free pitch-only click instead of a
+        // no-look one (leverplace0-1117: the no-look click arms Grim's place buffer and the next lever is then canceled).
+        return settle(player, ray.test(eye, end), aimPoint, ray, cubeRay(cube, range), cube, reach, pos.toShortString());
+    }
+
+    private static java.util.function.BiPredicate<Vec3, Vec3> cubeRay(AABB cube, double range) {
+        return (a, b) -> cube.contains(a) || cube.clip(a, a.add(b.subtract(a).normalize().scale(range))).isPresent();
+    }
+
+    /**
+     * A block in reach only from next tick's eye while the walk owns the body (keys held or AP3 running): asks THIS tick's
+     * movement packet for the look (pitch-only with keys held), so the click goes at the start of the next tick. A lever
+     * a walk passes can be in reach for that one tick only; asked in it, the look came a tick late (leverplace0-1117, the
+     * EE3 high lever). Never turns the body.
+     */
+    public void preLook(LocalPlayer player, BlockPos pos, Vec3 aimPoint, Vec3 eyeNext, double reach) {
+        if ((current != null && current != this) || hisAttackThisTick()) {
+            return;
+        }
+        if (aura && PacketLook.keysHeld(player)) {
+            AABB cube = new AABB(pos);
+            PacketLook.whileMoving(player, aimPoint, cubeRay(cube, player.blockInteractionRange()), reach, cube, eyeNext);
+            return;
+        }
+        Vec3 d = aimPoint.subtract(eyeNext);
+        PacketLook.request(player, (float) Math.toDegrees(Math.atan2(-d.x, d.z)),
+                (float) -Math.toDegrees(Math.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z))));
     }
 
     /** As {@link #readyBlock}, for an entity (or any) box. */
@@ -274,11 +302,12 @@ public final class TurnFirst {
         Vec3 eye = player.getEyePosition();
         boolean hits = box.contains(eye) || box.clip(eye, eye.add(look(player).scale(reach))).isPresent();
         java.util.function.BiPredicate<Vec3, Vec3> ray = (a, b) -> box.contains(a) || box.clip(a, b).isPresent();
-        return settle(player, hits, aimPoint, ray, reach, String.format(java.util.Locale.US, "box at %.1f, %.1f, %.1f",
+        return settle(player, hits, aimPoint, ray, ray, null, reach, String.format(java.util.Locale.US, "box at %.1f, %.1f, %.1f",
                 box.getCenter().x, box.getCenter().y, box.getCenter().z));
     }
 
     private boolean settle(LocalPlayer player, boolean hits, Vec3 aimPoint, java.util.function.BiPredicate<Vec3, Vec3> ray,
+                           java.util.function.BiPredicate<Vec3, Vec3> keysRay, AABB target,
                            double reach, String what) {
         if (hits) {
             pending = false; // acting now; the body (if turned) is still held this tick and given back the next
@@ -308,9 +337,21 @@ public final class TurnFirst {
             // auras keeps messing things up" and "My auras can never affect my movement"). The look rides one movement
             // packet (util/PacketLook) and the click goes the tick after; with keys held an aura uses a pitch-only look or
             // clicks with no look at all.
-            if (PacketLook.struck(player, ray, reach)) {
+            if (keys && keysRay != ray) {
+                float[] heard = RightClick.heardLook(); // the packet the server judges this click by
+                Vec3 eye = RightClick.heardFeet(player).add(0, player.getEyeHeight(), 0);
+                if (heard != null && keysRay.test(eye, eye.add(Vec3.directionFromRotation(heard[1], heard[0]).scale(reach)))) {
+                    pending = false;
+                    foreignWait = 0;
+                    placeHeld = false;
+                    LOGGER.info("[TurnFirst] click on {} with the look he already had (its block, keys held)", what);
+                    return true;
+                }
+            }
+            if (PacketLook.struck(player, keys ? keysRay : ray, reach)) {
                 pending = false;
                 foreignWait = 0;
+                placeHeld = false;
                 LOGGER.info("[TurnFirst] click on {} with a one-packet look (body untouched)", what);
                 return true;
             }
@@ -319,7 +360,7 @@ public final class TurnFirst {
                 method = "deferred";
                 return false;
             }
-            PacketLook.Moving m = PacketLook.whileMoving(player, aimPoint, ray, reach);
+            PacketLook.Moving m = PacketLook.whileMoving(player, aimPoint, keysRay, reach, target);
             if (m == PacketLook.Moving.WAIT) {
                 method = "deferred";
                 return false;

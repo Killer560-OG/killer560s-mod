@@ -28,7 +28,6 @@ public final class GrimHitBuffer {
 
     private static final double REACH = 3.0;
     private static final double BOX_SLACK = 0.1;
-    private static final double PLACE_RAY = 6.0;
     private static double buffer;
     private static double place;
 
@@ -70,7 +69,9 @@ public final class GrimHitBuffer {
         float[] look = RightClick.heardLook();
         if (look == null) look = new float[]{player.getYRot(), player.getXRot()};
         Vec3 eye = RightClick.heardFeet(player).add(0, player.getEyeHeight(), 0);
-        Vec3 end = eye.add(Vec3.directionFromRotation(look[1], look[0]).scale(PLACE_RAY));
+        // GrimAC's ray runs only to BLOCK_INTERACTION_RANGE: a cube entered past it is a miss there (a 6-block ray here read
+        // a hit the server took as a miss, leverplace0-1117).
+        Vec3 end = eye.add(Vec3.directionFromRotation(look[1], look[0]).scale(player.blockInteractionRange()));
         AABB box = new AABB(pos);
         boolean hit = box.contains(eye) || box.clip(eye, end).isPresent();
         place = hit ? Math.max(0, place - 0.1) : 1;
