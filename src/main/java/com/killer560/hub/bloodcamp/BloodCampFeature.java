@@ -2207,6 +2207,11 @@ public final class BloodCampFeature {
     }
 
     /** Blood mobs alive now (tagged and not dead), and trips on their way (a path, the mob not landed yet). */
+    /** The Watcher is in the client world (the blood room is in entity range). */
+    static boolean watcherInView() {
+        return watcherEntityId != null;
+    }
+
     static int[] campCounts(Minecraft client) {
         int alive = 0;
         for (Integer id : BLOOD_IDS) {

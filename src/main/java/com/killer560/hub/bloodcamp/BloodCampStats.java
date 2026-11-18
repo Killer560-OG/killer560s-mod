@@ -47,6 +47,12 @@ public final class BloodCampStats {
 
     private static Phase phase = Phase.IDLE;
     private static long ticksLost;
+    /** Counting began (a trip's mob landed in view). */
+    private static boolean counted;
+    /** Server ticks of the camp with the Watcher out of the client world and no blood mob loaded: nothing could be seen. */
+    private static long farTicks;
+    /** The part of farTicks while counting: the ticks lost may be higher than shown by about this much. */
+    private static long blindTicks;
     private static long firstKillTicks = -1L;
     private static long campLagMs;
     private static boolean camped;
@@ -88,6 +94,9 @@ public final class BloodCampStats {
         }
         phase = Phase.IDLE;
         ticksLost = 0L;
+        counted = false;
+        farTicks = 0L;
+        blindTicks = 0L;
         firstKillTicks = -1L;
         campLagMs = 0L;
         camped = false;
@@ -113,8 +122,14 @@ public final class BloodCampStats {
             BloodCampFeature.LOGGER.info("[BloodCampStats] kill timer went off: waiting for the next mob to spawn ({} alive"
                     + " now, not counted)", BloodCampFeature.campCounts(client)[0]);
         }
-        if (phase == Phase.ALIVE && BloodCampFeature.campCounts(client)[0] > 0) {
+        int[] counts = BloodCampFeature.campCounts(client);
+        if (phase == Phase.ALIVE && counts[0] > 0) {
             ticksLost++;
+        } else if (counts[0] == 0 && counts[1] == 0 && !BloodCampFeature.watcherInView() && WatcherBar.mobsLeft(client) != 0) {
+            // Out of entity range (far away, other room): the mobs and the Watcher are not in the client world, so a tick
+            // with a mob alive cannot be told from one without. Never counted as zero (killer560, 2026-11-09).
+            farTicks++;
+            blindTicks += phase == Phase.ALIVE ? 1 : 0;
         }
         campLagMs = BloodCampMoveTimer.lagMsSinceGreeting();
     }
@@ -135,6 +150,7 @@ public final class BloodCampStats {
             return;
         }
         phase = Phase.ALIVE;
+        counted = true;
         BloodCampFeature.LOGGER.info("[BloodCampStats] first mob since the kill timer spawned (#{}): counting ticks with a"
                 + " blood mob alive", mobId);
     }
@@ -176,6 +192,11 @@ public final class BloodCampStats {
         sentThisRun = true;
         String text = message(cfg.isPartyMessageLag());
         lastMessage = text;
+        if (lostUnknown()) {
+            BloodCampFeature.LOGGER.info("[BloodCampStats] camp cleared: time lost unknown (out of range {} ticks), no party message ({})",
+                    farTicks, text);
+            return;
+        }
         if (!cfg.isEnabled() || !cfg.isPartyMessage()) {
             BloodCampFeature.LOGGER.info("[BloodCampStats] camp cleared: Party Message off ({})", text);
             return;
@@ -192,11 +213,28 @@ public final class BloodCampStats {
     private static int partyMessagesSent;
 
     static String message(boolean withLag) {
-        String s = String.format(Locale.US, "Blood Camp: %d ticks lost to slow mob kills (%.2fs)", ticksLost, ticksLost / 20.0);
+        String s = lostUnknown() ? "Blood Camp: time lost to slow mob kills unknown (out of range)"
+                : "Blood Camp: " + (blindTicks > 0 ? "at least " : "") + String.format(Locale.US, "%d ticks lost to slow mob kills (%.2fs)",
+                ticksLost, ticksLost / 20.0) + (blindTicks > 0 ? ", part of the camp out of range" : "");
         if (withLag) {
             s += String.format(Locale.US, ", %.2fs of server lag during the camp", campLagMs / 1000.0);
         }
         return s;
+    }
+
+    /** Nothing was counted and the camp was out of view for part of it: the figure cannot be known. */
+    public static boolean lostUnknown() {
+        return !counted && farTicks > 0;
+    }
+
+    /** Ticks counted while a mob could not be seen (the figure is a lower bound when above 0). */
+    public static long blindTicks() {
+        return blindTicks;
+    }
+
+    private static String lostText() {
+        return String.format(Locale.US, "%d%s (%.2fs%s)", ticksLost, blindTicks > 0 ? "+" : "", ticksLost / 20.0,
+                blindTicks > 0 ? "+" : "");
     }
 
     public static long ticksLost() {
@@ -257,7 +295,7 @@ public final class BloodCampStats {
             out.add("Mobs Left: " + mobsLeftText(client));
         }
         if (cfg.isHudMobTicks()) {
-            out.add(String.format(Locale.US, "Mob Ticks: %d (%.2fs)", ticksLost, ticksLost / 20.0));
+            out.add("Mob Ticks: " + (lostUnknown() ? "unknown (out of range)" : lostText()));
         }
         if (cfg.isHudCampLag()) {
             out.add(String.format(Locale.US, "Camp Lag: %.2fs", campLagMs / 1000.0));

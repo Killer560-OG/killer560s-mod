@@ -34,7 +34,8 @@
      "Fiesta Flask Timer: the Pause Outside Mining Fiesta setting is gone; the timer always pauses outside a Mining Fiesta, as the flask does.",
      "Maniac Miner: the Mana Bar now takes 20 mana off for every block the server breaks around you while it runs (before, only the block you aimed at), so it reads what Hypixel does (mana runs out within about 3 seconds of mining); it stops at the expiry line or after 35 seconds even when no line comes. (26.3 cheat and legit pass, 26.2 compiles)",
      "Blood Rush Helper: with All Rooms off it now works only in the rooms that lead to the Blood door, not in side rooms.",
-     "Secret Aura's click cooldown can now be set as low as 50 ms."
+     "Secret Aura's click cooldown can now be set as low as 50 ms.",
+     "Blood Camp Stats: time lost reads unknown (or at least N) when the camp is out of entity range instead of 0 (26.3 cheat 5 pass, 26.3 legit 4 pass, 26.2 cheat 4 pass)"
     ]
    }
   ]
