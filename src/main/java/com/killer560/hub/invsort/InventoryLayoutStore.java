@@ -248,6 +248,8 @@ public final class InventoryLayoutStore {
         Map<Integer, String> exact = new LinkedHashMap<>();
         Map<Integer, Integer> counts = new LinkedHashMap<>();
         JsonObject countsObj = ConfigJson.getObject(root, "counts");
+        JsonObject looksObj = ConfigJson.getObject(root, "looks");
+        Map<Integer, String> looks = new LinkedHashMap<>();
         if (slotsObj != null) {
             for (String key : slotsObj.keySet()) {
                 if (slots.size() >= MAX_SLOTS) {
@@ -271,6 +273,10 @@ public final class InventoryLayoutStore {
                 String icon = iconsObj == null ? null : ConfigJson.getString(iconsObj, key, null);
                 if (icon != null && !icon.isBlank()) {
                     icons.put(slot, icon.trim());
+                }
+                String look = looksObj == null ? null : ConfigJson.getString(looksObj, key, null);
+                if (look != null && !look.isBlank() && look.length() <= 20000) {
+                    looks.put(slot, look);
                 }
                 int n = countsObj == null ? 0 : ConfigJson.getInt(countsObj, key, 0);
                 if (n > 0) {
@@ -303,7 +309,7 @@ public final class InventoryLayoutStore {
             dump = null;
         }
         int loadout = ConfigJson.getInt(root, "loadout", 0);
-        return new InventoryLayout(name, slots, icons, exact, free, fetch, dump, loadout, counts);
+        return new InventoryLayout(name, slots, icons, exact, free, fetch, dump, loadout, counts, looks);
     }
 
     /** {@code enderchest_1}-{@code enderchest_9} or {@code backpack_1}-{@code backpack_18}. */
@@ -329,6 +335,11 @@ public final class InventoryLayoutStore {
             JsonObject countsObj = new JsonObject();
             layout.counts().forEach((k, v) -> countsObj.addProperty(String.valueOf(k), v));
             root.add("counts", countsObj);
+        }
+        if (!layout.looks().isEmpty()) {
+            JsonObject looksObj = new JsonObject();
+            layout.looks().forEach((k, v) -> looksObj.addProperty(String.valueOf(k), v));
+            root.add("looks", looksObj);
         }
         if (!layout.exactKeys().isEmpty()) {
             // The very item per slot (InvSortMatch); "slots" keeps the plain id so an older mod still reads the file.

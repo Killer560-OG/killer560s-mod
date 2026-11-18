@@ -38,6 +38,9 @@ public final class InventoryLayout {
     private final Map<Integer, String> slotExact;
     /** Slot -> how many the slot held when the layout was saved (absent: an older layout, amount unknown). */
     private final Map<Integer, Integer> slotCounts;
+    /** Slot -&gt; the item's look as a {@code StorageSearchNbtCodec} blob (item, skull skin, model, dye, glint), so an item
+     *  not held right now draws the same icon as when held. Optional: layouts saved before 2026-11-17 have none. */
+    private final Map<Integer, String> slotLooks = new LinkedHashMap<>();
     /** Slots the layout leaves alone (see the class doc). */
     private final Set<Integer> freeSlots;
     /** Storage mode (killer560, 2026-11-01): before sorting, take the layout's missing items out of storage (Ender
@@ -81,6 +84,12 @@ public final class InventoryLayout {
     public InventoryLayout(String name, Map<Integer, String> slotIdentities, Map<Integer, String> slotIcons,
                            Map<Integer, String> slotExact, Set<Integer> freeSlots, boolean fetchFromStorage,
                            String dumpPage, int loadout, Map<Integer, Integer> slotCounts) {
+        this(name, slotIdentities, slotIcons, slotExact, freeSlots, fetchFromStorage, dumpPage, loadout, slotCounts, Map.of());
+    }
+
+    public InventoryLayout(String name, Map<Integer, String> slotIdentities, Map<Integer, String> slotIcons,
+                           Map<Integer, String> slotExact, Set<Integer> freeSlots, boolean fetchFromStorage,
+                           String dumpPage, int loadout, Map<Integer, Integer> slotCounts, Map<Integer, String> looks) {
         this.slotCounts = new LinkedHashMap<>();
         slotCounts.forEach((k, v) -> {
             if (v != null && v > 0 && v <= 64 && slotIdentities.containsKey(k)) {
@@ -93,6 +102,11 @@ public final class InventoryLayout {
         this.slotIdentities.remove(LOCKED_SLOT); // the last hotbar slot is Hypixel's locked item: no layout holds it
         this.slotIcons = new LinkedHashMap<>(slotIcons);
         this.slotIcons.remove(LOCKED_SLOT);
+        looks.forEach((k, v) -> {
+            if (v != null && this.slotIdentities.containsKey(k)) {
+                this.slotLooks.put(k, v);
+            }
+        });
         this.slotExact = new LinkedHashMap<>();
         for (Map.Entry<Integer, String> e : slotExact.entrySet()) {
             // Only for a slot the layout has, and only when it is that slot's item.
@@ -114,17 +128,17 @@ public final class InventoryLayout {
 
     /** The same slots under another name. */
     public InventoryLayout renamed(String newName) {
-        return new InventoryLayout(newName, slotIdentities, slotIcons, slotExact, freeSlots, fetchFromStorage, dumpPage, loadout, slotCounts);
+        return new InventoryLayout(newName, slotIdentities, slotIcons, slotExact, freeSlots, fetchFromStorage, dumpPage, loadout, slotCounts, slotLooks);
     }
 
     /** The same slots with other storage-mode settings. */
     public InventoryLayout withStorage(boolean fetch, String dump) {
-        return new InventoryLayout(name, slotIdentities, slotIcons, slotExact, freeSlots, fetch, dump, loadout, slotCounts);
+        return new InventoryLayout(name, slotIdentities, slotIcons, slotExact, freeSlots, fetch, dump, loadout, slotCounts, slotLooks);
     }
 
     /** The same layout selecting Hypixel loadout {@code n} (1..12) when applied; 0 for none. */
     public InventoryLayout withLoadout(int n) {
-        return new InventoryLayout(name, slotIdentities, slotIcons, slotExact, freeSlots, fetchFromStorage, dumpPage, n, slotCounts);
+        return new InventoryLayout(name, slotIdentities, slotIcons, slotExact, freeSlots, fetchFromStorage, dumpPage, n, slotCounts, slotLooks);
     }
 
     /** The Hypixel loadout applying this layout selects first (1..12), or 0 for none. */
@@ -149,6 +163,11 @@ public final class InventoryLayout {
     /** The vanilla item id saved for {@code slot}'s icon, or null. */
     public String iconAt(int slot) {
         return slotIcons.get(slot);
+    }
+
+    /** Slot -&gt; saved look blob (see {@code slotLooks}); empty for an older layout. */
+    public Map<Integer, String> looks() {
+        return java.util.Collections.unmodifiableMap(slotLooks);
     }
 
     public Map<Integer, String> icons() {

@@ -177,7 +177,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
                 used[found] = true;
                 grid[slot] = inv.getItem(found).copy();
             } else {
-                grid[slot] = placeholder(layout.iconAt(slot), layout.identityAt(slot));
+                grid[slot] = placeholder(layout, slot);
                 grid[slot].setCount(layout.counts().getOrDefault(slot, 1));
                 missing[slot] = true;
                 exactAt[slot] = layout.exactKeys().get(slot);
@@ -206,13 +206,11 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         return -1;
     }
 
-    private static ItemStack placeholder(String iconId, String identity) {
-        Item item = null;
-        Identifier id = iconId == null ? null : Identifier.tryParse(iconId);
-        if (id != null) {
-            item = BuiltInRegistries.ITEM.getOptional(id).orElse(null);
-        }
-        ItemStack stack = new ItemStack(item == null || item == Items.AIR ? Items.PAPER : item);
+    /** The layout item at {@code slot} as it looks when held ({@link InvSortLooks#resolve}), named for the hover. The
+     *  caller tints it red. */
+    private static ItemStack placeholder(InventoryLayout layout, int slot) {
+        String identity = layout.identityAt(slot);
+        ItemStack stack = InvSortLooks.resolve(layout, slot);
         stack.set(DataComponents.CUSTOM_NAME, Component.literal(identity + NOT_IN_INVENTORY));
         return stack;
     }
@@ -391,6 +389,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         Map<Integer, String> icons = new LinkedHashMap<>();
         Map<Integer, String> exact = new LinkedHashMap<>();
         Map<Integer, Integer> counts = new LinkedHashMap<>();
+        Map<Integer, String> looks = new LinkedHashMap<>();
         Set<Integer> freeSlots = new TreeSet<>();
         for (int i = 0; i < 36; i++) {
             if (free[i]) {
@@ -408,12 +407,16 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
             slots.put(i, identity);
             counts.put(i, stack.getCount());
             icons.put(i, BuiltInRegistries.ITEM.getKey(stack.getItem()).toString());
+            String look = InvSortLooks.encode(stack);
+            if (look != null) {
+                looks.put(i, look);
+            }
             String key = missing[i] ? exactAt[i] : InvSortMatch.exact(stack);
             if (key != null) {
                 exact.put(i, key);
             }
         }
-        return new InventoryLayout(name, slots, icons, exact, freeSlots, false, null, 0, counts);
+        return new InventoryLayout(name, slots, icons, exact, freeSlots, false, null, 0, counts, looks);
     }
 
     private static String identityOfPlaceholder(ItemStack stack) {
@@ -697,7 +700,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
                     used[found] = true;
                     stacks[k] = inv.getItem(found).copy();
                 } else {
-                    stacks[k] = placeholder(layout.iconAt(s), layout.identityAt(s));
+                    stacks[k] = placeholder(layout, s);
                     miss[k] = true;
                 }
             }
