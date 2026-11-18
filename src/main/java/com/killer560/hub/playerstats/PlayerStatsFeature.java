@@ -158,9 +158,6 @@ public final class PlayerStatsFeature {
                         resetManaReading();
                         maniacUntil = 0;
                     }
-                    if (maniacUntil != 0) {
-                        aimManiac(client);
-                    }
                 }));
         // Experience bar + level (2026-10-04, killer560: "add an option to hide the enchanting bar and its
         // level"). Fabric's INFO_BAR is the contextual bar slot - the XP bar, and also the locator and
@@ -332,12 +329,12 @@ public final class PlayerStatsFeature {
     private static Object manaLevel;
 
     /** Forgets the mana reading: a new world starts with no figure, so nothing holds an etherwarp until the bar says so. */
-    // Maniac Miner (maniac-1104; killer560, 2026-11-04: "on the main server maniac miner doesnt do a good job of updating
-    // the mana bar ... use the predictive stuff to figure out how much mana it is using ... not as a setting just always").
-    // The HotM pickaxe ability costs 20 mana per block broken for 25/30/35 s by level (hypixelskyblock wiki, Maniac
-    // Miner); the action bar lags it, so the Mana Bar takes 20 off for each block the server breaks under his crosshair
-    // while he holds attack, from "You used your Maniac Miner Pickaxe Ability!" (AbilityReadyAlert's USED line) to its
-    // expiry line or 35 s. Ultimate Wise lowers the real cost; the next changed action bar figure corrects it.
+    // Maniac Miner (maniac-1104; recorded 2026-11-17, maniaccap-1117): the HotM pickaxe ability costs 20 mana for EVERY block the
+    // server breaks around him (single and section updates), not only the one under the crosshair (a Titanium Drill run broke 275 blocks in 6.5 s, 36-56 a
+    // second, and the bar fell from 2,300 to 63; the old aimed-block-only guess read 1,940). The action bar prints no mana at
+    // all while a drill shows its fuel, so the Mana Bar takes 20 off for each block the server turns to air within
+    // MANIAC_RANGE of him, from "You used your Maniac Miner Pickaxe Ability!" (AbilityReadyAlert's USED line) to its expiry
+    // line or 35 s (also if no line comes), never below 0; the next changed action bar figure wins.
     static final long MANIAC_MANA_PER_BLOCK = 20;
     static final long MANIAC_MAX_MS = 35_000;
     private static final Pattern MANIAC_END = Pattern.compile("^Your Maniac Miner (?:ability )?has (?:expired|ended|worn off)!?$");
@@ -345,9 +342,8 @@ public final class PlayerStatsFeature {
     static long maniacUntil;
     /** The mana figure the action bar last printed, -1 before one. */
     private static long manaPrinted = -1;
-    /** The block under the crosshair at the last tick end while the drain runs, and its state then. */
-    private static net.minecraft.core.BlockPos maniacAim;
-    private static net.minecraft.world.level.block.state.BlockState maniacAimState;
+    /** Blocks the server breaks farther than this from him are not his Maniac Miner's (the recording's furthest was 13.6). */
+    static final double MANIAC_RANGE_SQ = 14 * 14;
 
     private static boolean maniacActive() {
         if (maniacUntil != 0 && System.currentTimeMillis() > maniacUntil) {
@@ -362,33 +358,24 @@ public final class PlayerStatsFeature {
         String s = net.minecraft.ChatFormatting.stripFormatting(raw).trim();
         if (s.equals("You used your Maniac Miner Pickaxe Ability!")) {
             maniacUntil = System.currentTimeMillis() + MANIAC_MAX_MS;
-            maniacAim = null;
         } else if (MANIAC_END.matcher(s).matches()) {
             maniacUntil = 0;
         }
     }
 
-    private static void aimManiac(net.minecraft.client.Minecraft client) {
-        if (!maniacActive() || client.level == null
-                || !(client.hitResult instanceof net.minecraft.world.phys.BlockHitResult hit)
-                || client.hitResult.getType() != net.minecraft.world.phys.HitResult.Type.BLOCK) {
-            maniacAim = null;
-            return;
-        }
-        maniacAim = hit.getBlockPos();
-        maniacAimState = client.level.getBlockState(maniacAim);
+    /** The server changed the block at {@code pos} (MiningBlockUpdateMixin): one of Maniac Miner's blocks broke. */
+    public static void onBlockChanged(net.minecraft.core.BlockPos pos) {
+        if (maniacUntil == 0 || manaCur <= 0 || !maniacActive()) return;
+        net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+        if (client.level == null || client.player == null || !client.level.getBlockState(pos).isAir()
+                || client.player.distanceToSqr(net.minecraft.world.phys.Vec3.atCenterOf(pos)) > MANIAC_RANGE_SQ) return;
+        manaCur = Math.max(0, manaCur - MANIAC_MANA_PER_BLOCK);
     }
 
-    /** The server changed the block at {@code pos} (MiningBlockUpdateMixin): a block he was digging broke. */
-    public static void onBlockChanged(net.minecraft.core.BlockPos pos) {
-        if (maniacUntil == 0 || maniacAim == null || !maniacAim.equals(pos) || !maniacActive()) return;
-        net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
-        if (client.level == null || !client.options.keyAttack.isDown()) return;
-        net.minecraft.world.level.block.state.BlockState now = client.level.getBlockState(pos);
-        if (now == maniacAimState) return;
-        maniacAimState = now;
-        if (manaCur > 0) {
-            manaCur = Math.max(0, manaCur - MANIAC_MANA_PER_BLOCK);
+    /** A batch of changes in one section (Hypixel sends most of Maniac Miner's blocks this way, 5-11 at a time). */
+    public static void onSectionChanged(net.minecraft.network.protocol.game.ClientboundSectionBlocksUpdatePacket packet) {
+        if (maniacUntil != 0) {
+            packet.runUpdates((pos, state) -> onBlockChanged(pos));
         }
     }
 

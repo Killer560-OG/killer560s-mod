@@ -31,7 +31,8 @@
      "Dungeon sim: a key bound to /stats, /wd or /items now opens the sim screen (any command a mod sends does), /items opens the sim item menu, /stats shows only your armor and inventory and a click puts a piece on or takes it off, /warp works like /tpto, and /tpto coffee3 teleports to the section 3 spot",
      "Auto Clear: while the Quiz's countdown runs it clears other rooms instead of standing at the Quiz, then goes back for each answer; with nothing else to clear it waits there as before",
      "Lever Aura's default cooldown is now 50 ms (was 250); a cooldown you set yourself is kept.",
-     "Fiesta Flask Timer: the Pause Outside Mining Fiesta setting is gone; the timer always pauses outside a Mining Fiesta, as the flask does."
+     "Fiesta Flask Timer: the Pause Outside Mining Fiesta setting is gone; the timer always pauses outside a Mining Fiesta, as the flask does.",
+     "Maniac Miner: the Mana Bar now takes 20 mana off for every block the server breaks around you while it runs (before, only the block you aimed at), so it reads what Hypixel does (mana runs out within about 3 seconds of mining); it stops at the expiry line or after 35 seconds even when no line comes. (26.3 cheat and legit pass, 26.2 compiles)"
     ]
    }
   ]

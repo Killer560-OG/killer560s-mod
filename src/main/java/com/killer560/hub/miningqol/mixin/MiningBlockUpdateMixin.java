@@ -38,6 +38,7 @@ public abstract class MiningBlockUpdateMixin {
     private void killer560smod$miningSection(ClientboundSectionBlocksUpdatePacket packet, CallbackInfo ci) {
         try {
             MiningHighlights.onSectionChanged(packet);
+            com.killer560.hub.playerstats.PlayerStatsFeature.onSectionChanged(packet);
         } catch (RuntimeException e) {
             killer560smod$mining$threw("sectionUpdate", e);
         }
