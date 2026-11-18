@@ -1094,6 +1094,12 @@ public final class AutoClearFeature {
         if (startQuizFirst(layout)) {
             return -1;
         }
+        if (quizGapNext >= 0) {
+            int gap = quizGapNext;
+            quizGapNext = -1;
+            doorTarget = -1;
+            return gap;
+        }
         Set<String> pending = pendingStill(layout);
         Set<String> skip = skippedRooms;
         if (!pending.isEmpty()) {
@@ -1365,8 +1371,24 @@ public final class AutoClearFeature {
     private static long quizWaitLag = 0L;
     /** The last reason the Quiz was put off ("behind a wither door, no key"), so each is logged once. */
     private static String quizPutOff = null;
+    /** A room to clear while Oruo's countdown runs (killer560, 2026-11-17: "if that timer isn't ready then don't go back
+     *  to click it or wait there have it go clear"), taken by the next pick; -1 none. */
+    private static int quizGapNext = -1;
+    /** The question opening tick the Quiz's own gap check last ran for, so it runs once per countdown, not every tick. */
+    private static long quizGapCheckedFor = Long.MIN_VALUE;
+    /** Testkit: rooms cleared in Quiz gaps this run, and ticks stood at the Quiz with Oruo begun. */
+    private static int quizGaps = 0;
+    private static int quizIdleTicks = 0;
+
+    public static int quizGapCount() { return quizGaps; }
+
+    public static int quizIdleTicks() { return quizIdleTicks; }
 
     private static void resetQuiz() {
+        quizGapNext = -1;
+        quizGapCheckedFor = Long.MIN_VALUE;
+        quizGaps = 0;
+        quizIdleTicks = 0;
         quizActive = false;
         quizGaveUp = false;
         quizTrip = false;
@@ -1423,6 +1445,14 @@ public final class AutoClearFeature {
             return false;
         }
         quizPutOff = null;
+        if (quizGapNext >= 0) {
+            return false;   // the Quiz's own step found a room for this countdown: pickRoom takes it
+        }
+        int gap = quizGapPick(layout, quiz);
+        if (gap >= 0) {
+            quizGapNext = gap;
+            return false;
+        }
         quizActive = true;
         quizWaitTicks = 0;
         pathFailures = 0;
@@ -1475,6 +1505,17 @@ public final class AutoClearFeature {
             action = "at the Quiz: " + com.killer560.hub.puzzlesolvers.QuizState.describe();
             if (com.killer560.hub.puzzlesolvers.QuizState.started()) {
                 quizWaitTicks = 0;
+                long opens = com.killer560.hub.puzzlesolvers.QuizState.answerAtTick();
+                if (opens != quizGapCheckedFor) {
+                    quizGapCheckedFor = opens;
+                    int gap = quizGapPick(layout, quiz);
+                    if (gap >= 0) {
+                        quizGapNext = gap;
+                        quizActive = false;   // the next pick clears it, then asks the Quiz again
+                        return;
+                    }
+                }
+                quizIdleTicks++;
                 return;   // Auto Quiz clicks each answer the solver gives, when its cooldown ends
             }
             if (++quizWaitTicks == 1) {
@@ -1557,6 +1598,68 @@ public final class AutoClearFeature {
         travelStarted = true;
         quizTrip = true;
         phase = Phase.TRAVEL;
+    }
+
+    /** How late a Quiz-gap clear may bring him back (killer560, 2026-11-17: "It can return a hair late as well if there are
+     *  other things to do. It doesn't need to be back tick perfect") - about one small room's clear. */
+    static final int QUIZ_GAP_LATE_TICKS = 100;
+
+    /**
+     * While Oruo's countdown runs and its opening tick is known, and going back now would only stand him at the Quiz: a room
+     * to clear first, through open doors, from its clear from here (trips included, {@link #estimateClear}) plus the trip
+     * back onto the answer spot. The longest clear that is back in time (with
+     * {@link com.killer560.hub.autosecret.AutoSecretFeature#QUIZ_GAP_CLEAR_SPARE_TICKS} in hand) saves the most; failing
+     * that, the one back least late, if within {@link #QUIZ_GAP_LATE_TICKS} - the room is work the floor needs anyway, so a
+     * small late return costs less than the wait. -1: an unknown countdown, no answer spot yet, the answer (nearly) open,
+     * or no room in reach; he goes back and waits, as before. Asked only at a pick and once per countdown at the Quiz.
+     */
+    private static int quizGapPick(DungeonLayout layout, int quiz) {
+        if (!com.killer560.hub.puzzlesolvers.QuizState.awaitingAnswer()) {
+            return -1;
+        }
+        long left = com.killer560.hub.puzzlesolvers.QuizState.ticksUntilAnswerable();
+        BlockPos spot = com.killer560.hub.autopuzzles.AutoPuzzlesFeature.quizAnswerSpot();
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player == null || spot == null) {
+            return -1;
+        }
+        Vec3 back = Vec3.atBottomCenterOf(spot.above());
+        if (left <= etherTicks(player.position(), back) + ETHER_FIXED_TICKS) {
+            return -1;   // the answer opens about as he would get there: go now
+        }
+        int spare = com.killer560.hub.autosecret.AutoSecretFeature.QUIZ_GAP_CLEAR_SPARE_TICKS;
+        Set<String> skip = new HashSet<>(skippedRooms);
+        skip.addAll(pendingStill(layout));
+        int best = -1;
+        double bestTicks = 0;
+        int late = -1;
+        double lateBy = QUIZ_GAP_LATE_TICKS;
+        for (int r : AutoClearTargets.candidates(layout, AutoClearConfig.getInstance().getMode(), skip)) {
+            AutoClearTargets.Choice c = r == quiz ? null : AutoClearTargets.choose(layout, List.of(r));
+            double[] est = c == null || c.door() >= 0 ? null : estimateClear(player.position(), layout.name(r));
+            if (est == null) {
+                continue;
+            }
+            double over = est[0] + etherTicks(new Vec3(est[1], est[2], est[3]), back) + spare - left;
+            if (over <= 0 && est[0] > bestTicks) {
+                best = r;
+                bestTicks = est[0];
+            } else if (over > 0 && over <= lateBy) {
+                late = r;
+                lateBy = over;
+            }
+        }
+        String q = com.killer560.hub.puzzlesolvers.QuizState.describe();
+        int pick = best >= 0 ? best : late;
+        if (pick < 0) {
+            LOGGER.info("[AutoClear] Quiz countdown ({} ticks, {}): no room in reach to clear meanwhile - waiting there", left, q);
+            return -1;
+        }
+        quizGaps++;
+        LOGGER.info("[AutoClear] Quiz countdown ({} ticks, {}): clearing {} meanwhile ({})", left, q, layout.name(pick),
+                best >= 0 ? "back in time" : "back about " + Math.round(lateBy) + " ticks late");
+        ModChat.log(CHAT, ModChat.text("Quiz countdown: clearing " + layout.name(pick) + " meanwhile"));
+        return pick;
     }
 
     /** The Quiz is over for now (done, or it cannot be got at): the rooms take over; a later pick may come back to it. */

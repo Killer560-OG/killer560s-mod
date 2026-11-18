@@ -1312,7 +1312,7 @@ public final class AutoSecretFeature {
     }
 
     /** Ticks kept in hand when a clear fills a Quiz gap (the clear's estimate is a straight-line one). */
-    static final int QUIZ_GAP_CLEAR_SPARE_TICKS = 20;
+    public static final int QUIZ_GAP_CLEAR_SPARE_TICKS = 20;
 
     /**
      * Fastest Total between two Quiz answers: the room he just secreted in a gap, still uncleared, is cleared now when
