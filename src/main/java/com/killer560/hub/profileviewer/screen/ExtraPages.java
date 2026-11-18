@@ -1655,7 +1655,7 @@ final class ExtraPages {
         }
         int navW = 84;
         s.box(g, s.contentX, s.contentY, navW, s.contentH);
-        int view = nav(g, new String[]{"Information", "Inventory", "Ender Chest"}, s.contentX + 4, s.contentY + 4, navW - 8, mx, my);
+        int view = nav(g, new String[]{"Information", "Inventory", "Ender Chest", "Accessories"}, s.contentX + 4, s.contentY + 4, navW - 8, mx, my);
         int rx = s.contentX + navW + 6;
         int rw = s.contentW - navW - 6;
         s.box(g, rx, s.contentY, rw, s.contentH);
@@ -1704,6 +1704,10 @@ final class ExtraPages {
                 }
                 ty += 18;
             }
+            return;
+        }
+        if (view == 3) {
+            s.accessoryGrid(g, p.riftAccessories(), true, rx, rw, rx + (rw - 9 * 18) / 2, s.contentY + 22, mx, my);
             return;
         }
         if (r.inventory() == null) {

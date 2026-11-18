@@ -30,31 +30,34 @@ public final class AccessoryBagView {
     public record Slot(ItemStack stack, String id, String name, String tier, State state) {}
 
     public static final int PAGE = 45;
+    public static final int SORT_RARITY = 0, SORT_NAME = 1, SORT_MISSING = 2;
+    public static final String[] SORT_LABELS = {"Rarity", "Alphabetical", "Missing First"};
 
     private static Object keyBag, keyCatalog;
     private static int keyFamilies = -1;
-    private static boolean keyRift, keyByName;
+    private static boolean keyRift;
+    private static int keySort = -1;
     private static List<Slot> cached = List.of();
 
     private AccessoryBagView() {}
 
-    /** The slots for the main bag ({@code rift} false) or the Rift Accessory Bag, sorted by rarity (or by name). */
-    public static List<Slot> slots(List<ItemStack> owned, boolean rift, boolean byName) {
+    /** The slots for the main bag ({@code rift} false) or the Rift Accessory Bag, in the given SORT_ order. */
+    public static List<Slot> slots(List<ItemStack> owned, boolean rift, int sort) {
         Map<String, AccessoryRanker.Acc> catalog = AccessoryAdvisor.catalogView();
         int families = AccessoryAdvisor.familiesVersion();
-        if (owned == keyBag && catalog == keyCatalog && families == keyFamilies && rift == keyRift && byName == keyByName) {
+        if (owned == keyBag && catalog == keyCatalog && families == keyFamilies && rift == keyRift && sort == keySort) {
             return cached;
         }
-        cached = build(owned, catalog, rift, byName);
+        cached = build(owned, catalog, rift, sort);
         keyBag = owned;
         keyCatalog = catalog;
         keyFamilies = families;
         keyRift = rift;
-        keyByName = byName;
+        keySort = sort;
         return cached;
     }
 
-    static List<Slot> build(List<ItemStack> owned, Map<String, AccessoryRanker.Acc> catalog, boolean rift, boolean byName) {
+    static List<Slot> build(List<ItemStack> owned, Map<String, AccessoryRanker.Acc> catalog, boolean rift, int sort) {
         List<Slot> out = new ArrayList<>();
         Set<String> ownedFamilies = new HashSet<>();
         if (owned != null) {
@@ -63,7 +66,8 @@ public final class AccessoryBagView {
                 CompoundTag tag = ItemNbt.view(s);
                 String id = tag == null ? null : tag.getStringOr("id", null);
                 if (id != null) ownedFamilies.add(AccessoryAdvisor.familyKey(id));
-                boolean off = tag != null && tag.getIntOr("accessory_disabled", 0) != 0;
+                boolean off = tag != null && tag.getIntOr("accessory_disabled", 0) != 0
+                        || com.killer560.hub.autopuzzles.AutoPuzzleUtil.loreContains(s, "Enabled: Off");
                 String tier = tierOf(id);
                 if (tag != null && tag.getIntOr("rarity_upgrades", 0) > 0) tier = bump(tier);
                 out.add(new Slot(s, id, s.getHoverName().getString(), tier, off ? State.DISABLED : State.OWNED));
@@ -81,12 +85,13 @@ public final class AccessoryBagView {
         for (AccessoryRanker.Acc a : missing.values()) {
             out.add(new Slot(ItemIcons.catalogIcon(a.id()), a.id(), a.name(), a.tier(), State.MISSING));
         }
-        // Owned (on or off) first, then missing; inside each by rarity (highest first) or by name. The real menu's
-        // order is not captured yet (NEEDS-CAPTURE.md).
+        // The 0.27.3 menu (capture 11-17): missing accessories sit among the owned ones inside their rarity group, each
+        // group alphabetical; Missing First puts them ahead of the owned.
         Comparator<Slot> byNameCmp = Comparator.comparing(s -> s.name().toLowerCase(Locale.ROOT));
-        Comparator<Slot> inGroup = byName ? byNameCmp
-                : Comparator.<Slot>comparingInt(s -> -LevelTables.rarityIndex(s.tier())).thenComparing(byNameCmp);
-        out.sort(Comparator.<Slot>comparingInt(s -> s.state() == State.MISSING ? 1 : 0).thenComparing(inGroup));
+        Comparator<Slot> byRarity = Comparator.<Slot>comparingInt(s -> -LevelTables.rarityIndex(s.tier())).thenComparing(byNameCmp);
+        out.sort(sort == SORT_NAME ? byNameCmp
+                : sort == SORT_MISSING ? Comparator.<Slot>comparingInt(s -> s.state() == State.MISSING ? 0 : 1).thenComparing(byRarity)
+                : byRarity);
         return List.copyOf(out);
     }
 

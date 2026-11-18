@@ -170,8 +170,8 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     private int page;
     private int invView = 0;
     private int invPage = 0;
-    /** Accessories view: the Rift Accessory Bag tab, sort by name, and the main bag flattened once per decode. */
-    private boolean accRift, accByName;
+    /** Accessories view: the sort mode and the main bag flattened once per decode. */
+    private int accSort;
     private List<List<ItemStack>> accPagesKey;
     private List<ItemStack> accFlat = List.of();
     private static final int ACC_MISSING_SHADE = 0xA0101010;
@@ -1860,26 +1860,25 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     }
 
     /** The Accessories view as SkyBlock's own bag menu lays it out (0.27.3): every accessory its own slot, missing ones
-     *  grayed, toggled-off ones marked with a red corner, and the Rift Accessory Bag on its own tab. */
+     *  grayed, toggled-off ones marked with a red corner (the Rift Accessory Bag is on the Rift page). */
     private void drawAccessoryBag(GuiGraphicsExtractor g, SbProfile p, SbProfile.Inventories inv, int rx, int rw, int gridX,
                                   int top, int mx, int my) {
-        List<ItemStack> owned;
-        if (accRift) {
-            owned = p.riftAccessories();
-        } else {
-            owned = accOwned(inv.accessories());
-        }
+        accessoryGrid(g, accOwned(inv.accessories()), false, rx, rw, gridX, top, mx, my);
+    }
+
+    /** The bag grid with its sort button and pager, for the main bag here and the Rift Accessory Bag on the Rift page. A
+     *  null {@code owned} is a bag the API does not send. */
+    void accessoryGrid(GuiGraphicsExtractor g, List<ItemStack> owned, boolean accRift, int rx, int rw, int gridX, int top,
+                       int mx, int my) {
         int bx = rx + 6;
         int by = contentY + 3;
-        button(g, bx, by, 96, 14, "Accessory Bag", mx, my, !accRift, () -> { accRift = false; invPage = 0; });
-        button(g, bx + 100, by, 104, 14, "Rift Accessory Bag", mx, my, accRift, () -> { accRift = true; invPage = 0; });
-        button(g, bx + 208, by, 64, 14, accByName ? "Sort: Name" : "Sort: Rarity", mx, my, false,
-                () -> { accByName = !accByName; invPage = 0; });
+        button(g, bx, by, 110, 14, "Sort: " + AccessoryBagView.SORT_LABELS[accSort], mx, my, false,
+                () -> { accSort = (accSort + 1) % AccessoryBagView.SORT_LABELS.length; invPage = 0; });
         if (owned == null) {
             centeredIn(g, "The API does not send the Rift Accessory Bag yet.", rx, rw, contentY + contentH / 2 - 4, DIM);
             return;
         }
-        List<AccessoryBagView.Slot> slots = AccessoryBagView.slots(owned, accRift, accByName);
+        List<AccessoryBagView.Slot> slots = AccessoryBagView.slots(owned, accRift, accSort);
         int pages = Math.max(1, (slots.size() + AccessoryBagView.PAGE - 1) / AccessoryBagView.PAGE);
         invPage = Math.floorMod(invPage, pages);
         if (pages > 1) {
