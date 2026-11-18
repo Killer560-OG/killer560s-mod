@@ -515,6 +515,7 @@ public final class SimWorld {
         }
         ModChat.send("Sim", ModChat.text("Dungeon sim ready. "),
                 ModChat.dim("/simitem for the toolkit."));
+        SimHelp.hintOnce();
     }
 
     /**

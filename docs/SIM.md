@@ -27,6 +27,7 @@ Sim lessons that sit with a feature rather than the sim are in [LESSONS-AUTOCLEA
 
 ## Rules for the whole package
 
+- A new sim command or feature adds its line to the guide `/help` opens (`roomsim/SimHelp.pages()`, simhelp-1117): a `Line.cmd` row on the Commands page with every name the command answers to, or a `Line.text` on the page it belongs to. Testkit 1117-sim-help compares the live command dispatcher with the guide and fails on a sim command with no row, so a command added without its line breaks the gate.
 - The dungeon sim (`roomsim/`) is the ONE place this mod writes positions, and that is correct there: the
   no-direct-movement rule exists because Hypixel reconstructs your movement and lags you back, and in the sim the
   integrated server is ours. Everything sim-only gates on `SimState.canAct`, which requires a singleplayer world
