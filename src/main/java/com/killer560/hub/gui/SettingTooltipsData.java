@@ -1965,8 +1965,7 @@ final class SettingTooltipsData {
         d.put("auto-protect starred", "Treats dungeon-starred items as protected without listing them.");
         d.put("prevent hotbar drops", "Blocks the drop key while you hold a protected item.");
         d.put("confirm to force", "Lets you drop a protected item anyway by pressing drop several times, each within 3 seconds of the last.");
-        d.put("drops to force", "How many presses of the drop key (2-4) it takes to drop a protected hotbar item with Confirm To Force on.");
-        d.put("block every drop", "Makes Prevent Hotbar Drops cover every item, not just protected ones.");
+        d.put("block every drop", "Makes Prevent Hotbar Drops cover every hotbar item: the drop key, a drop click on a slot, and a click outside the window with it picked up.");
         d.put("block sound", "Plays a sound when a drop, sale or move is blocked, and a chime when you lock or protect something.");
 
         // Object Hider pack + Terminal QoL + Goldor Frenzy

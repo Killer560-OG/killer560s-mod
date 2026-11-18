@@ -16,8 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * canceling here swallows the real drop key and nothing else; no server-driven item loss passes through.
  * <p>
  * Returning {@code false} is what vanilla itself returns when a drop doesn't happen, so no packet is sent
- * and no swing is played. The block is always announced in chat with a sound, and Confirm To Force lets a
- * second press inside 3 seconds through (see {@link ItemProtect#shouldBlockHotbarDrop}).
+ * and no swing is played. The block is always announced in chat with a sound, and the block is never forced through.
  * <p>
  * {@code require = 0}: a signature change after an MC update disables the guard rather than crashing.
  */

@@ -4,7 +4,6 @@ import com.killer560.hub.gui.ColorPickerScreen;
 import com.killer560.hub.gui.ColorSwatch;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.itemprotect.ItemProtectConfig;
 import com.killer560.hub.util.KeyUtil;
 import net.minecraft.client.Minecraft;
@@ -153,32 +152,9 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
         y += 22;
 
         if (cfg.isPreventHotbarDropEnabledRaw()) {
-            widgets.add(onOffButton("Confirm To Force", cfg::isConfirmToForce, cfg::setConfirmToForce, cfg::save,
-                    requestRebuild, contentX, y, half, 18));
             widgets.add(onOffButton("Block Every Drop", cfg::isBlockEveryHotbarDrop, cfg::setBlockEveryHotbarDrop,
-                    cfg::save, null, col2, y, half, 18));
+                    cfg::save, null, contentX, y, contentWidth, 18));
             y += 22;
-            if (cfg.isConfirmToForce()) {
-                int minD = ItemProtectConfig.MIN_FORCE_DROPS;
-                int maxD = ItemProtectConfig.MAX_FORCE_DROPS;
-                widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, forceDropsText(cfg),
-                        (cfg.getForceDrops() - minD) / (double) (maxD - minD)) {
-                    @Override
-                    protected void updateMessage() {
-                        setMessage(forceDropsText(ItemProtectConfig.getInstance()));
-                    }
-
-                    @Override
-                    protected void applyValue() {
-                        ItemProtectConfig c = ItemProtectConfig.getInstance();
-                        int snapped = minD + (int) Math.round(this.value * (maxD - minD));
-                        c.setForceDrops(snapped);
-                        saveOnRelease(() -> c.save());
-                        this.value = (snapped - minD) / (double) (maxD - minD);
-                    }
-                });
-                y += 22;
-            }
         }
 
         widgets.add(onOffButton("Block Sound", cfg::isBlockSound, cfg::setBlockSound, cfg::save,
@@ -186,10 +162,6 @@ public class ItemProtectTab extends BaseTab implements KeyCaptureTab {
         y += 22;
 
         return widgets;
-    }
-
-    private static Component forceDropsText(ItemProtectConfig cfg) {
-        return Component.literal("Drops To Force: " + cfg.getForceDrops());
     }
 
     private static Component keyLabel(String label, int key, boolean listening) {

@@ -37,8 +37,7 @@ import java.util.List;
  *   <li><b>Auto-Protect Starred</b> - anything with {@code upgrade_level}/{@code dungeon_item_level} (or a visible
  *       ✪ / master-star pip) counts as protected without being listed - and gets NO marker ("Do not have a symbol
  *       for starred items being locked even though they are").</li>
- *   <li><b>Prevent Hotbar Drops</b> - the real drop key is swallowed while you're holding a protected item, with an
- *       optional confirm-to-force: press drop 2-4 times (Drops To Force), each within 3s of the last.</li>
+ *   <li><b>Prevent Hotbar Drops</b> - the drop key, a drop click and a click outside the window never drop a protected item (never forced through); with Block Every Drop, no hotbar item at all.</li>
  * </ol>
  *
  * <p>Two mixins, both at client input funnels so nothing the SERVER does is ever blocked or silently dropped:

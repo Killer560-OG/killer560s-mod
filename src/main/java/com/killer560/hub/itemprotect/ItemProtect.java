@@ -47,16 +47,11 @@ public final class ItemProtect {
 
     /** Repeat-suppression for the chat line: a quick-craft drag calls {@code slotClicked} once per slot. */
     private static final long MESSAGE_COOLDOWN_MS = 400L;
-    /** How long the "press it again to drop anyway" window stays open, measured from the latest press. */
-    public static final long FORCE_WINDOW_MS = 3000L;
-
     private static String lastMessage = "";
     private static long lastMessageAt = 0L;
 
-    private static int forceArmedSlot = -1;
-    private static long forceArmedAt = 0L;
-    /** Presses counted so far toward {@link ItemProtectConfig#getForceDrops()} for {@link #forceArmedSlot}. */
-    private static int forcePresses = 0;
+    /** True while the carried stack was picked up from a hotbar slot (for Block Every Drop). */
+    private static boolean carriedFromHotbar;
 
     private ItemProtect() {
     }
@@ -283,6 +278,17 @@ public final class ItemProtect {
      */
     public static boolean shouldBlockSlotClick(AbstractContainerScreen<?> screen, Slot slot, int slotId,
                                                int button, ContainerInput type) {
+        if (decideSlotClick(screen, slot, slotId, button, type)) {
+            return true;
+        }
+        if (type == ContainerInput.PICKUP && slot != null && slotId >= 0 && slot.hasItem()) {
+            carriedFromHotbar = isHotbarSlot(slot);
+        }
+        return false;
+    }
+
+    private static boolean decideSlotClick(AbstractContainerScreen<?> screen, Slot slot, int slotId,
+                                           int button, ContainerInput type) {
         ItemProtectConfig cfg = ItemProtectConfig.getInstance();
         if (!cfg.isEnabled()) {
             return false;
@@ -299,6 +305,9 @@ public final class ItemProtect {
         if (slot == null || slotId < 0) {
             ItemStack carried = carriedStack();
             String reason = protectReason(carried);
+            if (reason == null && carriedFromHotbar && !carried.isEmpty() && hotbarDropReason(cfg, carried) != null) {
+                reason = "Hotbar Drop Block";
+            }
             if (reason != null) {
                 announceBlock("dropping", carried, reason);
                 return true;
@@ -325,7 +334,11 @@ public final class ItemProtect {
             return false;
         }
 
-        String reason = starredAllowed(loss, slot.getItem()) ? null : protectReason(slot.getItem());
+        String reason = type != ContainerInput.THROW && starredAllowed(loss, slot.getItem())
+                ? null : protectReason(slot.getItem());
+        if (reason == null && type == ContainerInput.THROW && isHotbarSlot(slot) && slot.hasItem()) {
+            reason = hotbarDropReason(cfg, slot.getItem());
+        }
         if (reason != null) {
             announceBlock(action, slot.getItem(), reason);
             return true;
@@ -357,57 +370,37 @@ public final class ItemProtect {
     }
 
     /**
-     * Decision for the real drop key. Returns true to swallow the key press.
-     * <p>
-     * With Confirm To Force on, presses are counted for that exact hotbar slot, each inside {@link #FORCE_WINDOW_MS}
-     * of the last; the press that reaches {@link ItemProtectConfig#getForceDrops()} (2-4) drops the item for real, so
-     * the feature is never a hard wall on your own gear.
+     * Decision for the real drop key. Returns true to swallow the key press. Never forced through: a protected item, or
+     * any hotbar item with Block Every Drop on, can not be dropped by the key (killer560, 2026-11-18, lockdrop-1118;
+     * the old Confirm To Force let a repeated press drop it).
      */
     public static boolean shouldBlockHotbarDrop() {
         ItemProtectConfig cfg = ItemProtectConfig.getInstance();
-        if (!cfg.isPreventHotbarDropEnabled()) {
+        if (!cfg.isEnabled()) {
             return false;
         }
         Inventory inv = playerInventory();
-        if (inv == null) {
-            return false;
-        }
-        int selected = inv.getSelectedSlot();
-        ItemStack held = inv.getSelectedItem();
+        ItemStack held = inv == null ? null : inv.getSelectedItem();
         if (held == null || held.isEmpty()) {
             return false;
         }
-
-        String reason = protectReason(held);
-        if (reason == null && cfg.isBlockEveryHotbarDrop()) {
-            reason = "Hotbar Drop Block";
-        }
+        String reason = hotbarDropReason(cfg, held);
         if (reason == null) {
             return false;
         }
-
-        long now = System.currentTimeMillis();
-        if (cfg.isConfirmToForce()) {
-            boolean continuing = forceArmedSlot == selected && now - forceArmedAt <= FORCE_WINDOW_MS;
-            forcePresses = continuing ? forcePresses + 1 : 1;
-            forceArmedSlot = selected;
-            forceArmedAt = now;
-            int needed = cfg.getForceDrops();
-            if (forcePresses >= needed) {
-                forceArmedSlot = -1;
-                forceArmedAt = 0L;
-                forcePresses = 0;
-                ModChat.send("Item Protect", ModChat.text("Dropping "),
-                        ModChat.value(displayName(held)), ModChat.text(" anyway (confirmed)."));
-                return false;
-            }
-            int left = needed - forcePresses;
-            announceBlock("dropping", held, reason, " Press drop " + left + " more time" + (left == 1 ? "" : "s")
-                    + " within " + (FORCE_WINDOW_MS / 1000) + "s to drop it anyway.");
-            return true;
-        }
         announceBlock("dropping", held, reason);
         return true;
+    }
+
+    /** Why this stack, in the hotbar, may not be dropped, or null: protected, or Block Every Drop. */
+    private static String hotbarDropReason(ItemProtectConfig cfg, ItemStack stack) {
+        String reason = protectReason(stack);
+        return reason == null && cfg.isPreventHotbarDropEnabled() && cfg.isBlockEveryHotbarDrop()
+                ? "Hotbar Drop Block" : reason;
+    }
+
+    private static boolean isHotbarSlot(Slot slot) {
+        return slot.container instanceof Inventory && slot.getContainerSlot() >= 0 && slot.getContainerSlot() < 9;
     }
 
     private static ItemStack carriedStack() {
