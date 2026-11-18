@@ -1,5 +1,6 @@
 package com.killer560.hub.miningqol;
 
+import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.hud.HudElement;
 import com.killer560.hub.hud.BasicHud;
@@ -83,6 +84,18 @@ public final class AbilityReadyAlert {
     private static volatile String popupText = null;
     private static volatile long popupUntil = 0;
     private static volatile List<String> timerLines = List.of();
+    /** Per timer line (same index): the colored pieces of an Active line, null for a cooldown line. Built with the lines. */
+    private static volatile List<Active> timerActive = List.of();
+    private static final int GREEN = 0xFF55FF55, YELLOW = 0xFFFFFF55, RED = 0xFFFF5555;
+
+    /** An Active line split for drawing: "Name: ", "Active" (green), the rest incl. its space; {@code numColor} fades
+     *  green (all left) to yellow (half) to red (none) by the fraction of the duration left. */
+    record Active(String name, String rest, int numColor) { }
+
+    static int fadeColor(int pctLeft) {
+        int p = Math.max(0, Math.min(100, pctLeft));
+        return p >= 50 ? MenuStyle.mix(YELLOW, GREEN, (p - 50) / 50f) : MenuStyle.mix(RED, YELLOW, p / 50f);
+    }
     private static int popupsShown = 0;
     private static int popupFrames = 0;
 
@@ -166,9 +179,16 @@ public final class AbilityReadyAlert {
         timerLines = render(now);
     }
 
+    private static Active split(String line, int pct) {
+        String t = line.substring(1);
+        int i = t.indexOf(": Active") + 2;
+        return new Active(t.substring(0, i), t.substring(i + "Active".length()), fadeColor(pct));
+    }
+
     /** The lines at {@code now}: ceil(deadline - now), never negative; a finished one leaves (the popup says READY). */
     private static List<String> render(long now) {
         List<String> out = new ArrayList<>();
+        List<Active> act = new ArrayList<>();
         READY_AT.entrySet().removeIf(e -> e.getValue() <= now);
         for (Iterator<Map.Entry<String, Long>> it = ACTIVE_AT.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<String, Long> a = it.next();
@@ -177,14 +197,18 @@ public final class AbilityReadyAlert {
             if (end <= now) {
                 it.remove();
             } else {
-                out.add(ACTIVE_MARK + a.getKey() + ": Active" + (known == null ? "" : " " + clock((end - now + 999) / 1000)));
+                String line = ACTIVE_MARK + a.getKey() + ": Active" + (known == null ? "" : " " + clock((end - now + 999) / 1000));
+                out.add(line);
+                act.add(split(line, known == null ? 100 : (int) ((end - now) * 100 / known)));
             }
         }
         for (Map.Entry<String, Long> e : READY_AT.entrySet()) {
             if (ACTIVE_AT.containsKey(e.getKey())) continue;
             long left = Math.max(0, (e.getValue() - now + 999) / 1000);
             out.add("§6" + e.getKey() + ": §e" + clock(left));
+            act.add(null);
         }
+        timerActive = act;
         return List.copyOf(out);
     }
 
@@ -244,6 +268,12 @@ public final class AbilityReadyAlert {
     public static int popupFrames() { return popupFrames; }
 
     public static List<String> timer() { return timerLines; }
+
+    /** Testkit: the colors of timer line {@code i} as drawn: {name, "Active", number}, or null for a cooldown line. */
+    public static int[] activeColorsForTest(int i) {
+        Active a = timerActive.get(i);
+        return a == null ? null : new int[] {ThemeAccent.onDark(ThemeAccent.accent(0xFFFFAA00)), GREEN, a.numColor()};
+    }
 
     /** Testkit: the timer lines at {@code readAt} without feeding the tab. */
     public static List<String> timerAtForTest(long readAt) { return render(readAt); }
@@ -336,11 +366,14 @@ public final class AbilityReadyAlert {
             super(TIMER_ID, "Ability Timer", 10, 200);
         }
 
+        private static final List<String> SAMPLE = List.of(ACTIVE_MARK + "Maniac Miner: Active 20s", "§6Pickobulus: §e34s");
+        private static final List<Active> SAMPLE_ACTIVE = java.util.Arrays.asList(split(SAMPLE.get(0), 50), null);
+
         private static String plain(String s) { return !s.isEmpty() && s.charAt(0) == ACTIVE_MARK ? s.substring(1) : s; }
 
         private List<String> shown() {
             List<String> l = timerLines;
-            if (l.isEmpty() && HudVisibility.editorOpen()) return List.of("§6Pickobulus: §e34s");
+            if (l.isEmpty() && HudVisibility.editorOpen()) return SAMPLE;
             return l;
         }
 
@@ -369,9 +402,18 @@ public final class AbilityReadyAlert {
             if (!cfg.isAbilityAlert() || !cfg.isAbilityTimer() || HudVisibility.hidesHud()) return;
             Font font = Minecraft.getInstance().font;
             int lineY = y;
-            for (String s : shown()) {
-                boolean active = !s.isEmpty() && s.charAt(0) == ACTIVE_MARK;
-                graphics.text(font, plain(s), x, lineY, active ? ThemeAccent.onDark(ThemeAccent.accent(0xFFFFAA00)) : 0xFFFFFFFF, true);
+            List<String> lines = shown();
+            List<Active> acts = lines == SAMPLE ? SAMPLE_ACTIVE : timerActive;
+            for (int i = 0; i < lines.size(); i++) {
+                Active a = i < acts.size() ? acts.get(i) : null;
+                if (a == null) {
+                    graphics.text(font, plain(lines.get(i)), x, lineY, 0xFFFFFFFF, true);
+                } else {
+                    int w = font.width(a.name());
+                    graphics.text(font, a.name(), x, lineY, ThemeAccent.onDark(ThemeAccent.accent(0xFFFFAA00)), true);
+                    graphics.text(font, "Active", x + w, lineY, GREEN, true);
+                    graphics.text(font, a.rest(), x + w + font.width("Active"), lineY, a.numColor(), true);
+                }
                 lineY += 10;
             }
             if (!timerLines.isEmpty()) {

@@ -1,5 +1,18 @@
 [
  {
+  "date": "2026-11-18",
+  "summary": "Pickaxe ability HUD: \"Active\" is now green and the time left",
+  "sections": [
+   {
+    "title": "More",
+    "blurb": "Changes in this update.",
+    "items": [
+     "Pickaxe ability HUD: \"Active\" is now green and the time left fades from green to yellow to red as the ability runs out."
+    ]
+   }
+  ]
+ },
+ {
   "date": "2026-11-17",
   "summary": "Inventory Sorter: Fetch Missing From Sacks now waits 3 secon",
   "sections": [
