@@ -102,7 +102,7 @@ public final class BazaarCatalog {
             Entry entry = new Entry(e.getKey(), str(o, "n"), o.has("g") ? o.get("g").getAsInt() : g.size() - 1,
                     str(o, "t"), look == null ? null : look.skinHash(), look == null ? null : look.vanillaId(),
                     look == null ? null : look.legacy(), look == null ? null : look.packModel(),
-                    look != null && look.glint(), o.has("u"), look == null ? null : look.ownTexture());
+                    look != null && (look.glint() || look.drawGlint()), o.has("u"), look == null ? null : look.ownTexture());
             ids.put(entry.productId(), entry);
             if (entry.name() != null) {
                 names.putIfAbsent(entry.name().toLowerCase(Locale.ROOT), entry.productId());

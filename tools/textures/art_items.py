@@ -136,7 +136,7 @@ def dipper(head):
     return c.grid()
 
 
-DIPPER = palette(w='#B07A44', h='#D98A12', y='#F8C848')
+DIPPER = palette(w=Material('#B07A44', outline='#49361B'), h='#D98A12', y='#F8C848')
 
 
 @item('SMALL_HONEY_DIPPER')
@@ -171,7 +171,7 @@ def claw(n):
         t = i / steps
         x = 3 + 11 * k * t
         y = 12.5 - 10 * k * math.sin(math.pi * 0.8 * t)
-        w = (3.6 * k) * (1 - t) + 0.9
+        w = (3.6 * k) * (1 - t) + 2.0
         c.ellipse(x, y, w / 2 + 0.2, w / 2 + 0.2, 'f')
     c.ellipse(3.2, 13, 2.6 * k + 0.6, 2.1 * k + 0.4, 'l')
     return c.grid()
@@ -242,16 +242,14 @@ def scatha_bottle():
     for x, y in [(5, 12), (6, 12), (7, 11), (8, 11), (9, 11), (10, 10), (10, 9), (9, 8)]:
         c.set(x, y, 'a')
     c.set(9, 8, '#')
-    return c.grid(), palette(q=Material('#D8F0F6', alpha=190), a='#8A6E5A')
+    return c.grid(), palette(q=Material('#D8F0F6'), a='#8A6E5A')
 
 
 @item('BOTTLED_MISCHIEF')
 def mischief():
     c = bottle('p', 6)
-    for x, y in [(6, 11), (9, 10), (7, 13), (10, 12)]:
-        c.set(x, y, '*')
     c.stamp(["j..j", ".jj."], 6, 6)
-    return c.grid(), palette(p='#7A3CC8', j='#C07AF0')
+    return c.grid(), palette(p='#7A3CC8', j='#C07AF0', q=Material('#D8F0F6'))
 
 
 @item('VIAL_OF_SPRING_WATER')
@@ -285,7 +283,7 @@ def brine_tonic():
     c.rect(4, 9, 11, 10, 's')
     c.set(6, 9, 'z')
     c.set(9, 10, 'z')
-    return c.grid(), palette(t='#2A9E8E', s='#F0EAD8')
+    return c.grid(), palette(t='#2A9E8E', s='#F0EAD8', q=Material('#D8F0F6'))
 
 
 @item('SEA_BRINE')
@@ -342,7 +340,6 @@ def morning_dew():
         "bbbbb",
         ".bbb.",
     ], 6, 3)
-    c.set(12, 4, '*')
     return c.grid(), palette(b='#9FE0F5', v='#5DB040', n='#3A7A2A')
 
 
@@ -355,7 +352,7 @@ def infinipot():
         "g...gg...g",
         ".ggg..ggg.",
     ], 3, 9)
-    return c.grid(), palette(e='#6A1A2A', g=Material('#FFD84A', flat=True))
+    return c.grid(), palette(e='#6A1A2A', g=Material('#FFD84A', flat=True), q=Material('#D8F0F6'))
 
 
 # ---- sprayonators and nozzles -------------------------------------------------------------------------------------
@@ -521,7 +518,7 @@ def water_hyacinth():
         c.rect(8 - w, y, 7 + w, y, 'p') if y < 8 else None
     for x, y in [(6, 2), (9, 4), (6, 6)]:
         c.set(x, y, 'j')
-    return c.grid(), palette(b='#3C7FE0', v='#4FA33A', n='#2C6A2A', p='#8A5AD8', j='#D0B0FF')
+    return c.grid(), palette(b=Material('#3C7FE0', flat=True), v=Material('#4FA33A', flat=True), n=Material('#2C6A2A', flat=True), p='#8A5AD8', j=Material('#D0B0FF', flat=True))
 
 
 @item('WINDING_IVY')
@@ -530,7 +527,7 @@ def winding_ivy():
     pts = [(2, 14), (3, 12), (5, 11), (7, 11), (8, 9), (7, 7), (8, 5), (10, 4), (12, 4), (13, 2)]
     for (x0, y0), (x1, y1) in zip(pts, pts[1:]):
         c.line(x0, y0, x1, y1, 'n')
-    for x, y in [(4, 13), (9, 10), (6, 6), (11, 5), (12, 1)]:
+    for x, y in [(4, 13), (9, 10), (6, 6), (11, 5), (12, 1), (2, 11), (6, 9), (9, 7), (9, 3), (14, 4)]:
         c.stamp(["vv", "vV"], x - 1, y - 1)
     return c.grid(), palette(n='#4E3A22', v='#4FB03A')
 
@@ -568,8 +565,6 @@ def forests_favor():
         "..h.............",
         "................",
     ])
-    for x, y in [(2, 3), (13, 10), (11, 13)]:
-        c.set(x, y, '*')
     return c.grid(), palette(y='#E8C040', h='#8A6A20')
 
 
@@ -778,7 +773,7 @@ def rubber_snorkel():
     c.rect(11, 0, 12, 0, 'o')
     c.ellipse(5.5, 6.5, 4.5, 3.5, 'q')
     c.ring(5.5, 6.5, 4.5, 3.5, 1, 'x')
-    return c.grid(), palette(y='#F6D030', o='#E07A1A', q=Material('#BFE6F0', alpha=170), x='#3A3A44')
+    return c.grid(), palette(y=Material('#F6D030', flat=True), o='#E07A1A', q=Material('#BFE6F0', flat=True), x='#3A3A44')
 
 
 @item('SOOTHING_INCENSE')
@@ -790,7 +785,7 @@ def soothing_incense():
     c.set(10, 5, 'o')
     for x, y in [(11, 3), (12, 2), (11, 1), (13, 0), (9, 3), (8, 1)]:
         c.set(x, y, 'a')
-    return c.grid(), palette(w='#8A4A6A', o='#F08030', a=Material('#C8C8D8', alpha=170, flat=True))
+    return c.grid(), palette(w='#8A4A6A', o='#F08030', a=Material('#C8C8D8', flat=True))
 
 
 @item('SHINING_COIN')
@@ -813,8 +808,6 @@ def sparkling_podium():
     c.rect(4, 9, 11, 11, 'z')
     c.rect(5, 7, 10, 8, 'a')
     c.stamp(["..j..", ".jJj.", "jjjjj", ".jjj.", "..j.."], 5, 1)
-    for x, y in [(2, 3), (13, 5), (12, 1)]:
-        c.set(x, y, '*')
     return c.grid(), palette(a='#B8B0C8', z='#E8E4F0', j='#B98CF2')
 
 
@@ -830,7 +823,8 @@ def super_jacob_system():
     c.rect(5, 12, 11, 14, 'z')
     c.set(6, 13, 'r')
     c.set(10, 13, 'b')
-    c.set(2, 5, 'A')
+    c.rect(1, 4, 14, 4, 'A')
+    c.rect(1, 4, 1, 10, 'A')
     return c.grid(), palette(a='#C8C8D0', x='#3A3A44', z='#E0E0E8')
 
 
@@ -841,8 +835,7 @@ def miria_prize():
     c.line(9, 9, 12, 15, 'b', 2)
     c.ellipse(7.5, 6, 5.5, 5.5, 'g')
     c.ellipse(7.5, 6, 3.2, 3.2, 'y')
-    c.set(7, 6, 'Y')
-    return c.grid(), palette(g='#D8A030', y='#F8E070', b='#3C7FD0')
+    return c.grid(), palette(g=Material('#D8A030', flat=True), y=Material('#F8E070', flat=True), b='#3C7FD0')
 
 
 @item('GATEWAY_WAND')
@@ -852,8 +845,6 @@ def gateway_wand():
     c.ellipse(11.5, 4, 3.5, 3.5, 'p')
     c.ellipse(11.5, 4, 1.8, 1.8, 'k')
     c.set(10, 2, 'P')
-    for x, y in [(6, 2), (14, 9), (8, 0)]:
-        c.set(x, y, '*')
     return c.grid(), palette(w='#5A3A2A', p='#B05AE8', k='#3A1A5E')
 
 
@@ -918,7 +909,7 @@ def feast_burger():
     for x in (12, 13, 14, 15):
         c.rect(x, 9 + (x % 2), x, 14, 'y')
     c.rect(11, 12, 15, 15, 'r')
-    return c.grid(), palette(o='#D88A3A', d='#6A3A22', y='#F6D040', v='#5DB040', f='#F4E8C8')
+    return c.grid(), palette(o='#D88A3A', d=Material('#6A3A22', flat=True), y='#F6D040', v=Material('#5DB040', flat=True), f=Material('#F4E8C8', flat=True), r=Material('#C9342A', flat=True))
 
 
 @item('EXTREMELY_MILD_ADHESIVE')
@@ -937,9 +928,10 @@ def adhesive():
 def contraband():
     c = Canvas()
     c.rect(2, 4, 13, 14, 'w')
-    c.rect(2, 4, 13, 5, 'd')
+    c.rect(2, 4, 13, 4, 'W')
     c.rect(7, 4, 8, 14, 's')
     c.rect(2, 9, 13, 9, 'd')
+    c.rect(2, 14, 13, 14, 'd')
     c.stamp([".zz.", "z##z", "zzzz", ".z.z"], 10, 10)
     c.set(3, 6, 'W')
     return c.grid(), palette(w='#A87A48', d='#6A4426', s='#D8C090')
@@ -982,7 +974,7 @@ def reinforced_netting():
     for i in range(2, 14, 3):
         c.line(i, 2, i, 13, 's')
         c.line(2, i, 13, i, 's')
-    return c.grid(), palette(w=Material('#8A6A3A', outer=False), s='#D8C8A0')
+    return c.grid(), palette(w=Material('#8A6A3A', outer=False), s=Material('#D8C8A0', flat=True))
 
 
 @item('GIGANTIC_FISHING_NET')
@@ -1094,9 +1086,9 @@ def ghostfly_soul():
         ".....zzzzzz.....",
         "......zzzzz.....",
         ".......zzz......",
-        "........zz.*....",
-        "...*.....z......",
+        "........zz......",
+        ".........z......",
         "................",
         "................",
     ])
-    return c.grid(), palette(z=Material('#DDF4F0', alpha=225, outer=True))
+    return c.grid(), palette(z=Material('#DDF4F0', outer=True))

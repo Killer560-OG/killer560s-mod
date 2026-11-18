@@ -41,7 +41,10 @@ HAS_OLD_LOOK = {'AMALGAMATED_CRIMSONITE', 'DUNGEON_CHEST_KEY', 'SIGNAL_ENHANCER'
                 # New tiers that take their family's old look (gen_item_looks.py FAMILY).
                 'GIGANTIC_FISHING_NET', 'ARCHER_DUNGEON_ABILITY_1', 'FIGHTING_BOOSTER_UNCOMMON',
                 'FORAGING_FORTUNE_BOOSTER_UNCOMMON', 'FORAGING_WISDOM_BOOSTER_UNCOMMON', 'SWEEP_BOOSTER_UNCOMMON'}
-for _sbid in HAS_OLD_LOOK:
+sys.path.insert(0, os.path.join(HERE, '..', 'items'))
+import owner_looks  # noqa: E402
+# Items killer560 moved to a bundled-skin head or a vanilla item (owner_looks.py) and the never-drawn Packrat Skull shard.
+for _sbid in HAS_OLD_LOOK | owner_looks.RETIRED_DRAWINGS:
     ITEMS.pop(_sbid, None)
 
 

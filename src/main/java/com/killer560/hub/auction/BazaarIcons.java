@@ -133,6 +133,13 @@ public final class BazaarIcons {
     }
 
     private static Resolved fromTable(BazaarCatalog.Entry e) {
+        ItemLooks.Look look = ItemLooks.get(e.productId());
+        if (look != null && look.skinKey() != null) {
+            ItemStack stack = new ItemStack(Items.PLAYER_HEAD);
+            ItemLooks.applyLook(stack, e.productId());
+            glint(stack, e.glint());
+            return new Resolved(stack, Source.SKULL);
+        }
         if (e.skinHash() != null) {
             String json = "{\"textures\":{\"SKIN\":{\"url\":\"http://textures.minecraft.net/texture/" + e.skinHash() + "\"}}}";
             String value = Base64.getEncoder().encodeToString(json.getBytes(StandardCharsets.UTF_8));

@@ -203,6 +203,10 @@ out = {
                   s[4:14] for s in SNAPSHOTS) + '; o = our own textures',
     'items': rows,
 }
+# The owner-approved bundled-skin heads and vanilla forms (texredo3-1117) override the rows above.
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import owner_looks  # noqa: E402
+owner_looks.apply(out)
 with open(OUT, 'w', encoding='utf-8') as f:
     json.dump(out, f, ensure_ascii=False, separators=(',', ':'), sort_keys=True)
 with open(MISSING_OUT, 'w', encoding='utf-8', newline='\n') as f:

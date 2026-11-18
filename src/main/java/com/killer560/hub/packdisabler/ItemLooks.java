@@ -40,13 +40,18 @@ public final class ItemLooks {
     private static final Logger LOGGER = ModLog.get("killer560smod-packdisabler");
     private static final String PATH = "/assets/killer560smod/skyblock/item_looks.json";
     public static final String OWN_NAMESPACE = "killer560smod";
-    private static final Identifier PLAYER_HEAD_MODEL = Identifier.fromNamespaceAndPath("minecraft", "player_head");
+    public static final Identifier PLAYER_HEAD_MODEL = Identifier.fromNamespaceAndPath("minecraft", "player_head");
 
-    /** One row. {@code ownTexture} is the key of our own texture, used only when the row has no vanilla look. */
+    /**
+     * One row. {@code ownTexture} is the key of our own texture, used only when the row has no vanilla look.
+     * {@code skinKey} names a head skin shipped in the jar ({@code textures/entity/packdisabler/<key>.png}, the looks
+     * killer560 approved on 2026-11-17, tools/items/owner_looks.py) and wins over every other look; {@code drawGlint}
+     * puts the enchantment glint on wherever the item is drawn.
+     */
     public record Look(String skinHash, String vanillaId, String legacy, String packModel, boolean glint,
-            String ownTexture) {
+            String ownTexture, String skinKey, boolean drawGlint) {
         public boolean hasVanillaLook() {
-            return skinHash != null || vanillaId != null
+            return skinKey != null || skinHash != null || vanillaId != null
                     || legacy != null && !legacy.startsWith("minecraft:paper") && !legacy.startsWith("minecraft:skull");
         }
 
@@ -56,8 +61,14 @@ public final class ItemLooks {
     private static Map<String, Look> rows = Map.of();
     /** Hypixel pack model -> the one SkyBlock id whose row names it (models two ids share are left out). */
     private static Map<String, String> idByModel = Map.of();
+    /** Hypixel pack model -> bundled skin key, for a look carried by the model (Safari Belt rarity, unlisted ids). */
+    private static Map<Identifier, String> skinByModel = Map.of();
+    /** Hypixel pack models of rows with {@code drawGlint}: the glint hook's one cheap test per drawn stack. */
+    private static java.util.Set<Identifier> glintModels = java.util.Set.of();
     private static final Map<String, Optional<Identifier>> MODEL_CACHE = new ConcurrentHashMap<>();
     private static final Map<String, Optional<ResolvableProfile>> PROFILE_CACHE = new ConcurrentHashMap<>();
+    /** Bundled skin key -> its profile; bounded by the keys the table names (~70). */
+    private static final Map<String, Optional<ResolvableProfile>> BUNDLED = new ConcurrentHashMap<>();
 
     private ItemLooks() {
     }
@@ -75,15 +86,31 @@ public final class ItemLooks {
             if (in == null) {
                 LOGGER.warn("[Pack Disabler] item table missing ({})", PATH);
             } else {
-                JsonObject items = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8))
-                        .getAsJsonObject().getAsJsonObject("items");
+                JsonObject root = JsonParser.parseReader(new InputStreamReader(in, StandardCharsets.UTF_8))
+                        .getAsJsonObject();
+                JsonObject items = root.getAsJsonObject("items");
                 Map<String, Look> map = new HashMap<>(items.size() * 2);
+                java.util.Set<Identifier> glints = new java.util.HashSet<>();
                 for (Map.Entry<String, JsonElement> e : items.entrySet()) {
                     JsonObject o = e.getValue().getAsJsonObject();
-                    map.put(e.getKey(), new Look(str(o, "s"), str(o, "i"), str(o, "l"), str(o, "m"), o.has("e"),
-                            str(o, "o")));
+                    Look look = new Look(str(o, "s"), str(o, "i"), str(o, "l"), str(o, "m"), o.has("e"), str(o, "o"),
+                            str(o, "k"), o.has("g"));
+                    map.put(e.getKey(), look);
+                    if (look.drawGlint() && look.packModel() != null) {
+                        glints.add(Identifier.tryParse(look.packModel()));
+                    }
                 }
                 rows = Collections.unmodifiableMap(map);
+                glints.remove(null);
+                glintModels = java.util.Set.copyOf(glints);
+                Map<Identifier, String> skins = new HashMap<>();
+                if (root.has("models")) {
+                    for (Map.Entry<String, JsonElement> e : root.getAsJsonObject("models").entrySet()) {
+                        skins.put(Identifier.tryParse(e.getKey()), e.getValue().getAsString());
+                    }
+                }
+                skins.remove(null);
+                skinByModel = Collections.unmodifiableMap(skins);
                 Map<String, String> byModel = new HashMap<>();
                 for (Map.Entry<String, Look> e : map.entrySet()) {
                     String m = e.getValue().packModel();
@@ -124,7 +151,29 @@ public final class ItemLooks {
         return a != null && b != null && java.util.Objects.equals(a.skinHash(), b.skinHash())
                 && java.util.Objects.equals(a.vanillaId(), b.vanillaId())
                 && java.util.Objects.equals(a.legacy(), b.legacy())
-                && a.glint() == b.glint() && java.util.Objects.equals(a.ownTexture(), b.ownTexture());
+                && a.glint() == b.glint() && java.util.Objects.equals(a.ownTexture(), b.ownTexture())
+                && java.util.Objects.equals(a.skinKey(), b.skinKey()) && a.drawGlint() == b.drawGlint();
+    }
+
+    /** The bundled skin a Hypixel pack model names on its own (a Safari Belt rarity, an item with no row), or null. */
+    public static String skinKeyForModel(Identifier model) {
+        if (model == null) return null;
+        ensureLoaded();
+        return skinByModel.get(model);
+    }
+
+    /** Whether a stack on Hypixel pack model {@code model} is drawn with the glint (a row with {@code drawGlint}). */
+    public static boolean glintForModel(Identifier model) {
+        if (model == null) return false;
+        return loaded && glintModels.contains(model); // never loads: called per drawn stack
+    }
+
+    /** The head profile wearing bundled skin {@code key} ({@code killer560smod:entity/packdisabler/<key>}), cached. */
+    public static ResolvableProfile bundledProfile(String key) {
+        if (key == null) return null;
+        return BUNDLED.computeIfAbsent(key, k -> Optional.ofNullable(com.killer560.hub.util.BundledSkins.profile(
+                java.util.UUID.nameUUIDFromBytes(("killer560smod:packdisabler/" + k).getBytes(StandardCharsets.UTF_8)),
+                "PackDisabler", OWN_NAMESPACE + ":entity/packdisabler/" + k))).orElse(null);
     }
 
     /**
@@ -184,7 +233,7 @@ public final class ItemLooks {
         try {
             Look look = get(skyblockId);
             if (look != null) {
-                if (look.skinHash() != null) {
+                if (look.skinKey() != null || look.skinHash() != null) {
                     model = PLAYER_HEAD_MODEL;
                 } else {
                     Item item = vanillaItem(look);
@@ -210,7 +259,9 @@ public final class ItemLooks {
         ResolvableProfile profile = null;
         try {
             Look look = get(skyblockId);
-            if (look != null && look.skinHash() != null) {
+            if (look != null && look.skinKey() != null) {
+                profile = bundledProfile(look.skinKey());
+            } else if (look != null && look.skinHash() != null) {
                 profile = LegacyItems.skullProfile(textureValue(look.skinHash()));
             }
         } catch (Exception e) {
@@ -234,6 +285,10 @@ public final class ItemLooks {
             ResolvableProfile profile = profileFor(skyblockId);
             if (profile != null) {
                 stack.set(DataComponents.PROFILE, profile);
+            }
+            Look look = get(skyblockId);
+            if (look != null && look.drawGlint()) {
+                stack.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
             }
             return true;
         } catch (Exception e) {

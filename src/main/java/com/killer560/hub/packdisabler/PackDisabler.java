@@ -88,6 +88,8 @@ public final class PackDisabler {
         if (isMenuMap(stack, current, context)) return PAPER_MODEL;
         if (!isHypixelModel(current) || !isActive()) return current;
         try {
+            // A look carried by the pack model alone (Safari Belt rarities, items no row names): a bundled-skin head.
+            if (ItemLooks.skinKeyForModel(current) != null) return ItemLooks.PLAYER_HEAD_MODEL;
             CompoundTag tag = ItemNbt.view(stack);
             String id = tag == null ? null : tag.getStringOr("id", null);
             if (id == null) {
@@ -146,17 +148,51 @@ public final class PackDisabler {
         if (stack == null || stack.isEmpty() || !isActive()) return current;
         try {
             if (current != null && stack.is(Items.PLAYER_HEAD)) return current;
-            if (!isHypixelModel(stack.get(DataComponents.ITEM_MODEL))) return current;
+            Identifier model = stack.get(DataComponents.ITEM_MODEL);
+            if (!isHypixelModel(model)) return current;
             CompoundTag tag = ItemNbt.view(stack);
             String id = tag == null ? null : tag.getStringOr("id", null);
             if (id == null) {
-                id = ItemLooks.idForModel(stack.get(DataComponents.ITEM_MODEL));
+                id = ItemLooks.idForModel(model);
             }
-            ResolvableProfile old = ItemLooks.profileFor(id);
+            String key = bundledKey(id, tag, model);
+            ResolvableProfile old = key != null ? ItemLooks.bundledProfile(key) : ItemLooks.profileFor(id);
             return old != null ? old : current;
         } catch (Exception e) {
             return current;
         }
+    }
+
+    /**
+     * The bundled head skin for a stack, or null: the pack model's own skin first (Safari Belt rarity), then a Critter
+     * Capsule's state read the way Hypixel's pack reads it from custom_data (model / failed / active), then the row's.
+     */
+    static String bundledKey(String id, CompoundTag tag, Identifier model) {
+        String key = ItemLooks.skinKeyForModel(model);
+        if (key != null || id == null) return key;
+        boolean masterful = "MASTERFUL_CRITTER_CAPSULE".equals(id);
+        if (tag != null && (masterful || "CRITTER_CAPSULE".equals(id))) {
+            if (tag.getBooleanOr("model", false)) {
+                return masterful ? "masterful_critter_capsule"
+                        : tag.getBooleanOr("failed", false) ? "critter_capsule_fail" : "critter_capsule";
+            }
+            boolean active = tag.getBooleanOr("active", false);
+            return masterful ? (active ? "masterful_critter_capsule_active" : "masterful_critter_capsule_inactive")
+                    : (active ? "critter_capsule_active" : "critter_capsule_inactive");
+        }
+        ItemLooks.Look look = ItemLooks.get(id);
+        return look == null ? null : look.skinKey();
+    }
+
+    /** Glint for a row drawn enchanted (Enchanted Ruby Veilshroom, Rainbow Feather); the item-glint mixin asks. */
+    public static boolean forcedGlint(ItemStack stack) {
+        Identifier model = stack.get(DataComponents.ITEM_MODEL);
+        if (!ItemLooks.glintForModel(model) || !isActive()) return false;
+        // The model can be shared (Ruby Veilshroom and its enchanted form): the id decides.
+        CompoundTag tag = ItemNbt.view(stack);
+        String id = tag == null ? null : tag.getStringOr("id", null);
+        ItemLooks.Look look = ItemLooks.get(id != null ? id : ItemLooks.idForModel(model));
+        return look != null && look.drawGlint();
     }
 
     // ---- items whose Hypixel model changes with their state (PackDisabler, CC0-1.0) ----------

@@ -91,6 +91,19 @@ project CLAUDE.md. Compiling lessons
   textures that differ from 26.2), which is why the Bazaar's Create Sell Offer (an empty map) became a folded map.
   Pack Disabler's Paper Menu Buttons answers it on 26.3 only (`McItems.MAPS_DRAWN_AS_MAPS`). Diff the two client jars'
   `textures/item` before blaming Hypixel for a menu look.
+- **Pack Disabler's bundled heads** (texredo3-1117, the looks killer560 approved 2026-11-17): an item drawn as a vanilla
+  player head wearing a skin from the jar has a `k` row in item_looks.json (skin `textures/entity/packdisabler/<k>.png`,
+  64x64 RGBA, oxipng `--nc --nb --np`). The head's profile is built once per key by `util/BundledSkins.profile` (the sim's
+  wither essence uses the same path): the profile's skin patch names a ClientAsset id, which vanilla's texture manager loads
+  on first draw and drops on a resource reload, so nothing is fetched and nothing runs per frame. A head the server already
+  dressed keeps its own skin (`resolveProfile`). Three traps: the Critter Capsule's state is in custom_data (`model`, `failed`,
+  `active`, read as SNBT bytes by `getBooleanOr`), exactly what Hypixel's own capsule model selects on; the Safari Belt is one
+  id with one model per rarity, so it maps by MODEL (the top-level `models` map, also used for items whose SkyBlock id is
+  not confirmed but whose Hypixel model is); and Ruby Veilshroom shares its model with the enchanted form, so the forced glint
+  (`g` rows, `PackDisablerGlintMixin` on `ItemStack.hasFoil`) checks the id too, and asks the table only once it is loaded.
+  The per-skill Personal Compactor skins sit in the jar unmapped until their ids are confirmed. A testkit check reads the
+  bundled skin off the head's render info (`playerSkin().body().id()`), since such a profile has no textures property.
+  Testkit 1117-ui-pack-disabler-owner-looks.
 - Hypixel's public items resource has only ~170 item skins and none for Wither Goggles (checked 2026-11-01), and the old
   Hypixel Skin list matched by the selected item's full display name ("Heroic Wither Goggles ✪✪✪✪✪" matched nothing). The
   the reference repo has 180 skins whose lore names the items each applies to; `tools/item-skins-extract.py` bakes them into

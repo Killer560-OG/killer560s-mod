@@ -132,31 +132,17 @@ public final class SimSecrets {
     }
 
     /**
-     * The essence's skull profile: Hypixel's id, and the bundled black skin as its skin patch.
-     *
-     * <p>Built through {@code ResolvableProfile.CODEC} because the patch has no public factory: a resolved profile
-     * is encoded, the patch's {@code texture} field added, and decoded. If that ever fails the plain profile is
-     * used - the id is what every feature reads; only the color would be lost.
+     * The essence's skull profile: Hypixel's id, and the bundled black skin as its skin patch. If the patch cannot be
+     * added the plain profile is used - the id is what every feature reads; only the color would be lost.
      */
     static net.minecraft.world.item.component.ResolvableProfile essenceProfile() {
         if (essenceProfile != null) return essenceProfile;
-        net.minecraft.world.item.component.ResolvableProfile plain =
-                net.minecraft.world.item.component.ResolvableProfile.createResolved(
-                        new com.mojang.authlib.GameProfile(ESSENCE_PROFILE_ID, "WitherEssence"));
-        net.minecraft.world.item.component.ResolvableProfile result = plain;
-        try {
-            net.minecraft.nbt.Tag tag = net.minecraft.world.item.component.ResolvableProfile.CODEC
-                    .encodeStart(net.minecraft.nbt.NbtOps.INSTANCE, plain).result().orElse(null);
-            if (tag instanceof net.minecraft.nbt.CompoundTag compound) {
-                compound.putString("texture", ESSENCE_TEXTURE);
-                result = net.minecraft.world.item.component.ResolvableProfile.CODEC
-                        .parse(net.minecraft.nbt.NbtOps.INSTANCE, compound).result().orElse(plain);
-            }
-        } catch (RuntimeException e) {
-            LOGGER.warn("Sim essence: could not give the essence head its black skin, using the plain profile", e);
-        }
-        if (result == plain) {
+        net.minecraft.world.item.component.ResolvableProfile result =
+                com.killer560.hub.util.BundledSkins.profile(ESSENCE_PROFILE_ID, "WitherEssence", ESSENCE_TEXTURE);
+        if (result == null) {
             LOGGER.warn("Sim essence: the essence head has no black skin patch - it will draw a default skin");
+            result = net.minecraft.world.item.component.ResolvableProfile.createResolved(
+                    new com.mojang.authlib.GameProfile(ESSENCE_PROFILE_ID, "WitherEssence"));
         }
         essenceProfile = result;
         return result;
