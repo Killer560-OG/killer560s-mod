@@ -78,6 +78,11 @@ public final class IslandDetector {
     private static String graphIsland = null;
     private static String scoreboardArea = "";
     private static int ticks = 0;
+    private static Object seenLevel;
+    private static Object readLevel;
+
+    /** The level the island read above was made in (null until this world's first read). */
+    public static Object readLevel() { return readLevel; }
 
     private IslandDetector() {
     }
@@ -90,7 +95,16 @@ public final class IslandDetector {
             scoreboardArea = "";
             return;
         }
+        if (seenLevel != client.level) { // a new world: the old world's island must not read as this one's
+            seenLevel = client.level;
+            readLevel = null;
+            islandName = "";
+            graphIsland = null;
+            scoreboardArea = "";
+            ticks = 0;
+        }
         if (ticks++ % 5 != 0) return;
+        readLevel = client.level;
         islandName = readTabArea(client);
         scoreboardArea = currentArea(readScoreboardArea(client), actionBarArea, actionBarAreaAt,
                 System.currentTimeMillis());

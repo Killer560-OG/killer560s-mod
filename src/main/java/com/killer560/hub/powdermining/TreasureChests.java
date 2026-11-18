@@ -77,6 +77,8 @@ public final class TreasureChests {
     private static long lootDebtAt = 0L;
     private static final long LOOT_WAIT_MS = 200L;
     private static Object level = null;
+    /** A positive Crystal Hollows read in the current world (see {@link #hollows}). */
+    private static boolean hollowsRead = false;
 
     private static int claims = 0;
     private static int alerts = 0;
@@ -110,8 +112,6 @@ public final class TreasureChests {
     private static long creditAt = 0L;
     /** How long a line waits for a chest beside his digs before it takes a far one, while he is digging. */
     static final long FALLBACK_TICKS = 10L;
-    /** Wall clock of the last uncovered line: the line itself says he is in the Crystal Hollows when the island read lapses. */
-    private static long lastLineMs = -1L;
     private static final org.slf4j.Logger DIAG = com.killer560.hub.util.ModLog.keptWhen("killer560smod-powderchest", () -> true);
     private static long diagAtMs = 0L;
     private static int diagnostics = 0;
@@ -125,7 +125,7 @@ public final class TreasureChests {
      */
     public static void onUseBlock(BlockPos pos) {
         Minecraft client = Minecraft.getInstance();
-        if (pos == null || client.level == null || !client.level.getBlockState(pos).is(Blocks.CHEST)) {
+        if (pos == null || client.level == null || !client.level.getBlockState(pos).is(Blocks.CHEST) || !hollows()) {
             return;
         }
         BlockPos key = pos.immutable();
@@ -137,7 +137,7 @@ public final class TreasureChests {
     /** A START/STOP_DESTROY_BLOCK he sent (send tap, client thread): where his own chests will appear. */
     public static void onDigSent(BlockPos pos) {
         Minecraft client = Minecraft.getInstance();
-        if (pos == null || client.level == null || !featuresOn() || client.level.getBlockState(pos).is(Blocks.CHEST)) return;
+        if (pos == null || client.level == null || !tracking() || client.level.getBlockState(pos).is(Blocks.CHEST)) return;
         if (DIGS.size() >= MAX_DIGS) DIGS.pollFirst();
         DIGS.addLast(new Click(pos.immutable(), System.currentTimeMillis()));
     }
@@ -170,10 +170,6 @@ public final class TreasureChests {
         long since = System.currentTimeMillis() - USED_MS;
         for (Click k : DONE) if (k.ms() >= since && k.pos().equals(pos)) return true;
         return false;
-    }
-
-    private static boolean lineRecently() {
-        return lastLineMs >= 0 && System.currentTimeMillis() - lastLineMs <= PowderMining.RECENT_MS;
     }
 
     /** One WARN line (kept in a release), at most one every 5 s; every call is counted. */
@@ -232,6 +228,7 @@ public final class TreasureChests {
      * too, and once the loot removed their chest they name nothing.
      */
     static void onAlreadyLooted() {
+        if (!hollows()) return;
         BlockPos pos = answered(System.currentTimeMillis());
         if (pos != null) collected(pos);
     }
@@ -263,7 +260,7 @@ public final class TreasureChests {
 
     /** True when the chest at {@code pos} was confirmed opened and Hide Opened Chests is on (the render mixin's question). */
     public static boolean shouldHide(BlockPos pos) {
-        if (HIDDEN.isEmpty() || !PowderMiningConfig.getInstance().isTreasureChestHideOpened()) {
+        if (HIDDEN.isEmpty() || !PowderMiningConfig.getInstance().isTreasureChestHideOpened() || !hollows()) {
             return false;
         }
         boolean hidden = HIDDEN.containsKey(pos);
@@ -279,8 +276,32 @@ public final class TreasureChests {
     }
 
     static boolean tracking() {
-        // An island read that lapsed (no Area line: empty, not another island) still counts while he digs.
-        return featuresOn() && (MiningState.crystalHollows() || lineRecently() || (digging() && MiningState.island().isEmpty()));
+        return featuresOn() && hollows();
+    }
+
+    /**
+     * The one gate (chesthl-ch-1117): chests are tracked, drawn, hidden or clicked only after a positive Crystal Hollows read
+     * made in THIS world. The read is forgotten on a world change (the level object changes, and the island read is stale
+     * until that world's first own read), and any read of another island ends it and clears the chests. An EMPTY read in
+     * the same world keeps it: the Hollows cannot be left without a world change. No line, dig or guess turns it on.
+     */
+    static boolean hollows() {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null || client.player == null) {
+            clear();
+            return false;
+        }
+        if (level != client.level) {
+            level = client.level;
+            clear();
+        }
+        String island = MiningState.island();
+        if (island.equals("CRYSTAL_HOLLOWS")) {
+            if (com.killer560.hub.pathfinding.IslandDetector.readLevel() == client.level) hollowsRead = true;
+        } else if (!island.isEmpty() && hollowsRead) {
+            clear();
+        }
+        return hollowsRead;
     }
 
     private static boolean featuresOn() {
@@ -343,16 +364,10 @@ public final class TreasureChests {
     /** "You uncovered a treasure chest!" (whole line, from {@link PowderChat}). */
     static void onUncovered() {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || !MiningState.island().isEmpty() && !MiningState.crystalHollows()) return; // another island (mineshaft, Dwarven): nothing
-        // Only the Crystal Hollows sends this line, so it is proof of the island even when the island read lapses (a tab
-        // list without its Area line): it used to be dropped here, and no chest was tracked at all.
-        if (!MiningState.crystalHollows() && !lineRecently()) {
-            diag("an uncovered line came while the island read is not the Crystal Hollows: tracking from the line");
-        }
-        lastLineMs = System.currentTimeMillis();
+        if (client.player == null || !hollows()) return; // outside a read Crystal Hollows nothing is claimed
         PowderMining.markChest();
         PowderMiningConfig cfg = PowderMiningConfig.getInstance();
-        if (cfg.isChestAlert() && MiningState.crystalHollows()) { // the alert is Crystal Hollows only
+        if (cfg.isChestAlert()) {
             alerts++;
             if (cfg.isChestAlertTitle()) {
                 McCompat.setTimes(client, 2, 25, 5);
@@ -400,6 +415,7 @@ public final class TreasureChests {
      * says that SOME chest was looted; the loot block that follows is then paid for by {@link #openedCredits}.
      */
     public static void onChestOpened(BlockPos pos) {
+        if (!hollows()) return;
         CLICKS.removeIf(k -> k.pos().equals(pos)); // the lid answered them
         done(pos);
         if (CHESTS.remove(pos) != null) {
@@ -420,6 +436,7 @@ public final class TreasureChests {
      * before it name ({@link #answered}); else nothing (the block going ends it).
      */
     static void onLooted() {
+        if (!hollows()) return;
         PowderMining.markChest();
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) {
@@ -443,14 +460,7 @@ public final class TreasureChests {
     }
 
     static void tick(Minecraft client) {
-        if (client.level == null || client.player == null) {
-            clear();
-            return;
-        }
-        if (level != client.level) {
-            level = client.level;
-            clear();
-        }
+        if (!hollows()) return;
         if (!HIDDEN.isEmpty()) {
             // Kept through a lapse in tracking() (an island read) too: only the world going ends a hide early.
             long wall = System.currentTimeMillis();
@@ -471,8 +481,6 @@ public final class TreasureChests {
             lootDebt = 0;
             return;
         }
-        // An island read lapse keeps the chests (only the world going ends them); a recent line counts as the island.
-        if (!MiningState.crystalHollows() && !lineRecently()) return;
         long now = PerTickServerClock.now();
         for (Iterator<Map.Entry<BlockPos, Long>> it = CHESTS.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<BlockPos, Long> e = it.next();
@@ -536,7 +544,7 @@ public final class TreasureChests {
         DIGS.clear();
         DONE.clear();
         lineCredits = 0;
-        lastLineMs = -1L;
+        hollowsRead = false;
     }
 
     /** The chest's box (a chest is 14/16 wide and tall, centered). */
@@ -545,11 +553,11 @@ public final class TreasureChests {
                 p.getX() + 0.9375, p.getY() + 0.875, p.getZ() + 0.9375);
     }
 
-    static Map<BlockPos, Long> chests() { return CHESTS; }
+    static Map<BlockPos, Long> chests() { return hollows() ? CHESTS : Map.of(); }
 
     static void render(LevelRenderContext context) {
         PowderMiningConfig cfg = PowderMiningConfig.getInstance();
-        if (CHESTS.isEmpty() || !cfg.isTreasureChest()) return;
+        if (CHESTS.isEmpty() || !cfg.isTreasureChest() || !hollows()) return;
         long now = PerTickServerClock.now();
         int n = CHESTS.size();
         AABB[] boxes = new AABB[n];
@@ -697,6 +705,7 @@ public final class TreasureChests {
 
     /** Seconds left on the chest that runs out first, or -1 with none. */
     public static long secondsLeft() {
+        if (!hollows()) return -1L;
         long now = PerTickServerClock.now();
         long best = Long.MAX_VALUE;
         for (long at : CHESTS.values()) {
