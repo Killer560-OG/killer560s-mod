@@ -334,9 +334,9 @@ public final class PlayerStatsFeature {
     // second, and the bar fell from 2,300 to 63; the old aimed-block-only guess read 1,940). The action bar prints no mana at
     // all while a drill shows its fuel, so the Mana Bar takes 20 off for each block the server turns to air within
     // MANIAC_RANGE of him, from "You used your Maniac Miner Pickaxe Ability!" (AbilityReadyAlert's USED line) to its expiry
-    // line or 35 s (also if no line comes), never below 0; the next changed action bar figure wins.
+    // line or 50 s (also if no line comes), never below 0; the next changed action bar figure wins.
     static final long MANIAC_MANA_PER_BLOCK = 20;
-    static final long MANIAC_MAX_MS = 35_000;
+    static final long MANIAC_MAX_MS = 50_000;
     private static final Pattern MANIAC_END = Pattern.compile("^Your Maniac Miner (?:ability )?has (?:expired|ended|worn off)!?$");
     /** Wall-clock end of the drain, 0 while Maniac Miner is not running. Client thread. */
     static long maniacUntil;

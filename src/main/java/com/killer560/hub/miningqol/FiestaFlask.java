@@ -38,9 +38,9 @@ import java.util.regex.Pattern;
  *
  * <p>Start: a use of a FIESTA_FLASK is sent and the held stack then shrinks (or the flask leaves the slot) within
  * {@link #CONFIRM_TICKS} ticks; the click alone starts nothing (a second flask while one is active is refused by the server,
- * so its stack stays). Sync: a tab-list line naming "Fiesta Flask" with a time sets the remaining time. The wiki says the
- * timer is paused outside a Mining Fiesta, so it counts down only while a tab or scoreboard line names "Mining Fiesta"
- * (always; the old "Pause Outside Mining Fiesta" setting is gone). The remaining time is saved per account.
+ * so its stack stays). Sync: a tab-list line naming "Fiesta Flask" with a time sets the remaining time. It counts down by the
+ * second on its own clock and never pauses (flaskfix-1117: the server's timer runs on outside a Mining Fiesta too); each
+ * changed tab reading snaps it when they differ by more than the reading's resolution. The remaining time is saved per account.
  * <p>What the server shows after a drink is unproven: for {@link #OBSERVE_MS} after a use this logs one always-on line per
  * relevant chat or tab line (logger killer560smod-fiestaflask), so the next real drink proves it.
  */
@@ -60,7 +60,6 @@ public final class FiestaFlask {
     private static long remainingMs = -1;
     private static long lastMs;
     private static long savedMs;
-    private static boolean fiesta;
     private static boolean warned;
     private static String uuid = "";
     private static volatile String text = null;
@@ -79,7 +78,6 @@ public final class FiestaFlask {
     private static String lastTabLine;
     /** The second and pause state the HUD text was built for, so it is rebuilt only when one changes. */
     private static long shownSec = -1;
-    private static boolean shownRunning;
     /** A tab reading with no time shows the flask over: "expired", "inactive", "none" or a zero unit. */
     private static final Pattern OVER = Pattern.compile("(?i)expired|inactive|none|\\b0\\s*[hms]\\b");
 
@@ -176,9 +174,8 @@ public final class FiestaFlask {
         step(now, MiningQolConfig.getInstance());
     }
 
-    /** One look at the tab and sidebar lines: fiesta state, a server reading of the flask, then the countdown. */
+    /** One look at the tab and sidebar lines: a server reading of the flask, then the countdown. */
     static void scan(List<String> tab, List<String> sidebar, long now, MiningQolConfig cfg) {
-        boolean seen = false;
         boolean flask = false;
         long ms = 0;
         long res = 0;
@@ -187,7 +184,6 @@ public final class FiestaFlask {
         for (List<String> lines : List.of(tab, sidebar)) {
             for (String line : lines) {
                 String low = line.toLowerCase(java.util.Locale.ROOT);
-                if (low.contains("mining fiesta")) seen = true;
                 if (low.contains("fiesta flask")) {
                     flask = true;
                     flaskLine = line;
@@ -222,11 +218,6 @@ public final class FiestaFlask {
             tabSeen = false;
             lastTabLine = null;
             if (remainingMs >= 0) remainingMs = 0;
-        }
-        if (seen != fiesta) {
-            // Count up to the change at the old state's rate, then switch.
-            step(now, cfg);
-            fiesta = seen;
         }
         step(now, cfg);
     }
@@ -264,8 +255,7 @@ public final class FiestaFlask {
             text = null;
             return;
         }
-        boolean running = fiesta;
-        if (running) remainingMs -= Math.max(0, now - lastMs);
+        remainingMs -= Math.max(0, now - lastMs);
         lastMs = now;
         if (remainingMs <= 0) {
             remainingMs = -1;
@@ -285,10 +275,9 @@ public final class FiestaFlask {
             playPling();
         }
         long sec = (remainingMs + 999) / 1000;
-        if (sec != shownSec || running != shownRunning || text == null) {
+        if (sec != shownSec || text == null) {
             shownSec = sec;
-            shownRunning = running;
-            text = "Fiesta Flask: " + format(remainingMs) + (running ? "" : " (paused)");
+            text = "Fiesta Flask: " + format(remainingMs);
         }
         if (now - savedMs >= 30_000L) save(now);
     }
@@ -358,7 +347,6 @@ public final class FiestaFlask {
         shownSec = -1;
         text = null;
         pendingTick = -1;
-        fiesta = false;
         startedCount = 0;
         try {
             Files.deleteIfExists(STATE);
