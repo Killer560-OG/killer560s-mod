@@ -500,6 +500,10 @@ public final class CollectionTracker {
             return Optional.empty();
         }, Style.EMPTY);
         long t = System.currentTimeMillis();
+        // Per base item, in base units: what the message adds (pos) and what it takes out of the sacks with no inventory gain to
+        // explain it (neg). A sack compacting 15,040 Enchanted Gold Ingot into 94 Enchanted Gold Block prints both; counting
+        // only the block's +2.4M turned 1,856 real gold into a 2.4M gain and the rate to 300M/h (recorded 2026-11-17).
+        Map<String, long[]> net = new HashMap<>(4);
         for (Component h : hovers) {
             for (String line : ChatObserver.stripCodes(h.getString()).split("\n")) {
                 Matcher m = SACK_ITEM.matcher(line);
@@ -516,15 +520,17 @@ public final class CollectionTracker {
                     // Items put into the sack from the inventory were already counted when they were picked up.
                     long paired = t - tr.invLossAt < PAIR_MS ? Math.min(n, tr.invLoss) : 0;
                     tr.invLoss -= paired;
-                    add(id, n - paired);
+                    net.computeIfAbsent(id, k -> new long[2])[0] += n - paired;
                 } else {
                     // Taken out of the sack into the inventory: the inventory scan counted them, take that back.
                     long paired = t - tr.invGainAt < PAIR_MS ? Math.min(n, tr.invGain) : 0;
                     tr.invGain -= paired;
                     add(id, -paired);
+                    net.computeIfAbsent(id, k -> new long[2])[1] += n - paired;
                 }
             }
         }
+        net.forEach((id, pn) -> add(id, Math.max(0, pn[0] - pn[1])));
     }
 
     private static long parse(String digits) {
