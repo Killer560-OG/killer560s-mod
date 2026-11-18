@@ -181,27 +181,46 @@ public final class P3SectionTracker {
                     sectionCurrent, sectionTotal, cur, tot);
             setSection(section + 1);
         }
-        sectionCurrent = cur;
-        sectionTotal = tot;
-        LOGGER.info("[LeverAura] P3 sections: {} {} ({}/{}) in section {}", m.group(2), m.group(3), cur, tot, section);
-        if (section == 2 && "device".equals(m.group(3)) && !lightsCompleted) {
+        int ls = lineSection(tot);
+        if (ls == section) {
+            sectionCurrent = cur;
+            sectionTotal = tot;
+        }
+        LOGGER.info("[LeverAura] P3 sections: {} {} ({}/{}) in section {}", m.group(2), m.group(3), cur, tot, ls);
+        if (ls == 2 && "device".equals(m.group(3)) && !lightsCompleted) {
             // S2 has exactly one device - the Lights device.
             lightsCompleted = true;
             LOGGER.info("[LeverAura] P3 sections: Lights device completed");
         }
-        if (section == 1 && "device".equals(m.group(3)) && !ssCompleted) {
+        if (ls == 1 && "device".equals(m.group(3)) && !ssCompleted) {
             // S1 has exactly one device - Simon Says. AP3's "ss" modifier waits on this (killer560, 2026-10-18).
             ssCompleted = true;
             LOGGER.info("[LeverAura] P3 sections: Simon Says device completed");
         }
         for (ObjectiveListener l : LISTENERS) {
             try {
-                l.onObjective(section, m.group(1), m.group(3), cur, tot);
+                l.onObjective(ls, m.group(1), m.group(3), cur, tot);
             } catch (RuntimeException e) {
                 LOGGER.error("[LeverAura] P3 objective listener threw", e);
             }
         }
         checkSectionAdvance();
+    }
+
+    /**
+     * The section an objective line belongs to. A section can be worked ahead of the gate (the sim and Hypixel both count
+     * it for ITS section, with that section's total): S2's total is 8, every other one 7, so an 8 is S2, and a 7 while
+     * the tracker still sits in S1 or S2 is the S3/S4 the player stands in.
+     */
+    private static int lineSection(int tot) {
+        if (tot == 8 && section <= 2) {
+            return 2;
+        }
+        if (tot == 7 && section <= 2) {
+            int at = Floor7Tracker.getStageAt().number;
+            return at >= 3 && at <= 4 ? at : section;
+        }
+        return section;
     }
 
     private static void checkSectionAdvance() {
