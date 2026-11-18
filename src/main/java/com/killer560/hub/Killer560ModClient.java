@@ -224,6 +224,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.reboot.RebootFeature.register();
         com.killer560.hub.packdisabler.PackDisabler.register();
         HypixelJoinWatcher.register();
+        com.killer560.hub.accounts.AccountActivity.register();
         // Auto Report Bans (opt-in, OFF by default): loads its switch, which starts the session log tap when on.
         com.killer560.hub.banreport.BanReportFeature.register();
         // Auto Crash Reports (opt-in, OFF by default): one tick listener that looks for a new crash file once per start.

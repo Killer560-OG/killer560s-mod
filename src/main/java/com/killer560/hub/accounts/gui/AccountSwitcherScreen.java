@@ -1,6 +1,9 @@
 package com.killer560.hub.accounts.gui;
 
+import com.killer560.hub.accounts.AccountActivity;
 import com.killer560.hub.accounts.AccountApplier;
+import com.killer560.hub.accounts.AccountViewPrefs;
+import com.killer560.hub.BuildVariant;
 import com.killer560.hub.accounts.core.AuthException;
 import com.killer560.hub.accounts.core.MicrosoftAuthFlow;
 import com.killer560.hub.accounts.core.PrismAccount;
@@ -39,6 +42,7 @@ import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -120,7 +124,10 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
     private int listX, listY, listW, listH;
     private int toolbarY;
     private boolean toolbar;
-    private int chipX, chipW;
+    private int chipX, chipW, toolbarH;
+    /** The "Playing as" text the chip draws, whole (sized for, never cut). */
+    private String chipText = "";
+    private Map<String, AccountActivity.Entry> activity = Map.of();
     private int statusY;
     private int footerTop;
     private int copyW, proxyW;
@@ -147,6 +154,7 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
             }
         }
         this.banStatuses = SharedBanStatusStore.load();
+        this.activity = AccountActivity.snapshot();
         this.universalActive = ProxyConfig.isUniversalActive();
 
         this.panelW = Math.min(this.width - 16, 680);
@@ -162,22 +170,64 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
         this.footerTop = this.panelY + this.panelH - 8 - (footerRows * FOOTER_H + (footerRows - 1) * 4);
         this.statusY = this.footerTop - 6 - 9;
 
-        // Toolbar: search box (with enough accounts) and the "Playing as" chip.
+        // Toolbar: search box (with enough accounts), the sort and proxy filter, and the "Playing as" chip. The chip is
+        // as wide as its text (never cut); the search box takes what is left, and when it would get under 90 px the sort
+        // and filter move to a second row.
         this.toolbarY = this.panelY + ScreenChrome.HEADER_H + 9;
         boolean search = this.accounts.size() >= SEARCH_MIN;
-        this.toolbar = search || this.panelH >= 200;
-        String playing = playingAs();
-        this.chipW = this.font.width(playing) + 18;
-        int searchW = contentW - (this.chipW + 6);
-        if (search && searchW < 120) {
-            this.chipW = 0;
-            searchW = contentW;
+        boolean controls = this.accounts.size() >= 2;
+        this.toolbar = search || controls || this.panelH >= 200;
+        this.chipText = playingAs();
+        int chipFull = Math.min(contentW, MenuStyle.font().width(this.chipText) + 18);
+        int tbGap = 6;
+        int sortW = 0;
+        int filterW = 0;
+        if (controls) {
+            for (AccountViewPrefs.Sort v : AccountViewPrefs.Sort.values()) {
+                sortW = Math.max(sortW, MenuStyle.font().width(sortLabel(v)) + 14);
+            }
+            for (AccountViewPrefs.ProxyFilter v : AccountViewPrefs.ProxyFilter.values()) {
+                filterW = Math.max(filterW, MenuStyle.font().width(filterLabel(v)) + 14);
+            }
         }
-        this.chipX = search ? contentX + searchW + 6 : contentX;
+        int fixed = (controls ? sortW + filterW + 2 * tbGap : 0) + chipFull + tbGap;
+        boolean tbOne = !controls || contentW - fixed >= (search ? 90 : 0);
+        this.toolbarH = tbOne ? 18 : 18 + 4 + 18;
+        int searchW = contentW;
+        int sortX = contentX;
+        int sortWidth = sortW;
+        int filterX;
+        int filterWidth = filterW;
+        int controlsY = this.toolbarY;
+        this.chipW = chipFull;
+        if (tbOne) {
+            this.chipX = contentX + contentW - chipFull;
+            if (search) {
+                searchW = contentW - fixed;
+                sortX = contentX + searchW + tbGap;
+            }
+            filterX = sortX + sortW + tbGap;
+            if (!search && !controls) {
+                this.chipX = contentX;
+            }
+        } else {
+            if (search && contentW - chipFull - tbGap >= 60) {
+                searchW = contentW - chipFull - tbGap;
+                this.chipX = contentX + searchW + tbGap;
+            } else if (search) {
+                this.chipW = 0;
+            } else {
+                this.chipX = contentX;
+            }
+            controlsY = this.toolbarY + 18 + 4;
+            sortWidth = (contentW - tbGap) / 2;
+            filterWidth = contentW - tbGap - sortWidth;
+            filterX = contentX + sortWidth + tbGap;
+        }
         this.searchBox = null;
         if (search) {
             this.searchBox = new ThemedEditBox(this.font, contentX, this.toolbarY, searchW, 18, Component.literal("Search"))
-                    .hint("Search " + this.accounts.size() + " accounts...");
+                    .hint("Search " + filteredAccounts().size() + (filteredAccounts().size() == 1 ? " account..." : " accounts..."));
             this.searchBox.setMaxLength(16);
             this.searchBox.setValue(this.searchQuery);
             this.searchBox.setResponder(text -> {
@@ -192,9 +242,30 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
                     "Type to narrow the list by name. Typing anywhere on this page starts a search.")));
             this.addRenderableWidget(this.searchBox);
         }
+        if (controls) {
+            SettingsButtonWidget sortBtn = SettingsButtonWidget.cycling(Component.literal(sortLabel(AccountViewPrefs.sort())),
+                    (btn, dir) -> {
+                        AccountViewPrefs.setSort(SettingsButtonWidget.step(AccountViewPrefs.sort(), dir));
+                        viewChanged();
+                    }).bounds(sortX, controlsY, sortWidth, 18).build();
+            sortBtn.setTooltip(Tooltip.create(Component.literal("Sort the list: Default (the launcher's order), "
+                    + "Name A-Z, Name Z-A, Recently Played (the account used most recently first) or Most Playtime. "
+                    + "Playtime and last played are counted by this mod while an account is in a world, across every "
+                    + "instance; accounts with no record come last. Left click the next, right click the previous.")));
+            this.addRenderableWidget(sortBtn);
+            SettingsButtonWidget filterBtn = SettingsButtonWidget.cycling(
+                    Component.literal(filterLabel(AccountViewPrefs.filter())), (btn, dir) -> {
+                        AccountViewPrefs.setFilter(SettingsButtonWidget.step(AccountViewPrefs.filter(), dir));
+                        viewChanged();
+                    }).bounds(filterX, controlsY, filterWidth, 18).build();
+            filterBtn.setTooltip(Tooltip.create(Component.literal("Show all accounts, only those with their own saved "
+                    + "proxy, or only those without one. The Universal proxy, while on, covers every account and does "
+                    + "not count here. Left click the next, right click the previous.")));
+            this.addRenderableWidget(filterBtn);
+        }
 
         this.listX = contentX;
-        this.listY = this.toolbar ? this.toolbarY + 18 + 6 : this.panelY + ScreenChrome.HEADER_H + 9;
+        this.listY = this.toolbar ? this.toolbarY + this.toolbarH + 6 : this.panelY + ScreenChrome.HEADER_H + 9;
         this.listW = contentW;
         // No standing "Click an account to switch to it." hint any more (killer560, 2026-10-16: "remove the 'Click an
         // account to switch to it' line"): the status row is only there while there is a status to show (signing in,
@@ -250,18 +321,63 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
         rebuildRows();
     }
 
-    private String playingAs() {
-        return "Playing as " + Minecraft.getInstance().getUser().getName();
+    private static String playingAs() {
+        String name = BuildVariant.DEV_TOOLS ? System.getProperty("killer560smod.test.playerName") : null;
+        return "Playing as " + (name != null ? name : Minecraft.getInstance().getUser().getName());
     }
 
-    /** The accounts whose name contains the search (case-insensitive); all of them for a blank one. */
-    private List<PrismAccount> visibleAccounts() {
-        String q = this.searchBox == null ? "" : this.searchQuery.trim().toLowerCase(Locale.ROOT);
-        if (q.isEmpty()) {
-            return this.accounts;
-        }
+    private static String sortLabel(AccountViewPrefs.Sort v) {
+        return "Sort: " + v.label;
+    }
+
+    private static String filterLabel(AccountViewPrefs.ProxyFilter v) {
+        return "Proxy: " + v.label;
+    }
+
+    /** The accounts the proxy filter lets through (before the search), in the chosen order. */
+    private List<PrismAccount> filteredAccounts() {
+        AccountViewPrefs.ProxyFilter f = AccountViewPrefs.filter();
         List<PrismAccount> out = new ArrayList<>();
         for (PrismAccount a : this.accounts) {
+            AccountProxyProfile own = AccountProxyStore.get(a.uuid());
+            boolean has = own != null && own.hasValidAddress();
+            if (f == AccountViewPrefs.ProxyFilter.ALL || has == (f == AccountViewPrefs.ProxyFilter.WITH)) {
+                out.add(a);
+            }
+        }
+        Comparator<PrismAccount> byName = Comparator.comparing(
+                a -> a.displayName() == null ? "" : a.displayName().toLowerCase(Locale.ROOT));
+        switch (AccountViewPrefs.sort()) {
+            case NAME_AZ -> out.sort(byName);
+            case NAME_ZA -> out.sort(byName.reversed());
+            case RECENT -> out.sort(Comparator.<PrismAccount>comparingLong(a -> -activityOf(a).lastMs()).thenComparing(byName));
+            case PLAYTIME -> out.sort(Comparator.<PrismAccount>comparingLong(a -> -activityOf(a).playMs()).thenComparing(byName));
+            default -> { }
+        }
+        return out;
+    }
+
+    private AccountActivity.Entry activityOf(PrismAccount a) {
+        AccountActivity.Entry e = this.activity.get(AccountActivity.key(a.uuid()));
+        return e == null ? new AccountActivity.Entry(0, 0) : e;
+    }
+
+    /** The sort or the filter changed: lay the screen out again from the top of the list. */
+    private void viewChanged() {
+        this.scroll = 0;
+        this.scrollAnim.snap(0f);
+        rebuild();
+    }
+
+    /** The accounts shown: the proxy filter and the sort, then the search (case-insensitive name contains). */
+    private List<PrismAccount> visibleAccounts() {
+        List<PrismAccount> base = filteredAccounts();
+        String q = this.searchBox == null ? "" : this.searchQuery.trim().toLowerCase(Locale.ROOT);
+        if (q.isEmpty()) {
+            return base;
+        }
+        List<PrismAccount> out = new ArrayList<>();
+        for (PrismAccount a : base) {
             if (a.displayName() != null && a.displayName().toLowerCase(Locale.ROOT).contains(q)) {
                 out.add(a);
             }
@@ -540,24 +656,19 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
             return super.mouseClicked(event, doubleClick);
         }
         // Outside the list a row scrolled under the toolbar or the footer is not there to be clicked.
-        List<Boolean> was = new ArrayList<>(this.rows.size() + this.rowButtons.size());
-        for (AbstractWidget w : this.rows) {
-            was.add(w.visible);
-            w.visible = false;
-        }
-        for (AbstractWidget w : this.rowButtons) {
+        // The click may lay the screen out again (the sort and filter buttons do), so the lists restored are the ones hidden.
+        List<AbstractWidget> hidden = new ArrayList<>(this.rows);
+        hidden.addAll(this.rowButtons);
+        List<Boolean> was = new ArrayList<>(hidden.size());
+        for (AbstractWidget w : hidden) {
             was.add(w.visible);
             w.visible = false;
         }
         try {
             return super.mouseClicked(event, doubleClick);
         } finally {
-            int k = 0;
-            for (AbstractWidget w : this.rows) {
-                w.visible = was.get(k++);
-            }
-            for (AbstractWidget w : this.rowButtons) {
-                w.visible = was.get(k++);
+            for (int k = 0; k < hidden.size(); k++) {
+                hidden.get(k).visible = was.get(k);
             }
         }
     }
@@ -750,8 +861,9 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
 
         ScreenChrome.frame(graphics, panelX, panelY, panelW, panelH);
         ScreenChrome.header(graphics, panelX, panelY, panelW, this.title.getString());
-        String count = this.searchBox != null && !this.searchQuery.isBlank()
-                ? this.rows.size() + " of " + this.accounts.size() + " accounts"
+        int shownN = this.rows.size();
+        String count = shownN != this.accounts.size()
+                ? shownN + " of " + this.accounts.size() + " accounts"
                 : this.accounts.size() + (this.accounts.size() == 1 ? " account" : " accounts");
         ScreenChrome.headerRight(graphics, panelX, panelY, panelW, count, MenuStyle.DIM);
 
@@ -767,7 +879,8 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
         graphics.enableScissor(listX + 1, listY + 1, listX + listW - 1, listY + listH - 1);
         try {
             if (this.rows.isEmpty()) {
-                String msg = !this.accounts.isEmpty() ? "No accounts match \"" + this.searchQuery.trim() + "\"."
+                String msg = !this.accounts.isEmpty() ? (this.searchQuery.isBlank() ? "No accounts match this filter."
+                        : "No accounts match \"" + this.searchQuery.trim() + "\".")
                         : this.statusMessage != null ? this.statusMessage : "No accounts.";
                 ScreenChrome.centered(graphics, MenuStyle.ellipsize(msg, listW - 16), listX + listW / 2,
                         listY + listH / 2 - 4, MenuStyle.DIM);
@@ -835,8 +948,7 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
         r.fill(x + 6, y + 7, x + 10, y + 11, good);
         r.fill(x + 5, y + 6, x + 11, y + 12, MenuStyle.alpha(good, 0x30));
         r.submit();
-        String s = MenuStyle.ellipsize(playingAs(), w - 18);
-        ScreenChrome.text(g, s, x + 14, y + 5, MenuStyle.TXT);
+        ScreenChrome.text(g, this.chipText, x + 14, y + 5, MenuStyle.TXT);
     }
 
     private void setStatus(String message, Kind kind) {

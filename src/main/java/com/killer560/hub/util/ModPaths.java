@@ -354,6 +354,8 @@ public final class ModPaths {
         t.put("active-profile", "system/profiles");
         t.put("session-login", "system/accounts");
         t.put("account-proxies", "system/accounts");
+        t.put("account-swapper", "system/accounts");
+        t.put("account-activity", "system/accounts");
         t.put("proxyclient", "system/proxy");
         t.put("discordrpc", "system/discordrpc");
         t.put("spotify", "system/spotify");

@@ -64,6 +64,8 @@ public final class ProfileManager {
             "killer560smod-nucleus-profit.json",
             "killer560smod-mining-profit.json",
             "killer560smod-account-proxies.json",
+            "killer560smod-account-activity.json",
+            "killer560smod-account-swapper-view.json",
             "killer560smod-rng-item-log.json",
             "killer560smod-storageoverlay-cache.json",
             // /loadouts page 1 as last seen, for the Inventory Sorter's loadout picker - a cache, not a setting.

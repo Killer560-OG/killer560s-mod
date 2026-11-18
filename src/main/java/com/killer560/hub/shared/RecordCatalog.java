@@ -277,8 +277,19 @@ public final class RecordCatalog {
         }
     });
 
+    /** Swap Accounts (acctswap-1117): per account (keyed by undashed UUID), playtime in ms while it was in a world
+     *  (counter, so two instances add up) and the last time it was in use (the later one). */
+    public static final Kind ACCOUNT_ACTIVITY = new Kind("killer560smod-account-activity.json", null,
+            "account-activity.json", Scope.GLOBAL, new JsonMerge.Policy() {
+        @Override
+        public JsonMerge.NumberMode number(String path) {
+            if (JsonMerge.matches(path, "accounts.*.playMs")) return JsonMerge.NumberMode.COUNTER;
+            return JsonMerge.matches(path, "accounts.*.lastMs") ? JsonMerge.NumberMode.MAX : JsonMerge.NumberMode.STATE;
+        }
+    });
+
     public static final List<Kind> ALL = List.of(CROESUS_LOG, CROESUS_RUNS, RNG_ITEM_LOG, EXPERIMENTS, BAZAAR_FLIP,
-            NPC_SOLD, RUN_HISTORY, BEST_FRIENDS, EGG_TRACKER, LUCK, CARRY, SIM_MOB_LOOKS, CARNIVAL);
+            NPC_SOLD, RUN_HISTORY, BEST_FRIENDS, EGG_TRACKER, LUCK, CARRY, SIM_MOB_LOOKS, CARNIVAL, ACCOUNT_ACTIVITY);
 
     /** Sorts the array {@code key} of {@code root} by a field (numbers, or ISO timestamps as strings); returns it. */
     static JsonArray sortBy(JsonObject root, String key, String field, boolean descending) {

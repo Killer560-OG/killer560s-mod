@@ -216,7 +216,9 @@ public final class MainMenuTitleLayout {
     /** Themed-mode Swap Accounts button. Starts at the old top-left bounds with the old long label, so if the
      *  layout never runs (listener missing, or it failed) the button is still where users know it. */
     public static Button createSwapAccountsButton(Button.OnPress onPress) {
-        return new SwapAccountsButton(4, 4, 260, ROW_HEIGHT, Component.literal(fallbackLabel()), onPress);
+        String label = fallbackLabel();
+        int width = Math.max(260, Minecraft.getInstance().font.width(label) + 24);
+        return new SwapAccountsButton(4, 4, width, ROW_HEIGHT, Component.literal(label), onPress);
     }
 
     private static String playerName() {
@@ -555,6 +557,9 @@ public final class MainMenuTitleLayout {
             Button mods = modMenu ? null : vanillaButton("Mods", btn -> McCompat.setScreen(mc, new com.killer560.hub.modlist.ModsScreen(parent)));
             Button swap = vanillaButton(swapLabel(mc.font), btn -> McCompat.setScreen(mc,
                     new com.killer560.hub.accounts.gui.AccountSwitcherScreen(parent)));
+            if (swap.getMessage().getString().equals("Swap Accounts")) {
+                swap.setTooltip(Tooltip.create(Component.literal("Playing as " + playerName())));
+            }
             Button[][] rows = {{sim, settings}, {news, mods}, {swap}};
             int n = rows.length;
             int step = ROW_STEP;
@@ -635,11 +640,12 @@ public final class MainMenuTitleLayout {
         return Button.builder(Component.literal(label), press).bounds(0, 0, COLUMN_WIDTH, ROW_HEIGHT).build();
     }
 
-    /** "Swap Accounts: name", the name cut with an ellipsis to fit the 200-wide row. The real account's name, never Name Changer's. */
+    /** "Swap Accounts: name" when the name fits the 200-wide row; else just "Swap Accounts" and the whole name in the button's
+     *  tooltip (a name is never cut). The real account's name, never Name Changer's. */
     private static String swapLabel(net.minecraft.client.gui.Font font) {
         String label = "Swap Accounts: " + playerName();
         int room = COLUMN_WIDTH - 12;
-        return font.width(label) <= room ? label : font.plainSubstrByWidth(label, room - font.width("...")) + "...";
+        return font.width(label) <= room ? label : "Swap Accounts";
     }
 
     private static void removeWidget(Screen screen, List<AbstractWidget> widgets, AbstractWidget w) {
