@@ -130,7 +130,11 @@ public final class SearchAliases {
             Map.entry("will-o'-wisp", "deployables"),
             // colltrack-1104: the Collection Tracker card by its short names.
             Map.entry("coll tracker", "collection tracker"),
-            Map.entry("colltracker", "collection tracker"));
+            Map.entry("colltracker", "collection tracker"),
+            // streamsafemap-1118: the Dungeon Map's Stream Safe row (in its Funny Map section) by the names he may type.
+            Map.entry("streamer map", "funny map"),
+            Map.entry("hide funny map", "funny map"),
+            Map.entry("stream safe map", "funny map"));
 
     /** A typed prefix shorter than this only matches the alias when typed in full ("e" alone stays plain). */
     private static final int MIN_PREFIX = 2;

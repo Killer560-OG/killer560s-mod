@@ -7,7 +7,9 @@
 		"LiveMapPacketListenerMixin",
 		"LiveMapKeyboardInputMixin",
 		"MapDrawCacheGuiRenderStateMixin",
-		"MapDrawCacheFontSetMixin"
+		"MapDrawCacheFontSetMixin",
+		"StreamSafeGameRendererMixin",
+		"StreamSafeGuiRendererMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

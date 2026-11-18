@@ -1745,6 +1745,8 @@ public final class LiveMapFeature {
             }
             Minecraft client = Minecraft.getInstance();
             ensureGroups();
+            // Stream Safe: this draw is the normal map unless it is the capture-excluded overlay's (StreamSafeMap).
+            StreamSafeMap.hudBegin(this, graphics, mapPx());
 
             // HUD peek: while the peek key is held, draw enlarged, shifted so it stays on screen.
             float peek = InteractiveMapFeature.isPeeking() ? cfg.getPeekScale() : 1f;
@@ -1761,6 +1763,7 @@ public final class LiveMapFeature {
                 graphics.pose().scale(peek, peek);
             }
             try {
+                StreamSafeMap.hudPose(graphics);
                 HudSeen.markDrawn(id());
                 renderMap(graphics, x, y, cfg, client);
                 List<String> lines = extraInfoLines();
@@ -1783,6 +1786,7 @@ public final class LiveMapFeature {
                     }
                 }
             } finally {
+                StreamSafeMap.hudEnd();
                 if (peeking) {
                     graphics.pose().popMatrix();
                 }

@@ -213,6 +213,11 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
                         colW));
                 y += 20;
             }
+            // killer560, 2026-11-18: viewers of a stream or recording see the normal map, he still sees the Funny Map.
+            if ((cfg.isFunnyMapRaw() || isSearchScan()) && com.killer560.hub.livemap.StreamSafeMap.SUPPORTED) {
+                widgets.add(toggle("Stream Safe", cfg::isStreamSafeRaw, cfg::setStreamSafe, cfg, contentX, y, colW));
+                y += 20;
+            }
         }
         return widgets;
     }

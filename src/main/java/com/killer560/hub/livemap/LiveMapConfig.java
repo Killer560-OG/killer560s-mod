@@ -88,6 +88,9 @@ public final class LiveMapConfig {
     // there. In the normal map it cannot scan for mimic") ----
     private boolean funnyMap = false;
     private boolean showMimicRoom = true;
+    /** Stream Safe (cheat, killer560 2026-11-18): the game window draws the normal map, the Funny Map goes to a
+     *  capture-excluded overlay window only he sees (StreamSafeMap). */
+    private boolean streamSafe = false;
     /** Blended over the mimic room's own color at this color's alpha; 0x33 = the 20% red. */
     private int mimicColor = 0x33FF0000;
 
@@ -203,6 +206,7 @@ public final class LiveMapConfig {
             .add("customCheckmarks", false, c -> c.customCheckmarks, (c, v) -> c.customCheckmarks = v)
             .add("funnyMap", false, c -> c.funnyMap, (c, v) -> c.funnyMap = v)
             .add("showMimicRoom", true, c -> c.showMimicRoom, (c, v) -> c.showMimicRoom = v)
+            .add("streamSafe", false, c -> c.streamSafe, (c, v) -> c.streamSafe = v)
             .add("interactiveMapEnabled", false, c -> c.interactiveMapEnabled, (c, v) -> c.interactiveMapEnabled = v)
             .add("closeOnRepress", false, c -> c.closeOnRepress, (c, v) -> c.closeOnRepress = v)
             .add("openFromHudClick", false, c -> c.openFromHudClick, (c, v) -> c.openFromHudClick = v)
@@ -615,7 +619,20 @@ public final class LiveMapConfig {
     /** Whether the Dungeon Map may draw what the world scan found beyond what the dungeon map item shows. Cheat build
      *  only: on the legit jar javac folds this to false. */
     public boolean isFunnyMap() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && funnyMap;
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && funnyMap && !StreamSafeMap.hidingFunny();
+    }
+
+    public boolean isStreamSafeRaw() {
+        return streamSafe;
+    }
+
+    public void setStreamSafe(boolean v) {
+        this.streamSafe = v;
+    }
+
+    /** Stream Safe applies: cheat build, Funny Map on, the switch on. */
+    public boolean isStreamSafe() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && funnyMap && streamSafe;
     }
 
     public boolean isShowMimicRoomRaw() {

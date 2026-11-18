@@ -1,6 +1,7 @@
 package com.killer560.hub.shorts;
 
 import com.killer560.hub.util.ExternalOpen;
+import com.killer560.hub.util.Win32;
 import com.killer560.hub.util.FeatureGuard;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;

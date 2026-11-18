@@ -875,6 +875,9 @@ public final class MapPainter {
     }
 
     private static boolean hasLiveMimic(LiveMapFeature.RoomGroup group) {
+        if (StreamSafeMap.hidingFunny()) {
+            return false;   // Stream Safe (killer560 2026-11-18): the mimic room shows only on his overlay
+        }
         // The scan that knows the mimic's room in advance is the cheat build's Funny Map with Show Mimic Room
         // (killer560, 2026-10-15: "In the normal map it cannot scan for mimic to know which rooms has it").
         if (LiveMapConfig.getInstance().isMimicScan()) {

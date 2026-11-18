@@ -211,6 +211,7 @@ public final class MapDrawCache {
         k.ref(graphics.scissorStack.peek());
         k.add(com.killer560.hub.gui.MenuAnim.fade);
         k.add(fontGeneration);
+        k.add(StreamSafeMap.hidingFunny());   // the game window's normal map and the overlay's Funny Map differ
         k.ref(net.minecraft.client.Minecraft.getInstance().font);   // compared by identity
         k.ref(net.minecraft.locale.Language.getInstance());   // no equals override: compared by identity
         // Mixins on GuiGraphicsExtractor.text that change what a line looks like (objecthider, namechanger).
