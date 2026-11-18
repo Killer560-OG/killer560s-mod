@@ -67,7 +67,7 @@ final class SettingTooltipsData {
         d.put("blood rush helper/door kills", "When the door runner kills too, as one more role (the last): Never, Always, or After Fairy (only in rooms the rush reaches after fairy).");
         d.put("blood rush helper/drop bottom after fairy", "With Door Kills After Fairy: once the rush reaches fairy, the highest numbered killer leaves the rush to clear (told in chat, only to you) and the rest go on with the door runner killing.");
         d.put("blood rush helper/show others' spots", "Also draws the other killers' spots, in gray, marked with their role and the player who claimed it in party chat. Once yours are done, theirs that are left show in gold as help either way.");
-        d.put("blood rush helper/all rooms", "Shows spots in every mob room, not only rooms on the rush (the rooms beside a wither or blood door on your dungeon map).");
+        d.put("blood rush helper/all rooms", "On shows spots in every mob room. Off shows them only in the rooms that lead to the Blood door (the way from the Entrance through each wither door on your dungeon map), not in side rooms.");
         d.put("blood rush helper/filled boxes", "Fills the boxes' faces in at the Fill Opacity, the next spot of yours more. Off draws outlines only.");
         d.put("blood rush helper/outline width", "How thick the boxes' outlines are, 1-10.");
         d.put("blood rush helper/my spots color", "The color of your spots.");

@@ -125,9 +125,9 @@ public final class BloodRushHelperFeature {
     private static final Map<Integer, double[]> WALKED_IN = new HashMap<>();
     /** Rooms the rush has been through, in order, and those it had when it reached fairy (null before). */
     private static final LinkedHashSet<Integer> RUSHED = new LinkedHashSet<>();
+    /** Every room the rush path has held this run: a room judged on the path stays (a wither door turns normal once opened). */
+    private static final LinkedHashSet<Integer> ON_PATH = new LinkedHashSet<>();
     private static Set<Integer> beforeFairy;
-    /** Bumped on every change to {@link #RUSHED}, so the rush path cache can key on it without walking the set. */
-    private static int rushedVersion;
     private static int nextRoom = -1;
     private static volatile List<Spot> CACHED = List.of();
     private static volatile Map<Integer, double[]> LAST_DOORS = Map.of();
@@ -262,7 +262,8 @@ public final class BloodRushHelperFeature {
             mortSeen = true;
             bloodOpened = false;
             RUSHED.clear();
-            rushedVersion++;
+            ON_PATH.clear();
+            pathCache = null;
             beforeFairy = null;
             nextRoom = -1;
         } else if (WITHER_DOOR_OPENED.matcher(msg).matches()) {
@@ -331,7 +332,7 @@ public final class BloodRushHelperFeature {
         resetEntities();
         WALKED_IN.clear();
         RUSHED.clear();
-        rushedVersion++;
+        ON_PATH.clear();
         beforeFairy = null;
         nextRoom = -1;
         pathCache = null;
@@ -356,6 +357,7 @@ public final class BloodRushHelperFeature {
         nextRoom = layout.sameRoom(old, nextRoom);
         lastRoom = layout.sameRoom(old, lastRoom);
         layout.sameRooms(old, RUSHED);
+        layout.sameRooms(old, ON_PATH);
         if (beforeFairy != null) {
             layout.sameRooms(old, beforeFairy);
         }
@@ -450,9 +452,7 @@ public final class BloodRushHelperFeature {
         int t = tileAt(p.x, p.z);
         int room = layout.roomAtWorld(p.x, p.z);
         if (room >= 0 && room != lastRoom) {
-            if (RUSHED.add(room)) {
-                rushedVersion++;
-            }
+            RUSHED.add(room);
             if (beforeFairy == null && "FAIRY".equalsIgnoreCase(type(layout, room))) {
                 reachFairy();
             }
@@ -551,19 +551,18 @@ public final class BloodRushHelperFeature {
 
     /**
      * The rush path: the rooms join as a tree, and every wither door and the blood door is on the way from the
-     * Entrance to Blood, so the rush's rooms are those on the way from the Entrance to each of those doors (and to every
-     * room the rush has been in), each entered by its door on the Entrance side. Legit reads the doors the hotbar map shows;
+     * Entrance to Blood, so the rush's rooms are those on the way from the Entrance to each of those doors (a side room
+     * the rush merely walked into is not on it), each entered by its door on the Entrance side. Legit reads the doors the hotbar map shows;
      * {@code scanned} (Whole Rush Path, cheat build) the scanned dungeon's. Returns room -> its entrance-side door (x, z).
      */
     static Map<Integer, double[]> rushPath(DungeonLayout layout, boolean scanned) {
         long answers = HeldMap.answersVersion();
-        if (pathCache == null || layout != pathLayout || scanned != pathScanned || answers != pathAnswers
-                || rushedVersion != pathRushed) {
+        if (pathCache == null || layout != pathLayout || scanned != pathScanned || answers != pathAnswers) {
             pathCache = computeRushPath(layout, scanned);
+            ON_PATH.addAll(pathCache.keySet());
             pathLayout = layout;
             pathScanned = scanned;
             pathAnswers = answers;
-            pathRushed = rushedVersion;
             pathComputes++;
         }
         return pathCache;
@@ -574,7 +573,7 @@ public final class BloodRushHelperFeature {
      * The path is a pure function of: the layout snapshot (rooms, which room owns each cell, types, names, door locks: a new
      * DungeonLayout object whenever any of them or the player's room changes, DungeonLayout.current), the doors and rooms
      * the hotbar map shows (HeldMap.answersVersion: the map item's version, or the sim stand-in's visited rooms), the rooms
-     * the rush has been in (rushedVersion), and the scanned flag. The cache keys on exactly those, compared field by field
+     * and the scanned flag. The cache keys on exactly those, compared field by field
      * (no allocation, no scan of the 121 cells), so a door opening, a new room appearing, a room identified or the player
      * entering a room recomputes and a stale path is never returned. nextRoom, the blood door chat and settings other than
      * Whole Rush Path are NOT inputs: they only choose which rooms of the path show (shownRooms). The returned map is
@@ -584,7 +583,6 @@ public final class BloodRushHelperFeature {
     private static DungeonLayout pathLayout;
     private static boolean pathScanned;
     private static long pathAnswers;
-    private static int pathRushed;
     /** Test counter: how many times the path was actually rebuilt. */
     static int pathComputes;
 
@@ -594,7 +592,7 @@ public final class BloodRushHelperFeature {
         for (int i = 0; i < n; i++) {
             links.add(new ArrayList<>());
         }
-        Set<Integer> ends = new HashSet<>(RUSHED);
+        Set<Integer> ends = new HashSet<>(ON_PATH);
         EXITS.clear();
         int entrance = -1;
         for (int r = 0; r < n; r++) {
