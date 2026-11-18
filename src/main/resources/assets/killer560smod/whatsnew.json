@@ -22,7 +22,8 @@
      "Lever Aura and other block-clicking automation no longer draw an anticheat flag when a teleport arrives right as they click",
      "Blood Rush Helper and the Dungeon Sim now use one shared set of spawn boxes for every room it covers (our own boxes only for the one room it lacks); spawn learning, its switches and the learned-spots file are gone. NOTE for achype-1117: BloodRushSpots is deleted; read spots from BloodRushData.worldBoxes(room, frame) (AABB per box; old knownSpots point = ((minX+maxX)/2, minY, (minZ+maxZ)/2)) or BloodRushData.boxes(room) (room-relative).",
      "Magic Find now raises every mob and slayer drop in How Lucky Are You (cap 500), Looting no longer changes its odds, Special accessories give no Magical Power in the Accessory Advisor, and the Rift Prism counts as a normal accessory.",
-     "Powder mining Treasure Chest highlight now works only in the Crystal Hollows."
+     "Powder mining Treasure Chest highlight now works only in the Crystal Hollows.",
+     "RNG Meter's Superpairs list now matches the in-game Experimentation Table: ten enchantment books added, and Drain and Woodsplitter books are priced under their Bazaar names."
     ]
    }
   ]
