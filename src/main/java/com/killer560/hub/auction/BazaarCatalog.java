@@ -126,8 +126,18 @@ public final class BazaarCatalog {
     /** The product a Hypixel menu calls {@code name} (color codes already stripped), or null. */
     public static String idForName(String name) {
         ensureLoaded();
-        return name == null ? null : idByName.get(name.trim().toLowerCase(Locale.ROOT));
+        if (name == null) {
+            return null;
+        }
+        String key = name.trim().toLowerCase(Locale.ROOT);
+        String id = idByName.get(key);
+        return id != null ? id : idByName.get(RENAMED.getOrDefault(key, key));
     }
+
+    /** Announced display renames (SkyBlock alpha, 2026-11-18): the new name asks for the old name's row, tried only when the
+     *  new name itself is not in the table, so what the table shows today never changes. */
+    private static final Map<String, String> RENAMED = Map.of("epic bait", "dark bait", "legendary bait", "light bait",
+            "enchanted clay", "enchanted clay block");
 
     public static Set<String> ids() {
         ensureLoaded();

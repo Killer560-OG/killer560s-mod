@@ -14,7 +14,8 @@
      "Accessory Advisor reads the new Hypixel Accessory Bag again and lists each missing accessory once per family, as its lowest tier.",
      "Dungeon map: a room's name is now centered on the room's shape (Museum's sat to one side).",
      "Lever Aura: a lever clicked while you walk now gets a pitch-only look through the lever's whole block (or your first still tick) instead of a held click the anticheat canceled, so the second lever of a route is flicked too; a flick the lever does not answer is sent again.",
-     "Collection Tracker: a sack that compacts items (for example 15,040 Enchanted Gold Ingot into 94 Enchanted Gold Blocks) now counts only the net gain, so Gold no longer reads about 3 times too high and the HUD rate matches the server."
+     "Collection Tracker: a sack that compacts items (for example 15,040 Enchanted Gold Ingot into 94 Enchanted Gold Blocks) now counts only the net gain, so Gold no longer reads about 3 times too high and the HUD rate matches the server.",
+     "Bazaar lookups now also find a product under its announced new or old name (Epic Bait, Legendary Bait, Enchanted Clay), ready for Hypixel's coming Wolf Slayer tier 5 and fishing update."
     ]
    }
   ]
