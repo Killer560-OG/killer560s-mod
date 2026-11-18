@@ -20,8 +20,11 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.player.Input;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
@@ -867,6 +870,7 @@ public final class Ap3Executor {
             }
         }
         try {
+            droveLastTick = isDriving(); // before clearMovement: did AP3 drive the tick just played (the approach steer asks)
             clearMovement(); // every node writes its own input; the held walk fills in below when none did
             finishAct(player); // a USE / BLOCK / BOOM sent this tick (just ahead of the movement packet that carried its aim)
             // With a screen the active node did not ask for open (chat, inventory, the mod menu) nothing new is
@@ -977,6 +981,16 @@ public final class Ap3Executor {
         if (chain == null) {
             return;
         }
+        try {
+            scanBoxesNodes(client, player);
+        } finally {
+            lastKeys = player.input.keyPresses;
+            lastYaw = player.getYRot();
+            lastPitch = player.getXRot();
+        }
+    }
+
+    private static void scanBoxesNodes(Minecraft client, LocalPlayer player) {
         Vec3 pos = player.position();
         boolean handsOn = !Ap3FreezeState.isFrozen() && physicalMovementKeyDown(client);
         // The WALK / RUN he is most centered in this tick, of all he stands in (killer560, 2026-10-18: two run nodes
@@ -991,8 +1005,10 @@ public final class Ap3Executor {
             if (node.type == Ap3Node.Type.NO_GO || Ap3RouteRunner.owns(node)) {
                 continue; // No Go is planner data; a Path node the route is already driving must not re-queue
             }
-            boolean in = node.contains(pos);
             boolean was = inside.contains(node);
+            boolean in = node.contains(pos) || node.type == Ap3Node.Type.FAST_ALIGN && (was
+                    ? tickNode == node && tickCounter < tickEntryEnd // fired ahead of its box: still on its way in
+                    : entersNextTick(player, node) || preSteerFires(player, node));
             if (in && !was) {
                 inside.add(node);
                 if (node.type.isAlign() && Ap3Config.getInstance().isAlignTimerDev()) {
@@ -2610,6 +2626,7 @@ public final class Ap3Executor {
             step = Step.DO;
             alignModelReset();
             Ap3FastAlign.reset();
+            tickNode = null;
             Vec3 entryVel = player.getDeltaMovement();
             alignEntryDist = dist;
             alignEntrySpeed = Math.hypot(entryVel.x, entryVel.z);
@@ -2642,6 +2659,11 @@ public final class Ap3Executor {
         if (err <= alignTolerance && still) {
             clearMovement();
             if (++settleTicks >= SETTLE_TICKS) {
+                if (tickNode == node && tickPlanned) {
+                    LOGGER.info("[AP3] Fast Align #{}: on its point and stopped {} tick(s) after entering{} (X off {}, Z off {})",
+                            number(node), tickCounter - tickEntryEnd, tickOff ? ", finished by the regular Fast Align" : "",
+                            String.format(Locale.US, "%+.6f", pos.x - node.x), String.format(Locale.US, "%+.6f", pos.z - node.z));
+                }
                 reportAlignTimer(node, pos.x - node.x, pos.z - node.z, null);
                 finishNode();
             }
@@ -2677,7 +2699,7 @@ public final class Ap3Executor {
         }
         Ap3DiscretePlanner.startBudget();
         try {
-            boolean done = fast && driveFast(player, ex, ez);
+            boolean done = fast && (driveTick(player, node) || driveFast(player, ex, ez));
             if (!done) {
                 // Fast Align found nothing (or spent the budget looking): the regular planner gets a budget of its own,
                 // so the tick always ends with a plan. Until 2026-10-27 it inherited a spent budget and its search
@@ -3108,6 +3130,310 @@ public final class Ap3Executor {
      * 0-360; not capped at the regular align's 30 degrees). Re-planned every tick from the measured state; it reuses last
      * tick's schedule while that still lands. False = no plan found: the regular planner drives this tick.
      */
+    // ---- Fast Align, tick-exact (align12-1110) ----------------------------------------------------------------------
+    //
+    // killer560 (2026-11-10): "its only goal should be 2 tick align - 1 tick align", 0.0002 on each axis of the box,
+    // counted from the tick that enters the box ("that tick wouldnt count"). Ap3TickAlign replays the game's own ground
+    // tick exactly and solves the keys and a free yaw for the shortest stop on the point. scanBoxes' look-ahead fires the
+    // node on the END of the tick before he would enter, so the entering tick is the plan's first and is steered too. A
+    // tick on which the real client leaves the replica (a wall, a ledge, a server push, an effect) hands the rest of the
+    // align to the regular Fast Align below.
+
+    private static final Ap3TickAlign.S tickState = new Ap3TickAlign.S();
+    private static final Ap3TickAlign.S tickExpect = new Ap3TickAlign.S(), tickFrom = new Ap3TickAlign.S();
+    /** The tick last played, for the hand-off line. */
+    private static int playedFw, playedSt;
+    private static boolean playedSh, playedSk;
+    private static float playedYaw;
+    private static final Ap3TickAlign.Plan tickPlan = new Ap3TickAlign.Plan();
+    private static final Ap3TickAlign.Box tickBox = new Ap3TickAlign.Box();
+    private static final Identifier SPRINT_MODIFIER = Identifier.withDefaultNamespace("sprinting");
+    private static final long TICK_BUDGET_NS = 8_000_000L;
+    /** The align the plan is for (null: none yet this firing), the next plan tick, and the tickCounter at the END of the
+     *  entering tick. */
+    private static Ap3Node tickNode;
+    private static int tickAt;
+    private static long tickEntryEnd;
+    /** The replica lost him this align: the regular Fast Align finishes it. */
+    private static boolean tickOff;
+    private static boolean tickExpectValid;
+    /** A plan was found this align; ticks the search ran out of time (the regular Fast Align plays those). */
+    private static boolean tickPlanned;
+    private static int tickMisses;
+    /** Idle ticks played while the ground flag was off after a teleport (see driveTick). */
+    private static int tickSettle;
+
+    /** The replica's start state from the player at the END of a tick; false where the replica does not apply. */
+    private static boolean tickCapture(LocalPlayer p, Ap3TickAlign.S s) {
+        return tickCapture(p, s, false);
+    }
+
+    /** {@code anyGround}: the ground flag is not asked (the tick after a teleport, see driveTick). */
+    private static boolean tickCapture(LocalPlayer p, Ap3TickAlign.S s, boolean anyGround) {
+        if (!anyGround && !p.onGround() || p.isInWater() || p.isInLava() || p.isPassenger() || p.isUsingItem() || p.getAbilities().flying
+                || p.isFallFlying() || p.horizontalCollision || blockFriction(p) != 0.6f) {
+            return false;
+        }
+        AttributeInstance a = p.getAttribute(Attributes.MOVEMENT_SPEED);
+        if (a == null) {
+            return false;
+        }
+        boolean sprintMod = a.hasModifier(SPRINT_MODIFIER);
+        Vec3 v = p.getDeltaMovement();
+        s.x = p.getX();
+        s.z = p.getZ();
+        s.vx = v.x;
+        s.vz = v.z;
+        s.sprint = p.isSprinting();
+        s.shiftPrev = p.input.keyPresses.shift();
+        s.fwdPrev = p.input.hasForwardImpulse();
+        s.speed = p.getSpeed();
+        s.u = sprintMod ? a.getValue() / (1.0 + Ap3TickAlign.SPRINT_AMT) : a.getValue();
+        s.trig = ((com.killer560.hub.ap3.mixin.Ap3SprintTriggerAccessor) p).killer560$sprintTriggerTime();
+        s.canSprint = p.getFoodData().getFoodLevel() > 6 || p.getAbilities().mayfly;
+        s.driven = true;
+        // getSpeed() must be what the replica computes, or something it does not know is changing the speed
+        return sprintMod == s.sprint && Math.abs(s.speed - Ap3TickAlign.attrSpeed(s.u, s.sprint)) < 1.0e-6f;
+    }
+
+    /** Which part of {@link #tickCapture}'s test said no (cold path: the hand-off line). */
+    private static String tickWhy(LocalPlayer p) {
+        return !p.onGround() ? "off the ground" : p.horizontalCollision ? "against a wall" : p.isUsingItem() ? "using an item"
+                : blockFriction(p) != 0.6f ? "block friction " + blockFriction(p) : p.isInWater() || p.isInLava() || p.isPassenger()
+                || p.getAbilities().flying || p.isFallFlying() ? "in water, riding or flying"
+                : "speed " + p.getSpeed() + " is not what its attribute gives";
+    }
+
+    /** The look-ahead: would the next tick, on the keys and yaw of the tick just played, take him into (or across) this box? */
+    private static boolean entersNextTick(LocalPlayer p, Ap3Node node) {
+        if (node.horizontalDistance(p.position()) > 2.5 || Math.abs(p.getY() - node.y) > Ap3Node.BOX_Y_TOLERANCE
+                || !tickCapture(p, tickState)) {
+            return false;
+        }
+        Input k = p.input.keyPresses;
+        double ax = tickState.x, az = tickState.z;
+        tickState.driven = com.killer560.hub.autosprint.AutoSprintFeature.modDriving();
+        Ap3TickAlign.step(tickState, (k.forward() ? 1 : 0) - (k.backward() ? 1 : 0), (k.left() ? 1 : 0) - (k.right() ? 1 : 0),
+                k.shift(), k.sprint(), p.getYRot());
+        return tickBoxFor(node).crossed(ax, az, tickState.x, tickState.z);
+    }
+
+    private static Ap3TickAlign.Box tickBoxFor(Ap3Node node) {
+        net.minecraft.world.phys.AABB b = node.triggerBox(0.1);
+        return tickBox.set(b.minX, b.minZ, b.maxX, b.maxZ);
+    }
+
+    /** One tick of the tick-exact Fast Align; false hands this tick, and the rest of the align, to {@link #driveFast}. */
+    private static boolean driveTick(LocalPlayer player, Ap3Node node) {
+        if (tickNode != node) {
+            tickNode = node;
+            tickAt = 0;
+            tickPlan.n = 0;
+            tickOff = false;
+            tickExpectValid = false;
+            tickPlanned = false;
+            tickMisses = 0;
+            tickSettle = 0;
+            tickPrePending = preFired != node ? 0 : Float.isNaN(pre.best2) ? 1 : 2;
+            if (tickPrePending > 0) { // copied now: a search for the next node may restart pre
+                tickPlan.copyFrom(pre.plan);
+                tickPreYaw1 = pre.best;
+                tickPreYaw2 = pre.best2;
+            }
+            tickEntryEnd = tickCounter + (node.contains(player.position()) ? 0 : 1 + tickPrePending);
+            preFired = null;
+        }
+        if (tickOff) {
+            return false;
+        }
+        if (!player.onGround() && !tickPlanned && tickSettle++ < 2 && Math.abs(player.getY() - node.y) < 0.01
+                && Math.abs(player.getDeltaMovement().y) < 0.1) {
+            // A teleport (a leap into the box) leaves the ground flag off for one tick, so that tick would move him by air
+            // physics, which the replica does not model: it plays idle (his own yaw) and the plan starts from the state
+            // after it, on the ground again.
+            tickExpectValid = false;
+            alignPhase = "settling after a teleport";
+            // The idle tick leaves a resting player where he is, so the plan for the tick after it is searched now (its own
+            // budget); the next tick plays it, or searches again on other first directions.
+            if (tickCapture(player, tickState, true) && tickState.vx * tickState.vx + tickState.vz * tickState.vz < 1.0e-8) {
+                tickState.sprint = false;
+                tickState.shiftPrev = false;
+                tickState.fwdPrev = false;
+                tickState.trig = Math.max(0, tickState.trig - 1);
+                tickState.speed = Ap3TickAlign.attrSpeed(tickState.u, false);
+                if (!tickSolve(player.getYRot(), node, Math.min(Ap3TickAlign.TOL, alignTolerance), 1)) {
+                    tickPlan.n = 0;
+                    tickMisses++;
+                }
+            }
+            writeDiscrete(player, 0, 0, false, false, player.getYRot(), null, player.input.keyPresses.shift());
+            return true;
+        }
+        if (!tickCapture(player, tickState)) {
+            return tickLost(node, "not walking on flat ground at his plain speed (" + tickWhy(player) + ")");
+        }
+        if (tickExpectValid) {
+            double miss = Math.max(Math.max(Math.abs(tickState.x - tickExpect.x), Math.abs(tickState.z - tickExpect.z)),
+                    Math.max(Math.abs(tickState.vx - tickExpect.vx), Math.abs(tickState.vz - tickExpect.vz)));
+            if (miss > 1.0e-7 || tickState.sprint != tickExpect.sprint) {
+                return tickLost(node, String.format(Locale.US, "the game moved him %.2g off the replica%s [played keys %d/%d%s%s at"
+                                + " yaw %.4f, yaw now %.4f; from sprint %b trig %d fwd %b; expected d(%+.5f, %+.5f) sprint %b trig %d, got"
+                                + " d(%+.5f, %+.5f) sprint %b trig %d; can sprint %b]", miss, tickState.sprint != tickExpect.sprint ? " (sprint differs)" : "",
+                        playedFw, playedSt, playedSh ? " sneak" : "", playedSk ? " sprintkey" : "", playedYaw, player.getYRot(),
+                        tickFrom.sprint, tickFrom.trig, tickFrom.fwdPrev, tickExpect.x - tickFrom.x, tickExpect.z - tickFrom.z,
+                        tickExpect.sprint, tickExpect.trig, tickState.x - tickFrom.x, tickState.z - tickFrom.z, tickState.sprint,
+                        tickState.trig, tickState.canSprint));
+            }
+        }
+        float yaw = player.getYRot();
+        if (tickPrePending > 0) {
+            // the approach tick(s): his keys, our yaw; the plan from the entering tick on was found by the approach search
+            boolean first = !tickPlanned;
+            float y = Ap3TickAlign.turnTo(yaw, first ? tickPreYaw1 : tickPreYaw2);
+            if (first) {
+                tickPlanned = true;
+                LOGGER.info("[AP3] Fast Align #{}: tick-exact plan, approach tick steered {} deg{}, on its point {} tick(s) after entering",
+                        number(node), String.format(Locale.US, "%+.2f", y - yaw), tickPrePending == 2
+                                ? String.format(Locale.US, " and the next %+.2f (enters a tick later)", Mth.wrapDegrees(tickPreYaw2 - tickPreYaw1))
+                                : "", tickPlan.counted());
+            }
+            tickPrePending--;
+            tickAt = 0;
+            return tickPlay(player, yaw, y, pre.fw, pre.st, pre.shift, pre.sprintKey, "approach tick");
+        }
+        double tol = Math.min(Ap3TickAlign.TOL, alignTolerance);
+        if (tickAt >= tickPlan.n || !Ap3TickAlign.holds(tickState, tickPlan, tickAt, yaw, node.x, node.z, tol)) {
+            if (!tickSolve(yaw, node, tol, 0)) {
+                // Out of time (or no stop in 3): the regular Fast Align plays this tick, the search tries again next tick.
+                tickPlan.n = 0;
+                tickExpectValid = false;
+                return ++tickMisses > 6 ? tickLost(node, "no stop within 3 ticks found on 6 ticks") : false;
+            }
+        }
+        int c = tickPlan.c[tickAt];
+        int fw = Ap3TickAlign.fw(c), st = Ap3TickAlign.st(c);
+        float y = Ap3TickAlign.turnTo(yaw, Ap3TickAlign.yawFor(tickPlan.phi[tickAt], fw, st, tickState.shiftPrev));
+        tickAt++;
+        return tickPlay(player, yaw, y, fw, st, Ap3TickAlign.shift(c), Ap3TickAlign.sprintKey(c), "tick-exact align");
+    }
+
+    /** Searches a plan from tickState into tickPlan; the log counts from the entering tick, the plan starting {@code lag} ticks on. */
+    private static boolean tickSolve(float yaw, Ap3Node node, double tol, int lag) {
+        Ap3TickAlign.Box box = tickBoxFor(node);
+        Ap3TickAlign.phiOff = (tickMisses & 1) * 0.5;
+        if (!Ap3TickAlign.solve(tickState, yaw, node.x, node.z, !box.in(tickState.x, tickState.z) ? box : null, tol,
+                System.nanoTime() + TICK_BUDGET_NS, tickPlan)) {
+            return false;
+        }
+        tickAt = 0;
+        tickPlanned = true;
+        LOGGER.info("[AP3] Fast Align #{}: tick-exact plan, on its point {} tick(s) after entering", number(node),
+                tickCounter + lag + tickPlan.n - tickEntryEnd);
+        return true;
+    }
+
+    /** Plays one tick: the yaw y (from yaw) and the keys, and the replica's expectation for the next check. */
+    private static boolean tickPlay(LocalPlayer player, float yaw, float y, int fw, int st, boolean shift, boolean sprintKey,
+            String phase) {
+        if (Float.isNaN(viewYaw) && freezeViewWanted()) {
+            viewYaw = yaw;
+        }
+        if (y != yaw) {
+            player.setYRot(y);
+            RouteRotation.rebase(); // our turn is not the player's mouse
+        }
+        tickExpect.set(tickState);
+        tickFrom.set(tickState);
+        Ap3TickAlign.step(tickExpect, fw, st, shift, sprintKey, y);
+        tickExpectValid = true;
+        playedFw = fw;
+        playedSt = st;
+        playedSh = shift;
+        playedSk = sprintKey;
+        playedYaw = y;
+        alignPhase = phase;
+        writeDiscrete(player, fw, st, shift, sprintKey, y, null, tickState.shiftPrev);
+        return true;
+    }
+
+    // ---- steering the approach tick (killer560 2026-11-10: "For the steering only have it do that if ap3 is controlling
+    // it. Otherwise only have it take control if no human interactions") ----------------------------------------------
+    //
+    // On the ticks before he reaches a Fast Align's box, the yaw search for the approach tick (the one before the entering
+    // tick) runs a slice a tick on the state he will have at the END of the tick before it, predicted on the keys and yaw
+    // just played. On that decision tick the node fires with the approach tick steered when AP3 drove the tick just played,
+    // or when he changed no key and did not move the look in it; else the align starts on the entering tick as before.
+
+    private static final Ap3TickAlign.PreSearch pre = new Ap3TickAlign.PreSearch();
+    private static final Ap3TickAlign.S preState = new Ap3TickAlign.S();
+    private static Ap3Node preNode;
+    /** The node that fired on its decision tick, for driveTick. */
+    private static Ap3Node preFired;
+    /** Approach ticks still to play before the plan (0, 1, or 2 when the search entered a tick later). */
+    private static int tickPrePending;
+    private static float tickPreYaw1, tickPreYaw2;
+    private static boolean droveLastTick;
+    private static Input lastKeys;
+    private static float lastYaw, lastPitch;
+    private static long preSliceTick = -1;
+    /** Ticks of prediction ahead the search starts (one slice each), and the reach that asks for them. */
+    private static final int PRE_LEAD = 6;
+    private static final double PRE_REACH = 9.0; // 4+ slices at 600 sprint (1.7 blocks a tick)
+
+    /** The search slice for this tick; true on the decision tick when the node fires with the approach tick steered. */
+    private static boolean preSteerFires(LocalPlayer p, Ap3Node node) {
+        if (tickPrePending > 0 || node.horizontalDistance(p.position()) > PRE_REACH
+                || Math.abs(p.getY() - node.y) > Ap3Node.BOX_Y_TOLERANCE || !tickCapture(p, preState)) {
+            return false;
+        }
+        Input k = p.input.keyPresses;
+        int fw = (k.forward() ? 1 : 0) - (k.backward() ? 1 : 0), st = (k.left() ? 1 : 0) - (k.right() ? 1 : 0);
+        float yaw = p.getYRot();
+        Ap3TickAlign.Box box = tickBoxFor(node);
+        // ticks until he enters (or steps across) the box on these keys and this yaw; the decision state is two before that
+        int e = 0;
+        boolean hit = false;
+        tickState.set(preState);
+        while (!hit && e < PRE_LEAD) {
+            double ax = tickState.x, az = tickState.z;
+            Ap3TickAlign.step(tickState, fw, st, k.shift(), k.sprint(), yaw);
+            e++;
+            hit = box.crossed(ax, az, tickState.x, tickState.z);
+        }
+        if (!hit || e < 2) {
+            return false; // in on the next tick: entersNextTick's case, nothing to steer
+        }
+        for (int i = 0; i < e - 2; i++) {
+            Ap3TickAlign.step(preState, fw, st, k.shift(), k.sprint(), yaw);
+        }
+        if (preNode != node || !pre.same(preState, yaw, fw, st, k.shift(), k.sprint(), node.x, node.z)) {
+            preNode = node;
+            pre.start(preState, yaw, fw, st, k.shift(), k.sprint(), node.x, node.z, box, Math.min(Ap3TickAlign.TOL, alignTolerance));
+        }
+        if (preSliceTick != tickCounter) { // one slice a tick, however many aligns are near
+            preSliceTick = tickCounter;
+            pre.run(System.nanoTime() + TICK_BUDGET_NS);
+        }
+        if (e > 2 || !pre.found) {
+            return false;
+        }
+        // the decision tick: AP3 is driving, or he gave no input this tick
+        if (!droveLastTick && !(k.equals(lastKeys) && yaw == lastYaw && p.getXRot() == lastPitch)) {
+            return false;
+        }
+        preFired = node;
+        preNode = null;
+        return true;
+    }
+
+    private static boolean tickLost(Ap3Node node, String why) {
+        if (!tickOff) {
+            tickOff = true;
+            LOGGER.info("[AP3] Fast Align #{}: tick-exact align handed to the regular Fast Align - {}", number(node), why);
+        }
+        return false;
+    }
+
     private static boolean driveFast(LocalPlayer player, double ex, double ez) {
         Vec3 vel = player.getDeltaMovement();
         Ap3DiscretePlanner.Model m = modelFor(player, true);
@@ -3846,7 +4172,9 @@ public final class Ap3Executor {
                 // A LOOK's view during a walk, whatever the freeze setting; and any aim (a USE too - until 2026-10-06
                 // a USE's aim was glided back under the view before its movement packet went out).
                 || (lookView && holdDir != null) || aiming;
-        if (!holding) {
+        // His dig borrowed the body this tick (HandDigAim gives it back at the next tick's start): gliding or letting go
+        // now would show the borrowed look and then the given-back one, a jump on his screen (1110-align12-same-dig).
+        if (!holding && !com.killer560.hub.util.HandDigAim.turnedThisTick()) {
             float delta = Mth.wrapDegrees(viewYaw - player.getYRot());
             if (Math.abs(delta) <= ALIGN_YAW_STEP) {
                 releaseView(player, delta);
@@ -3883,9 +4211,14 @@ public final class Ap3Executor {
         float shift = player.getYRot() - viewYaw;
         player.yBob += shift;
         player.yBobO += shift;
+        // The frames until the next tick draw the yaw lerped from yRotO, which still holds the body's yaw from this tick's
+        // start (a glide step behind): start them at the view he saw, or his crosshair swings back up to 30 degrees and
+        // slides forward again on the tick the view is let go (ssnap-1112, his S1 and SS aligns).
+        player.yRotO = player.getYRot() - Mth.wrapDegrees(shift);
         viewYaw = Float.NaN;
         if (lookView && !aiming && !Float.isNaN(viewPitch)) {
             player.setXRot(viewPitch); // a LOOK's pitch: the real pitch joins the view with the yaw
+            player.xRotO = viewPitch;
             viewPitch = Float.NaN;
         }
         lookView = false;
@@ -5745,6 +6078,8 @@ public final class Ap3Executor {
     private static final double[] FOOT = {-0.29, -0.145, 0, 0.145, 0.29};
     private static final int FOOT_ALL = FOOT.length * FOOT.length;
     private static boolean fallSteerLogged;
+    /** The walk-into-align aim held while that align's approach search runs (see fallSteer). */
+    private static float toAlignAim = Float.NaN;
 
     /**
      * In the air on a held walk whose route drops to its next node: the move direction, within 30 degrees of the walk,
@@ -5779,8 +6114,17 @@ public final class Ap3Executor {
             boolean toAlign = next.type.isAlign() && Math.abs(up) <= 0.6
                     && Math.hypot(next.x - p.getX(), next.z - p.getZ()) > 0.5
                     && supportedAt(p, next.x, p.getY(), next.z, p.getY()) && !hazardAt(p, next.x, p.getY(), next.z);
-            return !step && !toAlign ? Float.NaN
-                    : (float) Math.toDegrees(Math.atan2(p.getX() - next.x, next.z - p.getZ()));
+            if (!step && !toAlign) {
+                return Float.NaN;
+            }
+            // While the approach-tick search for that Fast Align runs (preSteerFires, a slice a tick on a state predicted
+            // with this yaw), keep the aim it started with: re-aiming every tick changed the yaw, restarted the search
+            // each tick, and AP3-driven approaches lost the steered tick (align12-remerge-1117: 0 of 10 steered, 2-4 ticks).
+            if (toAlign && next == preNode && preSliceTick >= tickCounter - 1 && !Float.isNaN(toAlignAim)) {
+                return toAlignAim;
+            }
+            toAlignAim = (float) Math.toDegrees(Math.atan2(p.getX() - next.x, next.z - p.getZ()));
+            return toAlignAim;
         }
         if (next == null || next.y > p.getY() - 1.0) {
             return Float.NaN;

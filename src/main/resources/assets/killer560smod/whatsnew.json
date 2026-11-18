@@ -24,7 +24,8 @@
      "Magic Find now raises every mob and slayer drop in How Lucky Are You (cap 500), Looting no longer changes its odds, Special accessories give no Magical Power in the Accessory Advisor, and the Rift Prism counts as a normal accessory.",
      "Powder mining Treasure Chest highlight now works only in the Crystal Hollows.",
      "RNG Meter's Superpairs list now matches the in-game Experimentation Table: ten enchantment books added, and Drain and Woodsplitter books are priced under their Bazaar names.",
-     "Profile Viewer: the Rift Accessory Bag is now a view of the Rift page, accessory Sort cycles Rarity, Alphabetical and Missing First, missing accessories sit among the owned ones, and an accessory marked Enabled: Off shows as Disabled."
+     "Profile Viewer: the Rift Accessory Bag is now a view of the Rift page, accessory Sort cycles Rarity, Alphabetical and Missing First, missing accessories sit among the owned ones, and an accessory marked Enabled: Off shows as Disabled.",
+     "AP3 (cheat): Align stops you within a tick of entering the block, waits your dig a tick while it steers, and keeps the frozen view through a server teleport; Fast Align after a Spirit Leap into its block stops you 4-5 ticks after the landing tick (it used to give up on the fast plan and fall back to the regular align)"
     ]
    }
   ]

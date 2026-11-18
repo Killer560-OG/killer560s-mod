@@ -14,7 +14,8 @@
 		"Ap3ViewYawMixin",
 		"Ap3MouseYawMixin",
 		"Ap3FreezeMixin",
-		"Ap3HandHoldMixin"
+		"Ap3HandHoldMixin",
+		"Ap3SprintTriggerAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 0
