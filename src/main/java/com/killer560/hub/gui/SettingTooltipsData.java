@@ -232,7 +232,6 @@ final class SettingTooltipsData {
         d.put("ability ready alert/ready sound", "Plays a ding with the popup.");
         d.put("fiesta flask timer", "A HUD line counting down your Fiesta Flask effect. It starts when a flask is drunk (the stack shrinks), and counts only while a Mining Fiesta runs unless that row is off.");
         d.put("fiesta flask timer/alert when expired", "Chat line and a ding when the Fiesta Flask effect ends.");
-        d.put("fiesta flask timer/pause outside mining fiesta", "Holds the countdown while no Mining Fiesta is running, as the flask does.");
         d.put("fiesta flask timer/warn before expiry", "A chat line and ding this long before the effect ends. Off by default.");
         d.put("powder break sounds", "Turn ON to mute or replace block break sounds while powder mining (Crystal Hollows, or a treasure chest in the last 2 minutes): every block break and digging hit sound within 6 blocks of you, your own mining included. OFF plays every sound as normal. Client-side only.");
         d.put("powder break sounds/mode", "Mute: block breaks and digging hits near you make no sound (the break particles stay). Custom: each break plays the sound below instead, and the digging hits are silent. Left click forward, right click back.");

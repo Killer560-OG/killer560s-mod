@@ -23,8 +23,7 @@ public class MiningFiestaFlaskTab extends BaseTab {
         if (!cfg.isFiestaFlaskRaw() && !isSearchScan()) return w;
         y += MiningQolRows.STEP;
         y = MiningQolRows.toggles(w, contentX, y, contentWidth, cfg::save,
-                MiningQolRows.t("Alert When Expired", cfg::isFiestaFlaskAlert, cfg::setFiestaFlaskAlert),
-                MiningQolRows.t("Pause Outside Mining Fiesta", cfg::isFiestaFlaskPause, cfg::setFiestaFlaskPause));
+                MiningQolRows.t("Alert When Expired", cfg::isFiestaFlaskAlert, cfg::setFiestaFlaskAlert));
         MiningQolRows.cycle(w, contentX, y, contentWidth, "Warn Before Expiry",
                 () -> cfg.getFiestaFlaskWarn() == 0 ? "Off" : cfg.getFiestaFlaskWarn() + " s",
                 cfg::stepFiestaFlaskWarn, cfg::save);

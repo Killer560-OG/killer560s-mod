@@ -227,7 +227,6 @@ public final class MiningQolConfig {
     // Fiesta Flask Timer (fiestaflask-1116): the switch ships OFF; the alert and the pause rule ON.
     private boolean fiestaFlask = false;
     private boolean fiestaFlaskAlert = true;
-    private boolean fiestaFlaskPause = true;
     private int fiestaFlaskWarn = 0;
 
     private MiningQolConfig() {
@@ -332,7 +331,6 @@ public final class MiningQolConfig {
                 cfg.goldenGoblinEsp = ConfigJson.getBool(o, "goldenGoblinEsp", cfg.goldenGoblinEsp);
                 cfg.fiestaFlask = ConfigJson.getBool(o, "fiestaFlask", cfg.fiestaFlask);
                 cfg.fiestaFlaskAlert = ConfigJson.getBool(o, "fiestaFlaskAlert", cfg.fiestaFlaskAlert);
-                cfg.fiestaFlaskPause = ConfigJson.getBool(o, "fiestaFlaskPause", cfg.fiestaFlaskPause);
                 cfg.fiestaFlaskWarn = Math.max(0, Math.min(600, intOr(o, "fiestaFlaskWarn", cfg.fiestaFlaskWarn)));
             } catch (Exception e) {
                 cfg = new MiningQolConfig();
@@ -422,7 +420,6 @@ public final class MiningQolConfig {
         o.addProperty("goldenGoblinEsp", goldenGoblinEsp);
         o.addProperty("fiestaFlask", fiestaFlask);
         o.addProperty("fiestaFlaskAlert", fiestaFlaskAlert);
-        o.addProperty("fiestaFlaskPause", fiestaFlaskPause);
         o.addProperty("fiestaFlaskWarn", fiestaFlaskWarn);
         ConfigJson.write(CONFIG_PATH, o);
         MithrilStone.settingsChanged();
@@ -1096,9 +1093,7 @@ public final class MiningQolConfig {
 
     public void setFiestaFlaskAlert(boolean v) { fiestaFlaskAlert = v; }
 
-    public boolean isFiestaFlaskPause() { return fiestaFlaskPause; }
 
-    public void setFiestaFlaskPause(boolean v) { fiestaFlaskPause = v; }
 
     public int getFiestaFlaskWarn() { return fiestaFlaskWarn; }
 

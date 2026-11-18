@@ -40,7 +40,7 @@ import java.util.regex.Pattern;
  * {@link #CONFIRM_TICKS} ticks; the click alone starts nothing (a second flask while one is active is refused by the server,
  * so its stack stays). Sync: a tab-list line naming "Fiesta Flask" with a time sets the remaining time. The wiki says the
  * timer is paused outside a Mining Fiesta, so it counts down only while a tab or scoreboard line names "Mining Fiesta"
- * (setting "Pause Outside Mining Fiesta"). The remaining time is saved per account.
+ * (always; the old "Pause Outside Mining Fiesta" setting is gone). The remaining time is saved per account.
  * <p>What the server shows after a drink is unproven: for {@link #OBSERVE_MS} after a use this logs one always-on line per
  * relevant chat or tab line (logger killer560smod-fiestaflask), so the next real drink proves it.
  */
@@ -264,7 +264,7 @@ public final class FiestaFlask {
             text = null;
             return;
         }
-        boolean running = fiesta || !cfg.isFiestaFlaskPause();
+        boolean running = fiesta;
         if (running) remainingMs -= Math.max(0, now - lastMs);
         lastMs = now;
         if (remainingMs <= 0) {
