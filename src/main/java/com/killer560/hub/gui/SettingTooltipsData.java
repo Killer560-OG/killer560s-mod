@@ -1377,7 +1377,7 @@ final class SettingTooltipsData {
         d.put("swing hand", "Swings your arm each time Secret Aura clicks something.");
         d.put("pause while sneaking", "Stops Secret Aura while you hold sneak.");
         d.put("skull range", "How close a Wither Essence skull must be to be clicked, 2.1 to 4.7 blocks from your eyes (default 4.7).");
-        d.put("click cooldown", "Minimum time between Secret Aura clicks, 100-2000 ms.");
+        d.put("click cooldown", "Minimum time between Secret Aura clicks, 50-2000 ms.");
         d.put("auto gfs", "Runs /gfs to refill dungeon items from your sacks when you run low, asking only for what tops the stack off (cheat build only).");
         d.put("spirit leaps", "Lets Auto GFS refill Spirit Leaps (up to 16).");
         d.put("superboom tnt", "Lets Auto GFS refill Superboom TNT (up to 64).");
@@ -2684,7 +2684,7 @@ final class SettingTooltipsData {
         d.put("secret aura/pause while sneaking", "Stops Secret Aura while you hold sneak.");
         d.put("secret aura/range", "Maximum distance in blocks this feature reaches.");
         d.put("secret aura/skull range", "How close a Wither Essence skull must be to be clicked, 2.1 to 4.7 blocks from your eyes. Default 4.7.");
-        d.put("secret aura/click cooldown", "Minimum time between Secret Aura clicks, in ms (100-2000).");
+        d.put("secret aura/click cooldown", "Minimum time between Secret Aura clicks, in ms (50-2000).");
         d.put("secret aura/boss lever cooldown", "Cheat build only. The wait in ms between boss lever flicks, 50-1000 (50 is one a game tick). An unflicked lever in range goes as soon as the wait since the last flick is over; nothing is sent while none is waiting. Each wait varies a little.");
         d.put("stat bars", "Draws your own bars and text; the vanilla bars you pick under Hide are hidden while it is on.");
         // Stat Bars moved into Health and Mana Bars on 2026-10-04; keys re-scoped with it (docs/LESSONS.md).

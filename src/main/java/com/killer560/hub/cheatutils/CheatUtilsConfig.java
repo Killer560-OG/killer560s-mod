@@ -65,7 +65,7 @@ public final class CheatUtilsConfig {
      * Until then this was 4.5 to the box, which let a skull be clicked from up to 5.0-5.4 to its center.
      */
     public static final double MAX_AURA_SKULL_RANGE = 4.7;
-    public static final int MIN_AURA_COOLDOWN_MS = 100;
+    public static final int MIN_AURA_COOLDOWN_MS = 50;
     public static final int MAX_AURA_COOLDOWN_MS = 2000;
 
     private boolean secretAuraEnabled = false;
