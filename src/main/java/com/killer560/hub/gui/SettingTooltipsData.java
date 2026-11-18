@@ -1989,6 +1989,7 @@ final class SettingTooltipsData {
         d.put("death animations", "Hides mobs the moment they die instead of playing the death animation.");
         d.put("hide dead nametags", "Also hides the nametag above a mob that has just died.");
         d.put("block break particles", "Hides the block-crack particles from breaking or hitting blocks.");
+        d.put("arrow particles", "Hides the particles arrows make: the crit trail, the tipped-arrow swirl and the bubbles in water.");
         d.put("explosion particles", "Hides the big explosion puff particles.");
         d.put("smoke particles", "Hides vanilla smoke particles.");
         d.put("terminal solver/terminal protection", "Blocks your first click right after a terminal opens so it can't hit the wrong slot.");

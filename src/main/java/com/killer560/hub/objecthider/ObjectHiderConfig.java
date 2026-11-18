@@ -67,6 +67,7 @@ public final class ObjectHiderConfig {
     private boolean hideDeathAnimations = false;
     private boolean hideDeadNametags = false;
     private boolean hideBlockBreakParticles = false;
+    private boolean hideArrowParticles = false;
     // 2026-09-20: renamed from "Explosion Particles" - killer560 asked for a "wither impact explosions"
     // hider and couldn't find it; this already hides HugeExplosionParticle (the visible puff), it was just
     // unfindable under a generic name. See wave/research-pack.md "On wither impact explosions specifically".
@@ -156,6 +157,7 @@ public final class ObjectHiderConfig {
             .add("hideDeathAnimations", false, c -> c.hideDeathAnimations, (c, v) -> c.hideDeathAnimations = v)
             .add("hideDeadNametags", false, c -> c.hideDeadNametags, (c, v) -> c.hideDeadNametags = v)
             .add("hideBlockBreakParticles", false, c -> c.hideBlockBreakParticles, (c, v) -> c.hideBlockBreakParticles = v)
+            .add("hideArrowParticles", false, c -> c.hideArrowParticles, (c, v) -> c.hideArrowParticles = v)
             .add("hideSmokeParticles", false, c -> c.hideSmokeParticles, (c, v) -> c.hideSmokeParticles = v)
             .add("disableTextShadow", false, c -> c.disableTextShadow, (c, v) -> c.disableTextShadow = v)
             .add("containerTextShadow", false, c -> c.containerTextShadow, (c, v) -> c.containerTextShadow = v)
@@ -350,6 +352,12 @@ public final class ObjectHiderConfig {
     public boolean getHideBlockBreakParticlesRaw() { return hideBlockBreakParticles; }
 
     public void setHideBlockBreakParticles(boolean v) { hideBlockBreakParticles = v; }
+
+    public boolean isHideArrowParticles() { return objectHiderEnabled && hideArrowParticles && SkyblockGate.allows(); }
+
+    public boolean getHideArrowParticlesRaw() { return hideArrowParticles; }
+
+    public void setHideArrowParticles(boolean v) { hideArrowParticles = v; }
 
     /** 2026-09-20: renamed from "Explosion Particles"/isHideExplosionParticles - see the field's own comment. */
     public boolean isHideWitherImpactExplosions() {

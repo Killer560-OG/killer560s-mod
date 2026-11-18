@@ -138,6 +138,8 @@ public class ObjectHiderTab extends BaseTab {
         }
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
                 "Block Break Particles", cfg::getHideBlockBreakParticlesRaw, cfg::setHideBlockBreakParticles);
+                toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
+                        "Arrow Particles", cfg::getHideArrowParticlesRaw, cfg::setHideArrowParticles);
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
                 "Explosions (Wither Impact)", cfg::getHideWitherImpactExplosionsRaw, cfg::setHideWitherImpactExplosions);
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,

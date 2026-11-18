@@ -6,6 +6,7 @@
 	"client": [
 		"AbstractArrowInGroundAccessor",
 		"ImageButtonSpritesAccessor",
+		"ObjectHiderArrowMixin",
 		"ObjectHiderCooldownMixin",
 		"ObjectHiderFogMixin",
 		"ObjectHiderGuiMixin",
@@ -15,6 +16,7 @@
 		"ObjectHiderParticleMixin",
 		"ObjectHiderRenderMixin",
 		"ObjectHiderTextShadowMixin",
+		"ObjectHiderTippedArrowMixin",
 		"ObjectHiderWitherMixin"
 	],
 	"injectors": {
