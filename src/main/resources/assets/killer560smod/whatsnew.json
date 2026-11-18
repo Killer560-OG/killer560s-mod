@@ -7,7 +7,8 @@
     "title": "More",
     "blurb": "Changes in this update.",
     "items": [
-     "Pickaxe ability HUD: \"Active\" is now green and the time left fades from green to yellow to red as the ability runs out."
+     "Pickaxe ability HUD: \"Active\" is now green and the time left fades from green to yellow to red as the ability runs out.",
+     "Dungeon sim: the Spirit Sceptre bat now steers toward where you are looking while it flies instead of flying one straight line."
     ]
    }
   ]

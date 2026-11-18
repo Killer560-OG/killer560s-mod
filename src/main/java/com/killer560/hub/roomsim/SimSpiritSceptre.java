@@ -265,8 +265,24 @@ public final class SimSpiritSceptre {
         FLYING.addAll(still);
     }
 
+    /** The look of the player who fired (host: his own, guest: the server's copy), or null if it cannot be read. */
+    private static Vec3 casterLook(Minecraft client, java.util.UUID owner) {
+        if (owner == null) return client.player == null ? null : client.player.getLookAngle();
+        var server = client.getSingleplayerServer();
+        var sp = server == null ? null : server.getPlayerList().getPlayer(owner);
+        return sp == null ? null : sp.getLookAngle();
+    }
+
+    /** The heading of the first bat in flight, for tests. Null when none. */
+    public static Vec3 headingForTest() { return FLYING.isEmpty() ? null : FLYING.get(0).velocity; }
+
     /** @return whether the bat is still flying */
     private static boolean step(Minecraft client, Bat bat) {
+        // Hypixel's bat steers toward where the caster is looking while it flies (killer560, 2026-11-17: "spirit
+        // sceptre doesnt just fly in one straight line it follows where I am looking"): the heading is the
+        // caster's current look every tick, the speed stays SPEED.
+        Vec3 look = casterLook(client, bat.owner);
+        if (look != null) bat.velocity = look.scale(SPEED);
         Vec3 from = bat.at;
         Vec3 to = from.add(bat.velocity);
 
