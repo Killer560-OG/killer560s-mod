@@ -158,6 +158,12 @@ public final class EnchantColorsFeature {
         return shown == null ? id : shown.replace(' ', '_').replace('-', '_');
     }
 
+    /** The lower-case name Hypixel prints for an enchant id ("syphon" -> "drain", "bane_of_arthropods" -> "bane of arthropods"). */
+    public static String loreName(String id) {
+        String lore = ID_TO_LORE_NAME.get(id);
+        return lore != null ? lore : id.startsWith("turbo_") ? "turbo-" + id.substring(6) : normalize(id.replace('_', ' '));
+    }
+
     private static Map<String, String> buildIdAliases() {
         Map<String, String> m = new HashMap<>();
         m.put("counter_strike", "counter-strike");

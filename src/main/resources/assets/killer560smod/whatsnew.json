@@ -19,7 +19,8 @@
      "The Fiesta Flask timer no longer pauses or says paused and counts down every second, and the Maniac Miner mana drain now lasts up to 50 seconds.",
      "Dungeon Map: new Stream Safe switch under Funny Map (cheat build, Windows) - anything that records or shares your game sees the normal map with no mimic room, while you still see the Funny Map",
      "Personal Mining Compactor and the other skill compactor menus: entries that are on are highlighted green and entries that are off red.",
-     "Hide Ghost Mobs now hides only starred mobs left in rooms the dungeon map shows cleared, so real mobs that are just standing still are no longer hidden; unstarred mobs, Blood room mobs and the boss are never hidden"
+     "Hide Ghost Mobs now hides only starred mobs left in rooms the dungeon map shows cleared, so real mobs that are just standing still are no longer hidden; unstarred mobs, Blood room mobs and the boss are never hidden",
+     "Missing Enchants (Items): hold Shift over a SkyBlock item to see the normal enchants it can still take, never ultimates or enchants that conflict with ones it has; an option also lists enchants below their max level."
     ]
    }
   ]

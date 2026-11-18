@@ -294,6 +294,7 @@ public final class ModPaths {
         // The Mods Screen's settings (killer560smod-modlist.json, 2026-11-04).
         t.put("modlist", "interface/modlist");
         t.put("enchantcolors", "interface/enchantcolors");
+        t.put("missingenchants", "interface/enchantcolors");
         t.put("itemrarity", "interface/itemrarity");
         t.put("slottext", "interface/slottext");
         t.put("compactorpreview", "interface/compactorpreview");

@@ -814,6 +814,9 @@ final class SettingTooltipsData {
         d.put("scrollable tooltips", "Lets the mouse wheel scroll or nudge an item tooltip in inventories and menus.");
         d.put("invert scroll", "Flips the wheel direction for scrolling and nudging tooltips.");
         d.put("lines per scroll", "How many tooltip lines one wheel notch moves (1-10).");
+        d.put("missing enchants", "Hold Shift over a SkyBlock item to list the normal enchants its type can still take that it does not have. Never lists ultimate enchants or ones that conflict with an enchant on the item.");
+        d.put("show enchants below max level", "Also lists the enchants the item has below their highest level (name, level -> max) while Shift is held. Ultimates are left out.");
+        d.put("shift hint line", "Shows a dim \"Shift: missing enchants\" line under an item that has enchants to add, until you hold Shift.");
         d.put("hide enchant descriptions", "Removes the gray description lines under each enchant in item tooltips, leaving only the enchant names. Enchanted Books keep theirs unless the next switch is on.");
         d.put("also on enchanted books", "Also hides the description on an Enchanted Book.");
         d.put("enchant colors", "Recolors enchantment names in Hypixel item lore by tier.");

@@ -20,6 +20,8 @@ public final class SearchAliases {
             Map.entry("ladder", "mineshaft waypoints"),
             Map.entry("ore colors", "commission block colors"),
             Map.entry("commission ores", "commission block colors"),
+            Map.entry("enchants missing", "missing enchants"),
+            Map.entry("shift enchants", "missing enchants"),
             Map.entry("custom enchant colors", "enchants"),
             Map.entry("enchant colors", "enchants"),
             Map.entry("hide enchant descriptions", "enchants"),

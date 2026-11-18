@@ -63,7 +63,7 @@ public final class ReforgeMenu {
      * {rarity, item type} from the item's rarity line: "a LEGENDARY DUNGEON SWORD a" -> {"LEGENDARY", "SWORD"}, "MYTHIC
      * FISHING ROD" -> {"MYTHIC", "FISHING_ROD"}; null when there is no rarity line.
      */
-    static String[] rarityAndType(ItemStack stack) {
+    public static String[] rarityAndType(ItemStack stack) {
         String[] line = ItemRarityFeature.loreRarityLine(stack);
         if (line == null) {
             return null;

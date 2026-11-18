@@ -96,6 +96,7 @@
     "killer560smod-armourdye.mixins.json",
     "killer560smod-tooltipscroll.mixins.json",
     "killer560smod-enchantcolors.mixins.json",
+    "killer560smod-missingenchants.mixins.json",
     "killer560smod-chroma.mixins.json",
     "killer560smod-itembrowser.mixins.json",
     "killer560smod-pricetooltip.mixins.json",
