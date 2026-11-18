@@ -585,7 +585,7 @@ public final class MobEspFeature {
     private static int nameReads;
 
     /** The stand's "✯ ... ❤" name, or null when its name is not a starred tag (or it has none). */
-    private static String starredName(ArmorStand stand) {
+    static String starredName(ArmorStand stand) {
         net.minecraft.network.chat.Component c = stand.getCustomName();
         if (c == null) return null;
         NameMemo m = NAMES.get(stand);
@@ -615,7 +615,7 @@ public final class MobEspFeature {
     }
 
     /** Maps a starred name-tag stand to its real mob (see this class's doc), caching a successful match. */
-    private static Entity resolveMob(Minecraft client, ArmorStand stand, String name) {
+    static Entity resolveMob(Minecraft client, ArmorStand stand, String name) {
         Integer cached = standToMob.get(stand.getId());
         if (cached != null) {
             Entity mob = client.level.getEntity(cached);
@@ -678,7 +678,7 @@ public final class MobEspFeature {
     // ---- Starred memory, Fel Skulls, Mimic (doc-blood-1101) ---------------------------------------------------------
 
     /** Mob ids seen with a starred name tag (or a named miniboss), kept while they live; cleared with the level. */
-    private static final Set<Integer> KNOWN_STARRED = new HashSet<>();
+    static final Set<Integer> KNOWN_STARRED = new HashSet<>();
     /** Fel skull stand ids predicted starred: seen within {@link #FEL_PACK_RADIUS} of a starred mob. */
     private static final Set<Integer> PREDICTED_FELS = new HashSet<>();
     /** Rooms (see {@link #roomKey}) a starred mob or a predicted Fel was ever seen in. */
@@ -686,7 +686,7 @@ public final class MobEspFeature {
     /** Trapped chests whose mimic has come out: no longer highlighted. */
     private static final Set<Long> MIMIC_CHESTS_SPENT = new HashSet<>();
     /** Testkit hook: rooms off the scanned map (no layout) counted as cleared. */
-    private static final Set<Long> TEST_CLEARED_ROOMS = new HashSet<>();
+    static final Set<Long> TEST_CLEARED_ROOMS = new HashSet<>();
     /** How close to a starred mob a Fel skull is part of its pack: "starred mobs will spawn by each other". */
     static final double FEL_PACK_RADIUS = 6.0;
 
@@ -831,7 +831,7 @@ public final class MobEspFeature {
         return -1_000_000L - ((tx + 500L) * 2000L + (tz + 500L));
     }
 
-    private static boolean roomCleared(long key) {
+    static boolean roomCleared(long key) {
         if (TEST_CLEARED_ROOMS.contains(key) || key < 0) return TEST_CLEARED_ROOMS.contains(key);
         DungeonLayout layout = DungeonLayout.current();
         int[] tiles = key < layout.roomCount() ? layout.tiles((int) key) : null;
