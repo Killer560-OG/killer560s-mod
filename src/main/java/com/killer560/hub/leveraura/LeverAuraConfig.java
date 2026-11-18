@@ -30,8 +30,8 @@ public final class LeverAuraConfig {
     /** Lever cooldown slider ends in ms (killer560, 2026-11-09, replacing the Lever CPS): 50 is one flick a tick (the old 20 CPS). */
     public static final int MIN_COOLDOWN_MS = 50;
     public static final int MAX_COOLDOWN_MS = 1000;
-    /** 250 ms: the old default of 4 CPS. */
-    public static final int DEFAULT_COOLDOWN_MS = 250;
+    /** 50 ms (killer560, 2026-11-17; was 250): a saved value is kept. */
+    public static final int DEFAULT_COOLDOWN_MS = 50;
     private static final int DEFAULT_CPS = 4;
 
     private static LeverAuraConfig instance;
