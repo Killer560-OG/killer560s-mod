@@ -10,7 +10,8 @@
      "Pickaxe ability HUD: \"Active\" is now green and the time left fades from green to yellow to red as the ability runs out.",
      "Dungeon sim: the Spirit Sceptre bat now steers toward where you are looking while it flies instead of flying one straight line.",
      "Inventory Sorter: saved layouts now show every item's real icon, also for items you are not holding.",
-     "Dungeon Sim: typing /help inside the sim now opens Dungeon Sim Help, a themed walk-through of the sim (floors, settings, commands you can click, items, boss, co-op, keys and what is not simulated yet); the first time the sim opens it says one chat line about it."
+     "Dungeon Sim: typing /help inside the sim now opens Dungeon Sim Help, a themed walk-through of the sim (floors, settings, commands you can click, items, boss, co-op, keys and what is not simulated yet); the first time the sim opens it says one chat line about it.",
+     "Accessory Advisor reads the new Hypixel Accessory Bag again and lists each missing accessory once per family, as its lowest tier."
     ]
    }
   ]

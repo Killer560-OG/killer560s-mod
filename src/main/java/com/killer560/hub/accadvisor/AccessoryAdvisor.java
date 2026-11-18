@@ -31,6 +31,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
+import com.killer560.hub.compat.McItems;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
@@ -60,7 +61,7 @@ import java.util.regex.Pattern;
 public final class AccessoryAdvisor {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-accadvisor");
-    private static final Pattern TITLE = Pattern.compile("^Accessory Bag(?: \\((\\d{1,2})/(\\d{1,2})\\))?$");
+    private static final Pattern TITLE = Pattern.compile("^\\((\\d{1,2})/(\\d{1,2})\\) Accessory Bag$");
     static final String MISC_URL = "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/misc.json";
     private static final int MAX_PROFILES = 6;
     private static final long FAMILY_RETRY_MS = 60_000L;
@@ -70,6 +71,8 @@ public final class AccessoryAdvisor {
     /** One profile's bag: page number -> (id -> rarity shown), and the page count from the title. */
     private static final class Bag {
         final Map<Integer, Map<String, String>> pages = new HashMap<>();
+        /** Page number -> names of the accessories the page shows as not owned (gray dye placeholders, no SkyBlock id). */
+        final Map<Integer, Set<String>> gaps = new HashMap<>();
         int pageCount = 1;
         int version;
 
@@ -207,14 +210,14 @@ public final class AccessoryAdvisor {
         }
     }
 
-    /** Page and page count of an Accessory Bag title ({1, 1} for a bag with one page), or null for any other menu. */
+    /** Page and page count of an Accessory Bag title "(1/6) Accessory Bag" (patch 0.27.3), or null for any other menu: the
+     *  Rift's own bag is titled plain "Accessory Bag" and must not overwrite a page of the main bag. */
     public static int[] page(String title) {
         Matcher m = TITLE.matcher(title);
         if (!m.matches()) {
             return null;
         }
-        return m.group(1) == null ? new int[]{1, 1}
-                : new int[]{Integer.parseInt(m.group(1)), Math.max(1, Integer.parseInt(m.group(2)))};
+        return new int[]{Integer.parseInt(m.group(1)), Math.max(1, Integer.parseInt(m.group(2)))};
     }
 
     private static void onScreenInit(Minecraft client, Screen screen, int width, int height) {
@@ -314,9 +317,11 @@ public final class AccessoryAdvisor {
         return BAGS.computeIfAbsent(ProfileTracker.key(), k -> new Bag());
     }
 
-    /** Reads one bag page: every slot of the menu's own rows holding an accessory id. */
+    /** Reads one bag page: a slot holding an accessory id is owned; since 0.27.3 a gray dye with no id is the placeholder
+     *  of one not owned (the sort, search and page buttons are other items). */
     private static void readPage(AbstractContainerMenu menu, int[] page, Bag bag) {
         Map<String, String> found = new HashMap<>();
+        Set<String> gaps = new HashSet<>();
         int top = Math.max(0, menu.slots.size() - 36);
         for (int i = 0; i < top; i++) {
             ItemStack stack = menu.slots.get(i).getItem();
@@ -324,6 +329,9 @@ public final class AccessoryAdvisor {
                 continue;
             }
             String id = ItemKeys.id(ItemNbt.view(stack));
+            if (id == null && stack.is(McItems.GRAY_DYE)) {
+                gaps.add(ChatFormatting.stripFormatting(stack.getHoverName().getString()));
+            }
             if (id == null || !id.equals(id.toUpperCase(java.util.Locale.ROOT))) {
                 continue;
             }
@@ -331,11 +339,13 @@ public final class AccessoryAdvisor {
             found.put(id, r != null ? r.name() : tierOf(id));
         }
         // Hypixel fills the bag a moment after the menu opens: an empty read never wipes a page that held items.
-        if (found.isEmpty() && bag.pages.containsKey(page[0])) {
+        if (found.isEmpty() && gaps.isEmpty() && bag.pages.containsKey(page[0])) {
             return;
         }
-        if (!found.equals(bag.pages.get(page[0])) || bag.pageCount != page[1]) {
+        if (!found.equals(bag.pages.get(page[0])) || !gaps.equals(bag.gaps.get(page[0])) || bag.pageCount != page[1]) {
             bag.pages.put(page[0], found);
+            bag.gaps.put(page[0], gaps);
+            bag.gaps.keySet().removeIf(p -> p > page[1]);
             bag.pageCount = page[1];
             bag.pages.keySet().removeIf(p -> p > page[1]);
             bag.version++;
@@ -407,7 +417,8 @@ public final class AccessoryAdvisor {
             lastResult = null;
             rowY = rowX0 = rowX1 = new int[0];
         } else {
-            out.add("§7" + owned.size() + " owned, " + ownedMp + " MP" + (familiesLoaded ? "" : " §8(families loading)"));
+            int missing = missingFamilies(bag, cat, owned);
+            out.add("§7" + owned.size() + " owned, " + ownedMp + " MP" + (missing > 0 ? ", " + missing + " missing" : "") + (familiesLoaded ? "" : " §8(families loading)"));
             if (bag.pages.size() < bag.pageCount) {
                 out.add("§eOpen all bag pages (" + bag.pages.size() + "/" + bag.pageCount + " seen)");
             }
@@ -443,6 +454,32 @@ public final class AccessoryAdvisor {
         rowPlain = List.copyOf(plain);
         panelWidth = w + PAD * 2;
         btnX0 = panelWidth - PAD - btnW;
+    }
+
+    /** Accessories the bag shows as not owned, once per upgrade family (the lowest tier: the bag lists one placeholder for it,
+     *  never one per tier; a family with a member owned is not missing). */
+    private static int missingFamilies(Bag bag, Map<String, AccessoryRanker.Acc> cat, Map<String, String> owned) {
+        Map<String, String> idByName = new HashMap<>();
+        for (AccessoryRanker.Acc a : cat.values()) {
+            if (a.name() != null) {
+                idByName.putIfAbsent(ChatFormatting.stripFormatting(a.name()), a.id());
+            }
+        }
+        Set<String> have = new HashSet<>();
+        for (String id : owned.keySet()) {
+            have.add(familyOf.getOrDefault(id, id));
+        }
+        Set<String> out = new HashSet<>();
+        for (Set<String> names : bag.gaps.values()) {
+            for (String n : names) {
+                String id = idByName.get(n);
+                String fam = id == null ? n : familyOf.getOrDefault(id, id);
+                if (!have.contains(fam)) {
+                    out.add(fam);
+                }
+            }
+        }
+        return out.size();
     }
 
     /** Fetches the upgrade families once (retried after a minute on failure), off the render thread. */
