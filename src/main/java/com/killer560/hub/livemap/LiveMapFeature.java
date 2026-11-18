@@ -199,16 +199,45 @@ public final class LiveMapFeature {
             maxGX = mxX;
             minGZ = mnZ;
             maxGZ = mxZ;
-            float lx = (mnX + mxX) / 2f;
-            float lz = (mnZ + mxZ) / 2f;
-            lShape = tiles.length == 3 && mxX - mnX == 2 && mxZ - mnZ == 2;
+            // A connector between this room's tiles and a tile not seen yet (Museum's left column) shows the room
+            // reaches it: the label goes by the whole shape, the seen tiles plus the tiles every connector leads to.
+            java.util.TreeSet<Integer> shape = new java.util.TreeSet<>();
+            for (int t : tiles) {
+                shape.add(t);
+            }
+            for (int c : cells) {
+                int cx = c % GRID;
+                int cz = c / GRID;
+                for (int dx = cx % 2 == 1 ? -1 : 0; dx <= (cx % 2 == 1 ? 1 : 0); dx += 2) {
+                    for (int dz = cz % 2 == 1 ? -1 : 0; dz <= (cz % 2 == 1 ? 1 : 0); dz += 2) {
+                        if (cx + dx >= 0 && cz + dz >= 0 && cx + dx < GRID && cz + dz < GRID) {
+                            shape.add(cx + dx + (cz + dz) * GRID);
+                        }
+                    }
+                }
+            }
+            int[] all = shape.stream().mapToInt(Integer::intValue).toArray();
+            int eMnX = GRID;
+            int eMxX = -1;
+            int eMnZ = GRID;
+            int eMxZ = -1;
+            for (int t : all) {
+                eMnX = Math.min(eMnX, t % GRID);
+                eMxX = Math.max(eMxX, t % GRID);
+                eMnZ = Math.min(eMnZ, t / GRID);
+                eMxZ = Math.max(eMxZ, t / GRID);
+            }
+            float lx = (eMnX + eMxX) / 2f;
+            float lz = (eMnZ + eMxZ) / 2f;
+            // Three tiles of a 2x2 room are not an L: its other tile is just unseen, so it centers on the whole box.
+            lShape = all.length == 3 && eMxX - eMnX == 2 && eMxZ - eMnZ == 2 && (entry == null || !"2x2".equals(entry.shape));
             if (lShape) {
                 // L-shape: center on the horizontal pair (the reference textPlacement).
                 for (int a = 0; a < 3; a++) {
                     for (int b = a + 1; b < 3; b++) {
-                        if (tiles[a] / GRID == tiles[b] / GRID) {
-                            lx = (tiles[a] % GRID + tiles[b] % GRID) / 2f;
-                            lz = tiles[a] / GRID;
+                        if (all[a] / GRID == all[b] / GRID) {
+                            lx = (all[a] % GRID + all[b] % GRID) / 2f;
+                            lz = all[a] / GRID;
                         }
                     }
                 }
@@ -1448,6 +1477,17 @@ public final class LiveMapFeature {
             }
         }
         groupsDirty = true;
+    }
+
+    /** Test hook (testkit 1117-logic-maplabel-shape): the label center {gx, gz} of the room named {@code name} after {@link #testLoadFloor}, or null. */
+    public static float[] testLabel(String name) {
+        ensureGroups();
+        for (RoomGroup g : groups) {
+            if (g.entry != null && name.equals(g.entry.name)) {
+                return new float[]{g.labelGX, g.labelGZ};
+            }
+        }
+        return null;
     }
 
     /**
