@@ -77,6 +77,10 @@ public class CompactorPreviewTab extends BaseTab implements KeyCaptureTab {
             y += 22;
         }
 
+        widgets.add(onOffButton("Highlight Enabled / Disabled", cfg::isHighlight, cfg::setHighlight, cfg::save,
+                null, contentX, y, contentWidth, 18));
+        y += 22;
+
         widgets.add(onOffButton("Skyblock Only", cfg::isSkyblockOnly, cfg::setSkyblockOnly, cfg::save,
                 null, contentX, y, contentWidth, 18));
         return widgets;

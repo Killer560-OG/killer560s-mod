@@ -33,6 +33,7 @@ public final class CompactorPreviewConfig {
     private Mode mode = Mode.ON_HOVER;
     private int keyCode = DEFAULT_KEY;
     private boolean skyblockOnly = true;
+    private boolean highlight = true;
 
     private CompactorPreviewConfig() {
     }
@@ -52,6 +53,7 @@ public final class CompactorPreviewConfig {
             cfg.mode = ConfigJson.getEnum(obj, "mode", Mode.class, Mode.ON_HOVER);
             cfg.keyCode = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "keyCode", DEFAULT_KEY));
             cfg.skyblockOnly = ConfigJson.getBool(obj, "skyblockOnly", true);
+            cfg.highlight = ConfigJson.getBool(obj, "highlight", true);
         }
         instance = cfg;
     }
@@ -62,6 +64,7 @@ public final class CompactorPreviewConfig {
         obj.addProperty("mode", mode.name());
         obj.addProperty("keyCode", keyCode);
         obj.addProperty("skyblockOnly", skyblockOnly);
+        obj.addProperty("highlight", highlight);
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
@@ -87,6 +90,14 @@ public final class CompactorPreviewConfig {
 
     public void setKeyCode(int keyCode) {
         this.keyCode = KeyUtil.sanitizeBind(keyCode);
+    }
+
+    public boolean isHighlight() {
+        return highlight;
+    }
+
+    public void setHighlight(boolean highlight) {
+        this.highlight = highlight;
     }
 
     public boolean isSkyblockOnly() {

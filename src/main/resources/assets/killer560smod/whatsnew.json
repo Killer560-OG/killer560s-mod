@@ -17,7 +17,8 @@
      "Collection Tracker: a sack that compacts items (for example 15,040 Enchanted Gold Ingot into 94 Enchanted Gold Blocks) now counts only the net gain, so Gold no longer reads about 3 times too high and the HUD rate matches the server.",
      "Bazaar lookups now also find a product under its announced new or old name (Epic Bait, Legendary Bait, Enchanted Clay), ready for Hypixel's coming Wolf Slayer tier 5 and fishing update.",
      "The Fiesta Flask timer no longer pauses or says paused and counts down every second, and the Maniac Miner mana drain now lasts up to 50 seconds.",
-     "Dungeon Map: new Stream Safe switch under Funny Map (cheat build, Windows) - anything that records or shares your game sees the normal map with no mimic room, while you still see the Funny Map"
+     "Dungeon Map: new Stream Safe switch under Funny Map (cheat build, Windows) - anything that records or shares your game sees the normal map with no mimic room, while you still see the Funny Map",
+     "Personal Mining Compactor and the other skill compactor menus: entries that are on are highlighted green and entries that are off red."
     ]
    }
   ]

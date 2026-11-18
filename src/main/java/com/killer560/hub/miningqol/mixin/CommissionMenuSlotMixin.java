@@ -24,5 +24,6 @@ public abstract class CommissionMenuSlotMixin {
         AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
         CommissionMenuHighlight.drawSlot(graphics, screen, slot);
         com.killer560.hub.loadoutkeybinds.LoadoutHighlight.drawSlot(graphics, screen, slot);
+        com.killer560.hub.compactorpreview.CompactorMenuHighlight.drawSlot(graphics, screen, slot);
     }
 }
