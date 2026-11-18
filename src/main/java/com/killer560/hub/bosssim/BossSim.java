@@ -16,7 +16,6 @@ import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents;
 import net.fabricmc.fabric.api.event.player.AttackEntityCallback;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
-import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
@@ -157,14 +156,7 @@ public final class BossSim {
                 }
                 return InteractionResult.SUCCESS;
             }
-            return BossFight.usePylon(sp) ? InteractionResult.SUCCESS : InteractionResult.PASS;
-        });
-        UseItemCallback.EVENT.addPhaseOrdering(FIRST, Event.DEFAULT_PHASE);
-        UseItemCallback.EVENT.register(FIRST, (player, level, hand) -> {
-            if (level.isClientSide() || !(player instanceof ServerPlayer sp) || !serverOk(sp) || hand != InteractionHand.MAIN_HAND) {
-                return InteractionResult.PASS;
-            }
-            return BossFight.usePylon(sp) ? InteractionResult.SUCCESS : InteractionResult.PASS;
+            return InteractionResult.PASS;
         });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, access) -> {
             // /start is the short name he types (simstart-1116); same tree, same handler.

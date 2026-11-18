@@ -75,7 +75,7 @@ update (bossparity-1103 brought it in line; the item-by-item comparison is kille
 Every boss is a no-AI wither moved by the fight (`BossMob.moveTo(pos, look)`, yaw = atan2(-dx, dz)).
 
 - **P1 Maxor**: holds at (73, 226, 53) until t 84, then flies at the closest player +1 at min(0.9, 0.24 + 0.02 d) and
-  stops within 3. Crystals at t 5 (stands at 28): walking within 1 block of one picks it up with no click, and a left or right click on it from entity reach does too (a Nether Star "Energy Crystal" in slot 8); a carried crystal is placed with no click within 1 block of an open pad (a click within 3.5 still places it; simcrystal-1105, owner 2026-11-05); the
+  stops within 3. Crystals at t 5 (stands at 28): walking within 1 block of one picks it up with no click, and a left or right click on it from entity reach does too (a Nether Star "Energy Crystal" in slot 8); a carried crystal is placed with no click by standing on any block touching an open pylon's pressure plate (52/94, 224, 41) or on the plate, and a click never places one, so a leap's right click by a pad opens the leap menu (simleapspots2-1117, owner 2026-11-17: "You shouldn't place crystals by clicking just being within proximity"); pickup is unchanged: walking within 1 block, or a click on the crystal itself; the
   pylons open at t 80, the beacon is in at 120. A placement counts 28 ticks after it ("1/2" twice when two go in close
   together); the laser charges 28 after the second. A hit needs Maxor at y >= 225 within 3.5 of the beam on a 10-tick
   check, so he has to be lured in (the strip south of the beam, y 224 z 70-76). The stun ends on damage (one hit drops the bar to its floor,
@@ -100,7 +100,9 @@ Every boss is a no-AI wither moved by the fight (`BossMob.moveTo(pos, look)`, ya
   that part's damage: lines 0/42/84/126/188/270/332, a sidestep and two trips out at the player,
   back to mid at 98 and 240, one side platform to lava at 275, gone at 389.
 - **P5** (M7): a dragon is one pool of 15 units (boss-tpto-1109, killer560 2026-11-09; integers, no drift): EVERY arrow takes 1 (necronpull-1111: an arrow counts in `SimDragon.hit` itself, never through `onHurt`'s once-a-tick rule, so all 3 arrows of a Terminator volley count), a Mage beam 3 (`SimClass.BEAM_DAMAGE` 10,001 vs a Terminator arrow's 10,000 tells them apart in `BossFight.onHurt`), so 15 arrows, 5 beams or 10 + 2 kill one; "[BOSS] The Wither King: ..." lines. The relics are not modeled. Each dragon spawns
-  at its `WitherDragon.spawnPos` 100 ticks after a FLAME burst at y 19 over it (the mod's spawn-timer spec) and places its
+  at its `WitherDragon.spawnPos` 100 ticks after a FLAME burst at y 19 over it (the mod's spawn-timer spec; the spawn ORDER is
+  drawn from the fight's RNG at P5, simleapspots-1117 "make the dragons spawn in a random order": the first two 40 ticks apart,
+  then the next in order 20 ticks after each death; `BossFight.dragonOrder()`, testkit `seedForTest` / `dragonOrderForTest`) and places its
   8 parts each tick. Health (necronpull-1111): it sends Hypixel's 1,000,000,000 synched health, scaled by the units left
   (`SimDragon.showHealth`, through `SimLivingHealthAccessor` because `setHealth` clamps to the vanilla max of 200), so
   Wither Dragons' readout drops on every hit. A client `EnderDragon.aiStep` calls `setHealth(getHealth())` each tick,

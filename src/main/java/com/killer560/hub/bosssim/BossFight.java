@@ -44,8 +44,8 @@ import java.util.Random;
  * recorded in reference recordings and the mod's own trackers. What the players DO is simplified to
  * what one player can do alone - the parts the mod's features read are kept exact:
  * <ul>
- * <li><b>P1 Maxor</b>: the two Energy Crystals appear on their towers; walking within 1 block picks it up (a click from reach does too), using it at a pylon
- * places it; two placed fire the laser, which stuns Maxor and empties the pylons, and the next set is back on the towers
+ * <li><b>P1 Maxor</b>: the two Energy Crystals appear on their towers; walking within 1 block picks it up (a click from reach does too); standing on
+ * a block touching a pylon's pressure plate places a carried one, never a click; two placed fire the laser, which stuns Maxor and empties the pylons, and the next set is back on the towers
  * 34 ticks after his laser line; hits on him while he is stunned wear him down; the second
  * stun ends him. Then his floor opens over Storm's.</li>
  * <li><b>P2 Storm</b>: Storm hovers from pillar to pillar; standing on a pillar's pad drops it, and a drop with Storm under
@@ -250,6 +250,9 @@ public final class BossFight {
     private static final int[] dragonHits = new int[5];
     private static final boolean[] dragonDead = new boolean[5];
     private static final int[] dragonSpawnAt = {-1, -1, -1, -1, -1};
+    /** This P5's spawn order (indices of WitherDragon.values()), drawn from {@link #RNG} at P5 (simleapspots-1117). */
+    private static final int[] dragonOrder = {0, 1, 2, 3, 4};
+    private static int[] dragonOrderForTest;
     private static int kingLine;
 
     private BossFight() {
@@ -362,6 +365,10 @@ public final class BossFight {
     static void begin(MinecraftServer s, Start from, boolean masterMode, boolean stay) {
         stayPut = stay;
         stop("new fight");
+        if (seedForTest != null) {
+            RNG.setSeed(seedForTest);
+            seedForTest = null;
+        }
         com.killer560.hub.roomsim.SimBreakerState.refill();
         server = s;
         level = s.overworld();
@@ -773,7 +780,11 @@ public final class BossFight {
         }
     }
 
-    /** Hypixel needs no click near a crystal: within 1 block of a tower crystal picks it up, within 1 of an open pad places one. */
+    /**
+     * Hypixel needs no click near a crystal: within 1 block of a tower crystal picks it up, and standing on any block touching
+     * an open pylon's pressure plate (or on the plate) places a carried one (killer560 2026-11-17: "You shouldn't place
+     * crystals by clicking just being within proximity"). A click there is never the pylon's, so a leap opens its menu.
+     */
     private static void walkInCrystals() {
         if (maxorKilledAt >= 0 || (tops[0] == null && tops[1] == null && carrying.isEmpty())) {
             return;
@@ -785,7 +796,7 @@ public final class BossFight {
                 }
             }
             if (carried(p) > 0) {
-                usePylon(p, 1.0);
+                onPlate(p);
             }
         }
     }
@@ -842,7 +853,7 @@ public final class BossFight {
         return carrying.getOrDefault(uuid, 0);
     }
 
-    /** A click on a tower crystal or its stands picks it up; a click on a pylon's stand places one. */
+    /** A click on a tower crystal or its stands picks it up. */
     static boolean useEntity(ServerPlayer p, Entity e) {
         if (phase != Phase.P1) {
             return false;
@@ -851,10 +862,6 @@ public final class BossFight {
             boolean label = topLabels[i] != null && (e == topLabels[i][0] || e == topLabels[i][1]);
             if (e == tops[i] || label) {
                 pickUpCrystal(p, i);
-                return true;
-            }
-            if (pylonStands[i] != null && (e == pylonStands[i][0] || e == pylonStands[i][1])) {
-                placeAt(p, i);
                 return true;
             }
         }
@@ -870,33 +877,25 @@ public final class BossFight {
         }
     }
 
-    /** A use near a pylon (within 3.5 across and 4 up or down): places a carried crystal. True when it was the pylon's. */
-    static boolean usePylon(ServerPlayer p) {
-        return usePylon(p, 3.5);
-    }
-
-    private static boolean usePylon(ServerPlayer p, double reach) {
+    /** The pressure plate a pylon's crystal sits on: the block of {@link #PYLONS} (52/94, 224, 41). */
+    private static void onPlate(ServerPlayer p) {
         if (phase != Phase.P1 || maxorKilledAt >= 0 || !pylonsOpen) {
-            return false;
+            return;
         }
+        // The block he stands on (feet 0.2 down covers the plate's 1/16 too): the plate's row or the one under it, 3x3 around.
+        int bx = net.minecraft.util.Mth.floor(p.getX()), by = net.minecraft.util.Mth.floor(p.getY() - 0.2), bz = net.minecraft.util.Mth.floor(p.getZ());
         for (int i = 0; i < 2; i++) {
-            Vec3 at = PYLONS[i];
-            if (Math.hypot(p.getX() - at.x, p.getZ() - at.z) > reach || Math.abs(p.getY() - at.y) >= 4.0 || placed[i] != null) {
-                continue;
+            BlockPos plate = BlockPos.containing(PYLONS[i]);
+            if (placed[i] == null && Math.abs(bx - plate.getX()) <= 1 && Math.abs(bz - plate.getZ()) <= 1
+                    && (by == plate.getY() || by == plate.getY() - 1)) {
+                placeAt(p, i);
+                return;
             }
-            placeAt(p, i);
-            return true;
         }
-        return false;
     }
 
     private static void placeAt(ServerPlayer p, int i) {
-        if (!pylonsOpen || placed[i] != null || maxorKilledAt >= 0) {
-            return;
-        }
-        if (carried(p) <= 0) {
-            // Said to the one who clicked, as Hypixel's "You" line is.
-            p.sendSystemMessage(BossChat.legacy("§cYou do not current have an §r§bEnergy Crystal§r§c! Find one and bring it here!"));
+        if (!pylonsOpen || placed[i] != null || maxorKilledAt >= 0 || carried(p) <= 0) {
             return;
         }
         if (carrying.merge(p.getUUID(), -1, Integer::sum) <= 0) {
@@ -2049,11 +2048,24 @@ public final class BossFight {
             bar.removeAllPlayers();
             bar = null;
         }
+        // A random spawn order every run (killer560 2026-11-17: "make the dragons spawn in a random order in p5 not the
+        // same order every time"): the first two of it come together, then one more after each death.
+        if (dragonOrderForTest != null) {
+            System.arraycopy(dragonOrderForTest, 0, dragonOrder, 0, 5);
+        } else {
+            for (int i = 0; i < 5; i++) dragonOrder[i] = i;
+            for (int i = 4; i > 0; i--) {
+                int j = RNG.nextInt(i + 1), k = dragonOrder[i];
+                dragonOrder[i] = dragonOrder[j];
+                dragonOrder[j] = k;
+            }
+        }
+        LOGGER.info("[BossSim] P5 dragon order {}", dragonOrder());
         // The relics are not modeled: the King's first line comes as the party lands instead of once they are placed.
         later(60, "king", () -> {
             BossChat.boss(server, "The Wither King", "You... again?");
-            dragonSpawnAt[0] = t;
-            dragonSpawnAt[1] = t + 40;
+            dragonSpawnAt[dragonOrder[0]] = t;
+            dragonSpawnAt[dragonOrder[1]] = t + 40;
         });
     }
 
@@ -2099,7 +2111,7 @@ public final class BossFight {
             later(2, "king counts", () -> BossChat.boss(server, "The Wither King", line));
             LOGGER.info("[BossSim] {} dragon down at P5 t {} ({} hits)", WitherDragon.values()[i].colourName, t, dragonHits[i]);
             int next = -1;
-            for (int j = 0; j < 5; j++) {
+            for (int j : dragonOrder) {
                 if (dragonSpawnAt[j] < 0) {
                     next = j;
                     break;
@@ -2118,6 +2130,42 @@ public final class BossFight {
             return;
         }
     }
+
+    /** This P5's spawn order as color names, "Red, Purple, ..." (logs and tests). */
+    public static String dragonOrder() {
+        StringBuilder b = new StringBuilder();
+        for (int i : dragonOrder) b.append(b.isEmpty() ? "" : ", ").append(WitherDragon.values()[i].colourName);
+        return b.toString();
+    }
+
+    /**
+     * The spawn point a P5 leap to a Tank, Healer or Mage lands under (simleapspots-1117): the first dragon in spawn order
+     * whose flame burst has shown and that has not appeared yet, else the one whose burst came last, else (before the King's
+     * line) the first to come. Null outside P5. Server thread.
+     */
+    static BlockPos leapDragon() {
+        if (phase != Phase.P5) return null;
+        int last = -1;
+        for (int i : dragonOrder) {
+            int at = dragonSpawnAt[i];
+            if (at < 0 || at > t) continue;
+            if (t < at + DRAGON_SPAWN) return WitherDragon.values()[i].spawnPos;
+            if (last < 0 || at > dragonSpawnAt[last]) last = i;
+        }
+        return WitherDragon.values()[last >= 0 ? last : dragonOrder[0]].spawnPos;
+    }
+
+    /** Testkit: the next P5s spawn in this order (WitherDragon ordinals); null draws it at random again. */
+    public static void dragonOrderForTest(int[] order) {
+        dragonOrderForTest = order == null ? null : order.clone();
+    }
+
+    /** Testkit: the next fight's random draws (taunts, the dragon order) start from this seed. */
+    public static void seedForTest(long seed) {
+        seedForTest = seed;
+    }
+
+    private static Long seedForTest;
 
     private static void finish() {
         LOGGER.info("[BossSim] boss cleared ({})", master ? "Master Mode" : "Floor 7");

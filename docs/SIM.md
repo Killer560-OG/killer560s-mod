@@ -97,6 +97,21 @@ are leap targets only.
 name with no lore, the line's colors (light purple, name aqua), the cooldown line in red, and that the cooldown starts at the
 teleport, not at the use. Refine from a real leap menu if a log ever records one.
 
+**Boss leap spots** (simleapspots-1117, killer560 2026-11-17; every spot and look is his, in
+killer560s-mod-logs/simleapspots-1117/SPEC.md): `bosssim/BossLeapSpots` maps (phase, P3 section, F7/M7, target class,
+leaper class) to a spot, null = a wrong leap. `SimLeap` uses it while `BossFight` is in P1-P5 for every head that is not
+a real player, and for real players too unless Co-op Leaps is Player Leaps (`SimMenuPrefs.playerLeaps`, the HOST's
+setting decides, the leap runs on his server). Alone the menu is always Teammate1-4 (`SimClasses.teammate(i)`, the
+class on the head's lore), placed or not; an unplaced one is only a head. A wrong leap closes the menu, says
+"[Sim] You leaped wrong: Name (Class) has no spot in Stage. Try again!" and takes no leap and no cooldown. The landing is
+exact (no clear-spot search) with the spot's absolute look, unless another teleport came within a second (Hypixel's
+relative 0/0, as before). The open core (section 5) uses S4's spots. Necron on M7: the two Healer spots in the P5 arena
+(y 5-6). Necron on F7 (simleapspots2-1117, owner: "In necron have any leap be to the /tpto necron in f7"): a leap to any
+class lands on `BossSpots` "necron" (54.5, 65, 76.5, yaw 180, pitch 0); F7 ends after Necron (no P5). P5: `BossFight.leapDragon`, the first dragon
+in this fight's spawn order whose burst showed and that has not appeared (`dragonSpawnAt <= t < +100`), else the latest
+burst, else the first to come; the stand height is `BossArena.standY` from the P5 floor up to the spawn point; the look
+is kept. **Estimated:** the lore line, and the wrong-leap line (the sim's own, Hypixel has no such thing).
+
 ## Dungeon classes (simclasses-1116)
 
 `SimClasses` holds each player's class and level (his own from `SimMenuPrefs.simClass` / `classLevel`; a co-op guest's

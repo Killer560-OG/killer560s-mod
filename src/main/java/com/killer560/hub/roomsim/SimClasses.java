@@ -101,7 +101,7 @@ public final class SimClasses {
     }
 
     /** The class Sim Teammate {@code index} plays: the classes he does not, in {@link #TEAM_ORDER}. */
-    private static Pick teammate(int index) {
+    static Pick teammate(int index) {
         DungeonClass own = self().cls();
         int i = 0;
         for (DungeonClass c : TEAM_ORDER) {

@@ -138,6 +138,14 @@ public class SimSettingsTab extends BaseTab implements KeyCaptureTab {
             btn.setMessage(classLevelText());
         }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
+        // Co-op Leaps (simleapspots-1117): a co-op boss leap goes to the class's spot (Default) or to the player (Player).
+        w.add(SettingsButtonWidget.cycling(coopLeapsText(), (btn, dir) -> {
+            com.killer560.hub.roomsim.SimMenuPrefs prefs = com.killer560.hub.roomsim.SimMenuPrefs.load();
+            prefs.playerLeaps = !prefs.playerLeaps;
+            prefs.save();
+            btn.setMessage(coopLeapsText());
+        }).bounds(contentX, y, contentWidth, 18).build());
+        y += 22;
         // Receive Sim Invites (coopsim phase 3): ON keeps the relay socket a room owner's invite arrives through.
         var coop = com.killer560.hub.roomsim.SimCoopConfig.get();
         w.add(onOffButton("Receive Sim Invites", coop::receiveInvites, coop::setReceiveInvites, () -> { }, null,
@@ -183,6 +191,11 @@ public class SimSettingsTab extends BaseTab implements KeyCaptureTab {
 
     private static Component classLevelText() {
         return Component.literal("Sim Class Level: " + com.killer560.hub.roomsim.SimMenuPrefs.cached().classLevel);
+    }
+
+    private static Component coopLeapsText() {
+        return Component.literal("Co-op Leaps: " + (com.killer560.hub.roomsim.SimMenuPrefs.cached().playerLeaps
+                ? "Player Leaps" : "Default Leaps"));
     }
 
     private static Component teammatesText() {

@@ -21,7 +21,8 @@
      "Personal Mining Compactor and the other skill compactor menus: entries that are on are highlighted green and entries that are off red.",
      "Hide Ghost Mobs now hides only starred mobs left in rooms the dungeon map shows cleared, so real mobs that are just standing still are no longer hidden; unstarred mobs, Blood room mobs and the boss are never hidden",
      "Missing Enchants (Items): hold Shift over a SkyBlock item to see the normal enchants it can still take, never ultimates or enchants that conflict with ones it has; an option also lists enchants below their max level.",
-     "Object Hider: new Arrow Particles switch hides the particle trail of arrows."
+     "Object Hider: new Arrow Particles switch hides the particle trail of arrows.",
+     "Dungeon sim: in the F7/M7 boss a Spirit Leap now goes to where that class stands in the current phase, with its look (Maxor pads, Storm, each Goldor section, Necron's Healer only, under the spawning dragon in P5); alone the leap menu lists the four classes you do not play; a leap to a class with no spot there says you leaped wrong and moves nothing; new Co-op Leaps setting (Default Leaps / Player Leaps); the P5 dragons now spawn in a random order Dungeon sim F7 boss: at Necron a Spirit Leap to any class lands on Necron's platform; Maxor's Energy Crystals are placed by standing next to a pylon's pressure plate, never by a click, so leaping from a pad works (builds on simleapspots-1117, which it contains)"
     ]
    }
   ]

@@ -61,6 +61,9 @@ public final class SimMenuPrefs {
     public com.killer560.hub.dungeonclass.DungeonClass simClass = com.killer560.hub.dungeonclass.DungeonClass.MAGE;
     /** Sim Class Level (simclasses-1116): 1-50, shown in the tab and scaling the class numbers. 50. */
     public int classLevel = SimClasses.MAX_LEVEL;
+    /** Co-op Leaps (simleapspots-1117): false = Default Leaps (a boss leap goes to the class's spot), true = Player Leaps
+     *  (to where the other player stands). Default Leaps. A single-player sim always uses the spots. */
+    public boolean playerLeaps = false;
     /** The one-time "/help" chat hint has been shown (simhelp-1117). */
     public boolean helpHintShown = false;
 
@@ -85,6 +88,7 @@ public final class SimMenuPrefs {
                 p.teammates = Math.max(0, Math.min(SimTeammates.MAX, ConfigJson.getInt(o, "teammates", p.teammates)));
                 p.simClass = ConfigJson.getEnum(o, "simClass", com.killer560.hub.dungeonclass.DungeonClass.class, p.simClass);
                 p.classLevel = Math.max(1, Math.min(SimClasses.MAX_LEVEL, ConfigJson.getInt(o, "classLevel", p.classLevel)));
+                p.playerLeaps = ConfigJson.getBool(o, "playerLeaps", p.playerLeaps);
                 p.helpHintShown = ConfigJson.getBool(o, "helpHintShown", p.helpHintShown);
             }
         } catch (Exception e) {
@@ -117,6 +121,7 @@ public final class SimMenuPrefs {
         o.addProperty("teammates", teammates);
         o.addProperty("simClass", simClass.name());
         o.addProperty("classLevel", classLevel);
+        o.addProperty("playerLeaps", playerLeaps);
         o.addProperty("helpHintShown", helpHintShown);
         cached = this;
         ConfigJson.write(FILE, o);
