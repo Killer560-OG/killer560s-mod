@@ -207,3 +207,9 @@ The puzzle autos at run time (camera, timing, leaving, each puzzle). Part of the
   near/click/settle holds with his rule "nothing goes off in a terminal": `util/OutgoingChat` holds every mod-originated line
   while a terminal GUI is open (`HudVisibility.isTerminalMenu`) and sends it on the first tick none is open (dropped if over
   30 s old); his own commands never wait. The log says `[OutgoingChat] holding ...`. Testkit 1112-hx-chatnow-terminal.
+- **Hypixel's terminal click limit (friendterms-1119).** A terminal takes at most 5 clicks in 10 server ticks and drops the
+  rest with no answer (measured; `bosssim/BossTerminals.onClick` does the same). A friend's Min Delay 90 ms with Burst Finish
+  lost 12 clicks on 4 sim boards (each a 600 ms retry; 3 Panes re-sends) while the owner's 100-130 ms stayed just under it.
+  `TerminalSolverFeature.clickBudget` keeps the last 5 click times (550 ms window: 10 ticks plus one of jitter): paced, Stream
+  Safe, Hover, Hold and Queue clicks wait for room and Burst Finish waits until its burst (up to 5) fits; Burst Mode and a
+  Burst Size over 5 are the owner's and stay unpaced. Testkit 1119-boss-term-click-limit (`500-boss-session:,` prefix).

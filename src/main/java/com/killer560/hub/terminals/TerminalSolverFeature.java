@@ -241,6 +241,29 @@ public final class TerminalSolverFeature {
     // already-correct Panes back to wrong before the confirm arrived.
     private static final long MIN_RETRY_TIMEOUT_MS = 600;
     private static final long MAX_LATENCY_BASED_RETRY_TIMEOUT_MS = 1500;
+
+    // ---- Hypixel's click limit (friendterms-1119): a terminal takes at most 5 clicks in 10 server ticks and drops the rest
+    // with no answer (measured on Hypixel; the boss sim does the same). A Min Delay under 100 ms, or Burst Finish right after
+    // paced clicks, sent a 6th click inside the window on every board, and each lost one cost a retry timeout. Every send is
+    // noted here; a paced click waits for room, and Burst Finish waits until its burst (up to 5) fits. Burst Mode and a Burst
+    // Size over 5 are left as the owner set them. The window carries one tick of margin for the server's tick jitter. ----
+    static final int CLICK_LIMIT = 5;
+    static final long CLICK_LIMIT_WINDOW_MS = 550;
+    private static final long[] recentClickAtMs = new long[CLICK_LIMIT];
+    private static int recentClickIndex;
+
+    /** @return how many more terminal clicks may go at {@code now} without the server dropping one. */
+    static int clickBudget(long now) {
+        int n = CLICK_LIMIT;
+        for (long at : recentClickAtMs) {
+            if (now - at < CLICK_LIMIT_WINDOW_MS) n--;
+        }
+        return n;
+    }
+
+    /** @return whether a terminal click sent now would be over Hypixel's limit (the auto paths wait instead). */
+    public static boolean clickLimited() { return clickBudget(System.currentTimeMillis()) <= 0; }
+
     // Session-wide (NOT reset per terminal) exponential moving average of real send -> confirm latency -
     // keeps the retry timeout from firing before a genuinely slow (high-ping) confirm can land, since a
     // premature re-click on Panes would toggle an already-correct pane straight back to wrong.
@@ -839,6 +862,8 @@ public final class TerminalSolverFeature {
                     if (now - p.sentAtMs() < retryTimeout) return;
                 }
                 if (left <= cfg.getBurstSize()) {
+                    // Only once Hypixel's limit takes the whole burst (up to 5): fired into a full window, its clicks were dropped.
+                    if (clickBudget(now) < Math.min(left, CLICK_LIMIT)) return;
                     if (clickedThisWireTick() || !ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
                     sendBurst(screen, type, items, now, Integer.MAX_VALUE, retryTimeout);
                     nextAutoClickAllowedAtMs = now + cfg.rollAutoClickDelayMs();
@@ -882,7 +907,7 @@ public final class TerminalSolverFeature {
                 }
             }
         }
-        if (target == null) return;
+        if (target == null || clickBudget(now) <= 0) return;
         // Mod-wide one-interaction-per-tick gate. tickAutoClick runs per RENDER FRAME (see refreshState), so
         // without this a 200+ FPS client could send several clicks inside one client tick once the rolled
         // delay is short. Checked after the target is picked but before ANY state moves - the rolled delay
@@ -1092,7 +1117,7 @@ public final class TerminalSolverFeature {
         }
         PendingClick waiting = pendingClicks.get(slot);
         if (waiting != null && now - waiting.sentAtMs() < retryTimeout) return;
-        if (!FakeCursor.ready(slot)) return;
+        if (!FakeCursor.ready(slot) || clickLimited()) return;
         if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
         ItemStack snapshot = slot < items.size() ? items.get(slot).copy() : ItemStack.EMPTY;
         pendingClicks.put(slot, waiting != null
@@ -1252,6 +1277,8 @@ public final class TerminalSolverFeature {
     static boolean invokeSlotClicked(AbstractContainerScreen<?> screen, Slot slot, int button, ContainerInput clickType) {
         try {
             ((SlotClickInvoker) (Object) screen).killer560smod$slotClicked(slot, slot.index, button, clickType);
+            recentClickAtMs[recentClickIndex] = System.currentTimeMillis();
+            recentClickIndex = (recentClickIndex + 1) % CLICK_LIMIT;
             return true;
         } catch (Throwable t) {
             boolean first = !foreignClickFailed;

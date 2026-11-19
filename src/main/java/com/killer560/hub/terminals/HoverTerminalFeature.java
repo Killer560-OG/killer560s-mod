@@ -164,7 +164,7 @@ public final class HoverTerminalFeature {
         // come due on several frames inside one client tick; the gate is checked before the click is
         // registered and before the dwell is re-armed, so a denied frame changes nothing and the same hover
         // simply clicks on a later tick.
-        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
+        if (TerminalSolverFeature.clickLimited() || !ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
         ItemStack snapshot = slot < items.size() ? items.get(slot).copy() : ItemStack.EMPTY;
         TerminalSolverFeature.registerHoverClick(slot, snapshot, now);
         TerminalSolverFeature.sendTerminalClick(screen, target.slot(), target.button(), target.clickType());
@@ -185,7 +185,7 @@ public final class HoverTerminalFeature {
         if (melodyGuardBlocks(slot, now)) return;
         // Gate before the same-row guard fields move - a denied frame must not consume this row's one
         // allowed click, or the indicator would move past the match while the guard says "already clicked".
-        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
+        if (TerminalSolverFeature.clickLimited() || !ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
         noteMelodyClick(slot, now);
         TerminalSolverFeature.sendTerminalClick(screen, slot, 0, ContainerInput.CLONE);
         lastHoverClickAtMs = now;

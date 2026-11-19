@@ -102,7 +102,7 @@ public final class HoldToClickFeature {
             if (TerminalSolverFeature.melodyMatchedButtonSlot(items) != slot || HoverTerminalFeature.melodyGuardBlocks(slot, now)) {
                 return;
             }
-            if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
+            if (TerminalSolverFeature.clickLimited() || !ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
             HoverTerminalFeature.noteMelodyClick(slot, now);
             TerminalSolverFeature.sendTerminalClick(screen, slot, 0, ContainerInput.CLONE);
             nextRepeatAtMs = now + cfg.getHoldToClickRepeatMs();
@@ -112,7 +112,7 @@ public final class HoldToClickFeature {
         if (highlight == null) return;
         TerminalSolverFeature.AutoClickTarget target = TerminalSolverFeature.pickAutoClickTarget(type, Map.of(slot, highlight));
         if (target == null || TerminalSolverFeature.isHoverClickBlocked(slot, now)) return;
-        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
+        if (TerminalSolverFeature.clickLimited() || !ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
         ItemStack snapshot = slot < items.size() ? items.get(slot).copy() : ItemStack.EMPTY;
         TerminalSolverFeature.registerHoverClick(slot, snapshot, now);
         if (TerminalSolverFeature.sendTerminalClick(screen, target.slot(), target.button(), target.clickType())) {

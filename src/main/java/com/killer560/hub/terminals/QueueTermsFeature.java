@@ -90,7 +90,7 @@ public final class QueueTermsFeature {
             }
             TerminalSolverFeature.AutoClickTarget target = TerminalSolverFeature.pickAutoClickTarget(type, Map.of(slot, highlight));
             if (target == null) continue;
-            if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
+            if (TerminalSolverFeature.clickLimited() || !ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
             TerminalSolverFeature.registerHoverClick(slot, slot < items.size() ? items.get(slot).copy() : ItemStack.EMPTY, now);
             if (TerminalSolverFeature.sendTerminalClick(screen, slot, target.button(), target.clickType())) sent++;
             remove(i);
