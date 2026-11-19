@@ -102,7 +102,7 @@ public final class AutoRoutesConfig {
 
     private boolean enabled = false;
     /** killer560: "legit or obvious - in legit mode it rotates for every etherwarp." */
-    private boolean legitMode = true;
+    private boolean legitMode = false;
     /** "an option in the main settings so it will not start a route halfway through" - forced on in legit mode. */
     private boolean startFromStartNodeOnly = true;
     /** killer560, 2026-10-05: "I wanted the auto routes to have a toggle to work while my im is open. Not running but
@@ -228,7 +228,7 @@ public final class AutoRoutesConfig {
             try {
                 JsonObject o = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.enabled = ConfigJson.getBool(o, "enabled", cfg.enabled);
-                cfg.legitMode = ConfigJson.getBool(o, "legitMode", cfg.legitMode);
+                cfg.legitMode = legitModeSelectable() && ConfigJson.getBool(o, "legitMode", false);
                 // Zero Ping Chain, Blink The Chain and Charged Chain left this tab (zpewunify-1111): the first and last
                 // move to the Etherwarp tab's Works For / Multi Warps For Auto Routes, Blink The Chain is gone.
                 migrateChain = o.has("zeroPingChain") || o.has("chargedChain") || o.has("blinkChain");
@@ -350,10 +350,12 @@ public final class AutoRoutesConfig {
      * {@code -PtestingBuild} jar can report legit; every other jar runs obvious whatever the config file says (an old
      * {@code legitMode: true} is kept on disk, untouched, for when legit returns). The legit code itself stays.
      */
-    public boolean isLegitMode() { return com.killer560.hub.BuildVariant.TESTING && legitMode; }
-    /** True when the mode can be chosen at all (the Mode row exists): testing jars only. */
-    public static boolean legitModeSelectable() { return com.killer560.hub.BuildVariant.TESTING; }
-    public void setLegitMode(boolean v) { legitMode = v; }
+    public boolean isLegitMode() { return legitMode; }
+    /** True when the mode can be chosen at all (the Mode row exists). killer560, 2026-11-18 (armode-off-1118): "for auto routes
+     *  remove the mode version for now. we will work on it again later after 2.0." Returns false in every build, so legit mode
+     *  is never active (load, setLegitMode and save all see false). To bring it back: return BuildVariant.TESTING (or true) here. */
+    public static boolean legitModeSelectable() { return false; }
+    public void setLegitMode(boolean v) { legitMode = v && legitModeSelectable(); }
 
     /**
      * Zero Ping Chain (killer560, 2026-10-25: zero ping etherwarp "for auto routes and such"): consecutive etherwarp nodes
