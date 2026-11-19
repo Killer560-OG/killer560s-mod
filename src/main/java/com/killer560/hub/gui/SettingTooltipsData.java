@@ -917,6 +917,7 @@ final class SettingTooltipsData {
         d.put("add use item node key", "Adds a node that uses your held item (same as /ar add use).");
         d.put("add walk node key", "Adds a walk node where you stand; it sprints the way you were facing (same as /ar add walk).");
         d.put("add superboom node key", "Adds a superboom node (same as /ar add boom).");
+        d.put("also when in blast range", "Also swaps when the block you click is no target but a Superboom placed there would blow one up (3 blocks from the face you hit).");
         d.put("auto superboom", "Left click a cracked stone brick wall in a dungeon with anything in hand: swaps to your Superboom TNT for the click, then back. Not for wither or blood doors.");
         d.put("add path node key", "Adds a path node (same as /ar add path); the first of each pair etherwarps to the second.");
         d.put("clear room route key", "Deletes this room's whole route (same as /ar clear).");

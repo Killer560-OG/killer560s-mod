@@ -14,6 +14,7 @@ public final class AutoSuperboomConfig {
     private static final Path PATH = ModPaths.config("killer560smod-autosuperboom.json");
     private static AutoSuperboomConfig instance;
     private boolean enabled = false;
+    private boolean blastRange = true;
 
     private AutoSuperboomConfig() {
     }
@@ -30,6 +31,7 @@ public final class AutoSuperboomConfig {
         JsonObject o = ConfigJson.read(PATH);
         if (o != null) {
             c.enabled = ConfigJson.getBool(o, "enabled", false);
+            c.blastRange = ConfigJson.getBool(o, "blastRange", true);
         }
         instance = c;
         FeatureBits.changed();
@@ -38,6 +40,7 @@ public final class AutoSuperboomConfig {
     public void save() {
         JsonObject o = new JsonObject();
         o.addProperty("enabled", enabled);
+        o.addProperty("blastRange", blastRange);
         ConfigJson.write(PATH, o);
     }
 
@@ -48,6 +51,15 @@ public final class AutoSuperboomConfig {
 
     public boolean isEnabled() {
         return enabled && SkyblockGate.allows();
+    }
+
+    /** Also act when the clicked block is no target but a Superboom placed there would blow one up. */
+    public boolean isBlastRange() {
+        return blastRange;
+    }
+
+    public void setBlastRange(boolean v) {
+        blastRange = v;
     }
 
     public void setEnabled(boolean v) {

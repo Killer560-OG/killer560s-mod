@@ -990,7 +990,7 @@ public final class SimItems {
     private static final int SUPERBOOM_CHAIN_SPAN = 15;
 
     /** Where the charge goes off: the center of the face it hit (the TNT lands ON the block, not inside it). */
-    private static Vec3 boomPoint(BlockPos hit, net.minecraft.core.Direction face) {
+    public static Vec3 boomPoint(BlockPos hit, net.minecraft.core.Direction face) {
         BlockPos out = hit.relative(face);
         return Vec3.atCenterOf(hit).add((out.getX() - hit.getX()) * 0.5, (out.getY() - hit.getY()) * 0.5,
                 (out.getZ() - hit.getZ()) * 0.5);
@@ -998,7 +998,7 @@ public final class SimItems {
 
     /** Whether {@code p}'s block BOX is within {@link #SUPERBOOM_CRYPT_REACH} of the blast point (CLAUDE.md: reach is
      *  measured to the box, never to the center, which reads up to half a block further). */
-    static boolean inReach(Vec3 boom, BlockPos p) {
+    public static boolean inReach(Vec3 boom, BlockPos p) {
         double dx = Math.max(0.0, Math.max(p.getX() - boom.x, boom.x - (p.getX() + 1)));
         double dy = Math.max(0.0, Math.max(p.getY() - boom.y, boom.y - (p.getY() + 1)));
         double dz = Math.max(0.0, Math.max(p.getZ() - boom.z, boom.z - (p.getZ() + 1)));

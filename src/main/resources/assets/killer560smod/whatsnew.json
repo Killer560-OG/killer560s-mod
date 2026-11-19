@@ -28,7 +28,8 @@
      "HUD editor: opened over a menu (RNG Meter, Superpairs, Start ETable, Start Croesus) it no longer draws the live panel under its own, so the RNG Meter ranking is readable and shows the real rows.",
      "Secret Clicked: every click on a locked chest plays the locked sound, and a locked chest you click again never plays the secret sound unless it really opens.",
      "Auto Accept Invites: Only From Guild Members reads your guild list once each session",
-     "Dungeon sim: Sim Teammates are now named after their class (Healer, Tank, Archer, Berserk, Mage) instead of Teammate1-4, so leap menus, leap lines and the tab show the class, and each leap tile is drawn in its class color. session entry: 500-boss-session:,1116-sim-infileap,1116-sim-classes,1117-sim-leapspots"
+     "Dungeon sim: Sim Teammates are now named after their class (Healer, Tank, Archer, Berserk, Mage) instead of Teammate1-4, so leap menus, leap lines and the tab show the class, and each leap tile is drawn in its class color. session entry: 500-boss-session:,1116-sim-infileap,1116-sim-classes,1117-sim-leapspots",
+     "Auto Superboom now also swaps to your Superboom when the block you click is not a target but a Superboom placed there would blow one up (within 3 blocks of the face you hit); new Also When In Blast Range switch, on by default."
     ]
    }
   ]

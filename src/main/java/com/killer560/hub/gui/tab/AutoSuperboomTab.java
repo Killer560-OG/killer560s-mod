@@ -22,8 +22,12 @@ public class AutoSuperboomTab extends BaseTab {
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> w = new ArrayList<>();
         AutoSuperboomConfig cfg = AutoSuperboomConfig.getInstance();
-        masterClosed(w, "Auto Superboom", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild, contentX, contentY,
-                contentWidth);
+        if (masterClosed(w, "Auto Superboom", cfg::isEnabledRaw, cfg::setEnabled, cfg::save, requestRebuild, contentX, contentY,
+                contentWidth)) {
+            return w;
+        }
+        w.add(onOffButton("Also When In Blast Range", cfg::isBlastRange, cfg::setBlastRange, cfg::save, null, contentX,
+                contentY + 24, contentWidth, 20));
         return w;
     }
 }

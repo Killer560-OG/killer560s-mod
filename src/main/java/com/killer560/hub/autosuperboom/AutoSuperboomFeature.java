@@ -89,10 +89,48 @@ public final class AutoSuperboomFeature {
         }
         BlockPos pos = hit.getBlockPos();
         BlockState s = client.level.getBlockState(pos);
+        return isTarget(client, pos, s) || AutoSuperboomConfig.getInstance().isBlastRange() && targetInBlast(client, hit);
+    }
+
+    private static boolean isTarget(Minecraft client, BlockPos pos, BlockState s) {
         return s.is(Blocks.CRACKED_STONE_BRICKS) || s.is(Blocks.INFESTED_CRACKED_STONE_BRICKS)
                 || P3SectionTracker.running() && DungeonState.isBossPhaseActive() && BossGates.isGateBlock(pos, s)
                 || isTombBlock(client, pos, s);
     }
+
+    /** Blast range (SimItems.inReach, the sim's proven shape: radius 3 from the center of the hit face to a block's box):
+     *  a target inside the 7-block cube around the click. Asked only on a queued click; the answer for one block and face
+     *  is kept 4 ticks, so a held button scans once for a few ticks. */
+    private static boolean targetInBlast(Minecraft client, BlockHitResult hit) {
+        long now = ActionGate.currentTick();
+        BlockPos pos = hit.getBlockPos();
+        if (pos.equals(blastPos) && hit.getDirection() == blastFace && now - blastTick <= 4) {
+            return blastAnswer;
+        }
+        net.minecraft.world.phys.Vec3 boom = com.killer560.hub.roomsim.SimItems.boomPoint(pos, hit.getDirection());
+        BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos();
+        boolean found = false;
+        for (int dx = -4; dx <= 4 && !found; dx++) {
+            for (int dy = -4; dy <= 4 && !found; dy++) {
+                for (int dz = -4; dz <= 4 && !found; dz++) {
+                    m.set(pos.getX() + dx, pos.getY() + dy, pos.getZ() + dz);
+                    if (com.killer560.hub.roomsim.SimItems.inReach(boom, m) && isTarget(client, m, client.level.getBlockState(m))) {
+                        found = true;
+                    }
+                }
+            }
+        }
+        blastPos = pos.immutable();
+        blastFace = hit.getDirection();
+        blastTick = now;
+        blastAnswer = found;
+        return found;
+    }
+
+    private static BlockPos blastPos = BlockPos.ZERO;
+    private static net.minecraft.core.Direction blastFace = net.minecraft.core.Direction.UP;
+    private static long blastTick = Long.MIN_VALUE / 2;
+    private static boolean blastAnswer;
 
     /** Crypt and prince tomb blocks around the click: {@link CryptScanner} runs only on a click at a block kind a tomb is made of,
      *  over a 33 x 33 window centered on it, and its answer is kept 5 s (or until a click lands 8 blocks from the center). */
