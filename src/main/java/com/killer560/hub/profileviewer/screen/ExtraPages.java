@@ -634,7 +634,7 @@ final class ExtraPages {
             }
             tip(lines);
         }
-        perkList(g, "Perks", m.nodes(), l + 253, t + 20, 155, mx, my);
+        HotmTree.draw(s, g, m.nodes(), m.selectedAbility(), thresholdLevel(table, m.hotmXp()).level(), l + 253, t + 20, 155, 170, mx, my);
     }
 
     private void drawHotm(GuiGraphicsExtractor g, ProfileExtras.Mining m, int rx, int rw, int mx, int my) {
@@ -686,7 +686,7 @@ final class ExtraPages {
             tx(g, "Empty", x, y, DIM);
         }
         for (ProfileExtras.ForgeSlot slot : m.forge()) {
-            if (y > s.contentY + s.contentH - 10) break;
+            if (y > s.contentY + s.contentH - 66) break;
             String label = "Slot " + slot.slot();
             tx(g, label, x, y, DIM);
             String item = f().plainSubstrByWidth(SbProfile.titleCase(slot.id()), w - f().width(label) - 6);
@@ -697,13 +697,12 @@ final class ExtraPages {
             y += 10;
         }
 
-        // Crystals + perks
-        int cx = rx + 6 + w + 12;
-        int cw = rx + rw - 6 - cx;
-        int cy = s.contentY + 5;
+        // Crystals under the forge (hotmtree-1118: the right half is the perk tree), tree beside them
+        int cx = x;
+        int perRow = Math.max(1, Math.min(8, w / 20));
+        int cy = s.contentY + s.contentH - 4 - ((CRYSTALS.length + perRow - 1) / perRow) * 20 - 11;
         title(g, "Crystals", cx, cy);
         cy += 11;
-        int perRow = Math.max(1, Math.min(6, cw / 20));
         for (int i = 0; i < CRYSTALS.length; i++) {
             int ix = cx + (i % perRow) * 20;
             int iy = cy + (i / perRow) * 20;
@@ -718,8 +717,11 @@ final class ExtraPages {
                         line("Found: " + commas(c == null ? 0 : c.found()), DIM), line("Placed: " + commas(c == null ? 0 : c.placed()), DIM)));
             }
         }
-        cy += ((CRYSTALS.length + perRow - 1) / perRow) * 20 + 4;
-        perkList(g, "Perks", m.nodes(), cx, cy, cw, mx, my);
+        int tx0 = rx + 6 + w + 12, treeTop = s.contentY + 5;
+        title(g, "Perks", tx0, treeTop);
+        rightText(g, String.valueOf(m.nodes().size()), rx + rw - 6, treeTop, VALUE);
+        HotmTree.draw(s, g, m.nodes(), m.selectedAbility(), lvl.level(), tx0, treeTop + 11, rx + rw - 6 - tx0,
+                s.contentY + s.contentH - 4 - treeTop - 11, mx, my);
     }
 
     private void perkList(GuiGraphicsExtractor g, String label, Map<String, Integer> nodes, int x, int y, int w, int mx, int my) {
