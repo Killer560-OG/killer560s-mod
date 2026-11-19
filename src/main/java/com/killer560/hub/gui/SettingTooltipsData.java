@@ -1038,6 +1038,10 @@ final class SettingTooltipsData {
         d.put("terminal timers", "Shows terminal solve times and section splits in your own chat during F7/M7 P3.");
         d.put("terminal solve times", "Shows how long you had each terminal open after you finish it.");
         d.put("terminal/device splits", "Adds section and phase times to every terminal, device and lever completion line in P3.");
+        d.put("melody lost in splits", "Adds the time each P3 section lost to Melody under the Split Timers rows, and the total. Counts only when a section's LAST objective was a Melody terminal: that completion minus the one before it. Shown only when something was lost.");
+        d.put("melody lost hud", "A movable HUD with S1 to S4 and the total time lost to Melody. A section counts only when its last objective was a Melody terminal; a Melody finished earlier, or a device or lever last, adds nothing.");
+        d.put("melody lost per phase", "After a P3 section ends with a Melody terminal as its last objective, one chat line (client side only) says how long that Melody held the section up and who had it.");
+        d.put("melody lost overall", "When Goldor's last section (S4) ends, one chat line (client side only) with the total time lost to Melody and each section's share.");
         d.put("terminal breakdown", "At the end of P3 (when the core opens), one chat line per player: how many terminals, devices and levers each did. Works with Terminal Timers on.");
         d.put("simon says time", "Shows how long the Simon Says device took after you solve it.");
         d.put("item rarity backgrounds", "Draws a rarity-colored square, circle or outline behind Skyblock items.");

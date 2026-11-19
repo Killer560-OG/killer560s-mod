@@ -27,6 +27,11 @@ public final class TerminalTimersConfig {
     private boolean simonSaysTime = true;
     // The end-of-P3 per-player count of terminals, devices and levers (featsweep-1108, item 2).
     private boolean breakdown = true;
+    // Time Lost To Melody (melodylost-1118): what each P3 section lost to a Melody that was its last objective.
+    private boolean melodyLostSplits = false;
+    private boolean melodyLostHud = false;
+    private boolean melodyLostPhase = false;
+    private boolean melodyLostTotal = false;
 
     private TerminalTimersConfig() {
     }
@@ -51,6 +56,10 @@ public final class TerminalTimersConfig {
             cfg.splits = ConfigJson.getBool(obj, "splits", true);
             cfg.simonSaysTime = ConfigJson.getBool(obj, "simonSaysTime", true);
             cfg.breakdown = ConfigJson.getBool(obj, "breakdown", true);
+            cfg.melodyLostSplits = ConfigJson.getBool(obj, "melodyLostSplits", false);
+            cfg.melodyLostHud = ConfigJson.getBool(obj, "melodyLostHud", false);
+            cfg.melodyLostPhase = ConfigJson.getBool(obj, "melodyLostPhase", false);
+            cfg.melodyLostTotal = ConfigJson.getBool(obj, "melodyLostTotal", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new TerminalTimersConfig();
@@ -64,6 +73,10 @@ public final class TerminalTimersConfig {
         obj.addProperty("splits", splits);
         obj.addProperty("simonSaysTime", simonSaysTime);
         obj.addProperty("breakdown", breakdown);
+        obj.addProperty("melodyLostSplits", melodyLostSplits);
+        obj.addProperty("melodyLostHud", melodyLostHud);
+        obj.addProperty("melodyLostPhase", melodyLostPhase);
+        obj.addProperty("melodyLostTotal", melodyLostTotal);
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
@@ -94,4 +107,30 @@ public final class TerminalTimersConfig {
     public boolean getBreakdownRaw() { return breakdown; }
 
     public void setBreakdown(boolean breakdown) { this.breakdown = breakdown; }
+    public boolean getMelodyLostSplitsRaw() { return melodyLostSplits; }
+
+    public void setMelodyLostSplits(boolean v) { melodyLostSplits = v; }
+
+    public boolean getMelodyLostHudRaw() { return melodyLostHud; }
+
+    public void setMelodyLostHud(boolean v) { melodyLostHud = v; }
+
+    public boolean getMelodyLostPhaseRaw() { return melodyLostPhase; }
+
+    public void setMelodyLostPhase(boolean v) { melodyLostPhase = v; }
+
+    public boolean getMelodyLostTotalRaw() { return melodyLostTotal; }
+
+    public void setMelodyLostTotal(boolean v) { melodyLostTotal = v; }
+
+    public boolean isMelodyLostSplits() { return isEnabled() && melodyLostSplits; }
+
+    public boolean isMelodyLostHud() { return isEnabled() && melodyLostHud; }
+
+    public boolean isMelodyLostPhase() { return isEnabled() && melodyLostPhase; }
+
+    public boolean isMelodyLostTotal() { return isEnabled() && melodyLostTotal; }
+
+    /** Any Time Lost To Melody output is on, so the tracker runs. */
+    public boolean isMelodyLostActive() { return isEnabled() && (melodyLostSplits || melodyLostHud || melodyLostPhase || melodyLostTotal); }
 }

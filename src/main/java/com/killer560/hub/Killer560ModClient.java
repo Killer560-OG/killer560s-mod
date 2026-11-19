@@ -343,6 +343,8 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.splittimers.BloodRushSplits.register();
         HudElementRegistry.register(new com.killer560.hub.splittimers.BloodRushSplits.Hud());
         com.killer560.hub.splittimers.TerminalTimersFeature.register();
+        com.killer560.hub.splittimers.MelodyLost.register();
+        HudElementRegistry.register(com.killer560.hub.splittimers.MelodyLost.HUD);
         com.killer560.hub.itemrarity.ItemRarityFeature.register();
         com.killer560.hub.cheatutils.CheatUtils.register();
         com.killer560.hub.leveraura.LeverAuraFeature.register();

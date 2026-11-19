@@ -634,6 +634,7 @@ public final class SplitTimersFeature {
             }
             List<String> rows = editor ? editorRows() : rowTexts(layoutRows(System.currentTimeMillis()));
             lineY = addAligned(out, rows, 0, lineY);
+            lineY = addAligned(out, MelodyLost.splitLines(), 0, lineY);
             boolean right = SplitTimersConfig.getInstance().isP5LinesRight();
             int p5X = right ? SPLIT_COLUMN_WIDTH : 0;
             int p5Y = addAligned(out, p5Lines(), p5X, right ? 0 : lineY);

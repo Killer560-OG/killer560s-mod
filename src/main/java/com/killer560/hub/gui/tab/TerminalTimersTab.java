@@ -40,6 +40,22 @@ public class TerminalTimersTab extends BaseTab {
 
         widgets.add(onOffButton("Terminal Breakdown", cfg::getBreakdownRaw, cfg::setBreakdown, cfg::save,
                 null, contentX, y, contentWidth, 18));
+        y += 20;
+
+        widgets.add(onOffButton("Melody Lost In Splits", cfg::getMelodyLostSplitsRaw, cfg::setMelodyLostSplits, cfg::save,
+                null, contentX, y, contentWidth, 18));
+        y += 20;
+
+        widgets.add(onOffButton("Melody Lost HUD", cfg::getMelodyLostHudRaw, cfg::setMelodyLostHud, cfg::save,
+                null, contentX, y, contentWidth, 18));
+        y += 20;
+
+        widgets.add(onOffButton("Melody Lost Per Phase", cfg::getMelodyLostPhaseRaw, cfg::setMelodyLostPhase, cfg::save,
+                null, contentX, y, contentWidth, 18));
+        y += 20;
+
+        widgets.add(onOffButton("Melody Lost Overall", cfg::getMelodyLostTotalRaw, cfg::setMelodyLostTotal, cfg::save,
+                null, contentX, y, contentWidth, 18));
 
         return widgets;
     }

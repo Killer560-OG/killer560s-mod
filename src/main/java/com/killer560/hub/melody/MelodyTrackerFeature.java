@@ -223,6 +223,7 @@ public final class MelodyTrackerFeature {
     private static void applySelf(MelodySlotReader.Result r) {
         String self = selfIgn();
         if (self == null) return;
+        MelodyIntel.noteHad(self, MelodyIntel.SRC_OWN); // the Melody menu is open: Time Lost To Melody evidence
         if (r.highestLitClayRow() != lastLitRow && r.highestLitClayRow() >= BridgeTables.MELODY_MIN_CLAY_ROW
                 && r.highestLitClayRow() <= BridgeTables.MELODY_MAX_CLAY_ROW) {
             lastLitRow = r.highestLitClayRow();

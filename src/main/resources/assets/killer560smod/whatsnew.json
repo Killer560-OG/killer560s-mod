@@ -34,7 +34,8 @@
      "Slot Text: Forbidden Intel in the Essence Shops no longer shows its level twice.",
      "Party Commands: Officer chat is now a channel like Guild (off by default); it answers the same ! commands and replies with /oc.",
      "Auto Anvil: new Start Mode setting. Start Button (default) shows a Start Auto Anvil / Stop Auto Anvil button in the anvil menu; Auto Start begins by itself when the menu opens, as before.",
-     "Inventory search bar: a blinking _ caret shows while you type in it; the empty focused bar shows just the caret instead of the hint."
+     "Inventory search bar: a blinking _ caret shows while you type in it; the empty focused bar shows just the caret instead of the hint.",
+     "Terminal Timers: new Time Lost To Melody (Split Timers rows, its own HUD, a chat line per phase and an overall one, all default off): the time a Goldor section waited when its last terminal was a Melody, counted only when Melody is last, never carried over, 0 when unknown."
     ]
    }
   ]

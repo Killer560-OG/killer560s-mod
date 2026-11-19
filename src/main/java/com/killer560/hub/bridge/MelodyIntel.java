@@ -129,7 +129,54 @@ public final class MelodyIntel {
         }
     }
 
+    /** Melody-this-section evidence for Time Lost To Melody: who, in which P3 stage, and how we know. Kept for the
+     *  whole section (unlike the 15 s entries) and dropped with {@link #clear()}. A stronger source is never replaced. */
+    public record Had(int stage, int rank, String source) { }
+
+    private static final Map<String, Had> HAD = new LinkedHashMap<>();
+    public static final String SRC_OWN = "own menu";
+    public static final String SRC_SHARE = "team share";
+    public static final String SRC_CHAT = "party chat";
+
+    private static int rankOf(String source) {
+        return source.equals(SRC_OWN) ? 3 : source.equals(SRC_SHARE) ? 2 : 1;
+    }
+
+    /** {@code player} had a Melody open in the current P3 stage (evidence dated now). */
+    public static void noteHad(String player, String source) {
+        int stage = com.killer560.hub.fastleap.Floor7Tracker.getStage().number;
+        String key = player.toLowerCase(Locale.ROOT);
+        Had old = HAD.get(key);
+        if (old == null || old.stage() != stage || old.rank() < rankOf(source)) {
+            if (HAD.size() >= MAX_PLAYERS * 2) {
+                HAD.clear();
+            }
+            HAD.put(key, new Had(stage, rankOf(source), source));
+        }
+    }
+
+    /** How we know {@code player} had Melody in {@code stage}, or null when no evidence is dated inside it. */
+    public static String hadSource(String player, int stage) {
+        Had h = player == null ? null : HAD.get(player.toLowerCase(Locale.ROOT));
+        return h != null && h.stage() == stage ? h.source() : null;
+    }
+
+    /** A completion line ends that player's Melody: its evidence cannot decide a later completion. */
+    public static void forgetHad(String player) {
+        if (player != null) {
+            HAD.remove(player.toLowerCase(Locale.ROOT));
+        }
+    }
+
+    private static boolean isSelf(String player) {
+        var p = net.minecraft.client.Minecraft.getInstance().player;
+        return p != null && p.getGameProfile().name().equalsIgnoreCase(player);
+    }
+
     private static void put(String key, Progress p) {
+        if (!isSelf(p.player())) {
+            noteHad(p.player(), p.hasBoard() || p.done() || p.chatPercent() < 0 ? SRC_SHARE : SRC_CHAT);
+        }
         BY_PLAYER.put(key, p);
         while (BY_PLAYER.size() > MAX_PLAYERS) {
             BY_PLAYER.remove(BY_PLAYER.keySet().iterator().next());
@@ -150,6 +197,7 @@ public final class MelodyIntel {
     /** Every entry gone: a new P3 section, the Core opening, a new run. */
     public static void clear() {
         BY_PLAYER.clear();
+        HAD.clear();
     }
 
     public static List<Progress> snapshot() {
