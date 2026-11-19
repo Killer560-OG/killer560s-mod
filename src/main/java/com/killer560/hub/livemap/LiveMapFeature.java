@@ -1732,8 +1732,7 @@ public final class LiveMapFeature {
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             LiveMapConfig cfg = LiveMapConfig.getInstance();
-            // Chat never hides the map any more (killer560: "dont make it hide the gui if i open chat") - it used to
-            // stay only for the interactive map's "Open From HUD Click"; that click path still works the same.
+            // Chat never hides the map any more (killer560: "dont make it hide the gui if i open chat").
             // killer560: "if you detect I am on the p3sim then make it hide the dungeon map just like it does in
             // boss rooms of dungeons" - isInBoss() is the one boss flag this whole package already gates room
             // matching/solvers on; p3sim now shares that same gate (via MapPainter.onP3Sim(), not a second IP

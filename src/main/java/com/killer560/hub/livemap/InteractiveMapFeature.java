@@ -2,8 +2,6 @@ package com.killer560.hub.livemap;
 
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.dungeonclass.DungeonClass;
-import com.killer560.hub.hud.HudElement;
-import com.killer560.hub.hud.HudElementRegistry;
 import com.killer560.hub.leapmenu.LeapMenuFeature;
 import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.livemap.autoclear.AutoClearUtils;
@@ -12,10 +10,7 @@ import com.killer560.hub.livemap.autoclear.ClearExecutor;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
-import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.ChatScreen;
 import net.minecraft.world.entity.player.Player;
 
 import java.util.ArrayList;
@@ -57,12 +52,6 @@ public final class InteractiveMapFeature {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("InteractiveMapFeature.tick", InteractiveMapFeature::tick));
         ClearExecutor.register();
         BloodRush.register();
-        ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
-            if (!(screen instanceof ChatScreen)) {
-                return;
-            }
-            ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> !tryOpenFromHud(event.x(), event.y()));
-        });
     }
 
     private static void tick(Minecraft client) {
@@ -277,6 +266,7 @@ public final class InteractiveMapFeature {
         if (com.killer560.hub.autoroutes.AutoRoutesFeature.onMapRoomClicked(layout, room)) {
             return;
         }
+        quietPath();
         AutoClearUtils.pathToSpot(layout, room, tile, x, z);
     }
 
@@ -347,6 +337,7 @@ public final class InteractiveMapFeature {
         boolean busy = ClearExecutor.isBusy() || BloodRush.isRunning() || pendingGoal != null;
         if (!busy) {
             DungeonLayout layout = DungeonLayout.capture();
+            quietPath();
             goal.run(layout, layout.roomOfCell(cell), cell);
             return;
         }
@@ -384,6 +375,7 @@ public final class InteractiveMapFeature {
             MapGoal goal = pendingGoal;
             int cell = pendingGoalCell;
             clearPendingGoal();
+            quietPath();
             goal.run(layout, layout.roomOfCell(cell), cell);
             return;
         }
@@ -442,6 +434,7 @@ public final class InteractiveMapFeature {
                 ModChat.send(CHAT, ModChat.bad("Current room is unknown"));
                 return;
             }
+            quietPath();
             goal.run(layout, room, layout.tiles(room)[0]);
         });
     }
@@ -457,33 +450,18 @@ public final class InteractiveMapFeature {
                 ModChat.send(CHAT, ModChat.bad("No locked doors found."));
                 return;
             }
+            quietPath();
             AutoClearUtils.pathToDoor(layout, door, LiveMapConfig.getInstance().isFaceDoorOnArrival());
         });
     }
 
-    static boolean isPeeking() {
-        return peeking;
+    /** A path started from the map draws no waypoint boxes or lines in the world (killer560, 2026-11-18). */
+    private static void quietPath() {
+        ClearExecutor.quietNextPath();
     }
 
-    private static boolean tryOpenFromHud(double mouseX, double mouseY) {
-        LiveMapConfig cfg = LiveMapConfig.getInstance();
-        if (!cfg.isOpenFromHudClick() || !cfg.isInteractiveMapEnabled() || !cfg.isEnabled() || !DungeonState.isInDungeon()) {
-            return false;
-        }
-        for (HudElement element : HudElementRegistry.all()) {
-            if (!"live_map".equals(element.id())) {
-                continue;
-            }
-            int[] pos = HudElementRegistry.resolvePosition(element);
-            float scale = HudElementRegistry.resolveScale(element);
-            if (mouseX >= pos[0] && mouseY >= pos[1] && mouseX < pos[0] + element.width() * scale
-                    && mouseY < pos[1] + element.height() * scale) {
-                Minecraft client = Minecraft.getInstance();
-                client.execute(() -> McCompat.setScreen(client, new InteractiveMapScreen(false)));
-                return true;
-            }
-        }
-        return false;
+    static boolean isPeeking() {
+        return peeking;
     }
 
     private static void trackClears(Minecraft client) {

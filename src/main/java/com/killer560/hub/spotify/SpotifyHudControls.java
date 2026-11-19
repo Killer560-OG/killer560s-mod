@@ -21,7 +21,7 @@ import net.minecraft.client.gui.screens.ChatScreen;
  * the reason is written under the row. With chat closed nothing changes: the HUD is display-only.
  *
  * <p>Clicks reach this through Fabric's {@code ScreenMouseEvents.allowMouseClick} on the chat screen, the pattern Custom
- * Scoreboard and the Live Map's "open from HUD" use. Any left click on the HUD or its row is consumed, so it can never go
+ * Scoreboard. Any left click on the HUD or its row is consumed, so it can never go
  * on to a chat link or move the text cursor; other buttons and clicks elsewhere pass to chat untouched. The HUD editor is
  * its own screen, so it never sees this.
  *

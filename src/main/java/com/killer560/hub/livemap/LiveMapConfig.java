@@ -106,7 +106,6 @@ public final class LiveMapConfig {
     private int openKeyCode = -1;
     /** The reference "Close on": false = Release, true = Repress. */
     private boolean closeOnRepress = false;
-    private boolean openFromHudClick = false;
     /** The reference "Map scale" 1..10 (default 5). */
     private float mapScale = 5f;
     /** The reference "Font scale" 0.5..3. */
@@ -209,7 +208,6 @@ public final class LiveMapConfig {
             .add("streamSafe", false, c -> c.streamSafe, (c, v) -> c.streamSafe = v)
             .add("interactiveMapEnabled", false, c -> c.interactiveMapEnabled, (c, v) -> c.interactiveMapEnabled = v)
             .add("closeOnRepress", false, c -> c.closeOnRepress, (c, v) -> c.closeOnRepress = v)
-            .add("openFromHudClick", false, c -> c.openFromHudClick, (c, v) -> c.openFromHudClick = v)
             .add("textShadow", true, c -> c.textShadow, (c, v) -> c.textShadow = v)
             .add("witherDoorOutline", false, c -> c.witherDoorOutline, (c, v) -> c.witherDoorOutline = v)
             .add("mapControlsExpanded", false, c -> c.mapControlsExpanded, (c, v) -> c.mapControlsExpanded = v)
@@ -842,14 +840,6 @@ public final class LiveMapConfig {
 
     public void setCloseOnRepress(boolean v) {
         this.closeOnRepress = v;
-    }
-
-    public boolean isOpenFromHudClick() {
-        return openFromHudClick;
-    }
-
-    public void setOpenFromHudClick(boolean v) {
-        this.openFromHudClick = v;
     }
 
     public float getMapScale() {

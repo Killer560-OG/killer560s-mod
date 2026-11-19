@@ -1788,7 +1788,6 @@ final class SettingTooltipsData {
 
         d.put("interactive map", "Cheat build: full-screen dungeon map; click a room to etherwarp to it or start its secret route.");
         d.put("extra info", "Adds Crypts, bonus kills and secrets still needed for S+ to the map legend. Works with Score Calculator off.");
-        d.put("open from hud click", "Click the small HUD map (with chat open) to open the full map.");
         d.put("map scale", "Size of the full Interactive Map, 1-10.");
         d.put("font scale", "Size of the room labels on both maps, 0.5x to 3x.");
         d.put("player heads", "Draws each player's skin face as their map marker instead of the arrow, turned so the top of the head points where they face.");

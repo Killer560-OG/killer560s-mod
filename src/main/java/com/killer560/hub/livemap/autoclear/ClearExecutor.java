@@ -102,6 +102,9 @@ public final class ClearExecutor {
     private static int syncWaitTicks = 0;
     private static volatile boolean pathPending = false;
     private static volatile boolean lastPathFailed = false;
+    /** The path now starting came from the Interactive Map: its nodes are not drawn. Drops once nothing is busy. */
+    private static volatile boolean quietPath = false;
+    private static int nodesDrawn = 0;
     private static int generation = 0;
     private static boolean hasSwappedThisTick = false;
     private static Object lastLevel = null;
@@ -204,14 +207,28 @@ public final class ClearExecutor {
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("ClearExecutor.onTickEnd", ClearExecutor::onTickEnd));
         TripCache.register();
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(ctx -> {
+            if (quietPath) {
+                quietPath &= isBusy();
+                return;
+            }
             List<ClearNode> current = nodes;
             if (current == null || current.isEmpty()) {
                 return;
             }
             for (ClearNode node : new ArrayList<>(current)) {
                 node.render(ctx);
+                nodesDrawn++;
             }
         });
+    }
+
+    public static void quietNextPath() {
+        quietPath = true;
+    }
+
+    /** Nodes drawn so far, for tests. */
+    public static int nodesDrawn() {
+        return nodesDrawn;
     }
 
     public static boolean isActive() {
