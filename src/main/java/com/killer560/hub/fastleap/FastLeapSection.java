@@ -285,7 +285,6 @@ public final class FastLeapSection {
         if (!BuildVariant.CHEAT_FEATURES_ENABLED) {
             return y;
         }
-        FastLeapConfig cfg = FastLeapConfig.getInstance();
         int w = Math.max(1, width);
         DungeonClass mine = editingClass();
         widgets.add(SettingsButtonWidget.cycling(Component.literal("When You Play: " + DungeonClass.colourCode(mine)
@@ -294,10 +293,7 @@ public final class FastLeapSection {
             requestRebuild.run();
         }).bounds(x, y, w, ROW).build());
         y += ROW + GAP;
-        int n = cfg.classTargetCount();
-        widgets.add(titleLabel(x, y, w, "§7Universal: uses the Universal target. "
-                + n + (n == 1 ? " target" : " targets") + " set in all."));
-        return phaseRows(widgets, x, y + GROUP_TITLE_H, w, mine, includeHidden, requestRebuild);
+        return phaseRows(widgets, x, y, w, mine, includeHidden, requestRebuild);
     }
 
     /** Widest a leap grid column gets (Off/Fast/Auto, target, mode); the name column takes the rest. */
