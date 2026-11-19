@@ -160,7 +160,8 @@ for title in sorted(mobs):
         for name, (c, rarity, text) in seen.items():
             if c >= 1:
                 continue
-            tracked = rarity in ANNOUNCED or c < 0.05
+            # luckcount-1118: Hypixel does print RARE DROP lines for these 5% drops (15, 12 and 2 lines in his 11-16..18 logs)
+            tracked = rarity in ANNOUNCED or c < 0.05 or name in ("Soulstealer Bow", "Dreadlord Sword", "Sniper Bow")
             add(key=f"{key}|{name}", name=name, activity=key, chance=round(c, 12) if tracked else None,
                 chanceText=None if tracked else f"{text} (no drop message; not counted)",
                 mf=(c < 0.05) or None, loot=(not name.endswith(" Pet")) or None, cat="dye" if name.endswith(" Dye") else "mob",

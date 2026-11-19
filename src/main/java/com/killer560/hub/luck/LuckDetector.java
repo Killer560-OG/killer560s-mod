@@ -10,6 +10,7 @@ import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.SkyblockGate;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.item.ItemStack;
@@ -102,6 +103,8 @@ public final class LuckDetector {
     private static PendingKill pendingKill;
     private static String lastMobActivity;
     private static long lastMobMs;
+    /** The last distinct mob activities killed (newest first, at most 8), for drops of an Implosion's other mobs. */
+    private static final java.util.ArrayDeque<String> RECENT_MOBS = new java.util.ArrayDeque<>();
     private static List<String> nucleusItems;
     private static long nucleusAtMs;
     /** The loot message ends with the same bar it opens with, and ChatObserver drops a line repeated within 250 ms,
@@ -169,7 +172,20 @@ public final class LuckDetector {
     }
 
     public static void register() {
-        ChatObserver.subscribe(message -> onChat(ChatObserver.raw(message)));
+        // Drop lines come straight from the server's system-chat event, not ChatObserver: that drops an identical line within
+        // 250 ms, and two mobs dying in one Implosion send identical drop lines a few ms apart (14 of ~250 lost, luckcount-1118).
+        ChatObserver.subscribe(message -> {
+            String raw = ChatObserver.raw(message);
+            if (raw != null && !raw.contains("DROP!")) {
+                onChat(raw);
+            }
+        });
+        ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
+            String raw = overlay ? null : ChatObserver.raw(message);
+            if (raw != null && raw.contains("DROP!")) {
+                onChat(raw);
+            }
+        });
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("LuckDetector.onTick", LuckDetector::onTick));
     }
 
@@ -186,11 +202,18 @@ public final class LuckDetector {
             return;
         }
         if (!raw.contains("DROP!") && !raw.contains("SLAYER") && !raw.contains("Slayer LVL") && !raw.contains("RNG Meter")
-                && !raw.contains("NUCLEUS")) {
+                && !raw.contains("NUCLEUS") && !raw.contains(" hit ")) {
             return;
         }
         String text = ChatFormatting.stripFormatting(raw);
         if (text == null) {
+            return;
+        }
+        if (text.startsWith("Your ")) {
+            Matcher ab = LuckKills.ABILITY.matcher(text.trim());
+            if (ab.matches()) {
+                LuckKills.onAbilityLine(ab.group(1), Integer.parseInt(ab.group(2)));
+            }
             return;
         }
         if (NUCLEUS_START.matcher(text).matches()) {
@@ -355,8 +378,17 @@ public final class LuckDetector {
 
     /** A mob he hit died ({@link LuckKills}): one attempt at its table, with his Looting and Magic Find. */
     static void onMobKill(String activity, int looting, String why) {
+        long at = System.currentTimeMillis();
+        if (at - lastMobMs > MOB_MEMORY_MS) {
+            RECENT_MOBS.clear();
+        }
+        RECENT_MOBS.remove(activity);
+        RECENT_MOBS.addFirst(activity);
+        if (RECENT_MOBS.size() > 8) {
+            RECENT_MOBS.removeLast();
+        }
         lastMobActivity = activity;
-        lastMobMs = System.currentTimeMillis();
+        lastMobMs = at;
         int mf = magicFind();
         LuckStore.attempt(activity, new LuckMath.Bonus(mf, looting, -1, null, 0));
         lastDecision = "attempt " + activity + " at " + mf + "% MF, Looting " + looting + " (" + why + ")";
@@ -429,12 +461,39 @@ public final class LuckDetector {
 
     /** A drop line or inventory gain for {@code name}: decides its key and records it. */
     static void onDrop(String name, int amount, String source, int mf) {
-        DropTable table = DropTable.get();
-        String key = keyFor(table, name);
-        LuckStore.drop(key, amount, source, mf);
         if ("chat".equals(source)) {
             CREDITS.add(DropTable.normalize(name), 1, System.currentTimeMillis());
         }
+        name = DropTable.get().tableName(name);
+        String key = keyFor(DropTable.get(), name);
+        if ("chat".equals(source)) {
+            if (key.startsWith("other|") && PENDING_DROPS.size() < 16) {
+                // Hypixel prints a drop as the mob dies, a tick or more before the kill is read: wait for it.
+                PENDING_DROPS.add(new PendingDrop(name, amount, mf, ticks));
+                return;
+            }
+        }
+        record(name, amount, source, mf, key);
+    }
+
+    /** Drops whose mob was not known yet: settled once the kill had its ticks (or as "other" after them). */
+    private record PendingDrop(String name, int amount, int mf, int tick) {
+    }
+    private static final List<PendingDrop> PENDING_DROPS = new java.util.ArrayList<>();
+    private static final int DROP_WAIT_TICKS = 6;
+
+    private static void settleDrops() {
+        for (java.util.Iterator<PendingDrop> it = PENDING_DROPS.iterator(); it.hasNext(); ) {
+            PendingDrop p = it.next();
+            if (ticks >= p.tick() + DROP_WAIT_TICKS) {
+                it.remove();
+                record(p.name(), p.amount(), "chat", p.mf(), keyFor(DropTable.get(), p.name()));
+            }
+        }
+    }
+
+    private static void record(String name, int amount, String source, int mf, String key) {
+        LuckStore.drop(key, amount, source, mf);
         lastDecision = "drop " + key + " (" + source + ")";
         LOGGER.info("[Luck] Drop {} x{} from {} at {}% MF", key, amount, source, mf);
         if (key.startsWith("slayer:")) {
@@ -465,6 +524,15 @@ public final class LuckDetector {
             DropTable.Drop d = table.find(act, name);
             if (d != null) {
                 return d.key();
+            }
+        }
+        if (mob != null) {
+            // Several mobs died together (an Implosion): the drop is one of theirs whose table has the item.
+            for (String act : RECENT_MOBS) {
+                DropTable.Drop d = table.find(act, name);
+                if (d != null) {
+                    return d.key();
+                }
             }
         }
         DropTable.Drop only = null;
@@ -577,10 +645,14 @@ public final class LuckDetector {
     private static void onTick(Minecraft mc) {
         if (mc.player == null || !active()) {
             snapshot = null;
+            PENDING_DROPS.clear();
             return;
         }
         if (++ticks % 20 == 0) {
             refreshQuest();
+        }
+        if (!PENDING_DROPS.isEmpty()) {
+            settleDrops();
         }
         if (nucleusItems != null && System.currentTimeMillis() - nucleusAtMs > NUCLEUS_MAX_MS) {
             finishNucleus(); // its closing bar was dropped as a repeat of the opening one
@@ -702,6 +774,7 @@ public final class LuckDetector {
         snapshot = null;
         SEEN_UUIDS.clear();
         UUID_NAMES.clear();
+        PENDING_DROPS.clear();
         LOSSES.clear();
         CREDITS.clear();
         questActivity = null;
@@ -710,6 +783,7 @@ public final class LuckDetector {
         lastKillMs = 0;
         pendingKill = null;
         lastMobActivity = null;
+        RECENT_MOBS.clear();
         lastMobMs = 0;
         nucleusItems = null;
         excludedPickups = 0;

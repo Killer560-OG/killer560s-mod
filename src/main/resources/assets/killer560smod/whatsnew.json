@@ -8,7 +8,8 @@
     "blurb": "Changes in this update.",
     "items": [
      "Low Health Alert: new Alert For Yourself switch (on by default) also warns when your own health drops under 30% (50% for getting low), once until it recovers.",
-     "Slot Text: perks in the Essence Shops (such as Forbidden Blessing X) now show their level as the small slot number, unless the stack count already shows it."
+     "Slot Text: perks in the Essence Shops (such as Forbidden Blessing X) now show their level as the small slot number, unless the stack count already shows it.",
+     "How Lucky Are You now counts kills made with Implosion, Spirit Sceptre, Guided Sheep and other ability hits and with bow shots, no longer loses drop lines that arrive before the kill or two at once, and matches armor piece drops and three more 5% drops to their odds."
     ]
    }
   ]

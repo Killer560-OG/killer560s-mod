@@ -92,6 +92,7 @@ API names that differ between 26.1.2 and 26.2 are in [COMPILING.md](COMPILING.md
 
 ## Chat and commands
 
+- How Lucky Are You (luckcount-1118): Hyperion/ability kills and arrow kills never reach AttackEntityCallback, so a kill counter fed only by melee hits sees ~1% of an Implosion clear (his logs: 86 of ~6,100 Kill Combo kills). Ground truth for kill totals in the logger is the "Your Kill Combo has expired! You reached a N Kill Combo!" line (sum N), not the "+N Kill Combo" milestones. Hypixel prints a drop line a tick BEFORE the mob death is readable, so a drop that cannot be placed waits a few ticks for the kill. ChatObserver drops an identical line within 250 ms: a counter that must see every identical line (two mobs dying in one Implosion send the same drop line 8-40 ms apart) reads ClientReceiveMessageEvents.GAME itself. Wiki "Armor Piece" rows are announced per piece ("Zombie Soldier Boots"): DropTable.tableName maps them.
 - `ServerCommands.toServer` returns false both with no connection and when Creation Cooldown blocks a /joininstance, so a
   caller must not read false as "offline" or log success anyway: Party Commands' "!f3" was dropped, logged "Not sent (no
   connection)" and still "queued F3" (2026-11-04). A floor request now waits the cooldown out (partycmd-1104, testkit 1104-partycmd-floor-*).

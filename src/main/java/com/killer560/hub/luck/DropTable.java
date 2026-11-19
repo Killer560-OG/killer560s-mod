@@ -205,6 +205,22 @@ public final class DropTable {
                 || activity.startsWith("experiment:");
     }
 
+    private static final java.util.regex.Pattern PIECE = java.util.regex.Pattern.compile("^(.+) (?:Helmet|Chestplate|Leggings|Boots)$");
+
+    /**
+     * The table's name for an announced drop: a dungeon mob's armor comes as one piece ("Zombie Soldier Boots") but the
+     * table holds a single "Zombie Soldier Armor Piece" row with the chance of any piece (luckcount-1118).
+     */
+    public String tableName(String name) {
+        if (named(name).isEmpty()) {
+            java.util.regex.Matcher m = PIECE.matcher(name.trim());
+            if (m.matches() && !named(m.group(1) + " Armor Piece").isEmpty()) {
+                return m.group(1) + " Armor Piece";
+            }
+        }
+        return name;
+    }
+
     /** The drop called {@code name} in {@code activity}, or null. */
     public Drop find(String activity, String name) {
         String n = normalize(name);
