@@ -436,6 +436,7 @@ public final class ChestProfitFeature {
         for (int slot : DungeonChestValuer.RUN_HEAD_SLOTS) {
             fp = 31 * fp + (slot < slots.size() ? System.identityHashCode(slots.get(slot).getItem()) : 0);
         }
+        fp = 31 * fp + (pageComplete(slots) ? 1 : 0);
         if (screen == runHeadScreen && !screen.getMenu().getCarried().isEmpty()) {
             // A click on a run head shows it on the cursor (its slot empty) until the server answers. That is not the
             // list changing: re-reading it then let the next run of the same party take the clicked run's place and
@@ -448,6 +449,17 @@ public final class ChestProfitFeature {
             runHeadFingerprint = fp;
         }
         return runHeadState;
+    }
+
+    /** Every run head of the page has arrived: a slot after the last head (the bottom bar) holds something. */
+    private static boolean pageComplete(List<Slot> slots) {
+        int last = DungeonChestValuer.RUN_HEAD_SLOTS[DungeonChestValuer.RUN_HEAD_SLOTS.length - 1];
+        for (int i = last + 1; i < slots.size() - 36; i++) {
+            if (!slots.get(i).getItem().isEmpty()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static void readRunHeads(AbstractContainerScreen<?> screen) {
@@ -471,7 +483,11 @@ public final class ChestProfitFeature {
                     runSignature(head, lore), lore, now));
             entryHeads.add(head);
         }
-        CroesusRunMemory.Run[] matched = CroesusRunMemory.match(entries);
+        // Hypixel sends the page one set_slot at a time over several frames (logger, 2026-11-18), heads first, the bottom bar
+        // last. A half page only draws: matching it for good moved and stamped runs by the heads that had arrived so far,
+        // and the full page then paired heads with other runs' memory (fake "needs key", "not looked at"; croesusreload-1119).
+        boolean complete = pageComplete(screen.getMenu().slots);
+        CroesusRunMemory.Run[] matched = CroesusRunMemory.match(entries, complete);
         Map<Integer, CroesusRunMemory.Run> bySlot = new HashMap<>();
         Map<Integer, CroesusRunMemory.Entry> entries2 = new HashMap<>();
         for (int i = 0; i < entries.size(); i++) {
@@ -490,8 +506,8 @@ public final class ChestProfitFeature {
         runHeadContainerId = screen.getMenu().containerId;
         runBySlot = bySlot;
         entryBySlot = entries2;
-        if (stacks.stream().allMatch(ItemStack::isEmpty)) {
-            return; // the page's items have not arrived: keep what this page held last time
+        if (!complete) {
+            return; // the page's items have not all arrived: keep what this page held last time
         }
         Matcher m = MENU_PAGE.matcher(titleOf(screen));
         int page = headPage;
@@ -527,13 +543,8 @@ public final class ChestProfitFeature {
             }
             opened = run.claimType; // the head lags a claim seen in the chest screen
         }
-        for (String line : lore) {
-            Matcher m = OPENED_CHEST.matcher(line);
-            if (m.matches()) {
-                ChestType t = ChestType.fromName(m.group(1).trim());
-                opened = t == null ? null : t.name();
-            }
-        }
+        String shown = openedChest(lore);
+        opened = shown != null ? shown : opened;
         Map<String, Long> chests = run == null ? null : run.chests;
         if (chests == null) {
             return RUN_UNKNOWN;
@@ -545,6 +556,19 @@ public final class ChestProfitFeature {
             }
         }
         return RUN_OPENED;
+    }
+
+    /** The chest a run head's "Opened Chest: X" line names (a ChestType name), or null. */
+    static String openedChest(List<String> lore) {
+        String opened = null;
+        for (String line : lore) {
+            Matcher m = OPENED_CHEST.matcher(line);
+            if (m.matches()) {
+                ChestType t = ChestType.fromName(m.group(1).trim());
+                opened = t == null ? null : t.name();
+            }
+        }
+        return opened;
     }
 
     /** Which run a head is, stable while Croesus keeps it: its name (Master or not), floor and players. The expiry and

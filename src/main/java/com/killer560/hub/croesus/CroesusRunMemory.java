@@ -98,8 +98,8 @@ final class CroesusRunMemory {
     }
 
     /** One list entry: its place (overall index across pages), who it is, when it expires, and whether its head says
-     *  "No chests opened yet!". */
-    record Entry(int slot, int order, String sig, long expiresAt, long tolMs, boolean unopened) {
+     *  "No chests opened yet!", and the chest its "Opened Chest: X" names (null if none). */
+    record Entry(int slot, int order, String sig, long expiresAt, long tolMs, boolean unopened, String opened) {
     }
 
     private static final List<Run> RUNS = new ArrayList<>();
@@ -144,6 +144,7 @@ final class CroesusRunMemory {
     /** An entry from a list head's lore. {@code order} is the run's overall place: (page - 1) * 28 + its index. */
     static Entry entry(int slot, int order, String sig, List<String> lore, long now) {
         boolean unopened = lore.contains(DungeonChestValuer.RUN_UNOPENED_LORE);
+        String opened = ChestProfitFeature.openedChest(lore);
         for (String line : lore) {
             Matcher m = EXPIRE.matcher(line.trim());
             if (m.matches()) {
@@ -156,7 +157,7 @@ final class CroesusRunMemory {
                     unit = Math.min(unit, u);
                 }
                 if (unit != Long.MAX_VALUE) {
-                    return new Entry(slot, order, sig, now + total, unit, unopened);
+                    return new Entry(slot, order, sig, now + total, unit, unopened, opened);
                 }
             }
         }
@@ -164,10 +165,10 @@ final class CroesusRunMemory {
             Matcher m = COMPLETED.matcher(line.trim());
             if (m.matches()) {
                 long unit = unitMs(m.group(2).charAt(0));
-                return new Entry(slot, order, sig, now - Long.parseLong(m.group(1)) * unit + RUN_LIFETIME_MS, unit, unopened);
+                return new Entry(slot, order, sig, now - Long.parseLong(m.group(1)) * unit + RUN_LIFETIME_MS, unit, unopened, opened);
             }
         }
-        return new Entry(slot, order, sig, 0L, RUN_LIFETIME_MS, unopened); // no time on it: identity by order alone
+        return new Entry(slot, order, sig, 0L, RUN_LIFETIME_MS, unopened, opened); // no time on it: identity by order alone
     }
 
     private static long unitMs(char c) {
@@ -251,6 +252,11 @@ final class CroesusRunMemory {
         if (r.claimType != null && e.unopened() && now - r.claimAtMs >= ChestProfitFeature.CLAIM_TRUST_MS) {
             return true;
         }
+        // The head names the chest that was opened. A run remembered as claimed (without a key) from another chest is not
+        // this run: paired, its claimed chest read as still closed and the run as "needs key" (croesusreload-1119).
+        if (r.claimType != null && !r.claimKeyed && e.opened() != null && !e.opened().equals(r.claimType)) {
+            return true;
+        }
         return r.seenAtMs > 0 && e.expiresAt() > 0
                 && e.expiresAt() - e.tolMs() - READ_SLACK_MS > r.seenAtMs + RUN_LIFETIME_MS;
     }
@@ -301,7 +307,15 @@ final class CroesusRunMemory {
     }
 
     /** The remembered run of each entry (same order), or null for one not remembered or truly ambiguous. */
-    static synchronized Run[] match(List<Entry> entries) {
+    static Run[] match(List<Entry> entries) {
+        return match(entries, true);
+    }
+
+    /**
+     * The remembered run of each entry. {@code commit} false (a page whose items are still arriving) only answers: no run
+     * is moved, stamped as seen or saved, so a half page cannot place runs by the heads that happen to be in.
+     */
+    static synchronized Run[] match(List<Entry> entries, boolean commit) {
         ensureLoaded();
         long now = System.currentTimeMillis();
         Run[] out = new Run[entries.size()];
@@ -355,7 +369,7 @@ final class CroesusRunMemory {
                 }
                 Entry e = entries.get(i);
                 for (Run r : RUNS) {
-                    if (!used.contains(r) && r.order - e.order() == d && inWindow(r, e)
+                    if (!used.contains(r) && r.order - e.order() == d && inWindow(r, e) && !contradicts(r, e, now)
                             && reachable(r, e, now, pageFirst, per) && (d == win || onPage(r.order - win, pageFirst, per))
                             && crossOk(r, e, pageFirst, win, winSeen)) {
                         out[i] = r;
@@ -376,7 +390,7 @@ final class CroesusRunMemory {
             Entry e = entries.get(i);
             List<Run> fit = new ArrayList<>();
             for (Run r : RUNS) {
-                if (!used.contains(r) && inWindow(r, e) && Math.abs(r.order - e.order()) <= LEFTOVER_MAX_SHIFT
+                if (!used.contains(r) && inWindow(r, e) && !contradicts(r, e, now) && Math.abs(r.order - e.order()) <= LEFTOVER_MAX_SHIFT
                         && reachable(r, e, now, pageFirst, per) && onPage(r.order - win, pageFirst, per)
                         && crossOk(r, e, pageFirst, win, winSeen)) {
                     fit.add(r);
@@ -389,6 +403,9 @@ final class CroesusRunMemory {
                 LOGGER.info("[Croesus] Run at place {} ({}) matches {} remembered runs - treated as not looked at",
                         e.order(), e.sig(), fit.size());
             }
+        }
+        if (!commit) {
+            return out;
         }
         // 3. Follow the runs: their place now, and the tighter of the two expiry estimates.
         boolean changed = false;

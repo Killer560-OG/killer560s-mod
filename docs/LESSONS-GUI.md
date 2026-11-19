@@ -203,6 +203,12 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
   times). Runs are known by that signature plus the instant their chests expire (`croesus/CroesusRunMemory`, saved in
   `killer560smod-croesus-runs.json`), matched per page by the list's shift (888-890). A claim is remembered from the chest
   screen itself, because the list head can lag it by a refresh (886).
+- **Hypixel sends a menu one set_slot at a time, over several frames and sometimes two ticks** (his logger, 2026-11-18:
+  Croesus page = open, then 33 set_slot packets in slot order, bottom bar last; no content packet). Anything that reads a
+  page on "a slot changed" sees half pages. Croesus matched AND saved its run memory on each half page, which pinned runs
+  at wrong places (five runs saved at one place) and gave fake "needs key" / "not looked at" after every restart
+  (croesusreload-1119). Learn only from a complete page (a slot after the last head is filled); half pages may only draw.
+  A head's "Opened Chest: X" also vetoes a run remembered as claimed from another chest (testkit 1119-menu-croesus-reload-*).
 - **A clicked slot is empty until the server answers.** A left click moves the item onto the cursor client-side, so a frame
   later the page looked one run short and the next same-party run took the clicked run's place (889). Croesus keeps the
   previous read while the cursor carries something.
