@@ -10,7 +10,7 @@ import java.util.Locale;
 /**
  * Watcher Helper: how fast the Watcher speaks and what the blood room cost. The clock starts on the blood door's
  * greeting and stops the Watcher speaking at "Let's see how you can handle this." (the speak time, graded by a title:
- * Vroom under 22 s, Watcher under 23, Yawn under 25, Zzz after); "You have proven yourself" ends it and one chat line splits
+ * Vroom under 14.5 s, Watcher under 15.5, Yawn under 16.5, Zzz after; quartiles of 188 real Watchers, 11-22 s, watcherspeed-1118); "You have proven yourself" ends it and one chat line splits
  * the room into speak, move (the Watcher's first step, {@link WatcherMoveTracker}), kill and total. It reads the same
  * three lines as Split Timers ({@link SplitTimersFeature}) with its own subscription, so it works with the splits off.
  */
@@ -30,7 +30,7 @@ public final class WatcherHelper {
 
     /** The grade for a speak time, color code included. */
     static String grade(long speakMs) {
-        return speakMs < 22_000L ? "§aVroom" : speakMs < 23_000L ? "§eWatcher" : speakMs < 25_000L ? "§6Yawn" : "§cZzz";
+        return speakMs < 14_500L ? "§aVroom" : speakMs < 15_500L ? "§eWatcher" : speakMs < 16_500L ? "§6Yawn" : "§cZzz";
     }
 
     private static String sec(long ms) {

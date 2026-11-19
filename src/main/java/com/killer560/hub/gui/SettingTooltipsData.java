@@ -2136,7 +2136,7 @@ final class SettingTooltipsData {
         d.put("carry tracker/default runs", "How many runs a client is carried for when you add them (1-50). Change one client with the - and + buttons.");
         d.put("carry tracker/remove when done", "Removes a client from the list when they reach their runs target and you have been told to stop carrying them. Off by default.");
         d.put("watcher helper", "Grades how fast the Watcher speaks in the blood room and splits the room into speak, move, kill and total.");
-        d.put("watcher speed title", "Shows Vroom, Watcher, Yawn or Zzz when the Watcher finishes speaking (under 22, 23 and 25 seconds).");
+        d.put("watcher speed title", "Shows Vroom, Watcher, Yawn or Zzz when the Watcher finishes speaking (under 14.5, 15.5 and 16.5 seconds).");
         d.put("watcher breakdown", "Prints one chat line with the speak, move, kill and total time when the blood room ends.");
         d.put("send to party chat", "Once per run, when the Watcher is done, sends the speak time to party chat with /pc (only while others are in your dungeon party).");
         d.put("blessings hud", "Draws one line per blessing you have picked up while inside a dungeon.");
