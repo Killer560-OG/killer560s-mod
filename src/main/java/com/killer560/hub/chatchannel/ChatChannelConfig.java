@@ -16,13 +16,15 @@ public final class ChatChannelConfig {
     private static final BoolFields<ChatChannelConfig> BOOLS = new BoolFields<ChatChannelConfig>()
             .add("enabled", false, c -> c.enabled, (c, v) -> c.enabled = v)
             .add("showMemberCount", true, c -> c.showMemberCount, (c, v) -> c.showMemberCount = v)
-            .add("hypixelColors", true, c -> c.hypixelColors, (c, v) -> c.hypixelColors = v);
+            .add("hypixelColors", true, c -> c.hypixelColors, (c, v) -> c.hypixelColors = v)
+            .add("alwaysShow", false, c -> c.alwaysShow, (c, v) -> c.alwaysShow = v);
 
     private static ChatChannelConfig instance;
 
     private boolean enabled = false;
     private boolean showMemberCount = true;
     private boolean hypixelColors = true;
+    private boolean alwaysShow = false;
 
     private ChatChannelConfig() {
     }
@@ -77,5 +79,14 @@ public final class ChatChannelConfig {
 
     public void setHypixelColors(boolean value) {
         hypixelColors = value;
+    }
+
+    /** Show: false = "While Chat Is Open" (above the chat input, the original behavior), true = "Always" (its own HUD element). */
+    public boolean isAlwaysShow() {
+        return alwaysShow;
+    }
+
+    public void setAlwaysShow(boolean value) {
+        alwaysShow = value;
     }
 }

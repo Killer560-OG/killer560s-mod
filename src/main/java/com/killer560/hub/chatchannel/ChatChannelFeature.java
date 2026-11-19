@@ -61,6 +61,7 @@ public final class ChatChannelFeature {
     private static int members = 0;
     private static String label, name, count;
     private static int labelW, nameW, nameColor;
+    private static Channel built;
 
     private static long framesDrawn = 0;
     private static int lastY = -1;
@@ -179,31 +180,22 @@ public final class ChatChannelFeature {
     /** Called from ChatChannelScreenMixin at the start of the chat screen's render (suggestions draw over it). */
     public static void draw(Screen s, GuiGraphicsExtractor graphics) {
         ChatChannelConfig cfg = ChatChannelConfig.getInstance();
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabled() || cfg.isAlwaysShow()) { // Always: the HUD element draws it, once
             return;
         }
+        drawAt(graphics, 2, lineY(s), null);
+    }
+
+    /** Draws the line at x,y; {@code sample} stands in for an unknown channel (the HUD editor). */
+    static void drawAt(GuiGraphicsExtractor graphics, int x, int y, Channel sample) {
+        ChatChannelConfig cfg = ChatChannelConfig.getInstance();
         try {
-            Channel c = current();
-            long now = System.currentTimeMillis();
-            if (c == Channel.PARTY && cfg.isShowMemberCount() && now - countAt >= COUNT_REFRESH_MS) {
-                countAt = now;
-                int n = PartyTracker.teammates().size();
-                n = n == 0 ? 0 : n + 1;
-                if (n != members) {
-                    members = n;
-                    dirty = true;
-                }
-            }
+            Channel c = prepare(cfg, sample);
             if (c == null) {
                 return;
             }
             Font font = Minecraft.getInstance().font;
-            if (dirty) {
-                rebuild(c, cfg, font);
-            }
             int labelColor = cfg.isHypixelColors() ? 0xFF55FF55 : ThemeAccent.accent(0xFFFFAA00);
-            int x = 2;
-            int y = lineY(s);
             graphics.text(font, label, x, y, labelColor, true);
             graphics.text(font, name, x + labelW, y, 0xFF000000 | nameColor, true);
             if (count != null) {
@@ -216,8 +208,71 @@ public final class ChatChannelFeature {
         }
     }
 
+    /** Refreshes the party size and the built parts when stale; the channel to draw, or null for none. */
+    private static Channel prepare(ChatChannelConfig cfg, Channel sample) {
+        Channel c = sample != null ? sample : current();
+        long now = System.currentTimeMillis();
+        if (c == Channel.PARTY && cfg.isShowMemberCount() && now - countAt >= COUNT_REFRESH_MS) {
+            countAt = now;
+            int n = PartyTracker.teammates().size();
+            n = n == 0 ? 0 : n + 1;
+            if (n != members) {
+                members = n;
+                dirty = true;
+            }
+        }
+        if (c != null && (dirty || c != built)) {
+            rebuild(c, cfg, Minecraft.getInstance().font);
+        }
+        return c;
+    }
+
+    /** The "Always" HUD element: movable and scalable in the HUD editor, drawn by HudInGameRenderer (id in UNDRAWN_ELEMENT_IDS). */
+    public static final com.killer560.hub.hud.HudElement HUD = new ChannelHud();
+
+    private static final class ChannelHud extends com.killer560.hub.hud.BasicHud {
+        ChannelHud() {
+            // Free spot in the x=10 column.
+            super("chat_channel", "Chat Channel", 10, 380);
+        }
+
+        private static boolean editor() {
+            return com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()) instanceof com.killer560.hub.hud.HudEditorScreen;
+        }
+
+        private static Channel shown() {
+            return editor() && current() == null ? Channel.ALL : null;
+        }
+
+        @Override
+        public int width() {
+            return prepare(ChatChannelConfig.getInstance(), shown()) == null ? 60
+                    : labelW + nameW + (count == null ? 0 : Minecraft.getInstance().font.width(count));
+        }
+
+        @Override
+        public int height() {
+            return LINE_H;
+        }
+
+        @Override
+        public boolean isEnabledInSettings() {
+            ChatChannelConfig cfg = ChatChannelConfig.getInstance();
+            return cfg.isEnabled() && cfg.isAlwaysShow();
+        }
+
+        @Override
+        public void render(GuiGraphicsExtractor graphics, int x, int y) {
+            drawAt(graphics, x, y, shown());
+            if (current() != null || editor()) {
+                com.killer560.hub.hud.HudSeen.markDrawn(id());
+            }
+        }
+    }
+
     private static void rebuild(Channel c, ChatChannelConfig cfg, Font font) {
         dirty = false;
+        built = c;
         label = "Chat: ";
         name = c == Channel.PRIVATE ? "To " + (partner == null ? "?" : partner) : c.label;
         nameColor = cfg.isHypixelColors() ? c.color : 0xFFFFFF;

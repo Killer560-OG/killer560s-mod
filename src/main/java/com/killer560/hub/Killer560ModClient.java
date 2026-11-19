@@ -312,6 +312,7 @@ public class Killer560ModClient implements ClientModInitializer {
             com.killer560.hub.mining.ghosts.GhostEspFeature.register();
         }
         HudElementRegistry.register(com.killer560.hub.blessings.BlessingsFeature.HUD);
+        HudElementRegistry.register(com.killer560.hub.chatchannel.ChatChannelFeature.HUD);
         HudElementRegistry.register(com.killer560.hub.puzzlehud.PuzzleHudFeature.HUD);
         HudElementRegistry.register(com.killer560.hub.dungeonqol.RoomNameHud.HUD);
         com.killer560.hub.maxor.MaxorCrystalsFeature.register();
