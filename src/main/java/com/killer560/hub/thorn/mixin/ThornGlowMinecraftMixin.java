@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Thorn ESP Glow style: forces the vanilla glow outline on the current Thorn targets. Same hook as Dungeon ESP's
+/** Thorn ESP Glow style: forces the vanilla glow outline on the current Thorn targets. Same hook as Dungeon Mob Highlight's
  *  {@code WitherGlowMinecraftMixin} (javap-verified 26.1.2: {@code public boolean
  *  Minecraft#shouldEntityAppearGlowing(Entity)}). Which entities qualify - including the legit line-of-sight rule - is
  *  decided in {@link ThornEspFeature}. */

@@ -7,9 +7,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/** Thorn ESP Glow style: per-target outline color. Same hook as Dungeon ESP's {@code WitherGlowEntityMixin} (target
+/** Thorn ESP Glow style: per-target outline color. Same hook as Dungeon Mob Highlight's {@code WitherGlowEntityMixin} (target
  *  javap-verified on the 26.1.2 jar: {@code public int Entity#getTeamColor()}). Only returns a color for entities
- *  {@link ThornEspFeature} is glowing, so it never changes anything Dungeon ESP colors. */
+ *  {@link ThornEspFeature} is glowing, so it never changes anything Dungeon Mob Highlight colors. */
 @Mixin(Entity.class)
 public abstract class ThornGlowEntityMixin {
 

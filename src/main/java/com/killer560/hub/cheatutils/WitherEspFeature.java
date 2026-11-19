@@ -8,7 +8,7 @@ import net.minecraft.world.entity.boss.wither.WitherBoss;
 
 /**
  * F7/M7 Wither boss detection (Maxor/Storm/Goldor/Necron) 26.1.2 {@code floor7/WitherESP.kt}.
- * The highlighting itself moved into Dungeon ESP ({@link com.killer560.hub.mobesp.MobEspFeature}, 2026-09-15) - this
+ * The highlighting itself moved into Dungeon Mob Highlight ({@link com.killer560.hub.mobesp.MobEspFeature}, 2026-09-15) - this
  * class only answers "is this the real boss Wither" and "are we in the part of the boss fight where one exists":
  * <ul>
  * <li>A real boss is a {@link WitherBoss} that is NOT invisible and whose invulnerable ticks != 800 (the exact

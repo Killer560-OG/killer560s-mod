@@ -268,7 +268,7 @@ public final class ThornConfig {
         lineWidth = Math.max(MIN_LINE_WIDTH, Math.min(MAX_LINE_WIDTH, Math.round(v * 2.0f) / 2.0f));
     }
 
-    /** Same rule as Dungeon ESP: the legit jar can never report true, even from a copied cheat-build config. */
+    /** Same rule as Dungeon Mob Highlight: the legit jar can never report true, even from a copied cheat-build config. */
     public boolean isThroughWalls() { return cheat() && throughWalls; }
     public boolean getThroughWallsRaw() { return throughWalls; }
     public void setThroughWalls(boolean v) { throughWalls = v; }

@@ -28,7 +28,7 @@ import java.util.regex.Pattern;
  * (Commissions); a "X Slayer" / "X Puncher" not in the table boxes mobs named X.
  *
  * <p>The mob is found by its name tag, which Hypixel puts either on the mob or on an armor stand riding just above it
- * ("[Lv25] Goblin 1,500/1,500❤"); a stand is mapped to its mob the way Dungeon ESP maps a starred stand (the entity
+ * ("[Lv25] Goblin 1,500/1,500❤"); a stand is mapped to its mob the way Dungeon Mob Highlight maps a starred stand (the entity
  * with the id before it, else the nearest living entity under it). A name tag is server data on a non-player entity, so
  * another player's chat cannot forge one; real players (v4 UUIDs) are never boxed.
  *
@@ -41,7 +41,7 @@ import java.util.regex.Pattern;
  * stands, so no type rule here is unambiguous.
  *
  * <p>Style (Commission Mob Style): Outline, Fill, Fill + Outline (the shared {@code WorldRenderUtils} box passes), or Glow
- * (vanilla's glow outline, through the cheatutils WitherGlow mixins Dungeon ESP's Glow style uses).
+ * (vanilla's glow outline, through the cheatutils WitherGlow mixins Dungeon Mob Highlight's Glow style uses).
  *
  * <p>Legit (both builds): only a mob in plain sight (a block raycast from the eyes) is highlighted, in every style, and
  * boxes are depth-tested, like Starred Mob Hitboxes. Through Walls (cheat build only) skips the raycast and draws boxes with

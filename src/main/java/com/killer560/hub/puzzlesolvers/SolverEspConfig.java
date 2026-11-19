@@ -24,7 +24,7 @@ import java.util.Map;
  * A file written before the split holds the three shared values at its top level: every solver starts from them, so nobody's
  * highlights change until a solver is edited. Saved in {@code killer560smod-solveresp.json} (the name is kept).
  * <p>
- * Deliberately NOT cheat-gated, unlike Dungeon ESP's / Thorn ESP's / P3 Nav's "Through Walls": those reveal mobs and devices
+ * Deliberately NOT cheat-gated, unlike Dungeon Mob Highlight's / Thorn ESP's / P3 Nav's "Through Walls": those reveal mobs and devices
  * you cannot see. A solver highlight only ever redraws an answer the solver has already worked out from data you were given,
  * and both reference mods draw exactly these highlights through blocks on their normal builds (the
  * {@code BoulderSolver.renderBox(..., phase = true)}; the solvers ship with its "Depth check" switch off).

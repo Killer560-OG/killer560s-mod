@@ -15,6 +15,9 @@ public final class SearchAliases {
     // Map.ofEntries, not Map.of: Map.of stops at ten pairs, and the list reached ten on 2026-10-19.
     private static final Map<String, String> ALIASES = Map.ofEntries(
             Map.entry("etable", "experiment"),
+            // espname-1118: Dungeon ESP / Mob ESP became Dungeon Mob Highlight.
+            Map.entry("dungeon esp", "dungeon mob highlight"),
+            Map.entry("mob esp", "dungeon mob highlight"),
             Map.entry("cave in", "cold and time"),
             Map.entry("frozen corpse", "corpse locator"),
             Map.entry("ladder", "mineshaft waypoints"),

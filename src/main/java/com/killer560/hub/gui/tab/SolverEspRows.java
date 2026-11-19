@@ -13,7 +13,7 @@ import java.util.List;
  * individual option in each of the solvers"): Solver Highlight, Solver Highlight Through Walls and, for a solver that draws
  * waypoints, Solver Highlight Style. They read and write that solver's entry in {@link SolverEspConfig}, and every solver
  * tab adds them with {@link #append} under its own settings. The labels are not "Through Walls" / "Highlight Style": the
- * tooltip table is keyed by label, a bare "through walls" is the Dungeon ESP one and a bare "highlight style" is Breaker
+ * tooltip table is keyed by label, a bare "through walls" is the Dungeon Mob Highlight one and a bare "highlight style" is Breaker
  * Aura's (Tic Tac Toe has its own Highlight Style row too).
  */
 final class SolverEspRows {

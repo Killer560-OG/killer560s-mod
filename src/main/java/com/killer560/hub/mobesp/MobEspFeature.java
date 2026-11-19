@@ -35,7 +35,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Dungeon ESP - highlights four kinds of dungeon target, each with its own color ({@link MobEspConfig}):
+ * Dungeon Mob Highlight - highlights four kinds of dungeon target, each with its own color ({@link MobEspConfig}):
  * <ul>
  * <li><b>Starred mobs</b> (dungeon clear, not boss). Hypixel puts the "✯ ... ❤" name on a separate invisible
  * armor stand, never on the mob, so each starred stand is mapped to its real mob the way the reference 26.1.2
@@ -130,7 +130,7 @@ public final class MobEspFeature {
         return entity != null && set.ids.length != 0 && java.util.Arrays.binarySearch(set.ids, entity.getId()) >= 0;
     }
 
-    /** Glow mixin hook: the ARGB outline color for this entity, or null if Dungeon ESP isn't glowing it. */
+    /** Glow mixin hook: the ARGB outline color for this entity, or null if Dungeon Mob Highlight isn't glowing it. */
     public static Integer glowColor(Entity entity) {
         GlowSet set = glowSet;
         if (entity == null || set.ids.length == 0) return null;
@@ -211,7 +211,8 @@ public final class MobEspFeature {
                 ? com.killer560.hub.bloodcamp.BloodCampFeature.bloodMobIds() : Set.of();
         boolean wantBlood = !bloodIds.isEmpty();
         boolean witherActive = (cfg.getWithersRaw() || cfg.getWitherHighlightRaw())
-                && WitherEspFeature.isWitherBossActive(client);
+                && WitherEspFeature.isWitherBossActive(client) && cfg.isWitherBossOn(
+                        com.killer560.hub.ap3.Ap3Feature.currentPhase().ordinal() - 1);
         boolean wantWitherEsp = witherActive && cfg.isWithersEnabled();
         // Wither ESP wins when both are on - otherwise the same wither is drawn twice.
         boolean wantWitherHighlight = witherActive && !wantWitherEsp && cfg.isWitherHighlightEnabled();

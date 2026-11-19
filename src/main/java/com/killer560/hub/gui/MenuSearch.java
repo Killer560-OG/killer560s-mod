@@ -19,7 +19,7 @@ import java.util.function.Predicate;
 
 /**
  * The mod menu's search (killer560, 2026-11-02: "i keep searching for things we have and I cant find them" - 'star mob'
- * and 'wither esp' found nothing, though Dungeon ESP boxes starred mobs and the withers).
+ * and 'wither esp' found nothing, though Dungeon Mob Highlight boxes starred mobs and the withers).
  * <p>
  * Every query word must be found, in any order, somewhere in a feature: its card name, its card description and hover
  * text, the label of every row it builds (with its collapsed sections and switched-off rows laid open, see

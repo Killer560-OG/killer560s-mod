@@ -21,7 +21,7 @@ import com.killer560.hub.compat.McRender;
  * <p>
  * Through-walls pipelines are built exactly the way {@code secretwaypoints/SecretWaypointsRenderer} builds its own
  * (vanilla's LINES / DEBUG_FILLED snippets with the depth state dropped), with storagesearch-specific pipeline ids
- * so they cannot collide with that feature's or Dungeon ESP's registrations. The whole thing early-returns on an
+ * so they cannot collide with that feature's or Dungeon Mob Highlight's registrations. The whole thing early-returns on an
  * empty target list, so with nothing marked it costs one field read per frame.
  */
 public final class StorageSearchEsp {

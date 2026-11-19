@@ -42,7 +42,7 @@ import com.killer560.hub.compat.McRender;
  * the tab list with, and that Live Map paints its teammate dots with. No second set of colors.
  * <li><b>Line of sight / through walls</b>: the same {@code Level#clip} raycast and the same two no-depth pipelines
  * {@code mobesp.MobEspFeature} uses (via {@link TeammatesEspRenderer}). Line-of-sight only is legit and is the only
- * option on the legit jar; Through Walls is cheat-build only, same rule as Dungeon ESP / Wither ESP.
+ * option on the legit jar; Through Walls is cheat-build only, same rule as Dungeon Mob Highlight / Wither ESP.
  * <li><b>Label billboard</b>: the 26.1.2 nametag transform used by {@code f7spots.F7SpotsRenderer.renderLabel} and
  * Thorn's stun spots.
  * </ul>

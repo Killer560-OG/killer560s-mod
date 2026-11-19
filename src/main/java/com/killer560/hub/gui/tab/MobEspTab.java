@@ -35,18 +35,18 @@ import com.killer560.hub.compat.McCompat;
  * </ul>
  * The legit jar never constructs a single widget of the red sections (killer560: "If you are on the legit version it
  * shouldnt mention cheat things at all"), which is also why the tab itself is named "Starred Mob Hitboxes" there and
- * only "Dungeon ESP" on the cheat build.
+ * only "Dungeon Mob Highlight" on the cheat build.
  */
 public class MobEspTab extends BaseTab {
 
     public MobEspTab() {
-        super(com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED ? "Dungeon ESP" : "Starred Mob Hitboxes");
+        super(com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED ? "Dungeon Mob Highlight" : "Starred Mob Hitboxes");
     }
 
     /** The card is ON while any of its features is, OFF only when all are (killer560, 2026-10-14): Starred Mob and Bat hitboxes, the Wither Boss Highlight and the cheat ESP are separate features. */
     @Override
     public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
-        return switchRows(built, "Starred Mobs", "Bats", "Blood Mobs", "Fel Skulls", "Mimic", "Hide Ghost Mobs", "Wither Boss Highlight", "ESP");
+        return switchRows(built, "Starred Mobs", "Bats", "Blood Mobs", "Fel Skulls", "Mimic", "Hide Ghost Mobs", "Wither Boss Highlight", "Mob ESP", "Wither ESP");
     }
 
     @Override
@@ -62,24 +62,29 @@ public class MobEspTab extends BaseTab {
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Starred Mob Hitboxes", false));
         y += 16;
         targetRow(widgets, contentX, col2X, y, colW, "Starred Mobs", cfg::getStarredMobsRaw, cfg::setStarredMobs,
-                "Starred Mob", cfg::getStarredColor, cfg::setStarredColor, MobEspConfig.DEFAULT_STARRED_COLOR);
+                "Starred Mob", cfg::getStarredColor, cfg::setStarredColor, MobEspConfig.DEFAULT_STARRED_COLOR, requestRebuild, false);
         y += 22;
         targetRow(widgets, contentX, col2X, y, colW, "Bats", cfg::getBatsRaw, cfg::setBats,
-                "Bat", cfg::getBatColor, cfg::setBatColor, MobEspConfig.DEFAULT_BAT_COLOR);
+                "Bat", cfg::getBatColor, cfg::setBatColor, MobEspConfig.DEFAULT_BAT_COLOR, requestRebuild, false);
         y += 22;
         // killer560, 2026-10-15: "add in blood mob ESP, which is the same as starred mob ESP just for blood mobs and
         // will highlight them red". Same style and rules as the rows above; never limited by Range or Room Scoped.
         targetRow(widgets, contentX, col2X, y, colW, "Blood Mobs", cfg::getBloodMobsRaw, cfg::setBloodMobs,
-                "Blood Mob", cfg::getBloodColor, cfg::setBloodColor, MobEspConfig.DEFAULT_BLOOD_COLOR);
+                "Blood Mob", cfg::getBloodColor, cfg::setBloodColor, MobEspConfig.DEFAULT_BLOOD_COLOR, requestRebuild, false);
         y += 22;
         // killer560, 2026-11-01: "Make that a toggle to highlight fels" and "Add an option for mimic highlight as well".
         targetRow(widgets, contentX, col2X, y, colW, "Fel Skulls", cfg::getFelSkullsRaw, cfg::setFelSkulls,
-                "Fel Skull", cfg::getFelColor, cfg::setFelColor, MobEspConfig.DEFAULT_FEL_COLOR);
+                "Fel Skull", cfg::getFelColor, cfg::setFelColor, MobEspConfig.DEFAULT_FEL_COLOR, requestRebuild, false);
         y += 22;
         targetRow(widgets, contentX, col2X, y, colW, "Mimic", cfg::getMimicRaw, cfg::setMimic,
-                "Mimic", cfg::getMimicColor, cfg::setMimicColor, MobEspConfig.DEFAULT_MIMIC_COLOR);
+                "Mimic", cfg::getMimicColor, cfg::setMimicColor, MobEspConfig.DEFAULT_MIMIC_COLOR, requestRebuild, false);
         y += 26;
 
+        // A row shows only while a switch it matters for is ON (killer560, 2026-11-18: "dont show the color options
+        // unless the setting is on"); a menu search scan still builds it. Saved values are kept while hidden.
+        boolean anyMob = cfg.getStarredMobsRaw() || cfg.getBatsRaw() || cfg.getBloodMobsRaw() || cfg.getFelSkullsRaw()
+                || cfg.getMimicRaw() || isSearchScan();
+        if (anyMob) {
         widgets.add(SettingsButtonWidget.cycling(styleText(cfg), (btn, dir) -> {
                     cfg.cycleStyle(dir);
                     cfg.save();
@@ -102,7 +107,9 @@ public class MobEspTab extends BaseTab {
             });
         }
         y += 22;
+        }
 
+        if (cfg.getBatsRaw() || isSearchScan()) {
         widgets.add(onOffButton("Room Scoped", cfg::isRoomScoped, cfg::setRoomScoped, cfg::save,
                 requestRebuild, contentX, y, colW, 18));
         if (cfg.isRoomScoped()) {
@@ -138,6 +145,7 @@ public class MobEspTab extends BaseTab {
             });
         }
         y += 22;
+        }
         // killer560, 2026-11-09: a mob a far teammate killed stays on screen ("ghost mobs"); its own switch (GhostMobs).
         widgets.add(onOffButton("Hide Ghost Mobs", cfg::isHideGhostMobs, cfg::setHideGhostMobs, cfg::save,
                 null, contentX, y, colW, 18));
@@ -149,20 +157,32 @@ public class MobEspTab extends BaseTab {
         y += 16;
         targetRow(widgets, contentX, col2X, y, colW, "Wither Boss Highlight", cfg::getWitherHighlightRaw,
                 cfg::setWitherHighlight, "Wither Boss Highlight", cfg::getWitherHighlightColor,
-                cfg::setWitherHighlightColor, MobEspConfig.DEFAULT_WITHER_COLOR);
+                cfg::setWitherHighlightColor, MobEspConfig.DEFAULT_WITHER_COLOR, requestRebuild, cfg.getWithersRaw());
         y += 22;
-        widgets.add(SettingsButtonWidget.cycling(witherStyleText(cfg), (btn, dir) -> {
-                    cfg.cycleWitherHighlightStyle(dir);
-                    cfg.save();
-                    btn.setMessage(witherStyleText(cfg));
-                }).bounds(contentX, y, colW, 18).build());
-        y += 22;
+        // Per-boss switches (killer560, 2026-11-18: "an option for which bosses are highlighted"): by boss phase.
+        boolean witherOn = cfg.getWitherHighlightRaw() || cfg.getWithersRaw() || isSearchScan();
+        if (witherOn) {
+            for (int i = 0; i < 4; i++) {
+                final int boss = i;
+                widgets.add(onOffButton(MobEspConfig.WITHER_BOSS_NAMES[i], () -> cfg.isWitherBossOn(boss),
+                        v -> cfg.setWitherBoss(boss, v), cfg::save, null, i % 2 == 0 ? contentX : col2X, y, colW, 18));
+                if (i % 2 == 1) y += 22;
+            }
+            widgets.add(SettingsButtonWidget.cycling(witherStyleText(cfg), (btn, dir) -> {
+                        cfg.cycleWitherHighlightStyle(dir);
+                        cfg.save();
+                        btn.setMessage(witherStyleText(cfg));
+                    }).bounds(contentX, y, colW, 18).build());
+            y += 22;
+        }
         // killer560, 2026-09-21: "for the esp also have an option to have a tracer line to him"; 2026-10-15: "for legit
         // have the tracer option there but only have tracers appear for the bosses if the boss can be seen legitly."
         // One Tracer for both modes: the legit highlight draws it only to a wither it can see, the cheat ESP to every one.
+        if (witherOn) {
         widgets.add(onOffButton("Tracer", cfg::getWitherTracerRaw, cfg::setWitherTracer, cfg::save,
                 requestRebuild, contentX, y, colW, 18));
-        if (cfg.getWitherTracerRaw()) {
+        }
+        if (witherOn && cfg.getWitherTracerRaw()) {
             float minT = MobEspConfig.MIN_LINE_WIDTH;
             float maxT = MobEspConfig.MAX_LINE_WIDTH;
             widgets.add(new ThemedSliderButton(col2X, y, colW, 18, tracerThicknessText(cfg),
@@ -192,15 +212,21 @@ public class MobEspTab extends BaseTab {
         y += 6;
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "ESP", true));
         y += 16;
-        widgets.add(onOffButton("ESP", cfg::isEspRaw, cfg::setEsp, cfg::save,
-                requestRebuild, contentX, y, contentWidth, 18));
+        widgets.add(onOffButton("Mob ESP", cfg::isMobEspRaw, cfg::setMobEsp, cfg::save,
+                null, contentX, y, colW, 18));
+        widgets.add(onOffButton("Wither ESP", cfg::getWithersRaw, cfg::setWithers, cfg::save,
+                null, col2X, y, colW, 18));
         return widgets;
     }
 
     private static void targetRow(List<AbstractWidget> widgets, int x, int col2X, int y, int width, String name,
                                   BooleanSupplier getter, Consumer<Boolean> setter, String colorName,
-                                  IntSupplier colorGetter, IntConsumer colorSetter, int defaultColor) {
-        widgets.add(onOffButton(name, () -> getter.getAsBoolean(), v -> setter.accept(v), () -> MobEspConfig.getInstance().save(), null, x, y, width, 18));
+                                  IntSupplier colorGetter, IntConsumer colorSetter, int defaultColor, Runnable rebuild,
+                                  boolean alsoOn) {
+        widgets.add(onOffButton(name, () -> getter.getAsBoolean(), v -> setter.accept(v), () -> MobEspConfig.getInstance().save(), rebuild, x, y, width, 18));
+        if (!getter.getAsBoolean() && !alsoOn && !isSearchScan()) {
+            return;
+        }
         widgets.add(SettingsButtonWidget.builder(ColorSwatch.label("Color", colorGetter.getAsInt()), btn -> {
                     Minecraft client = Minecraft.getInstance();
                     McCompat.setScreen(client, new ColorPickerScreen(McCompat.screen(client), colorName + " Color",

@@ -1464,7 +1464,7 @@ public final class BloodCampFeature {
     /**
      * Entity ids of the Watcher's blood mobs: the mob that stands on a tracked trip's landing spot as the trip ends.
      * Kept for as long as the entity is alive, wherever it walks (killer560, 2026-10-15: "they walk out of the room"),
-     * cleared with the level. The Aura, the Trigger Bot and Dungeon ESP's Blood Mobs only ever act on these
+     * cleared with the level. The Aura, the Trigger Bot and Dungeon Mob Highlight's Blood Mobs only ever act on these
      * (killer560: "don't have it attack any mob, range only blood mobs").
      */
     private static final Set<Integer> BLOOD_IDS = new java.util.HashSet<>();
@@ -1729,7 +1729,7 @@ public final class BloodCampFeature {
         return true;
     }
 
-    /** {@link #inRoomTile} for other features (Dungeon ESP's Fel skulls): false while no Watcher is known. */
+    /** {@link #inRoomTile} for other features (Dungeon Mob Highlight's Fel skulls): false while no Watcher is known. */
     public static boolean inBloodRoomTile(Vec3 p) {
         Minecraft client = Minecraft.getInstance();
         return client.level != null && inRoomTile(client, p);
@@ -1737,7 +1737,7 @@ public final class BloodCampFeature {
 
     /** Whether {@code p} is in the Watcher's room tile (the Blood Room). */
     private static boolean inRoomTile(Minecraft client, Vec3 p) {
-        // The live Watcher only (his remembered spot is for trips, watcherAnchor): Dungeon ESP's Fel skulls and the name-tag
+        // The live Watcher only (his remembered spot is for trips, watcherAnchor): Dungeon Mob Highlight's Fel skulls and the name-tag
         // scan read this, and with no Watcher in the world nothing is "in the Blood Room" (1101-esp-fels).
         Entity watcher = watcherEntityId == null ? null : client.level.getEntity(watcherEntityId);
         return watcher != null && roomTile(p.x) == roomTile(watcher.getX()) && roomTile(p.z) == roomTile(watcher.getZ())

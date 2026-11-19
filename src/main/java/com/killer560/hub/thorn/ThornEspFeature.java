@@ -36,7 +36,7 @@ import java.util.Set;
  * "Spirit Bow", the reference matches a stand whose main-hand item is named "Bow"; either counts here. The stand is tiny,
  * so the box is the player-sized 0.5 x 1.975 box on the ground under it.
  * </ul>
- * Styles and rules are Dungeon ESP's ({@code mobesp.MobEspFeature}): Outline / Filled (depth-tested unless Through
+ * Styles and rules are Dungeon Mob Highlight's ({@code mobesp.MobEspFeature}): Outline / Filled (depth-tested unless Through
  * Walls) or Glow (vanilla outline via {@code ThornGlow*Mixin}). Legit: only targets with a clear line of sight right now.
  * Through Walls is cheat build only ({@link ThornConfig#isThroughWalls()}).
  */

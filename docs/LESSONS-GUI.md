@@ -357,7 +357,7 @@ mod menu (rows, sliders, tooltips, themes, animation) and the painted main menu 
   main target back with `Screenshot.takeScreenshot`.
 - **On 26.1.2 every switch of render type in a world render event was a draw call.** None of the mod's types is a fixed
   buffer of the level `BufferSource`, so they share one buffer and `getBuffer` for another type ends the previous batch
-  (javap `MultiBufferSource$BufferSource.getBuffer`, `lastSharedType`): Dungeon ESP's fill + outline per mob made 40 draw
+  (javap `MultiBufferSource$BufferSource.getBuffer`, `lastSharedType`): Dungeon Mob Highlight's fill + outline per mob made 40 draw
   calls a frame for 20 mobs and 89-112 KB (testkit 95-perf-world). `McRender.inCameraSpace` writes into the mod's own source
   inside AFTER_TRANSLUCENT_FEATURES / _TERRAIN, every type a fixed buffer, drawn once after the event (ESP: 2 draw calls,
   6.6 KB); 26.2's submit collector already groups by type. The probe's CPU microseconds did NOT drop measurably, so judge
@@ -512,7 +512,7 @@ All javap on the 26.3 merged jar (2026-11-01, port-263-render-1101). Runtime unv
   the video under 1 s after one in its last second (caught in capture phase: `timeupdate` does not bubble). Checked in
   headless Chrome with ffmpeg clips (killer560s-mod-logs/docmenu-1101-vb/endhook_test.py).
 - The menu search found only what a tab built at that moment: a feature switched off had none of its rows in the scan (about 100
-  tabs return early when off), and Dungeon ESP's description was never read, so 'star mob' and 'wither esp' found nothing
+  tabs return early when off), and Dungeon Mob Highlight's description was never read, so 'star mob' and 'wither esp' found nothing
   (2026-11-02). `gui/MenuSearch` now reads name, card text, every row (`BaseTab.isSearchScan()` lays switched-off rows open) and
   each row's tooltip once per search, matching word starts, plural/-ed/-ing stems and synonyms. Index ~30 ms, a later keystroke
   under 30 ms on 26.3 (testkit 1102-ui-search-queries). Rows longer than 48 characters or holding ". " are explanation lines:

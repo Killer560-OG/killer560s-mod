@@ -12,7 +12,7 @@ import java.util.Random;
 
 /**
  * Persisted settings for every Cheat Utils feature (Secret Aura, Auto GFS, Auto Ult, Auto Chocolate Factory;
- * Wither ESP moved to Dungeon ESP - {@code MobEspConfig} migrates its old keys out of this file once). Every feature is cheat-build only: each master getter is gated on
+ * Wither ESP moved to Dungeon Mob Highlight - {@code MobEspConfig} migrates its old keys out of this file once). Every feature is cheat-build only: each master getter is gated on
  * {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} (same pattern as
  * {@code SecretsConfig#isMasterEnabled} / {@code TerminalSolverConfig#isAutoTerminalsEnabled}), so a legit
  * jar can never run any of these even from a copied config file. Every master toggle defaults OFF. Every

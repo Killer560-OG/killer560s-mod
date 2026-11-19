@@ -18,7 +18,7 @@ import com.killer560.hub.compat.McRender;
  * depth test, built the same way {@code mobesp/EspRenderer} builds its two - copies of vanilla's LINES /
  * DEBUG_FILLED snippets with {@code withDepthStencilState(Optional.empty)}, which is how the
  * 26.1.2 through-walls pipeline set does it. The pipeline ids are p3nav-specific so they can't collide
- * with Dungeon ESP's own registrations.
+ * with Dungeon Mob Highlight's own registrations.
  * <p>
  * (The vertex layout below is the same one {@code WorldRenderUtils}/{@code EspRenderer} use.
  * If the main session would rather have one shared renderer, {@code EspRenderer.outline}/{@code filled}

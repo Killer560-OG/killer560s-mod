@@ -22,7 +22,7 @@ import com.killer560.hub.compat.McCompat;
  * (see {@link com.killer560.hub.p3nav.P3NavFeature}). Everything here defaults OFF.
  * <p>
  * "Through Walls" only exists on the cheat build, and its section header is the red cheat-only one
- * ({@link SectionHeaders#header(String, boolean)}), same as Dungeon ESP's.
+ * ({@link SectionHeaders#header(String, boolean)}), same as Dungeon Mob Highlight's.
  */
 public class P3NavTab extends BaseTab {
 

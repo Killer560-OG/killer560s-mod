@@ -19,7 +19,7 @@ import java.util.regex.Pattern;
  * <p>
  * Matched on a mob's NAME-TAG armor stand (a custom name on a stand, never chat), anchored on the whole line and
  * bounded: an optional "[Lv123] " prefix, the exact name, an optional health ("2.1M", "400k/1.2M"), and the heart that
- * ends every Hypixel mob name tag - "Revoker 1.4M❤". The stand is mapped to its mob the way Dungeon ESP maps starred
+ * ends every Hypixel mob name tag - "Revoker 1.4M❤". The stand is mapped to its mob the way Dungeon Mob Highlight maps starred
  * stands (the entity one id below it, else the first living thing in the stand's box moved down). A player-model NPC
  * (version-2 UUID) whose own name is exactly one of the names counts too; a real player never does.
  */

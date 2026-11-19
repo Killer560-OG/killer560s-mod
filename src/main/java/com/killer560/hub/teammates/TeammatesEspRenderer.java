@@ -11,7 +11,7 @@ import java.util.Optional;
  * {@code mobesp.EspRenderer} (both package-private, in packages that belong to other features), with its own
  * pipeline ids. If EspRenderer is ever made public, delete this and call it instead.
  * <p>
- * Original doc: Dungeon ESP box drawing. Depth-tested boxes use vanilla's own {@code RenderTypes.LINES_TRANSLUCENT} /
+ * Original doc: Dungeon Mob Highlight box drawing. Depth-tested boxes use vanilla's own {@code RenderTypes.LINES_TRANSLUCENT} /
  * {@code debugFilledBox()} (same as {@code WorldRenderUtils}); through-walls boxes use copies of those two pipelines
  * with the depth/stencil state removed - exactly how the 26.1.2 through-walls pipeline set
  * ({@code lines_through_walls} / {@code filled_through_walls}) does it ({@code withDepthStencilState(Optional.empty())},

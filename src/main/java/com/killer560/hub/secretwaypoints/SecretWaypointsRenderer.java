@@ -24,7 +24,7 @@ import com.killer560.hub.compat.McRender;
  * build theirs - copies of vanilla's LINES / DEBUG_FILLED snippets with
  * {@code withDepthStencilState(Optional.empty)}, which is how the 26.1.2
  * the 26.1.2 through-walls pipeline set does it. The pipeline ids are secretwaypoints-specific so they cannot collide
- * with Dungeon ESP's or P3 Nav's registrations. Vertex layout is the same one the rest of the
+ * with Dungeon Mob Highlight's or P3 Nav's registrations. Vertex layout is the same one the rest of the
  * repo's box renderers use.
  * <p>
  * Everything is drawn in one camera-relative {@code pushPose}/{@code popPose} for the whole batch rather than

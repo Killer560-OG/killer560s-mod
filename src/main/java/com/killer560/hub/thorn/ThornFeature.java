@@ -28,7 +28,7 @@ import com.killer560.hub.compat.McCompat;
  * <ul>
  * <li>{@link SpiritBearTracker} - Spirit Bear kill counter / spawn timer plus
  * this mod's own overkill counter, drawn by {@link #HUD}.
- * <li>{@link ThornEspFeature} - Spirit Bear / spirit mob / Spirit Bow highlights (Dungeon ESP's styles and legit rules).
+ * <li>{@link ThornEspFeature} - Spirit Bear / spirit mob / Spirit Bow highlights (Dungeon Mob Highlight's styles and legit rules).
  * <li>{@link StunSpotWaypoints} - world waypoints from the config's stun-spot list (empty until coordinates are added).
  * </ul>
  * <b>"In the Thorn fight"</b> reuses the mod's own detection: {@link DungeonState#getFloor()} is "F4"/"M4" AND either

@@ -10,7 +10,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Persisted Dungeon ESP settings - see {@link MobEspFeature}. File name kept as {@code killer560smod-mobesp.json}
+ * Persisted Dungeon Mob Highlight settings - see {@link MobEspFeature}. File name kept as {@code killer560smod-mobesp.json}
  * (the old "Mob Hitbox ESP" file) so existing saves carry over. Every target ships disabled by default.
  * <p>
  * Migration (one-shot, only for keys the file doesn't have yet, then saved straight away):
@@ -115,7 +115,14 @@ public final class MobEspConfig {
      *  in that section"): starred mobs and bats through walls, the wither bosses through walls, and the wither tracer
      *  (which keeps its own on/off under it). Cheat build only. An old file takes it from Through Walls or Wither
      *  Bosses, whichever was on. */
-    private boolean esp = false;
+    private boolean mobEsp = false;
+    /** Since 2026-11-18 the ESP is two switches (killer560: "one option for mob esp and one for wither esp"): this one
+     *  is the wither bosses through walls. An old file's single "esp" loads into both. Cheat build only. */
+    private boolean witherEsp = false;
+    /** Which F7/M7 wither bosses the Wither Boss Highlight and the Wither ESP cover, by boss phase P1-P4 (Maxor,
+     *  Storm, Goldor, Necron). A boss switched off gets no highlight and no tracer. All on by default. */
+    private final boolean[] witherBosses = {true, true, true, true};
+    public static final String[] WITHER_BOSS_NAMES = {"Maxor", "Storm", "Goldor", "Necron"};
     /** Starred mobs + bats only; both wither targets ignore it. */
     private double range = 40.0;
     /** killer560, 2026-09-20: "instead of being range based it should be every starred mob in the room I am currently
@@ -211,7 +218,12 @@ public final class MobEspConfig {
             } else {
                 migrated |= migrateWitherEsp(cfg);
             }
-            cfg.esp = obj.has("esp") ? ConfigJson.getBool(obj, "esp", false) : (cfg.throughWalls || cfg.withers);
+            boolean oldEsp = obj.has("esp") ? ConfigJson.getBool(obj, "esp", false) : (cfg.throughWalls || cfg.withers);
+            cfg.mobEsp = ConfigJson.getBool(obj, "mobEsp", oldEsp);
+            cfg.witherEsp = ConfigJson.getBool(obj, "witherEsp", oldEsp);
+            for (int i = 0; i < 4; i++) {
+                cfg.witherBosses[i] = ConfigJson.getBool(obj, "boss" + WITHER_BOSS_NAMES[i], true);
+            }
         } catch (Exception e) {
             cfg = new MobEspConfig();
             migrated = false;
@@ -268,7 +280,11 @@ public final class MobEspConfig {
         obj.addProperty("style", style.name());
         obj.addProperty("lineWidth", lineWidth);
         obj.addProperty("throughWalls", throughWalls);
-        obj.addProperty("esp", esp);
+        obj.addProperty("mobEsp", mobEsp);
+        obj.addProperty("witherEsp", witherEsp);
+        for (int i = 0; i < 4; i++) {
+            obj.addProperty("boss" + WITHER_BOSS_NAMES[i], witherBosses[i]);
+        }
         obj.addProperty("range", range);
         obj.addProperty("roomScoped", roomScoped);
         obj.addProperty("roomMargin", roomMargin);
@@ -304,10 +320,13 @@ public final class MobEspConfig {
     public void setHideGhostMobs(boolean v) { hideGhostMobs = v; }
 
     /** Cheat build only, same as the Cheat Utils Wither ESP it replaces - a legit jar never reports true. */
-    public boolean isWithersEnabled() { return cheat() && esp && com.killer560.hub.util.SkyblockGate.allows(); }
-    /** The master ESP switch: Wither Bosses has no toggle of its own any more. */
-    public boolean getWithersRaw() { return esp; }
-    public void setWithers(boolean v) { esp = v; }
+    public boolean isWithersEnabled() { return cheat() && witherEsp && com.killer560.hub.util.SkyblockGate.allows(); }
+    public boolean getWithersRaw() { return witherEsp; }
+    public void setWithers(boolean v) { witherEsp = v; }
+
+    /** Whether the wither boss of boss phase {@code phaseIndex} (0 = P1 Maxor .. 3 = P4 Necron) is highlighted; true when the phase is not known. */
+    public boolean isWitherBossOn(int phaseIndex) { return phaseIndex < 0 || phaseIndex > 3 || witherBosses[phaseIndex]; }
+    public void setWitherBoss(int phaseIndex, boolean v) { witherBosses[phaseIndex] = v; }
 
     /** Tracer to the withers being highlighted - both builds. Whether it may go through walls is the feature's call:
      *  only the cheat ESP does that. */
@@ -353,13 +372,13 @@ public final class MobEspConfig {
 
     /** Gated the same single-source-of-truth way as {@code ExperimentsConfig#isAutonomousMode} - the legit jar can never
      *  report true here even from a copied cheat-build config file. */
-    public boolean isThroughWalls() { return cheat() && esp; }
-    /** The master ESP switch: Through Walls has no toggle of its own any more. */
-    public void setThroughWalls(boolean v) { esp = v; }
+    public boolean isThroughWalls() { return cheat() && mobEsp; }
+    /** The Mob ESP switch: Through Walls has no toggle of its own any more. */
+    public void setThroughWalls(boolean v) { mobEsp = v; }
 
-    /** The one ESP switch (see {@link #esp}). */
-    public boolean isEspRaw() { return esp; }
-    public void setEsp(boolean v) { esp = v; }
+    /** The Mob ESP switch (see {@link #mobEsp}). */
+    public boolean isMobEspRaw() { return mobEsp; }
+    public void setMobEsp(boolean v) { mobEsp = v; }
 
     public double getRange() { return range; }
     public void setRange(double v) { range = Math.max(MIN_RANGE, Math.min(MAX_RANGE, Math.round(v))); }

@@ -52,7 +52,7 @@ public final class MiningQolConfig {
     /**
      * How Commission Mobs draws a mob (killer560, 2026-11-03: "let me choose outline, fill, fill+outline or glow"). Drawn
      * with the shared paths: {@code WorldRenderUtils.renderOutlineBoxes}/{@code renderFilledBoxes} for the boxes, and the
-     * vanilla glow outline through the cheatutils WitherGlow mixins Dungeon ESP's Glow style uses.
+     * vanilla glow outline through the cheatutils WitherGlow mixins Dungeon Mob Highlight's Glow style uses.
      */
     /** Which drill Swap To Drill On Pigeon picks. */
     public enum PigeonDrillMode {
