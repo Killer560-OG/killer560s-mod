@@ -8,7 +8,9 @@ import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ModLog;
+import com.killer560.hub.shared.SharedRecords;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.ClickEvent;
 import net.minecraft.network.chat.Component;
@@ -53,8 +55,11 @@ public final class AutoAcceptInvitesFeature {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AutoAcceptInvites", client -> {
             if (client.player != null) {
                 RULE.observe(PartyTracker.teammates(), System.currentTimeMillis());
+                GuildListRequest.tick(client);
             }
         }));
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> GuildListRequest.onJoin());
+        SharedRecords.onAccountChange(GuildMembers::reload);
     }
 
     private static void onChat(Component message) {
@@ -199,6 +204,7 @@ public final class AutoAcceptInvitesFeature {
 
     public static void resetForTest() {
         GuildMembers.clearForTest();
+        GuildListRequest.resetForTest();
         RULE.reset();
         lastAcceptKey = null;
         lastAcceptAt = 0L;

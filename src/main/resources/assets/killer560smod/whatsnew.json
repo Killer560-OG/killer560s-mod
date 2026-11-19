@@ -26,7 +26,8 @@
      "Profile Viewer Networth page: Priced at is now a button (Est. Item Value, Instant Sell, Average BIN, NPC Sell), Showing adds a Non-Soulbound total (leaves out soulbound items and the Museum), and the Bazaar Prices and Lowest BIN Prices rows are gone.",
      "Secret waypoints now show in Gold: its room corner is found even though a gold block above the roof row made the roof look one block higher, so the wither essence gets its waypoint.",
      "HUD editor: opened over a menu (RNG Meter, Superpairs, Start ETable, Start Croesus) it no longer draws the live panel under its own, so the RNG Meter ranking is readable and shows the real rows.",
-     "Secret Clicked: every click on a locked chest plays the locked sound, and a locked chest you click again never plays the secret sound unless it really opens."
+     "Secret Clicked: every click on a locked chest plays the locked sound, and a locked chest you click again never plays the secret sound unless it really opens.",
+     "Auto Accept Invites: Only From Guild Members reads your guild list once each session"
     ]
    }
   ]

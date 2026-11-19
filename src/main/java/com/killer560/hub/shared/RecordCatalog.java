@@ -288,8 +288,17 @@ public final class RecordCatalog {
         }
     });
 
+    /** Your guild's members (guildtag-1118), per account: "members" = [{name (lower case), rank}]. */
+    public static final Kind GUILD_LIST = new Kind("killer560smod-guild-list.json", null, "guild-list.json",
+            Scope.ACCOUNT, new JsonMerge.Policy() {
+        @Override
+        public Function<JsonElement, String> arrayKey(String path) {
+            return path.equals("members") ? JsonMerge.fields("name") : null;
+        }
+    });
+
     public static final List<Kind> ALL = List.of(CROESUS_LOG, CROESUS_RUNS, RNG_ITEM_LOG, EXPERIMENTS, BAZAAR_FLIP,
-            NPC_SOLD, RUN_HISTORY, BEST_FRIENDS, EGG_TRACKER, LUCK, CARRY, SIM_MOB_LOOKS, CARNIVAL, ACCOUNT_ACTIVITY);
+            NPC_SOLD, RUN_HISTORY, BEST_FRIENDS, EGG_TRACKER, LUCK, CARRY, SIM_MOB_LOOKS, CARNIVAL, ACCOUNT_ACTIVITY, GUILD_LIST);
 
     /** Sorts the array {@code key} of {@code root} by a field (numbers, or ISO timestamps as strings); returns it. */
     static JsonArray sortBy(JsonObject root, String key, String field, boolean descending) {

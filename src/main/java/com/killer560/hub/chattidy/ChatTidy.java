@@ -140,6 +140,9 @@ public final class ChatTidy {
         if (source != GuiMessageSource.SYSTEM_SERVER || message == null) {
             return false;
         }
+        if (com.killer560.hub.partyinvites.GuildListRequest.hides(ChatObserver.strip(message))) {
+            return true; // the reply to the mod's own /guild list (already read by Auto Accept Invites)
+        }
         ChatTidyConfig cfg = ChatTidyConfig.getInstance();
         boolean damage = cfg.isHideDamageMessages();
         boolean dungeon = DungeonChatHider.anyOn(cfg) && com.killer560.hub.secrets.DungeonState.isInDungeon();
