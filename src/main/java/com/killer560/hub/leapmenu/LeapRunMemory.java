@@ -355,7 +355,7 @@ public final class LeapRunMemory {
             // Rule 3: a new party - nothing of the old layout means anything any more, except what was set for this one.
             List<String> cleared = new ArrayList<>();
             for (String name : ClassOverrides.all().keySet()) {
-                if (!containsIgnoreCase(setBefore, name)) {
+                if (!containsIgnoreCase(setBefore, name) && !name.equalsIgnoreCase(self)) {
                     ClassOverrides.clear(name);
                     cleared.add(name);
                 }

@@ -688,6 +688,14 @@ public final class LeapMenuConfig {
         setClassOrder(playing, slots);
     }
 
+    /** You left the party: every class pick (yours included) and every layout pin go; the editor's class too. */
+    public void resetForLeftParty() {
+        classOrders.clear();
+        lastEditedClass = null;
+        clearAllPicks();
+        save();
+    }
+
     /** Drops every pin of every class's layout (the Default Order applies again everywhere). */
     public void clearAllPins() {
         classOrders.clear();

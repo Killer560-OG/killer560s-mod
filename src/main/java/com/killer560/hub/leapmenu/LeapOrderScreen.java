@@ -164,6 +164,11 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
                     editing = c;
                     LeapMenuConfig cfg = LeapMenuConfig.getInstance();
                     cfg.setLastEditedClass(c);
+                    // Your own pick: it beats Hypixel's last "You have selected" (leaporder-class-1118).
+                    String me = Minecraft.getInstance().player == null ? null : Minecraft.getInstance().player.getGameProfile().name();
+                    if (me != null) {
+                        ClassOverrides.set(me, c);
+                    }
                     cfg.save();
                     if (!startWizard(false)) {
                         wizardWhenPartyArrives = PartyTracker.teammates().isEmpty();

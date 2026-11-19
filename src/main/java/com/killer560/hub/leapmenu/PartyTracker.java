@@ -5,6 +5,7 @@ import com.killer560.hub.dungeonclass.ClassOverrides;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
+import com.killer560.hub.util.SkyblockGate;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.minecraft.client.Minecraft;
@@ -218,7 +219,7 @@ public final class PartyTracker {
             }
         } else if ((m = LEFT.matcher(plain)).matches() || (m = KICKED_OFFLINE.matcher(plain)).matches()) {
             if (m.group(1).equalsIgnoreCase(selfName())) {
-                clearAll();
+                leftParty();
             } else {
                 remove(m.group(1));
             }
@@ -245,7 +246,7 @@ public final class PartyTracker {
                 leader = null;
             }
         } else if (CLEARED.matcher(plain).matches()) {
-            clearAll();
+            leftParty();
         } else {
             hit = false;
             for (Pattern p : LEADER_LINES) {
@@ -395,7 +396,7 @@ public final class PartyTracker {
             }
             if (names.isEmpty()) {
                 if (inParty || !MEMBERS.isEmpty()) {
-                    clearAll();
+                    leftParty();
                 }
             } else {
                 inParty = true;
@@ -431,6 +432,16 @@ public final class PartyTracker {
     private static String selfName() {
         Minecraft client = Minecraft.getInstance();
         return client.player == null ? null : client.player.getGameProfile().name();
+    }
+
+    /** You left, were kicked, or the party ended (not a reconnect, which only forgets): the class you picked for yourself
+     *  and the Leap Order layout reset, and only now (leaporder-class-1118, killer560 11-18). */
+    private static void leftParty() {
+        boolean was = inParty;
+        clearAll();
+        if (was) {
+            LeapMenuConfig.getInstance().resetForLeftParty();
+        }
     }
 
     /** No party: leave, kick, disband, or the tab widget saying none. */
