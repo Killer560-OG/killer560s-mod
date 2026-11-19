@@ -54,6 +54,8 @@ public final class SecretClicked {
     private static final List<Box> boxes = new ArrayList<>();
     private static int boxesAdded = 0;
     private static int lockedMarked = 0;
+    private static int lockedSounds = 0;
+    private static long lastSecretMs = 0;
     private static int soundsMuted = 0;
     private static int boxesDrawnFrames = 0;
 
@@ -75,6 +77,7 @@ public final class SecretClicked {
             return;
         }
         long now = System.currentTimeMillis();
+        lastSecretMs = now; // every click counts for the locked line, also one on a spot that already has a box
         for (Box b : boxes) {
             if (b.aabb.contains(pos.getX() + 0.5, pos.getY() + 0.5, pos.getZ() + 0.5) && now - b.atMs < BOX_MS) {
                 return;
@@ -91,13 +94,25 @@ public final class SecretClicked {
         if (!LOCKED_LINE.equals(ChatObserver.strip(message).trim())) {
             return;
         }
-        Box last = boxes.get(boxes.size() - 1);
-        if (System.currentTimeMillis() - last.atMs > LOCKED_WINDOW_MS || last.locked) {
+        long now = System.currentTimeMillis();
+        if (now - lastSecretMs > LOCKED_WINDOW_MS) {
             return;
         }
-        last.locked = true;
-        lockedMarked++;
-        if (DungeonAlertsConfig.getInstance().isSecretClickedLockedSound()) {
+        // Every locked line is one more click on a locked chest: the sound plays each time (killer560, 2026-11-18),
+        // the box turns red once.
+        Box last = boxes.get(boxes.size() - 1);
+        if (!last.locked) {
+            last.locked = true;
+            lockedMarked++;
+        }
+        playLocked();
+    }
+
+    /** The locked-chest sound (Secret Clicked's setting). Also played by {@link SecretSound} for a click on a chest already
+     *  known locked whose line never came (ChatObserver drops an identical line inside 250 ms). */
+    static void playLocked() {
+        if (wanted() && DungeonAlertsConfig.getInstance().isSecretClickedLockedSound()) {
+            lockedSounds++;
             DungeonAlertsFeature.playSound(SoundEvents.ANVIL_LAND, 0.6f, 1.0f);
         }
     }
@@ -183,6 +198,11 @@ public final class SecretClicked {
     /** For the testkit: boxes turned red by the locked line. */
     public static int lockedMarked() {
         return lockedMarked;
+    }
+
+    /** For the testkit: locked-chest sounds played. */
+    public static int lockedSounds() {
+        return lockedSounds;
     }
 
     /** For the testkit: sound packets muted. */

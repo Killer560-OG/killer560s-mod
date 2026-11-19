@@ -59,6 +59,7 @@ public final class DungeonAlertsFeature {
                 RoomAlerts.onWorldChange();
                 LowHealthAlert.onWorldChange();
                 SecretClicked.onWorldChange();
+                SecretSound.onWorldChange();
                 KeySpawnAlert.onWorldChange();
                 RareRoomAlert.onWorldChange();
                 RareDropAlert.onWorldChange();

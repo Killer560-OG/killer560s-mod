@@ -25,7 +25,8 @@
      "Iced Mob Boxes now outlines a mob only while it shows the Ice Spray freeze (the ice block on its head) and drops the box the moment the ice goes; it works for any player's freeze and no longer guesses from your wand clicks.",
      "Profile Viewer Networth page: Priced at is now a button (Est. Item Value, Instant Sell, Average BIN, NPC Sell), Showing adds a Non-Soulbound total (leaves out soulbound items and the Museum), and the Bazaar Prices and Lowest BIN Prices rows are gone.",
      "Secret waypoints now show in Gold: its room corner is found even though a gold block above the roof row made the roof look one block higher, so the wither essence gets its waypoint.",
-     "HUD editor: opened over a menu (RNG Meter, Superpairs, Start ETable, Start Croesus) it no longer draws the live panel under its own, so the RNG Meter ranking is readable and shows the real rows."
+     "HUD editor: opened over a menu (RNG Meter, Superpairs, Start ETable, Start Croesus) it no longer draws the live panel under its own, so the RNG Meter ranking is readable and shows the real rows.",
+     "Secret Clicked: every click on a locked chest plays the locked sound, and a locked chest you click again never plays the secret sound unless it really opens."
     ]
    }
   ]

@@ -120,7 +120,11 @@ public final class SecretSound {
     }
     private static final String LOCKED_LINE = "That chest is locked!";
     /** One entry per chest click awaiting its proof (a second click inside the wait used to overwrite the first: one sound for two). */
-    private static final java.util.ArrayDeque<Long> pendingChests = new java.util.ArrayDeque<>();
+    private record Pending(long at, BlockPos pos, boolean knownLocked) { }
+    private static final java.util.ArrayDeque<Pending> pendingChests = new java.util.ArrayDeque<>();
+    /** Chests Hypixel said were locked (killer560, 2026-11-18: clicking one again played the secret sound): a repeat click
+     *  never plays the secret sound unless the chest's menu really opens. Bounded; cleared on a world change. */
+    private static final java.util.Set<BlockPos> lockedChests = new java.util.HashSet<>();
     private static int chestSoundsPlayed = 0;
     private static int lockedChestSoundsDropped = 0;
 
@@ -128,7 +132,10 @@ public final class SecretSound {
         com.killer560.hub.util.ChatObserver.subscribe(message -> {
             if (!pendingChests.isEmpty()
                     && LOCKED_LINE.equals(com.killer560.hub.util.ChatObserver.strip(message).trim())) {
-                long waited = System.currentTimeMillis() - pendingChests.pollFirst(); // Hypixel answers clicks in order: the oldest one was the locked one
+                Pending p = pendingChests.pollFirst(); // Hypixel answers clicks in order: the oldest one was the locked one
+                long waited = System.currentTimeMillis() - p.at;
+                if (lockedChests.size() >= 32) lockedChests.clear();
+                lockedChests.add(p.pos);
                 LOGGER.info("[SecretSound] locked chest, no sound ({} ms after the click)", waited);
                 lockedChestSoundsDropped++;
             }
@@ -250,7 +257,7 @@ public final class SecretSound {
         if (type == SecretType.CHEST) {
             lastChestMs = now;
             if (pendingChests.size() >= 16) pendingChests.pollFirst();
-            pendingChests.addLast(now); // played by tick() once the chest is known not to be locked
+            pendingChests.addLast(new Pending(now, pos.immutable(), lockedChests.contains(pos))); // played by tick() once the chest is known not to be locked
             return;
         }
         play();
@@ -265,12 +272,23 @@ public final class SecretSound {
                 instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>;
         long now = System.currentTimeMillis();
         long wait = confirmMs(client);
-        while (!pendingChests.isEmpty() && (opened || now - pendingChests.peekFirst() >= wait)) {
-            long waited = now - pendingChests.pollFirst();
-            LOGGER.info("[SecretSound] chest sound after {} ms ({}, window {} ms)", waited, opened ? "menu opened" : "no locked line", wait);
+        while (!pendingChests.isEmpty() && (opened || now - pendingChests.peekFirst().at >= wait)) {
+            Pending p = pendingChests.pollFirst();
+            if (p.knownLocked && !opened) {
+                lockedChestSoundsDropped++; // locked before and no menu: no secret sound, whatever Hypixel's line did
+                SecretClicked.playLocked(); // its own line never came (or was merged as a duplicate): still the locked sound
+                continue;
+            }
+            lockedChests.remove(p.pos); // it opened: no longer locked
+            LOGGER.info("[SecretSound] chest sound after {} ms ({}, window {} ms)", now - p.at, opened ? "menu opened" : "no locked line", wait);
             chestSoundsPlayed++;
             play();
         }
+    }
+
+    static void onWorldChange() {
+        pendingChests.clear();
+        lockedChests.clear();
     }
 
     /** For the testkit: {chest sounds played, chest sounds dropped because the chest was locked}. */
