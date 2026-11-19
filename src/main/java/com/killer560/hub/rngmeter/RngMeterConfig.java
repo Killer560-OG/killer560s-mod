@@ -23,6 +23,7 @@ public final class RngMeterConfig {
     private boolean useInstantBuyPrice = false;
     private int refreshIntervalMinutes = 10;
     private boolean enabled = false;
+    private boolean highlightBest = true;
 
     private RngMeterConfig() {
     }
@@ -46,6 +47,7 @@ public final class RngMeterConfig {
             cfg.useInstantBuyPrice = ConfigJson.getBool(obj, "useInstantBuyPrice", false);
             cfg.setRefreshIntervalMinutes(ConfigJson.getInt(obj, "refreshIntervalMinutes", 10));
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+            cfg.highlightBest = ConfigJson.getBool(obj, "highlightBest", true);
             instance = cfg;
             // v1.0.0 and v1.1.0 wrote the mod's old built-in Hypixel key into this file as "hypixelApiKey". Nothing
             // reads it since that key was removed (2026-09-16), but the file kept it until the next save, and a
@@ -63,6 +65,7 @@ public final class RngMeterConfig {
         obj.addProperty("useInstantBuyPrice", useInstantBuyPrice);
         obj.addProperty("refreshIntervalMinutes", refreshIntervalMinutes);
         obj.addProperty("enabled", enabled);
+        obj.addProperty("highlightBest", highlightBest);
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
@@ -79,4 +82,8 @@ public final class RngMeterConfig {
     public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
+
+    public boolean isHighlightBest() { return highlightBest; }
+
+    public void setHighlightBest(boolean highlightBest) { this.highlightBest = highlightBest; }
 }

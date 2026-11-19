@@ -33,8 +33,16 @@ public class RngMeterTab extends BaseTab {
                     RngMeterConfig.getInstance().setEnabled(!RngMeterConfig.getInstance().isEnabled());
                     RngMeterConfig.getInstance().save();
                     btn.setMessage(enabledText());
+                    requestRebuild.run();
                 }).bounds(contentX, y, 220, 20).build());
         y += 26;
+
+        if (RngMeterConfig.getInstance().isEnabled() || isSearchScan()) {
+            RngMeterConfig cfg = RngMeterConfig.getInstance();
+            widgets.add(onOffButton("Highlight Best", cfg::isHighlightBest, cfg::setHighlightBest, cfg::save, null,
+                    contentX, y, 220, 20));
+            y += 26;
+        }
 
         widgets.add(SettingsButtonWidget.cycling(pricingModeText(), (btn, dir) -> {
                     RngMeterConfig.getInstance().setUseInstantBuyPrice(!RngMeterConfig.getInstance().isUseInstantBuyPrice());

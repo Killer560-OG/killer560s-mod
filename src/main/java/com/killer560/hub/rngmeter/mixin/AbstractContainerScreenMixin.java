@@ -42,6 +42,13 @@ public abstract class AbstractContainerScreenMixin extends Screen {
         RngMeterOverlay.onContainerScreenRender((AbstractContainerScreen<?>) (Object) this, graphics);
     }
 
+    @Inject(method = "extractSlot(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/world/inventory/Slot;II)V",
+            at = @At(value = "INVOKE", target = "Lnet/minecraft/world/inventory/Slot;isFake()Z"), require = 0)
+    private void killer560smod$drawBestRngSlot(GuiGraphicsExtractor graphics, net.minecraft.world.inventory.Slot slot,
+                                               int mouseX, int mouseY, CallbackInfo ci) {
+        RngMeterOverlay.drawBestSlot(graphics, (AbstractContainerScreen<?>) (Object) this, slot);
+    }
+
     @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true)
     private void killer560smod$scrollRngMeterOverlay(double mouseX, double mouseY, double scrollX, double scrollY,
                                                         CallbackInfoReturnable<Boolean> cir) {

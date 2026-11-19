@@ -223,6 +223,7 @@ public final class RngMeterOverlay {
                 shownRowCount = shown.size();
                 scrollOffset = Math.min(scrollOffset, maxScrollOffset(shown.size()));
                 memoLines = rankingLines(shown, committedSelected);
+                pickBest(screen, shown);
                 memoSize = sizeOf(memoLines);
                 memoScan = scanned;
                 memoSel = committedSelected;
@@ -239,7 +240,42 @@ public final class RngMeterOverlay {
         }
     }
 
+    /** The visible slot with the most coins per meter point (the ranking's own number); no price, no highlight; a tie keeps the first slot. */
+    private static void pickBest(AbstractContainerScreen<?> screen, List<RngMeterEngine.RankedItem> shown) {
+        int best = -1;
+        double top = 0;
+        if (RngMeterConfig.getInstance().isHighlightBest()) {
+            Map<String, Integer> slots = visibleSlots;
+            for (RngMeterEngine.RankedItem r : shown) {
+                Integer slot = slots.get(r.item().name());
+                if (r.coinsPerPity() == null || slot == null) continue;
+                if (best < 0 || r.coinsPerPity() > top || (r.coinsPerPity() == top && slot < best)) {
+                    best = slot;
+                    top = r.coinsPerPity();
+                }
+            }
+        }
+        bestSlot = best;
+        bestScreen = screen;
+    }
+
+    /** Called from extractSlot (slot-local pose): a theme-colored fill and border on the best slot. */
+    public static void drawBestSlot(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen, Slot slot) {
+        if (slot.index != bestSlot || screen != bestScreen || !RngMeterConfig.getInstance().isHighlightBest()
+                || !RngMeterConfig.getInstance().isEnabled()) return;
+        int c = com.killer560.hub.gui.ThemeAccent.light(0xFFFFAA00) & 0xFFFFFF;
+        graphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, 0x66000000 | c);
+        graphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 1, 0xFF000000 | c);
+        graphics.fill(slot.x, slot.y + 15, slot.x + 16, slot.y + 16, 0xFF000000 | c);
+        graphics.fill(slot.x, slot.y + 1, slot.x + 1, slot.y + 15, 0xFF000000 | c);
+        graphics.fill(slot.x + 15, slot.y + 1, slot.x + 16, slot.y + 15, 0xFF000000 | c);
+    }
+
     private static long lastErrorLogMs = 0L;
+    /** Visible reward name to menu slot index, from the last scan of the open page. */
+    private static volatile Map<String, Integer> visibleSlots = Map.of();
+    private static volatile AbstractContainerScreen<?> bestScreen;
+    private static volatile int bestSlot = -1;
 
     /** Logs a failure at most every 5 s: a draw or tooltip that throws throws every frame, which flooded the log. */
     public static void logThrottled(String what, Exception e) {
@@ -258,6 +294,7 @@ public final class RngMeterOverlay {
      */
     private static void advanceScanStability(AbstractContainerScreen<?> screen, String title) {
         ScanResult scanResult = scanMenu(screen);
+        visibleSlots = scanResult.slots();
         List<RngItem> candidate = scanResult.items();
         if (!title.equals(pendingTitle) || !candidate.equals(pendingScan)) {
             pendingTitle = title;
@@ -316,6 +353,7 @@ public final class RngMeterOverlay {
         if (now - lastRescanAtMs < RESCAN_MS) return;
         lastRescanAtMs = now;
         ScanResult scan = scanMenu(screen);
+        visibleSlots = scan.slots();
         if (scan.selected() != null) {
             committedSelected = scan.selected();
             noteSelected(title, committedSelected);
@@ -389,7 +427,7 @@ public final class RngMeterOverlay {
     public record SelectedDropInfo(String name, double percent, long current, long required) {
     }
 
-    private record ScanResult(List<RngItem> items, SelectedDropInfo selected) {
+    private record ScanResult(List<RngItem> items, SelectedDropInfo selected, Map<String, Integer> slots) {
     }
 
     /**
@@ -402,6 +440,7 @@ public final class RngMeterOverlay {
      */
     private static ScanResult scanMenu(AbstractContainerScreen<?> screen) {
         List<RngItem> found = new ArrayList<>();
+        Map<String, Integer> slotOf = new LinkedHashMap<>();
         List<String> unparsedSamples = new ArrayList<>();
         SelectedDropInfo selected = null;
         var client = Minecraft.getInstance();
@@ -441,6 +480,7 @@ public final class RngMeterOverlay {
                 LOGGER.warn("No price mapping for RNG Meter reward \"{}\" (required score {})", name, requiredScore);
             }
             found.add(new RngItem("", name, id != null ? id : "", RngSource.BAZAAR, requiredScore, false));
+            slotOf.putIfAbsent(name, slot.index);
         }
         // Diagnostic: this menu had real items but none matched the known "Dungeon Score:"/
         // "Progress:" lore anchors - likely a different reward-menu format not seen before (e.g.
@@ -449,7 +489,7 @@ public final class RngMeterOverlay {
             LOGGER.warn("Menu had {} non-empty item(s) but none matched a known score format - samples: {}",
                     nonEmptySeen, unparsedSamples);
         }
-        return new ScanResult(found, selected);
+        return new ScanResult(found, selected, slotOf);
     }
 
     private static final Pattern PROGRESS_PERCENT_LINE = Pattern.compile("^Progress:\\s*([\\d.]+)%$");

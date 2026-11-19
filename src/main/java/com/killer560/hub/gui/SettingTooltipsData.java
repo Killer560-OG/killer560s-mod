@@ -476,6 +476,7 @@ final class SettingTooltipsData {
     }
 
     private static void part1(Map<String, String> d) {
+        d.put("highlight best", "Marks the slot of the best reward on the open RNG Meter page: the most coins per meter point, the same number the ranking shows. Rewards with no price are never picked.");
         d.put("rng meter overlay enabled", "Shows a coins-per-meter-point ranking next to Hypixel's RNG Meter menus.");
         d.put("bazaar pricing", "Chooses whether RNG Meter rewards use Bazaar Instant Buy or Instant Sell prices.");
         d.put("minutes", "Minutes to wait between automatic Bazaar and AH price refreshes (minimum 1).");
