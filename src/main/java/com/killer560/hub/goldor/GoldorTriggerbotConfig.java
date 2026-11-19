@@ -53,8 +53,8 @@ public final class GoldorTriggerbotConfig {
     private int delayMax = DEFAULT_DELAY_MAX;
     private ClickType clickType = ClickType.ATTACK;
     private int aimDelayMs = 0;
-    /** Every real wither boss of the F7/M7 fight (Maxor, Storm, Goldor, Necron), not just Goldor in P3. */
-    private boolean allWithers = false;
+    /** The wither bosses the triggerbot clicks (index as in BOSSES): Goldor only by default, as it always was. */
+    private final boolean[] hitBoss = {false, false, true, false};
     /** The dungeon classes it works on (your class from the tab list); all five by default. */
     private final java.util.EnumSet<com.killer560.hub.dungeonclass.DungeonClass> classes =
             java.util.EnumSet.allOf(com.killer560.hub.dungeonclass.DungeonClass.class);
@@ -92,7 +92,11 @@ public final class GoldorTriggerbotConfig {
                         RateMs.read(obj, "delayMax", "cpsMin", DEFAULT_DELAY_MAX));
                 cfg.clickType = ConfigJson.getEnum(obj, "clickType", ClickType.class, ClickType.ATTACK);
                 cfg.setAimDelayMs(ConfigJson.getInt(obj, "aimDelayMs", 0));
-                cfg.allWithers = ConfigJson.getBool(obj, "allWithers", false);
+                // Old file: "All Wither Bosses" on meant every boss.
+                boolean all = ConfigJson.getBool(obj, "allWithers", false);
+                for (int i = 0; i < BOSSES.length; i++) {
+                    cfg.hitBoss[i] = ConfigJson.getBool(obj, "hit" + BOSSES[i], all || i == 2);
+                }
                 cfg.aimbot = ConfigJson.getBool(obj, "aimbot", false);
                 cfg.aimAutoHit = ConfigJson.getBool(obj, "aimAutoHit", true);
                 cfg.aimHoldLeftClick = ConfigJson.getBool(obj, "aimHoldLeftClick", false);
@@ -120,7 +124,9 @@ public final class GoldorTriggerbotConfig {
         obj.addProperty("delayMax", delayMax);
         obj.addProperty("clickType", clickType.name());
         obj.addProperty("aimDelayMs", aimDelayMs);
-        obj.addProperty("allWithers", allWithers);
+        for (int i = 0; i < BOSSES.length; i++) {
+            obj.addProperty("hit" + BOSSES[i], hitBoss[i]);
+        }
         obj.addProperty("aimbot", aimbot);
         obj.addProperty("aimAutoHit", aimAutoHit);
         obj.addProperty("aimHoldLeftClick", aimHoldLeftClick);
@@ -170,12 +176,15 @@ public final class GoldorTriggerbotConfig {
         clickType = all[Math.floorMod(clickType.ordinal() + dir, all.length)];
     }
 
-    public boolean isAllWithers() {
-        return allWithers;
+    /** Whether the triggerbot clicks boss {@code i} of {@link #BOSSES}. */
+    public boolean isHitAt(int i) {
+        return i >= 0 && i < hitBoss.length && hitBoss[i];
     }
 
-    public void setAllWithers(boolean v) {
-        allWithers = v;
+    public void setHitAt(int i, boolean v) {
+        if (i >= 0 && i < hitBoss.length) {
+            hitBoss[i] = v;
+        }
     }
 
     /** The aimbot's gate: its switch, on the cheat jar, inside Skyblock. */

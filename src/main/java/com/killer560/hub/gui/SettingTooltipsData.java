@@ -2852,11 +2852,14 @@ final class SettingTooltipsData {
         d.put("mask keybinds/order", "Which mask it tries first: Spirit First or Bonzo First. If that one is on cooldown it equips the other. Left or right click switches.");
         d.put("mask keybinds/dungeons only", "The key only works in dungeons.");
         d.put("mask keybinds/boss only", "The key only works in a boss fight.");
-        d.put("wither boss triggerbot", "Cheat build: in the F7/M7 boss, clicks Goldor (or every wither boss) while your crosshair is on him, from any range.");
+        d.put("wither boss triggerbot", "Cheat build: in the F7/M7 boss, clicks the wither bosses you picked (Goldor by default) while your crosshair is on them, from any range. Never a boss that is dead or dying.");
         d.put("wither boss triggerbot/delay", "Time between clicks, 50-1000 ms, randomized between the two ends of the range.");
         d.put("wither boss triggerbot/click type", "Attack is a left click: an attack in melee reach, the swing alone from further (what a Terminator or a mage beam fires on). Use is a right click for a Terminator or Juju shot.");
         d.put("wither boss triggerbot/aim delay", "How long your crosshair must stay on the boss before it clicks, 0-500 ms. Clicks go out on the game tick, so it rounds up to whole 50 ms ticks.");
-        d.put("wither boss triggerbot/all wither bosses", "Works on every wither boss of the F7/M7 fight (Maxor, Storm, Goldor, Necron), not only Goldor in P3.");
+        d.put("wither boss triggerbot/hit maxor", "The triggerbot clicks Maxor in P1 (F7/M7) while your crosshair is on him. Never a boss that is dead or dying.");
+        d.put("wither boss triggerbot/hit storm", "The triggerbot clicks Storm in P2 (F7/M7) while your crosshair is on him. Never a boss that is dead or dying.");
+        d.put("wither boss triggerbot/hit goldor", "The triggerbot clicks Goldor in P3 (F7/M7) while your crosshair is on him. Never a boss that is dead or dying.");
+        d.put("wither boss triggerbot/hit necron", "The triggerbot clicks Necron in P4 (F7/M7) while your crosshair is on him. Never a boss that is dead or dying.");
         d.put("wither boss triggerbot/wither aimbot", "Cheat build: in the F7/M7 boss, smoothly turns your view onto the boss wither of the phases picked below, from any range. Moving your mouse pauses it for half a second. Off by default.");
         d.put("wither boss triggerbot/auto hit", "The aimbot also clicks the boss while your crosshair is on him, at the Delay and Click Type set below. Off: it only aims.");
         d.put("wither boss triggerbot/hold left click", "The aimbot only turns while you hold your attack key; let go and your view is yours again.");

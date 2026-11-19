@@ -97,13 +97,8 @@ public final class GoldorTriggerbotFeature {
         long now = ActionGate.currentTick();
         Entity aimed = aimbot(client, player, cfg, now);
         // The triggerbot's own phases, or the aimbot's boss with Auto Hit on.
-        boolean clicks = (bot && (cfg.isAllWithers() || Floor7Tracker.inPhase(Floor7Tracker.Phase.P3)
-                || Floor7Tracker.inPhaseAt(Floor7Tracker.Phase.P3))) || (aimed != null && cfg.isAimAutoHit());
-        if (!clicks) {
-            clearAim();
-            return;
-        }
-        Entity target = aimedAtBoss(client, player, GoldorTriggerbotConfig.AIM_DISTANCE, 1.0f);
+        Entity autoHit = cfg.isAimAutoHit() ? aimed : null;
+        Entity target = aimedAtBoss(client, player, cfg, bot, autoHit, GoldorTriggerbotConfig.AIM_DISTANCE, 1.0f);
         if (target == null) {
             clearAim();
             return;
@@ -183,6 +178,17 @@ public final class GoldorTriggerbotFeature {
     }
 
     /**
+     * Whether this boss wither is one the player picked and still fighting. Which boss it is comes from its own height
+     * (each boss fights inside its phase's arena band, so it works when a chat line was missed or on p3sim). A boss
+     * whose phase the chat has moved past is over, whatever its entity still shows; a dying one is already dropped by
+     * {@link WitherEspFeature#isRealWither}.
+     */
+    private static boolean bossWanted(GoldorTriggerbotConfig cfg, Entity wither) {
+        int boss = Floor7Tracker.phaseAtY(wither.getY()).ordinal() - Floor7Tracker.Phase.P1.ordinal();
+        return cfg.isHitAt(boss) && Floor7Tracker.getPhase().compareTo(Floor7Tracker.phaseAtY(wither.getY())) <= 0;
+    }
+
+    /**
      * Wither Aimbot (witheraim-1111): while the boss of a picked phase is up (Maxor P1 .. Necron P4; the chat phase, else
      * the height band, so joining mid-run works), and with Hold Left Click only while he holds attack, turns the view
      * onto the nearest real boss wither's body through {@link ViewAim} (eased per frame, running yaw, pitch within
@@ -251,14 +257,16 @@ public final class GoldorTriggerbotFeature {
      * {@link WitherEspFeature#isRealWither} is the filter - Hypixel's invisible / 800-invulnerable-tick
      * display withers are not Goldor and must never be clicked.
      */
-    private static Entity aimedAtBoss(Minecraft client, LocalPlayer player, double range, float partialTick) {
+    private static Entity aimedAtBoss(Minecraft client, LocalPlayer player, GoldorTriggerbotConfig cfg, boolean bot,
+            Entity autoHit, double range, float partialTick) {
         Vec3 eyes = player.getEyePosition(partialTick);
         // The segment itself stops at Range, so the clip below is the range check - no separate distance test.
         Vec3 end = eyes.add(player.getViewVector(partialTick).scale(range));
         Entity best = null;
         double bestDistance = Double.MAX_VALUE;
         for (Entity entity : client.level.entitiesForRendering()) {
-            if (!(entity instanceof WitherBoss) || !WitherEspFeature.isRealWither(entity)) {
+            if (!(entity instanceof WitherBoss) || !WitherEspFeature.isRealWither(entity)
+                    || !(entity == autoHit || (bot && bossWanted(cfg, entity)))) {
                 continue;
             }
             AABB box = entity.getBoundingBox();

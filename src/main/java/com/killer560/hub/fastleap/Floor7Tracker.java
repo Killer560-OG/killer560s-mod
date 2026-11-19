@@ -318,7 +318,11 @@ public final class Floor7Tracker {
         if (player == null || !inF7Boss()) {
             return Phase.UNKNOWN;
         }
-        double y = player.getY();
+        return phaseAtY(player.getY());
+    }
+
+    /** The phase whose arena a height belongs to (a player's, or a boss wither's). */
+    public static Phase phaseAtY(double y) {
         if (y > 210) {
             return Phase.P1;
         }

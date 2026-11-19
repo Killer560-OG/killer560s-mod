@@ -51,8 +51,13 @@ public class GoldorTriggerbotTab extends BaseTab {
         y += 24;
         boolean scan = isSearchScan();
         if (cfg.isEnabledRaw() || scan) {
-            widgets.add(onOffButton("All Wither Bosses", cfg::isAllWithers, cfg::setAllWithers, cfg::save,
-                    null, contentX, y, contentWidth, 20));
+            // Which wither bosses it clicks (a dead or dying one never is).
+            int hitW = (contentWidth - GAP * 3) / 4;
+            for (int i = 0; i < GoldorTriggerbotConfig.BOSSES.length; i++) {
+                int boss = i;
+                widgets.add(onOffButton("Hit " + GoldorTriggerbotConfig.BOSSES[i], () -> cfg.isHitAt(boss),
+                        v -> cfg.setHitAt(boss, v), cfg::save, null, contentX + i * (hitW + GAP), y, hitW, 20));
+            }
             y += 24;
         }
 
