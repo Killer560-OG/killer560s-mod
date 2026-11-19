@@ -57,6 +57,13 @@ public final class InventorySearchFeature {
     /** Ctrl+A: the whole query is selected; the next typed character or paste replaces it, Backspace clears it. */
     private static boolean selectedAll = false;
     private static boolean listening = false;
+    /** When typing last started: vanilla's EditBox blinks its caret from the moment it is focused (300 ms a phase). */
+    private static long listenSince = 0L;
+
+    /** Whether the blinking caret is in its drawn phase (listening, on-phase of vanilla's 300 ms blink). Public for the testkit. */
+    public static boolean caretOn() {
+        return listening && (net.minecraft.util.Util.getMillis() - listenSince) / 300L % 2L == 0L;
+    }
 
     /** Real screen bounds of the standalone floating search box from the most recent render (null
      *  whenever it isn't drawn - i.e. the Item Browser panel is showing its own header box instead) -
@@ -89,6 +96,9 @@ public final class InventorySearchFeature {
      *  can click into that bar as well", so a plain left click on either search box focuses it exactly
      *  like clicking into any real text field, same shared state Ctrl+F already toggles. */
     public static void setListening(boolean value) {
+        if (value && !listening) {
+            listenSince = net.minecraft.util.Util.getMillis();
+        }
         listening = value;
         // 26.3 (SDL3) delivers typed characters only while text input is started, which vanilla does for a focused
         // EditBox only; without this a click lit the bar and nothing typed reached it (killer560, 2026-11-05).
@@ -481,11 +491,14 @@ public final class InventorySearchFeature {
         int boxHeight = BAR_H;
         String display = barText();
         var barFont = Minecraft.getInstance().font;
-        if (barFont.width(display) > boxWidth - 8) {
+        int room = boxWidth - 8 - (listening ? 6 : 0); // a focused bar leaves room for the "_" caret
+        if (listening && QUERY.isEmpty()) {
+            display = ""; // the placeholder gives way to the caret
+        } else if (barFont.width(display) > room) {
             if (QUERY.isEmpty()) {
                 display = barFont.width("Ctrl+F to search...") <= boxWidth - 8 ? "§8Ctrl+F to search..." : "§8Search...";
             } else {
-                display = barFont.plainSubstrByWidth(display, boxWidth - 8, true); // the end of what is typed
+                display = barFont.plainSubstrByWidth(display, room, true); // the end of what is typed
             }
         }
         lastBoxBounds = new int[]{screenX, screenY, rect[2], rect[3]};
@@ -509,6 +522,9 @@ public final class InventorySearchFeature {
             try {
                 graphics.text(Minecraft.getInstance().font, com.killer560.hub.hud.HudTextCache.visualOrder(display), 4, 4,
                         0xFFFFFFFF, false);
+                if (caretOn() && (calcResultNow(queryNow()) == null || QUERY.isEmpty())) {
+                    graphics.text(Minecraft.getInstance().font, "_", 4 + barFont.width(display), 4, 0xFFFFFFFF, false);
+                }
             } finally {
                 graphics.disableScissor();
             }

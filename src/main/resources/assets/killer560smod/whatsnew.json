@@ -33,7 +33,8 @@
      "Dungeon Sim Help (/help) now looks like the other sim menus: the page list in the raised left column, Close at the bottom left, Back and Next at the bottom right with the page number centered, and pictures of the screens and places each page talks about.",
      "Slot Text: Forbidden Intel in the Essence Shops no longer shows its level twice.",
      "Party Commands: Officer chat is now a channel like Guild (off by default); it answers the same ! commands and replies with /oc.",
-     "Auto Anvil: new Start Mode setting. Start Button (default) shows a Start Auto Anvil / Stop Auto Anvil button in the anvil menu; Auto Start begins by itself when the menu opens, as before."
+     "Auto Anvil: new Start Mode setting. Start Button (default) shows a Start Auto Anvil / Stop Auto Anvil button in the anvil menu; Auto Start begins by itself when the menu opens, as before.",
+     "Inventory search bar: a blinking _ caret shows while you type in it; the empty focused bar shows just the caret instead of the hint."
     ]
    }
   ]
