@@ -292,12 +292,17 @@ public final class RoomDatabase {
                 {-1, -1}, {1, -1}, {1, 1}, {-1, 1}
         };
         BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-        for (int i = 0; i < 4; i++) {
-            pos.set(corners[i][0], roofHeight, corners[i][1]);
-            if (!ChunkCacheManager.isLoadedOrCached(level, pos)) continue;
-            if (level.getBlockState(pos).is(McBlocks.BLUE_TERRACOTTA)
-                    && isOuterRoofCorner(level, corners[i][0], roofHeight, corners[i][1], outward[i][0], outward[i][1])) {
-                return new int[]{corners[i][0], corners[i][1], i * 90};
+        // roofHeight is the highest block at a tile CENTER; a roof decoration there can stand one above the marker
+        // row (Gold's gold block, goldessence-1118: roof 100, marker 99, so no rotation and no waypoints).
+        for (int dy = 0; dy <= 1; dy++) {
+            int y = roofHeight - dy;
+            for (int i = 0; i < 4; i++) {
+                pos.set(corners[i][0], y, corners[i][1]);
+                if (!ChunkCacheManager.isLoadedOrCached(level, pos)) continue;
+                if (level.getBlockState(pos).is(McBlocks.BLUE_TERRACOTTA)
+                        && isOuterRoofCorner(level, corners[i][0], y, corners[i][1], outward[i][0], outward[i][1])) {
+                    return new int[]{corners[i][0], corners[i][1], i * 90};
+                }
             }
         }
         return null;
