@@ -61,7 +61,7 @@ public final class PartyTracker {
     // typing that line in any chat (found by the testkit logic suite, 2026-10-04).
     private static final String ANY_NAME = "(?:\\[[^]]+] )?[A-Za-z0-9_]{1,16}";
     private static final Pattern CLEARED = Pattern.compile("^(?:You left the party\\.|You are not currently in a party\\.|You have been kicked from the party by " + ANY_NAME + "|"
-            + ANY_NAME + " has disbanded the party!|The party was disbanded because .+|You are not in a party.*)$");
+            + ANY_NAME + " has disbanded the party!|The party was disbanded because .+|You are not in a party.*|You must be in a party to join the party channel!)$");
     // Hypixel's own lines naming YOUR class (leaporder-1102, all seen in his logs): the class menu, the dungeon's
     // pre-start broadcast (checked against your own name), a Party Finder group, and the run's first line when your class
     // is unique. Anchored on the whole line with a bare name group, so no player's chat can forge one.
@@ -70,6 +70,21 @@ public final class PartyTracker {
     private static final Pattern NAME_SELECTED = Pattern.compile("^([A-Za-z0-9_]{1,16}) selected the " + CLASS_WORD + " Class!$");
     private static final Pattern PF_SET_CLASS = Pattern.compile("^Party Finder > ([A-Za-z0-9_]{1,16}) set their class to " + CLASS_WORD + " Level \\d{1,3}!$");
     private static final Pattern STATS_DOUBLED = Pattern.compile("^Your " + CLASS_WORD + " stats are doubled because you are the only player using this class!$");
+
+    // Leader and membership lines every party feature used to parse for itself (partystate-1118): one copy here.
+    private static final Pattern INVITE = Pattern.compile("^" + NAME + " invited " + NAME + " to the party! They have \\d+ seconds to accept\\.$");
+    private static final Pattern PROMOTED = Pattern.compile("^" + NAME + " has promoted " + NAME + " to Party Leader$");
+    private static final Pattern TRANSFER_BY = Pattern.compile("^The party was transferred to " + NAME + " by " + NAME + "$");
+    private static final Pattern[] LEADER_LINES = {
+            Pattern.compile("^The party leader, " + NAME + " has disconnected, they have \\d+ minutes? to rejoin before the party is disbanded\\.$"),
+            Pattern.compile("^The party leader " + NAME + " has rejoined\\.$"),
+            Pattern.compile("^Party Leader, " + NAME + ", summoned you to their server\\.$")};
+    private static final Pattern NOT_LEADER = Pattern.compile("^You are not this party's leader[.!]$");
+    private static final Pattern DUNGEON_ENTER = Pattern.compile(
+            "(?m)^\\s*" + NAME + " entered (?:MM )?(?:The )?Catacombs, (?:Floor [IVX]+|Entrance)!\\s*$");
+    /** The SkyBlock tab's Party widget: "Party: (4/5)" or "Party: No party", then " Name: Cata 46" rows. */
+    private static final Pattern WIDGET_COUNT = Pattern.compile("^Party: \\((\\d+)/\\d+\\)$");
+    private static final Pattern WIDGET_MEMBER = Pattern.compile("^ ?(?:\\[[^]]+] )?([A-Za-z0-9_]{1,16}): .+$");
 
     /** Names as Hypixel spells them, in listing order. Includes yourself when Hypixel lists you. */
     private static final Set<String> MEMBERS = new LinkedHashSet<>();
@@ -82,6 +97,14 @@ public final class PartyTracker {
     private static boolean wasInDungeon = false;
     private static boolean readingList = false;
     private static int tickCounter = 0;
+    private static int widgetTicks = 0;
+    /** Whether a party is known to exist (any join, invite, party chat, list or tab widget says so; every leave, kick,
+     *  disband and a new connection says no), and who leads it (null = unknown). */
+    private static boolean inParty = false;
+    private static String leader = null;
+    /** When a chat line last changed the party, and the tab widget reading waiting to be seen twice (partystate-1118). */
+    private static long chatChangeMs = 0L;
+    private static String lastWidget = null;
     /** The connection the party was learned on (weak: a closed one is not kept alive). Render thread only. */
     private static java.lang.ref.WeakReference<Object> lastConnection = new java.lang.ref.WeakReference<>(null);
 
@@ -134,14 +157,25 @@ public final class PartyTracker {
         if (plain.startsWith("Party ") && LIST_HEADER.matcher(plain).matches()) {
             MEMBERS.clear();
             readingList = true;
+            inParty = true;
+            chatChangeMs = System.currentTimeMillis();
             return;
         }
         Matcher m;
         if (plain.startsWith("Party ") && (m = LIST_LINE.matcher(plain)).matches()) {
             Matcher entry = LIST_ENTRY.matcher(m.group(1));
+            boolean lead = plain.startsWith("Party Leader:");
             while (entry.find()) {
                 add(entry.group(1));
+                if (lead) {
+                    leader = entry.group(1);
+                    lead = false;
+                }
             }
+            return;
+        }
+        if (plain.contains("Catacombs, ") && (m = DUNGEON_ENTER.matcher(plain)).find()) {
+            leader = m.group(1);
             return;
         }
         if (readingList && !plain.startsWith("Party ") && !plain.startsWith("-")) {
@@ -158,11 +192,16 @@ public final class PartyTracker {
         if (!plain.contains("arty") && !plain.startsWith("Kicked ")) {
             return;
         }
-        if ((m = JOINED.matcher(plain)).matches() || (m = PARTY_CHAT.matcher(plain)).matches()) {
+        boolean hit = true;
+        if ((m = JOINED.matcher(plain)).matches()) {
             add(m.group(1));
+        } else if ((m = PARTY_CHAT.matcher(plain)).matches()) {
+            add(m.group(1));
+            hit = false;
         } else if ((m = YOU_JOINED.matcher(plain)).matches()) {
             MEMBERS.clear();
             LEFT_NAMES.clear();
+            leader = m.group(1);
             add(m.group(1));
         } else if ((m = PARTYING_WITH.matcher(plain)).matches()) {
             for (String part : m.group(1).split(", ")) {
@@ -178,13 +217,48 @@ public final class PartyTracker {
                 CLASSES.put(m.group(1).toLowerCase(Locale.US), c);
             }
         } else if ((m = LEFT.matcher(plain)).matches() || (m = KICKED_OFFLINE.matcher(plain)).matches()) {
-            remove(m.group(1));
+            if (m.group(1).equalsIgnoreCase(selfName())) {
+                clearAll();
+            } else {
+                remove(m.group(1));
+            }
         } else if ((m = TRANSFER_LEAVE.matcher(plain)).matches()) {
             add(m.group(1));
+            leader = m.group(1);
             remove(m.group(2));
+        } else if ((m = TRANSFER_BY.matcher(plain)).matches()) {
+            add(m.group(1));
+            leader = m.group(1);
+        } else if ((m = PROMOTED.matcher(plain)).matches()) {
+            add(m.group(2));
+            leader = m.group(2);
+        } else if ((m = INVITE.matcher(plain)).matches()) {
+            // The inviter is in the party; a party with nobody in it yet is led by whoever invites first.
+            boolean fresh = !inParty;
+            add(m.group(1));
+            if (fresh && m.group(1).equalsIgnoreCase(selfName())) {
+                leader = m.group(1);
+            }
+        } else if (NOT_LEADER.matcher(plain).matches()) {
+            inParty = true;
+            if (leader != null && leader.equalsIgnoreCase(selfName())) {
+                leader = null;
+            }
         } else if (CLEARED.matcher(plain).matches()) {
-            MEMBERS.clear();
-            LEFT_NAMES.clear();
+            clearAll();
+        } else {
+            hit = false;
+            for (Pattern p : LEADER_LINES) {
+                if ((m = p.matcher(plain)).matches()) {
+                    add(m.group(1));
+                    leader = m.group(1);
+                    hit = true;
+                    break;
+                }
+            }
+        }
+        if (hit) {
+            chatChangeMs = System.currentTimeMillis();
         }
     }
 
@@ -234,6 +308,10 @@ public final class PartyTracker {
                 DEAD.clear();
                 LEFT_NAMES.clear();
             }
+            if (++widgetTicks >= 2 && com.killer560.hub.util.SkyblockGate.isOnSkyblock()) {
+                widgetTicks = 0;
+                readWidget(client);
+            }
             return;
         }
         wasInDungeon = true;
@@ -271,16 +349,106 @@ public final class PartyTracker {
             MEMBERS.clear();
             MEMBERS.addAll(fromTab);
         }
+        if (fromTab.size() > 1) {
+            inParty = true;
+        }
+    }
+
+    /**
+     * Outside a dungeon SkyBlock's tab Party widget says who is in the party, whatever chat missed: a Party Finder
+     * group joined with members already in it (Hypixel names only you), a party kept across a restart or a reconnect, a
+     * line another feature starved. Applied when the same reading comes twice in a row (the widget lags a join by a few
+     * seconds) and no party line came from chat in the last 8 s. No widget (turned off in the tab settings) = no change.
+     */
+    private static void readWidget(Minecraft client) {
+        List<PlayerInfo> tab = com.killer560.hub.util.TabOrder.listed(client);
+        for (int i = 0; i < tab.size(); i++) {
+            String head = com.killer560.hub.util.TabText.plain(tab.get(i));
+            if (head == null || !(head = head.strip()).startsWith("Party: ")) {
+                continue;
+            }
+            List<String> names = new ArrayList<>();
+            Matcher count = WIDGET_COUNT.matcher(head);
+            if (count.matches()) {
+                int n = Integer.parseInt(count.group(1));
+                for (int j = i + 1; j < tab.size() && names.size() < n; j++) {
+                    String row = com.killer560.hub.util.TabText.plain(tab.get(j));
+                    Matcher m = row == null ? null : WIDGET_MEMBER.matcher(row);
+                    if (m == null || !m.matches()) {
+                        break;
+                    }
+                    names.add(m.group(1));
+                }
+                if (names.size() != n) {
+                    return;
+                }
+            } else if (!"Party: No party".equals(head)) {
+                return;
+            }
+            String reading = String.join(",", names);
+            if (!reading.equals(lastWidget)) {
+                lastWidget = reading;
+                return;
+            }
+            if (System.currentTimeMillis() - chatChangeMs < 8000L) {
+                return;
+            }
+            if (names.isEmpty()) {
+                if (inParty || !MEMBERS.isEmpty()) {
+                    clearAll();
+                }
+            } else {
+                inParty = true;
+                if (!new ArrayList<>(MEMBERS).equals(names)) {
+                    MEMBERS.clear();
+                    MEMBERS.addAll(names);
+                }
+                if (leader != null && names.stream().noneMatch(leader::equalsIgnoreCase)) {
+                    leader = null;
+                }
+            }
+            return;
+        }
+    }
+
+    /** A party is known to exist (see {@link #inParty}). */
+    public static boolean inParty() {
+        return inParty;
+    }
+
+    /** The party leader as Hypixel last named them, or null when unknown or not in a party. */
+    public static String leader() {
+        return inParty ? leader : null;
+    }
+
+    /** True only when the leader is known and is not you; an unknown leader lets a command through. */
+    public static boolean knownNotLeader() {
+        String lead = leader();
+        String self = selfName();
+        return lead != null && self != null && !lead.equalsIgnoreCase(self);
+    }
+
+    private static String selfName() {
+        Minecraft client = Minecraft.getInstance();
+        return client.player == null ? null : client.player.getGameProfile().name();
+    }
+
+    /** No party: leave, kick, disband, or the tab widget saying none. */
+    private static void clearAll() {
+        MEMBERS.clear();
+        LEFT_NAMES.clear();
+        inParty = false;
+        leader = null;
     }
 
     /** Forgets the party: a new connection, where nothing said before it can be trusted. */
     static void clearParty() {
-        MEMBERS.clear();
+        clearAll();
         CLASSES.clear();
         DEAD.clear();
-        LEFT_NAMES.clear();
         readingList = false;
         wasInDungeon = false;
+        lastWidget = null;
     }
 
     private static DungeonClass parseClass(String raw) {
@@ -288,6 +456,7 @@ public final class PartyTracker {
     }
 
     private static void add(String name) {
+        inParty = true;
         LEFT_NAMES.remove(name.toLowerCase(Locale.US));
         if (MEMBERS.stream().noneMatch(existing -> existing.equalsIgnoreCase(name))) {
             MEMBERS.add(name);

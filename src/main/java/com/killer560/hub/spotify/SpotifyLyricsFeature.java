@@ -5,7 +5,6 @@ import com.google.gson.Gson;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.util.ConfigJson;
-import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.client.Minecraft;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
@@ -62,7 +61,6 @@ public final class SpotifyLyricsFeature {
 
     /** How often the Spotify window is read. See the scheduling call for why it is this small. */
     private static final long POLL_MS = 250;
-    private static volatile boolean inParty = false;
     private static volatile String lastSentLyric = "";
 
     private static final ScheduledExecutorService SCHEDULER = Executors.newSingleThreadScheduledExecutor(r -> {
@@ -77,7 +75,6 @@ public final class SpotifyLyricsFeature {
     public static void init() {
         loadConfig();
         SpotifyHudConfig.load();
-        registerChatListeners();
         // 250 ms, not 2 s.
         //
         // killer560 (2026-09-30): "the spotify mod lyrics are still delayed a little bit ingame." A two-second
@@ -153,41 +150,6 @@ public final class SpotifyLyricsFeature {
     public static void setSendLyricsToChat(boolean send) { enabled = send; }
 
 
-    // Hypixel's own party lines, whole-line and with a name group no chat prefix can fill: the old contains() checks
-    // let any player's message ("... joined the party", "... disbanded the party") flip where lyrics went. The same
-    // shapes leapmenu/PartyTracker reads.
-    private static final String PARTY_NAME = "(?:\\[[^]]+] )?[A-Za-z0-9_]{1,16}";
-    private static final java.util.regex.Pattern PARTY_JOINED = java.util.regex.Pattern.compile(
-            "^(?:" + PARTY_NAME + " joined the party\\.|You have joined " + PARTY_NAME + "'s? party!"
-                    + "|You'll be partying with: .+)$");
-    private static final java.util.regex.Pattern PARTY_LEFT = java.util.regex.Pattern.compile(
-            "^(?:You left the party\\.|You are not currently in a party\\.|You have been kicked from the party by "
-                    + PARTY_NAME + "|" + PARTY_NAME + " has disbanded the party!|The party was disbanded because .+)$");
-
-    private static void registerChatListeners() {
-        // Party lines are server (GAME) lines, never signed player chat, so only GAME is read, and never the action
-        // bar. Caught: a throw in a raw listener disconnects him from Hypixel.
-        ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
-            if (overlay) return;
-            try {
-                updatePartyStatus(com.killer560.hub.util.ChatObserver.strip(message));
-            } catch (RuntimeException e) {
-                LOGGER.warn("Spotify Lyrics party check failed: {}", e.toString());
-            }
-        });
-    }
-
-    private static void updatePartyStatus(String text) {
-        if (text == null) return;
-        String line = text.trim();
-        if (PARTY_JOINED.matcher(line).matches()) {
-            inParty = true;
-        } else if (PARTY_LEFT.matcher(line).matches()) {
-            inParty = false;
-        }
-    }
-
-
     private static void tick() {
         // Feature off: do nothing at all. Previously poll() ran before this guard, so once Last.fm
         // credentials were entered the key + username were sent to ws.audioscrobbler.com every 2 s for
@@ -253,7 +215,7 @@ public final class SpotifyLyricsFeature {
 
         boolean isTrackChange = ENGINE.isCurrentLyricTransition();
         if (!isTrackChange && !fullLyrics) return;
-        if (!inSim && chatDestination == ChatDestination.PARTY && !inParty) return;
+        if (!inSim && chatDestination == ChatDestination.PARTY && !com.killer560.hub.leapmenu.PartyTracker.inParty()) return;
 
         sendToChat(applyProfanityFilter(lyric), inSim);
     }

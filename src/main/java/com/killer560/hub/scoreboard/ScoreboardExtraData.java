@@ -168,7 +168,6 @@ public final class ScoreboardExtraData {
     static void register() {
         load();
         ChatObserver.subscribe(ScoreboardExtraData::onChat);
-        ScoreboardPartyLeader.register();
     }
 
 

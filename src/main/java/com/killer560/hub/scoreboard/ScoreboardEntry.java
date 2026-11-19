@@ -595,7 +595,7 @@ public enum ScoreboardEntry {
             String leader;
             try {
                 members = PartyTracker.teammates();
-                leader = ScoreboardPartyLeader.get();
+                leader = PartyTracker.leader();
             } catch (RuntimeException e) {
                 members = Collections.emptyList();
                 leader = null;

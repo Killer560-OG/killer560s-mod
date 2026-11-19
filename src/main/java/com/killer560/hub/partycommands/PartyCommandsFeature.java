@@ -99,9 +99,9 @@ public final class PartyCommandsFeature {
         registered = true;
         CommandChatListener.register();
         InfoReplies.register();
-        // A new connection has no known party leader (a volatile write, safe on the netty thread).
-        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> { PartyLeaderTracker.resetIfSet(); REJOIN.clear(); });
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> { PartyLeaderTracker.resetIfSet(); REJOIN.clear(); });
+        // The leader lives in leapmenu/PartyTracker, which clears itself on a new connection.
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> REJOIN.clear());
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> REJOIN.clear());
         // "!ping" answers with the measured round trip, so keep one measured while that command is on.
         com.killer560.hub.util.PingTracker.register();
         com.killer560.hub.util.PingTracker.addDemand(() -> {
@@ -117,7 +117,6 @@ public final class PartyCommandsFeature {
      */
     static void onServerLine(String plain) {
         if (plain == null || plain.isEmpty()) return;
-        PartyLeaderTracker.onServerLine(plain);
         // A party that disbands (kicking its last other member does) must not drop a queued !reinv: the invite starts a new one.
         if (!REJOIN.isEmpty() && plain.contains(" has invited you to join ")) {
             Matcher inv = INVITED_YOU.matcher(plain);
@@ -185,7 +184,7 @@ public final class PartyCommandsFeature {
             LOGGER.info("[PartyCommands] Ignored \"!{}\" from {} in {} - not a teammate or friend", word, sender, channel);
             return false;
         }
-        if (needsLeader(command) && PartyLeaderTracker.knownNotLeader()) {
+        if (needsLeader(command) && PartyTracker.knownNotLeader()) {
             LOGGER.info("[PartyCommands] Ignored \"!{}\" from {} - you are not the party leader", word, sender);
             return true;
         }
@@ -442,7 +441,7 @@ public final class PartyCommandsFeature {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null || client.getConnection() == null || client.level != level) return false;
         if (wasInDungeon && !DungeonState.isInDungeon()) return false;
-        return !PartyLeaderTracker.knownNotLeader();
+        return !PartyTracker.knownNotLeader();
     }
 
 
