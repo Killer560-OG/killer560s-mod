@@ -64,6 +64,9 @@ public class AutoTerminalTab extends BaseTab {
                     v -> TerminalSolverConfig.getInstance().setFirstClickDelayMs(v),
                     () -> Component.literal("First Click Delay: " + TerminalSolverConfig.getInstance().getFirstClickDelayMs() + " ms")));
             y += 24;
+            widgets.add(onOffButton("No First Click Delay In Melody", () -> cfg().isNoFirstClickDelayMelody(), v -> cfg().setNoFirstClickDelayMelody(v), () -> cfg().save(),
+                    requestRebuild, contentX, y, 220, 20));
+            y += 24;
             if (streamSafe) {
                 widgets.add(intSlider(contentX, y, 220, TerminalSolverConfig.MIN_FAKE_CURSOR_SPEED, TerminalSolverConfig.MAX_FAKE_CURSOR_SPEED,
                         () -> TerminalSolverConfig.getInstance().getFakeCursorSpeed(),

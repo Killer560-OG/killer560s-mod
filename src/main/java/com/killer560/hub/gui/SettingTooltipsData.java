@@ -2068,6 +2068,7 @@ final class SettingTooltipsData {
 
         // Hover Terminals + Run Summary
         d.put("click order", "Which correct slot Auto Terminals clicks next: First (top left to bottom right), Random, Closest to the last click or Furthest from it. Numbers keeps its fixed order; Stream Safe uses its own human order.");
+        d.put("no first click delay in melody", "Cheat build only. Auto Terminals clicks the first Melody row as soon as the board is ready instead of waiting First Click Delay. Other terminals keep the delay, and the click timing after the first click is unchanged.");
         d.put("burst finish", "Cheat build only. Once the clicks left on a terminal are at most Burst Size, Auto Terminals sends all of them in one tick, as soon as the server has answered the clicks before. The clicks before it keep First Click Delay and the Min/Max Delay. Not used with Stream Safe.");
         d.put("burst size", "How many clicks may be left for Burst Finish to send them all in one tick, 1-21 (5 by default).");
         d.put("auto terminals/mode", "Cheat build only. Normal: one click at a time, paced by the Min/Max Delay, with an optional Burst Finish. Burst: no single paced clicks; once a terminal is loaded every click goes out in bursts of up to Max Clicks Per Burst in one tick, each burst after the server answered enough of the last. Melody plays the same in both modes, and Stream Safe then applies to Melody only. Whole-terminal bursts are untested on Hypixel. Left click forward, right click back.");

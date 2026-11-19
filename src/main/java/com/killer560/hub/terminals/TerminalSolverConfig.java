@@ -210,6 +210,8 @@ public final class TerminalSolverConfig {
     private boolean queueTerms = false;
     /** First Click Delay (killer560, 2026-11-03): ms Auto Terminals waits after a terminal stabilizes before its first click (replaces the old fixed 500 ms settle). */
     private int firstClickDelayMs = 300;
+    /** No First Click Delay In Melody (killer560 2026-11-18): Auto Terminals skips First Click Delay for the Melody terminal only. */
+    private boolean noFirstClickDelayMelody = false;
     /** Burst Finish (killer560 2026-11-11): once the clicks left are at most Burst Size, send them all in one tick. */
     private boolean burstFinish = false;
     private int burstSize = DEFAULT_BURST_SIZE;
@@ -325,6 +327,7 @@ public final class TerminalSolverConfig {
             .add("hideMouseCursor", false, c -> c.hideMouseCursor, (c, v) -> c.hideMouseCursor = v)
             .add("autoStreamSafe", false, c -> c.autoStreamSafe, (c, v) -> c.autoStreamSafe = v)
             .add("queueTerms", false, c -> c.queueTerms, (c, v) -> c.queueTerms = v)
+            .add("noFirstClickDelayMelody", false, c -> c.noFirstClickDelayMelody, (c, v) -> c.noFirstClickDelayMelody = v)
             .add("burstFinish", false, c -> c.burstFinish, (c, v) -> c.burstFinish = v)
             .add("burstMode", false, c -> c.burstMode, (c, v) -> c.burstMode = v)
             .add("blockInputWhileAutoClicking", true, c -> c.blockInputWhileAutoClicking, (c, v) -> c.blockInputWhileAutoClicking = v)
@@ -584,6 +587,10 @@ public final class TerminalSolverConfig {
     public void setAutoStreamSafe(boolean autoStreamSafe) { this.autoStreamSafe = autoStreamSafe; }
 
     public int getFirstClickDelayMs() { return firstClickDelayMs; }
+
+    public boolean isNoFirstClickDelayMelody() { return noFirstClickDelayMelody; }
+
+    public void setNoFirstClickDelayMelody(boolean v) { this.noFirstClickDelayMelody = v; }
 
     public boolean isBurstFinish() { return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && burstFinish; }
 
