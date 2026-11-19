@@ -64,6 +64,13 @@ public final class BloodCampConfig {
     /** Aura: turn the body only, the camera stays where his mouse puts it (killer560, 2026-10-15: "have an option for
      *  aura to put you into freecam mode"). */
     private boolean auraFreecam = false;
+    private boolean auraRotate = true;
+    private boolean moveAround;
+    /** Aura Look Speed (Rotate mode), 1-10, default 5 = the speed the Aura always had; see {@link #lookSlowness}. */
+    public static final int MIN_LOOK_SPEED = 1;
+    public static final int MAX_LOOK_SPEED = 10;
+    public static final int DEFAULT_LOOK_SPEED = 5;
+    private int auraLookSpeed = DEFAULT_LOOK_SPEED;
     /** Never Miss (killer560, 2026-10-15: "attacks the tick it detects the mob is actually there not just when it thinks
      *  it will spawn"): the first click waits for a living mob on the spot, in reach and in sight, not the timer. */
     private boolean neverMiss = false;
@@ -132,6 +139,8 @@ public final class BloodCampConfig {
             .add("triggerBotEnabled", false, c -> c.triggerBotEnabled, (c, v) -> c.triggerBotEnabled = v)
             .add("auraEnabled", false, c -> c.auraEnabled, (c, v) -> c.auraEnabled = v)
             .add("autoDetectLag", true, c -> c.autoDetectLag, (c, v) -> c.autoDetectLag = v)
+            .add("moveAround", false, c -> c.moveAround, (c, v) -> c.moveAround = v)
+            .add("auraRotate", true, c -> c.auraRotate, (c, v) -> c.auraRotate = v)
             .add("auraFreecam", false, c -> c.auraFreecam, (c, v) -> c.auraFreecam = v)
             .add("neverMiss", false, c -> c.neverMiss, (c, v) -> c.neverMiss = v)
             .add("killPopup", false, c -> c.killPopup, (c, v) -> c.killPopup = v)
@@ -157,6 +166,9 @@ public final class BloodCampConfig {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             BloodCampConfig cfg = new BloodCampConfig();
             BOOLS.load(cfg, obj);
+            if (cfg.auraEnabled) {
+                cfg.triggerBotEnabled = false; // both saved ON: Aura wins
+            }
             // The old hitLeadTicks / manualTickOffset keys are ignored on purpose: they counted from the server-side
             // due moment, this counts from the kill timer he sees, so the old number would not mean the same click.
             int offset = ConfigJson.getInt(obj, "triggerOffsetTicks", DEFAULT_TRIGGER_OFFSET_TICKS);
@@ -164,6 +176,7 @@ public final class BloodCampConfig {
                 offset = -offset; // saved as "positive early": the same click moment on the new slider
             }
             cfg.setTriggerOffsetTicks(offset);
+            cfg.setAuraLookSpeed(ConfigJson.getInt(obj, "auraLookSpeed", DEFAULT_LOOK_SPEED));
             cfg.setKillPopupLeadTicks(ConfigJson.getInt(obj, "killPopupLeadTicks", DEFAULT_KILL_POPUP_LEAD_TICKS));
             cfg.setTimerTextScale(ConfigJson.getFloat(obj, "timerTextScale", DEFAULT_TIMER_TEXT_SCALE));
             cfg.setTimerTextColor(ConfigJson.getInt(obj, "timerTextColor", DEFAULT_TIMER_TEXT_COLOR));
@@ -180,6 +193,7 @@ public final class BloodCampConfig {
     public void save() {
         JsonObject obj = new JsonObject();
         BOOLS.save(this, obj);
+        obj.addProperty("auraLookSpeed", auraLookSpeed);
         obj.addProperty("triggerOffsetTicks", triggerOffsetTicks);
         obj.addProperty("triggerOffsetVersion", TRIGGER_OFFSET_VERSION);
         obj.addProperty("killPopupLeadTicks", killPopupLeadTicks);
@@ -223,8 +237,12 @@ public final class BloodCampConfig {
         return triggerBotEnabled;
     }
 
+    /** Trigger Bot and Aura are exclusive (killer560, 2026-11-18): turning one on turns the other off. */
     public void setTriggerBotEnabled(boolean triggerBotEnabled) {
         this.triggerBotEnabled = triggerBotEnabled;
+        if (triggerBotEnabled) {
+            auraEnabled = false;
+        }
     }
 
     /** Gated on {@link com.killer560.hub.BuildVariant#CHEAT_FEATURES_ENABLED} - real simulated camera
@@ -239,6 +257,41 @@ public final class BloodCampConfig {
 
     public void setAuraEnabled(boolean auraEnabled) {
         this.auraEnabled = auraEnabled;
+        if (auraEnabled) {
+            triggerBotEnabled = false;
+        }
+    }
+
+    /** Aura Rotation (killer560, 2026-11-18): true = Rotate, the humanized turn (the default, what the Aura always did);
+     *  false = No Rotate, Auto Simon Says' mechanism: the body is turned to the mob for one tick (camera held), then the click. */
+    public int getAuraLookSpeed() {
+        return auraLookSpeed;
+    }
+
+    public void setAuraLookSpeed(int v) {
+        auraLookSpeed = Math.max(MIN_LOOK_SPEED, Math.min(MAX_LOOK_SPEED, v));
+    }
+
+    /** The turn-time multiplier of a look speed (BloodCampAim.setSlowness): 5 = 1.0, 10 = 0.3 (the fastest the helper
+     *  supports; the per-tick caps still bound it), 1 = about 2.6 (slow). */
+    public static double lookSlowness(int speed) {
+        return Math.pow(0.3, (speed - DEFAULT_LOOK_SPEED) / 5.0);
+    }
+
+    public boolean isMoveAround() {
+        return moveAround;
+    }
+
+    public void setMoveAround(boolean moveAround) {
+        this.moveAround = moveAround;
+    }
+
+    public boolean isAuraRotate() {
+        return auraRotate;
+    }
+
+    public void setAuraRotate(boolean auraRotate) {
+        this.auraRotate = auraRotate;
     }
 
     /**

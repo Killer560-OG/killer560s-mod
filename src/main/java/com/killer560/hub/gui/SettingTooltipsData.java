@@ -2615,12 +2615,15 @@ final class SettingTooltipsData {
             // Cheat-only tabs (2026-10-07): Blood Camp's automation in its own Auto Blood Camp tab, and Auto Close
             // Chest. Inside the constant, so a legit jar carries none of these strings.
             d.put("auto blood camp/trigger bot", "Cheat build: clicks a blood mob on its kill timer when you aim at it, never faster than your attack speed. Needs Blood Camp on.");
-            d.put("auto blood camp/aura", "Cheat build, Blood Room only: turns you to the next blood mob you can see and clicks it at your weapon's attack speed until it dies; moving your mouse takes over.");
+            d.put("auto blood camp/aura", "Cheat build, Blood Room only: turns you to the next blood mob you can see and clicks it at your weapon's attack speed until it dies; moving your mouse takes over. Turning the Aura on turns the Trigger Bot off (and the other way round).");
             d.put("auto blood camp/never miss", "No mob timer: once the Kill Popup's KILL is up, attacks a blood mob the tick after it spawns, once it is under your look and in sight, and keeps hitting one that survives. Overrides Trigger Offset (hidden while on).");
             d.put("auto blood camp/auto detect lag", "Times the click from the kill timer, which allows for your measured ping. Off: from the countdown's own end.");
             d.put("auto blood camp/trigger offset", "Ticks from the kill timer (box turns green) to the click, -10 to 10: left (below 0) clicks early, right (above 0) late. +1 by default. Not used (and hidden) while Never Miss is on.");
             d.put("auto blood camp/mage only", "The Trigger Bot and the Aura act only while the dungeon tab list says you are the Mage.");
             d.put("auto blood camp/work just outside blood room", "The Trigger Bot and the Aura also work while you stand up to 6 blocks outside the Blood Room's walls (reach and line of sight still apply). Off: only inside the room.");
+            d.put("auto blood camp/move around", "Cheat, Aura only, off by default. Walks you with real W/A/S/D/Space presses to stay 3.5 to 8 blocks from where the mobs land, taps a key now and then like a player, and steps away from lit TNT. Only while you stand in the Blood room (it never walks you in, and lets go of every key the moment you leave). Your own keys always win; it never leaves it or steps near lava, fire or a drop.");
+        d.put("auto blood camp/rotation", "Aura only. Rotate: the humanized mouse turn to the mob. No Rotate: your camera never moves; your body turns to the mob for one tick, then the click goes, like Auto Simon Says. Rotate by default.");
+            d.put("auto blood camp/look speed", "Aura, Rotate mode: how fast it turns to a mob, 1 (slow) to 10 (fastest). 5 by default. It also starts turning the moment a mob's spot is known, unless it is still killing another.");
             d.put("auto blood camp/freecam mode", "The Aura turns only your body; your camera stays where you point it. Moving the mouse hands the aim straight back.");
             d.put("auto blood camp", "Cheat build: Blood Camp's Trigger Bot and Aura - they act on Blood Camp's predictions, so Blood Camp must be on too.");
             d.put("auto close chest/auto", "Cheat build only. Stops the secret chest opening at all: it is closed before it is shown.");

@@ -97,8 +97,38 @@ public class AutoBloodCampTab extends BaseTab {
                 null, contentX, y, contentWidth, 18));
         y += 20;
 
-        if (cfg.getAuraRaw()) {
-            // The Aura's own option, so it sits with the switches above the Attack Speed group.
+        if (cfg.getAuraRaw() || scanningForSearch) {
+            // The Aura's own options, so they sit with the switches above the Attack Speed group.
+            // Rotate = the humanized turn; No Rotate = Auto Simon Says' mechanism (body turned for one tick, camera held).
+            widgets.add(SettingsButtonWidget.cycling(rotationText(cfg), (btn, dir) -> {
+                        cfg.setAuraRotate(!cfg.isAuraRotate());
+                        cfg.save();
+                        btn.setMessage(rotationText(cfg));
+                        requestRebuild.run(); // Freecam Mode shows only in Rotate
+                    }).bounds(contentX, y, contentWidth, 18).build());
+            y += 20;
+        }
+        if (cfg.getAuraRaw() || scanningForSearch) {
+            widgets.add(onOffButton("Move Around", cfg::isMoveAround, cfg::setMoveAround, cfg::save, null, contentX, y, contentWidth, 18));
+            y += 20;
+        }
+        if (cfg.getAuraRaw() && cfg.isAuraRotate() || scanningForSearch) {
+            int speedSpan = BloodCampConfig.MAX_LOOK_SPEED - BloodCampConfig.MIN_LOOK_SPEED;
+            widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18,
+                    Component.literal("Look Speed: " + cfg.getAuraLookSpeed()),
+                    (cfg.getAuraLookSpeed() - BloodCampConfig.MIN_LOOK_SPEED) / (double) speedSpan) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(Component.literal("Look Speed: " + cfg.getAuraLookSpeed()));
+                }
+
+                @Override
+                protected void applyValue() {
+                    cfg.setAuraLookSpeed(BloodCampConfig.MIN_LOOK_SPEED + (int) Math.round(this.value * speedSpan));
+                    saveOnRelease(() -> cfg.save());
+                }
+            });
+            y += 20;
             widgets.add(onOffButton("Freecam Mode", cfg::isAuraFreecam, cfg::setAuraFreecam, cfg::save,
                     null, contentX, y, contentWidth, 18));
             y += 20;
@@ -167,5 +197,9 @@ public class AutoBloodCampTab extends BaseTab {
     static String offsetLabel(int ticks) {
         String dir = ticks > 0 ? " (late)" : ticks < 0 ? " (early)" : "";
         return "Trigger Offset: " + (ticks > 0 ? "+" : "") + ticks + " ticks" + dir;
+    }
+
+    private static Component rotationText(BloodCampConfig cfg) {
+        return Component.literal(cfg.isAuraRotate() ? "Rotation: §bRotate" : "Rotation: §bNo Rotate");
     }
 }

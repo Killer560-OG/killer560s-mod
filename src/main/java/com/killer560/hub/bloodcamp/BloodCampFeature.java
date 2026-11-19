@@ -696,6 +696,8 @@ public final class BloodCampFeature {
             lastLineOfFireLogTick = Long.MIN_VALUE / 2;
         }
         BloodCampMoveTimer.tick();
+        TURN.tick(client.player); // first, always: a body turned for a No Rotate click is given back the tick after
+        walkTick(client);
         boolean activeNow = isActive();
         if (activeNow != lastActiveLogged) {
             lastActiveLogged = activeNow;
@@ -786,7 +788,12 @@ public final class BloodCampFeature {
         boolean neverMiss = cfg.isNeverMiss();
         double clickBelowAura = triggerTargetTicks(cfg, client);
         long killIn = BloodCampMoveTimer.ticksUntilKillOpen(effectiveTriggerOffsetTicks(cfg));
-        if (cfg.isAuraEnabled() && inRoom && killIn <= AURA_MAX_LEAD_TICKS) {
+        // Pre-aim (killer560, 2026-11-18: "the second that a new mob spawn spot is posted unless it is killing something else it
+        // should start aiming there"): in Rotate mode a live trip is aimed at as soon as its spot is known, not only within
+        // the turn's lead of the kill timer; the one being turned to stays picked until it is dealt with (keep below), so a
+        // kill in progress finishes first. The click timing is unchanged (below).
+        boolean preAim = cfg.isAuraRotate();
+        if (cfg.isAuraEnabled() && inRoom && (preAim || killIn <= AURA_MAX_LEAD_TICKS)) {
             double best = Double.MAX_VALUE;
             // Stay on the mob already being turned to while it is still a target (killer560, 2026-11-01: "it was doing kind
             // of this snap thing if a mob was spawned with a new one being spawned close to it"): a second mob landing
@@ -799,11 +806,11 @@ public final class BloodCampFeature {
                 }
                 double remaining = remainingTicks(data, now);
                 boolean current = java.util.Objects.equals(lastAuraKeyLogged, entry.getKey().getId());
-                if (!current && (remaining - clickBelowAura > AURA_MAX_LEAD_TICKS || remaining >= best)) {
+                if (!current && (!preAim && remaining - clickBelowAura > AURA_MAX_LEAD_TICKS || remaining >= best)) {
                     continue; // not due yet, or it cannot beat the one already picked (saves its line-of-sight rays)
                 }
                 double lead = auraLeadTicks(client, aimPoint(client, data));
-                if (!current && (remaining - clickBelowAura > lead || killIn > lead)) {
+                if (!current && !preAim && (remaining - clickBelowAura > lead || killIn > lead)) {
                     continue;
                 }
                 Entity mob = nearestMob(client, data.endVector);
@@ -826,7 +833,7 @@ public final class BloodCampFeature {
                 float[] a = BloodCampAim.angles(client.player.getEyePosition(), mob.getBoundingBox().getCenter());
                 double score = (Math.abs(net.minecraft.util.Mth.wrapDegrees(a[0] - yaw)) + Math.abs(a[1] - pitch)) * 0.01;
                 boolean current = ("mob" + mob.getId()).equals(lastAuraKeyLogged);
-                if (!current && killIn > auraLeadTicks(client, mob.getBoundingBox().getCenter())) {
+                if (!current && !preAim && killIn > auraLeadTicks(client, mob.getBoundingBox().getCenter())) {
                     continue;
                 }
                 boolean seen = visible(client, mob.getBoundingBox());
@@ -872,7 +879,10 @@ public final class BloodCampFeature {
         }
         lastAuraPoint = auraPoint;
         lastAuraFloorTarget = auraFloor == null ? -1 : auraFloor.getId();
-        AIM.tick(client, auraKey, auraPoint, cfg.isAuraEnabled() && cfg.isAuraFreecam());
+        // No Rotate (killer560, 2026-11-18): no humanized turn at all; the body is turned by TURN right before the click.
+        boolean noRotate = cfg.isAuraEnabled() && !cfg.isAuraRotate();
+        AIM.setSlowness(BloodCampConfig.lookSlowness(cfg.getAuraLookSpeed()));
+        AIM.tick(client, noRotate ? null : auraKey, noRotate ? null : auraPoint, cfg.isAuraEnabled() && cfg.isAuraRotate() && cfg.isAuraFreecam());
 
         // ---- Attack speed (killer560, 2026-10-15: "limit it to only be able to attack as fast as their attack speed
         // allows them to. For triggerbot do the same."): no click from Blood Camp - Trigger Bot, its retries or the Aura -
@@ -1036,7 +1046,7 @@ public final class BloodCampFeature {
                     auraHitData = data;
                 }
             }
-            if (mob != null && aimedAt(client, mob.getBoundingBox())) {
+            if (mob != null && (noRotate ? visible(client, mob.getBoundingBox()) : aimedAt(client, mob.getBoundingBox()))) {
                 auraMob = mob;
             } else {
                 if (mob != null) {
@@ -1114,6 +1124,16 @@ public final class BloodCampFeature {
         // outside of the room" - a click (beam, arrow or hit) only goes when nothing but the target is in its way.
         Entity firing = triggerTarget != null ? (triggerHit != null ? triggerHit : nearestMob(client, triggerData.endVector))
                 : auraMob != null ? auraMob : triggerFloor != null ? triggerFloor : fillerMob;
+        // No Rotate, Auto Simon Says' way (util/TurnFirst): the look the server heard misses the mob, so the body is turned
+        // to it this tick (camera held) and the click goes on a later tick, once a movement packet has reported the turn.
+        if (noRotate && auraMob != null && triggerTarget == null && !fillerNow) {
+            Vec3 eye = client.player.getEyePosition();
+            AABB box = auraMob.getBoundingBox();
+            Vec3 aim = box.clip(eye, box.getCenter()).orElse(box.getCenter());
+            if (!TURN.readyBox(client.player, box, aim, eye.distanceTo(aim) + 1.0)) {
+                return;
+            }
+        }
         if ((fillerNow || triggerTarget != null || auraMob != null || triggerFloor != null)
                 && !lineOfFireClear(client, firing)) {
             lineOfFireBlocks++;
@@ -1905,6 +1925,40 @@ public final class BloodCampFeature {
         return best;
     }
 
+    /** Move Around (cheat, Aura): keeps him in the ring round the live landing spots; releases its keys the moment it is not wanted. */
+    private static void walkTick(Minecraft client) {
+        BloodCampConfig c = BloodCampConfig.getInstance();
+        boolean wanted = com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && c.isAuraEnabled() && c.isMoveAround() && isActive()
+                && client.player != null && client.level != null && watcherEntityId != null && inWatcherTile(client); // only while he stands in the room itself (killer560 11-18)
+        Vec3 centre = null;
+        double[] room = null;
+        if (wanted) {
+            long now = client.level.getGameTime();
+            double sx = 0;
+            double sz = 0;
+            int n = 0;
+            for (Map.Entry<ArmorStand, BloodMobState> e : bloodMobs.entrySet()) {
+                if (liveTrip(e.getKey(), e.getValue(), now)) {
+                    sx += e.getValue().endVector.x;
+                    sz += e.getValue().endVector.z;
+                    n++;
+                }
+            }
+            for (Entity mob : floorMobs(client, now)) {
+                sx += mob.getX();
+                sz += mob.getZ();
+                n++;
+            }
+            if (n > 0) {
+                centre = new Vec3(sx / n, client.player.getY(), sz / n);
+            }
+            Entity w = client.level.getEntity(watcherEntityId);
+            room = new double[]{com.killer560.hub.livemap.LiveMapFeature.START_X + 32.0 * roomTile(w.getX()),
+                    com.killer560.hub.livemap.LiveMapFeature.START_Z + 32.0 * roomTile(w.getZ())};
+        }
+        BloodCampWalk.tick(client, wanted, centre, room);
+    }
+
     /** A trip the Aura and the Trigger Bot still act on: it has a path, its stand is there, and it is not settled. */
     private static boolean liveTrip(ArmorStand stand, BloodMobState data, long now) {
         return data.endVector != null && !stand.isRemoved() && !data.confirmed && !data.gaveUp
@@ -2052,6 +2106,7 @@ public final class BloodCampFeature {
 
     /** The one Aura turn controller (per-frame smooth, his mouse wins - see {@link BloodCampAim}). */
     private static final BloodCampAim AIM = new BloodCampAim();
+    private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst();
     /** The body's rotation the last movement packet reported (read at END_CLIENT_TICK, after it was sent). */
     private static float reportedYaw = Float.NaN;
     private static float reportedPitch = Float.NaN;
