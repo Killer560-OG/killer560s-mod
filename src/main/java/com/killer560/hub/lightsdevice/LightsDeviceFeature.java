@@ -50,8 +50,8 @@ import java.util.concurrent.ThreadLocalRandom;
  * <ul>
  * <li><b>Aura</b> - every lever in range, nearest first: before S2 is open (Pre-Flick), every UNLIT lever once; once S2 is
  * open (Finish, S1 objectives "(n/n)" + "The gate has been destroyed!", {@link P3SectionTracker}): an unlit lever (the last
- * one completes it); all six already lit, exactly ONE flick to make the now-active device register. Paced by its CPS (a
- * lever must be in range for one gap before its first flick; gaps 1000 / CPS ms +-10%, scheduled from the last flick's
+ * one completes it); all six already lit, exactly ONE flick to make the now-active device register. Paced by its cooldown (a
+ * lever must be in range for one gap before its first flick; gaps of the cooldown ms +-10%, scheduled from the last flick's
  * due tick). Surface hit clipped from the eye, box range checked again at the send, and a lever the reported look does
  * not reach gets the body (never the camera) turned to it a tick first (util/TurnFirst).
  * <li><b>Triggerbot</b> - only the lever under the crosshair ({@code Minecraft#hitResult}, a real ray within vanilla
@@ -91,7 +91,7 @@ public final class LightsDeviceFeature {
 
     private static final Map<Long, Long> inRangeSince = new HashMap<>();
     private static final Map<Long, Long> requiredDwell = new HashMap<>();
-    /** ActionGate tick the next aura flick is due on, fractional so a CPS between whole ticks keeps its average. */
+    /** ActionGate tick the next aura flick is due on, fractional so a gap between whole ticks keeps its average. */
     private static double nextAuraDueTick = 0.0;
     /** The tick a due flick first went to turning the body (TurnFirst), or -1: the flick is scheduled from there. */
     private static long turnStartTick = -1L;
@@ -305,16 +305,16 @@ public final class LightsDeviceFeature {
         return true;
     }
 
-    /** A lever must have been in range for one CPS gap (rolled when it came into range) before its first flick. */
+    /** A lever must have been in range for one cooldown gap (rolled when it came into range) before its first flick. */
     private static boolean dwellPassed(LightsDeviceConfig cfg, long key, long now) {
         long since = inRangeSince.computeIfAbsent(key, k -> now);
         long need = requiredDwell.computeIfAbsent(key, k -> Math.round(gapMs(cfg)));
         return now - since >= need;
     }
 
-    /** One gap between flicks: 1000 / CPS ms, +-10%. */
+    /** One gap between flicks: the cooldown in ms, +-10%. */
     private static double gapMs(LightsDeviceConfig cfg) {
-        return 1000.0 / cfg.getCps() * (0.9 + ThreadLocalRandom.current().nextDouble() * 0.2);
+        return cfg.getCooldownMs() * (0.9 + ThreadLocalRandom.current().nextDouble() * 0.2);
     }
 
     /** True when the Triggerbot flicked this tick. */

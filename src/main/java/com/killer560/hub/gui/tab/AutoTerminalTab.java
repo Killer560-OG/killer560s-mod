@@ -62,7 +62,7 @@ public class AutoTerminalTab extends BaseTab {
             widgets.add(intSlider(contentX, y, 220, TerminalSolverConfig.MIN_FIRST_CLICK_DELAY_MS, TerminalSolverConfig.MAX_FIRST_CLICK_DELAY_MS,
                     () -> TerminalSolverConfig.getInstance().getFirstClickDelayMs(),
                     v -> TerminalSolverConfig.getInstance().setFirstClickDelayMs(v),
-                    () -> Component.literal("First Click Delay: " + TerminalSolverConfig.getInstance().getFirstClickDelayMs() + "ms")));
+                    () -> Component.literal("First Click Delay: " + TerminalSolverConfig.getInstance().getFirstClickDelayMs() + " ms")));
             y += 24;
             if (streamSafe) {
                 widgets.add(intSlider(contentX, y, 220, TerminalSolverConfig.MIN_FAKE_CURSOR_SPEED, TerminalSolverConfig.MAX_FAKE_CURSOR_SPEED,
@@ -73,7 +73,7 @@ public class AutoTerminalTab extends BaseTab {
                 widgets.add(intSlider(contentX, y, 220, TerminalSolverConfig.MIN_CURSOR_REACTION_MS, TerminalSolverConfig.MAX_CURSOR_REACTION_MS,
                         () -> TerminalSolverConfig.getInstance().getCursorReactionMs(),
                         v -> TerminalSolverConfig.getInstance().setCursorReactionMs(v),
-                        () -> Component.literal("Reaction Time: " + TerminalSolverConfig.getInstance().getCursorReactionMs() + "ms")));
+                        () -> Component.literal("Reaction Time: " + TerminalSolverConfig.getInstance().getCursorReactionMs() + " ms")));
                 y += 24;
                 widgets.add(intSlider(contentX, y, 220, 0, TerminalSolverConfig.MAX_CURSOR_MISS_CHANCE,
                         () -> TerminalSolverConfig.getInstance().getCursorMissChance(),
@@ -112,7 +112,7 @@ public class AutoTerminalTab extends BaseTab {
                 y += 24;
                 widgets.add(intSlider(contentX, y, 220, 0, TerminalSolverConfig.MAX_BURST_DELAY_MS,
                         () -> cfg().getBurstDelayMs(), v -> cfg().setBurstDelayMs(v),
-                        () -> Component.literal("Delay Between Bursts: " + cfg().getBurstDelayMs() + "ms")));
+                        () -> Component.literal("Delay Between Bursts: " + cfg().getBurstDelayMs() + " ms")));
                 y += 24;
             }
             if ((!streamSafe && !burstMode) || scan) {
@@ -337,11 +337,11 @@ public class AutoTerminalTab extends BaseTab {
     }
 
     private static Component minDelayText() {
-        return Component.literal("Min Delay: " + TerminalSolverConfig.getInstance().getAutoClickMinDelayMs() + "ms");
+        return Component.literal("Min Delay: " + TerminalSolverConfig.getInstance().getAutoClickMinDelayMs() + " ms");
     }
 
     private static Component maxDelayText() {
-        return Component.literal("Max Delay: " + TerminalSolverConfig.getInstance().getAutoClickMaxDelayMs() + "ms");
+        return Component.literal("Max Delay: " + TerminalSolverConfig.getInstance().getAutoClickMaxDelayMs() + " ms");
     }
 
     private static Component melodyLookaheadText() {
@@ -350,12 +350,12 @@ public class AutoTerminalTab extends BaseTab {
     }
 
     private static Component hoverDelayText() {
-        return Component.literal("Hover Delay: " + TerminalSolverConfig.getInstance().getHoverDelayMs() + "ms");
+        return Component.literal("Hover Delay: " + TerminalSolverConfig.getInstance().getHoverDelayMs() + " ms");
     }
 
     private static Component hoverJitterText() {
         int jitter = TerminalSolverConfig.getInstance().getHoverJitterMs();
-        return Component.literal("Hover Jitter: " + (jitter == 0 ? "Off" : "+0-" + jitter + "ms"));
+        return Component.literal("Hover Jitter: " + (jitter == 0 ? "Off" : "+0-" + jitter + " ms"));
     }
 
     private static Component melodySkipModeText() {

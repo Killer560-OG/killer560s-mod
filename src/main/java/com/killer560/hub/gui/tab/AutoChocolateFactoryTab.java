@@ -45,14 +45,14 @@ public class AutoChocolateFactoryTab extends BaseTab {
         toggle(w, contentX, y, "Buy Best Upgrade", cfg::isCfAutoUpgrade, cfg::setCfAutoUpgrade, null);
         toggle(w, contentX, y, "Claim Stray Rabbits", cfg::isCfClaimStrays, cfg::setCfClaimStrays, null);
         toggle(w, contentX, y, "Auto Time Tower", cfg::isCfAutoTimeTower, cfg::setCfAutoTimeTower, null);
-        slider(w, contentX, y[0], half, () -> "Min Delay: " + cfg.getCfMinDelayMs() + "ms",
+        slider(w, contentX, y[0], half, () -> "Min Delay: " + cfg.getCfMinDelayMs() + " ms",
                 norm(cfg.getCfMinDelayMs(), CheatUtilsConfig.MIN_CF_DELAY_MS, CheatUtilsConfig.MAX_CF_DELAY_MS),
                 v -> cfg.setCfMinDelayMs(denorm(v, CheatUtilsConfig.MIN_CF_DELAY_MS, CheatUtilsConfig.MAX_CF_DELAY_MS)));
-        slider(w, contentX + half + 8, y[0], half, () -> "Max Delay: " + cfg.getCfMaxDelayMs() + "ms",
+        slider(w, contentX + half + 8, y[0], half, () -> "Max Delay: " + cfg.getCfMaxDelayMs() + " ms",
                 norm(cfg.getCfMaxDelayMs(), CheatUtilsConfig.MIN_CF_DELAY_MS, CheatUtilsConfig.MAX_CF_DELAY_MS),
                 v -> cfg.setCfMaxDelayMs(denorm(v, CheatUtilsConfig.MIN_CF_DELAY_MS, CheatUtilsConfig.MAX_CF_DELAY_MS)));
         y[0] += 24;
-        slider(w, contentX, y[0], BTN_W, () -> "Upgrade Delay: " + cfg.getCfUpgradeDelayMs() + "ms",
+        slider(w, contentX, y[0], BTN_W, () -> "Upgrade Delay: " + cfg.getCfUpgradeDelayMs() + " ms",
                 norm(cfg.getCfUpgradeDelayMs(), CheatUtilsConfig.MIN_CF_UPGRADE_DELAY_MS, CheatUtilsConfig.MAX_CF_UPGRADE_DELAY_MS),
                 v -> cfg.setCfUpgradeDelayMs(denorm(v, CheatUtilsConfig.MIN_CF_UPGRADE_DELAY_MS, CheatUtilsConfig.MAX_CF_UPGRADE_DELAY_MS)));
         y[0] += 24;

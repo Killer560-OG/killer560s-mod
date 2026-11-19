@@ -117,10 +117,10 @@ public class DoorHelpersTab extends BaseTab {
     }
 
     private static Component triggerDelayText(DoorHelpersConfig cfg) {
-        return Component.literal("Triggerbot Delay: " + cfg.getAutoDoorTriggerDelayMs() + "ms");
+        return Component.literal("Triggerbot Delay: " + cfg.getAutoDoorTriggerDelayMs() + " ms");
     }
 
     private static Component retryText(DoorHelpersConfig cfg) {
-        return Component.literal("Retry Delay: " + cfg.getAutoDoorRetryDelayMs() + "ms");
+        return Component.literal("Retry Delay: " + cfg.getAutoDoorRetryDelayMs() + " ms");
     }
 }

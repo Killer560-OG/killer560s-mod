@@ -27,10 +27,10 @@ final class ShootoutRows {
             btn.setMessage(shootWith(cfg));
         }).bounds(x, y, half, 18).build());
         y = IslandRows.toggle(w, colB, y, half, "Dart Tube Only", cfg::isTubeOnly, cfg::setTubeOnly, save);
-        IslandRows.slider(w, x, y, half, ShootoutShotConfig.MIN_SHOT_MS, ShootoutShotConfig.MAX_SHOT_MS, 10,
-                cfg::getShotDelayMs, cfg::setShotDelayMs, v -> "Shot Delay: " + v + "ms", save);
-        y = IslandRows.slider(w, colB, y, half, 0, ShootoutShotConfig.MAX_AIM_DELAY_MS, 10, cfg::getAimDelayMs,
-                cfg::setAimDelayMs, v -> "Aim Delay: " + v + "ms", save);
+        IslandRows.slider(w, x, y, half, ShootoutShotConfig.MIN_SHOT_MS, ShootoutShotConfig.MAX_SHOT_MS, 50,
+                cfg::getShotDelayMs, cfg::setShotDelayMs, v -> "Shot Delay: " + v + " ms", save);
+        y = IslandRows.slider(w, colB, y, half, 0, ShootoutShotConfig.MAX_AIM_DELAY_MS, 50, cfg::getAimDelayMs,
+                cfg::setAimDelayMs, v -> "Aim Delay: " + v + " ms", save);
         return y;
     }
 }

@@ -219,7 +219,7 @@ public class StorageSearchTab extends BaseTab implements KeyCaptureTab {
     }
 
     private static Component espText() {
-        return Component.literal("ESP Time: " + StorageSearchConfig.getInstance().getEspSeconds() + "s");
+        return Component.literal("ESP Time: " + StorageSearchConfig.getInstance().getEspSeconds() + " s");
     }
 
     @Override

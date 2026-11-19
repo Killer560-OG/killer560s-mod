@@ -89,7 +89,7 @@ public final class LeverAuraConfig {
                 com.killer560.hub.lightsdevice.LightsDeviceConfig.migrateFromLeverAura(
                         ConfigJson.getBool(o, "lightsPreFlick", true), ConfigJson.getBool(o, "lightsFinish", true),
                         com.killer560.hub.cheatutils.CheatUtilsConfig.getInstance().isAuraBossLevers(),
-                        cfg.range, (int) Math.round(1000.0 / cfg.cooldownMs), cfg.swingHand, cfg.chatFeedback);
+                        cfg.range, cfg.cooldownMs, cfg.swingHand, cfg.chatFeedback);
             }
         }
         instance = cfg;

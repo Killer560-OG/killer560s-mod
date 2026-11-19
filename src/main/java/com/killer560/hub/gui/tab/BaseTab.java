@@ -1,6 +1,7 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.RangeSliderWidget;
 import com.killer560.hub.gui.ThemedSliderButton;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.network.chat.Component;
@@ -318,6 +319,36 @@ public abstract class BaseTab {
         }
         return false;
     }
+    /** A two-handled delay range in ms ("Name: 59 - 67 ms") over {@link com.killer560.hub.util.RateMs#MIN}..MAX (sliderunits-1118). */
+    protected static RangeSliderWidget msRange(int x, int y, int w, String label, int lo, int hi,
+                                               java.util.function.BiConsumer<Integer, Integer> set, Runnable save) {
+        return msRange(x, y, w, label, com.killer560.hub.util.RateMs.MIN, com.killer560.hub.util.RateMs.MAX, lo, hi, set, save);
+    }
+
+    /** {@link #msRange} over a narrower {@code floor}..{@code ceil} (a feature whose old top rate was below 20 CPS). */
+    protected static RangeSliderWidget msRange(int x, int y, int w, String label, int floor, int ceil, int lo, int hi,
+                                               java.util.function.BiConsumer<Integer, Integer> set, Runnable save) {
+        return new RangeSliderWidget(x, y, w, 18, floor, ceil, lo, hi) {
+            @Override
+            protected Component label(int low, int high) {
+                return Component.literal(label + ": " + low + " - " + high + " ms");
+            }
+
+            @Override
+            protected void onRangeChanged(int low, int high) {
+                set.accept(low, high);
+                ThemedSliderButton.saveOnRelease(save);
+            }
+        };
+    }
+
+    /** A cooldown slider in ms over {@link com.killer560.hub.util.RateMs#MIN}..MAX, one ms a step (sliderunits-1118). */
+    protected static ThemedSliderButton msSlider(int x, int y, int w, String label, java.util.function.IntSupplier get,
+                                                 java.util.function.IntConsumer set, Runnable save) {
+        return valueSlider(x, y, w, label, " ms", com.killer560.hub.util.RateMs.MIN, com.killer560.hub.util.RateMs.MAX, 1, 0,
+                get::getAsInt, v -> set.accept((int) v), save);
+    }
+
     /** A slider over {@code min}..{@code max} that snaps to {@code step}, labeled "label: value unit" (cycler replacement,
      *  2026-11-09). {@code decimals} 0 shows whole numbers. Saves on release. */
     protected static ThemedSliderButton valueSlider(int x, int y, int w, String label, String unit, double min, double max,

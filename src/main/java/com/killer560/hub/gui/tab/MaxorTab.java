@@ -162,7 +162,7 @@ public class MaxorTab extends BaseTab {
                 text = "Reset Best Place Time: none";
                 colour = MenuStyle.DIM2;
             } else if (!on) {
-                text = String.format(Locale.US, "Reset Best Place Time: %.3fs", cfg.getBestPlaceMs() / 1000.0);
+                text = String.format(Locale.US, "Reset Best Place Time: %.3f s", cfg.getBestPlaceMs() / 1000.0);
                 colour = MenuStyle.TXT;
             } else if (now - armedAtMs < ARM_COOLDOWN_MS) {
                 long left = (ARM_COOLDOWN_MS - (now - armedAtMs) + 999) / 1000;

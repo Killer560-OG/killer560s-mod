@@ -40,9 +40,9 @@ public class TerminalTriggerbotTab extends BaseTab {
         }
         y += 24;
 
-        widgets.add(valueSlider(contentX, y, halfW, "Delay", "ms", 0, TerminalTriggerbotConfig.MAX_DELAY_MS, 25, 0,
+        widgets.add(valueSlider(contentX, y, halfW, "Delay", " ms", 0, TerminalTriggerbotConfig.MAX_DELAY_MS, 50, 0,
                 cfg::getDelayMs, v -> cfg.setDelayMs((int) v), cfg::save));
-        widgets.add(valueSlider(contentX + halfW + GAP, y, rightW, "Cooldown", "ms", 0, TerminalTriggerbotConfig.MAX_COOLDOWN_MS,
+        widgets.add(valueSlider(contentX + halfW + GAP, y, rightW, "Cooldown", " ms", 0, TerminalTriggerbotConfig.MAX_COOLDOWN_MS,
                 50, 0, cfg::getCooldownMs, v -> cfg.setCooldownMs((int) v), cfg::save));
         y += ROW + GAP;
 

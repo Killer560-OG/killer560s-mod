@@ -209,7 +209,7 @@ public class AutoPuzzlesTab extends BaseTab {
     }
 
     private static Component sliderText(String label, int ms) {
-        return Component.literal(label + ": §6" + ms + "ms");
+        return Component.literal(label + ": §6" + ms + " ms");
     }
 
     private static Component beamsModeText(AutoPuzzlesConfig cfg) {

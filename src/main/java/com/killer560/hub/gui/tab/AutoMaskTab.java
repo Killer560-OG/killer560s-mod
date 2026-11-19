@@ -186,7 +186,7 @@ public class AutoMaskTab extends BaseTab implements KeyCaptureTab {
     private static Component stepDelayLabel(MaskInvincibilityConfig cfg) {
         int t = cfg.getSwapStepDelayTicks();
         return Component.literal("Swap Step Delay: " + t + (t == 1 ? " tick" : " ticks")
-                + String.format(" (%.2fs)", t / 20.0));
+                + String.format(" (%.2f s)", t / 20.0));
     }
 
     private static Component phoenixRouteLabel(MaskInvincibilityConfig cfg) {

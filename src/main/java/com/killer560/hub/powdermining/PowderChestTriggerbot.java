@@ -27,8 +27,8 @@ import java.util.regex.Pattern;
  * a hit on that face is clicked (a lock is picked on its spot; the wiki: five in a row).
  *
  * <p>Rate limit (killer560, 2026-11-04: "no more than once per tick on a chest. and let me set the cps slider as well"):
- * never two clicks on one chest in one client tick, paced to the CPS setting (1-20; 20 is a click every tick) by a credit
- * of cps/20 a tick, capped at one click. The per-chest map is forgotten on a world change and holds at most
+ * never two clicks on one chest in one client tick, paced to the Delay setting (50-1000 ms; 50 is a click every tick) by a credit
+ * of 50/gap a tick, capped at one click. The per-chest map is forgotten on a world change and holds at most
  * {@link #MAX_CHESTS} chests.
  *
  * <p>Auto Swap: before a click the held slot (0-7) goes to the drill with the highest Gemstone Powder bonus. The wiki's
@@ -46,8 +46,8 @@ public final class PowderChestTriggerbot {
     private static Object level = null;
     private static long ticks = 0L;
     private static double credit = 0.0;
-    /** This click's rate (clicks a second), re-rolled in [Min CPS, Max CPS] after every click. */
-    private static int rate = -1;
+    /** This click's gap in ms, re-rolled inside the Delay range after every click (-1: none yet). */
+    private static double rate = -1;
     /** Slot and stack held before the first swap of a chest visit, to hand back on the next dig start (-1: none). */
     private static int backSlot = -1;
     private static ItemStack backStack = ItemStack.EMPTY;
@@ -77,7 +77,7 @@ public final class PowderChestTriggerbot {
         if (!TreasureChests.chests().containsKey(pos) || !MiningState.crystalHollows()) return;
         PowderMiningConfig cfg = PowderMiningConfig.getInstance();
         if (rate < 0) rate = rollRate(cfg);
-        credit = Math.min(1.0, credit + rate / 20.0);
+        credit = Math.min(1.0, credit + 50.0 / rate);
         Direction lock = LockpickHelper.lockFace(pos);
         if (lock != null && lock != hit.getDirection()) return; // aimed off the lock
         Long last = CLICKS.get(pos);
@@ -111,10 +111,9 @@ public final class PowderChestTriggerbot {
         clicks++;
     }
 
-    /** A random whole rate in [Min CPS, Max CPS]. */
-    private static int rollRate(PowderMiningConfig cfg) {
-        int lo = cfg.getChestTriggerbotMinCps(), hi = cfg.getChestTriggerbotMaxCps();
-        return lo >= hi ? lo : java.util.concurrent.ThreadLocalRandom.current().nextInt(lo, hi + 1);
+    /** A random gap in the Delay range, ms. */
+    private static double rollRate(PowderMiningConfig cfg) {
+        return com.killer560.hub.util.RateMs.roll(cfg.getChestTriggerbotMinDelayMs(), cfg.getChestTriggerbotMaxDelayMs());
     }
 
     /**

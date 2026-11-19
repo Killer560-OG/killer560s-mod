@@ -1185,7 +1185,6 @@ final class SettingTooltipsData {
         d.put("aim marker color", "Color of the i4 Solver's aim dots.");
         d.put("auto i4", "Cheat build: aims at and shoots each target on the i4 device while you hold your bow.");
         d.put("auto swap to bow", "Cheat build: swaps your hotbar to the selected weapon while on the i4 device.");
-        d.put("cps", "Cheat build: click rate range for Auto i4.");
         d.put("auto mask", "Cheat build: puts on your next death item (Phoenix, then the mask in Order) after Storm dies.");
         d.put("show teammates", "Draws each teammate on the map where they stand: an arrow, or their head with Player Heads on.");
         d.put("recolor by class", "Colors teammate arrows by their class, and puts a faint ring of their class color around a teammate's Player Heads face; off, arrows are white and heads have no ring.");
@@ -1501,7 +1500,7 @@ final class SettingTooltipsData {
         d.put("lights device/pre-flick before s2", "Before S2 opens, flicks each unlit Lights lever once in range, so the device is lit when the section opens.");
         d.put("lights device/finish when s2 opens", "After S1 is cleared, flicks an unlit Lights lever (the last one completes the device), or, with all six already lit, one lever to make the device register.");
         d.put("lights device/aura range", "How far the Aura reaches, eyes to the lever's nearest point, 2.1-4.5 blocks. Checked again the moment each flick is sent.");
-        d.put("lights device/aura cps", "Aura flicks per second, 1-20 (20 is one a game tick). Each gap varies a little, the average is what you set; a lever must also be in range for one gap before its first flick.");
+        d.put("lights device/aura cooldown", "Least time between two Aura flicks, 50-1000 ms (50 ms is one a game tick). Each gap varies a little, the average is what you set; a lever must also be in range for one gap before its first flick.");
         d.put("lights device/aura swing hand", "Plays your arm swing each time the Aura flicks a lever.");
         d.put("lights device/chat feedback", "Posts a local chat line for every lever the Aura flicks.");
         d.put("lights device/lights triggerbot", "Flicks only the Lights lever your crosshair is on, by the same device rules (unlit levers before S2, then the finishing or activating flick), never moves your camera (cheat build only).");
@@ -1824,7 +1823,7 @@ final class SettingTooltipsData {
         d.put("multi warps/auto routes", "Cheat build: with Blink Charge banked, a run of Auto Routes etherwarp nodes all go out in one tick, one banked tick each. Also Auto Secret, Auto Clear and Pathfinding trips.");
         d.put("multi warps/interactive map", "Cheat build: with Blink Charge banked, the Interactive Map's path warps all go out in one tick, one banked tick each.");
         d.put("multi warps/manual", "Cheat build: Warps Per Tick and Aimed Warps act on your own etherwarps.");
-        d.put("path timeout", "Cheat build: how long the pathfinder may search before giving up, 200-1000 ms.");
+        d.put("path timeout", "Cheat build: how long the pathfinder may search before giving up, 0.2-1 s.");
         d.put("retarget mid-path", "Cheat build: pressing another room or door mid-path re-plans to the new goal.");
         d.put("double-press secrets", "Cheat build: pressing the Start Key twice quickly paths to the room's Auto Routes start node.");
         d.put("double-press window", "How long a second press on the same room still counts as a double press, 150-1000 ms.");
@@ -2108,7 +2107,7 @@ final class SettingTooltipsData {
         d.put("arrow align", "Shows how many clicks each Arrow Align frame still needs and can block clicks that overshoot.");
         d.put("arrow align/scale", "Size of the click-count number on each Arrow Align frame.");
         d.put("arrow align/aura", "Cheat build only. Clicks Arrow Align frames in range without you looking at them.");
-        d.put("arrow align/aura cps", "Cheat build only. Aura clicks per second, 1-20 (20 is one a game tick). Each gap varies a little, the average is what you set.");
+        d.put("arrow align/aura cooldown", "Cheat build only. Least time between two Aura clicks, 50-1000 ms (50 ms is one a game tick). Each gap varies a little, the average is what you set.");
         d.put("auto puzzles", "Cheat build only. Solves dungeon puzzle rooms for you; each puzzle's solver must also be on.");
         d.put("auto close chest", "Closes a dungeon secret chest: with Close On Any Key, the first key or mouse press you make closes it (read the loot first); the cheat build can also close it before it opens.");
         d.put("auto close chest/auto close chest", "Closes a dungeon secret chest: with Close On Any Key, the first key or mouse press you make closes it (read the loot first); the cheat build can also close it before it opens.");
@@ -2283,7 +2282,7 @@ final class SettingTooltipsData {
         d.put("sharp shooter (i4)/prefire lead", "How long before P3 starts (Goldor's first line, about 1 s after Storm dies; it never starts before Storm dies) the Terminator starts prefiring the device, 0-3000 ms (cheat build only).");
         d.put("sharp shooter (i4)/rotation time", "How long the camera takes to turn to each target, 0-400 ms (cheat build only).");
         d.put("sharp shooter (i4)/predictions", "Also fires at the likely next target so the arrow is already in flight (cheat build only).");
-        d.put("sharp shooter (i4)/cps", "Auto i4 shooting speed range, 1-15 clicks per second (cheat build only).");
+        d.put("sharp shooter (i4)/delay", "Auto i4 time between shots, a fresh value between the two ends each session, 67-1000 ms (cheat build only).");
         d.put("sharp shooter (i4)/shot accuracy", "Chance that each Auto i4 shot is aimed correctly, 0-100% (cheat build only).");
         d.put("sharp shooter (i4)/order", "Which mask Auto Mask tries after Phoenix.");
         d.put("sharp shooter (i4)/auto", "Leaps to the i4 target as soon as the device is completed (cheat build only).");
@@ -2391,9 +2390,8 @@ final class SettingTooltipsData {
         d.put("secret aura/cooldown", "Cheat build: minimum time (0-2000 ms) between Secret Triggerbot clicks.");
         d.put("secret aura/swap to slot", "Cheat build: switches to the hotbar slot below before clicking a secret.");
         d.put("secret aura/swap slot", "Cheat build: hotbar slot (1-9) to switch to before clicking a secret.");
-        d.put("powder chest triggerbot", "Cheat build: right-clicks a Crystal Hollows treasure chest while your crosshair is on its lock, at a random rate between the Min and Max CPS you set and never twice on one chest in one tick.");
-        d.put("powder chest triggerbot/min cps", "Cheat build only. Lowest chest clicks per second, 1-20. Each click picks a new random rate between Min and Max; Min never goes above Max.");
-        d.put("powder chest triggerbot/max cps", "Cheat build only. Highest chest clicks per second, 1-20 (20 is one a game tick); never more than one click on a chest in one tick. Max never goes below Min.");
+        d.put("powder chest triggerbot", "Cheat build: right-clicks a Crystal Hollows treasure chest while your crosshair is on its lock, with a random delay between the two ends you set and never twice on one chest in one tick.");
+        d.put("powder chest triggerbot/delay", "Cheat build only. Time between chest clicks, 50-1000 ms (50 ms is one a game tick). Each click picks a new random gap between the two ends; never more than one click on a chest in one tick.");
         d.put("powder chest triggerbot/swap back when mining", "Cheat build only. After the triggerbot swapped you to the drill, the first time you start mining another block it switches back to the slot you held before (not if that slot no longer holds the same item).");
         d.put("powder chest triggerbot/don't swap while mining", "Cheat build only. On: no swap to the gemstone drill while your attack button is held. Off: it swaps whenever you aim at a chest.");
         d.put("powder chest triggerbot/swap to best gemstone drill", "Cheat build: first switches to the hotbar drill with the highest Gemstone Powder bonus (Jasper Drill X +20%), or any drill.");
@@ -2629,7 +2627,7 @@ final class SettingTooltipsData {
         d.put("arrow align/turn and click same tick", "Cheat build only. Turns your body to a frame and clicks it in the same tick instead of turning one tick and clicking the next, so each frame costs one tick.");
         d.put("arrow align/leave last arrow", "Cheat build only. Until stage S3 starts (the Predev stretch) the Aura takes the lowest, leftmost arrow that still needs clicks to one click from done and stops there, so a single click finishes the device once S3 begins.");
         d.put("arrow align/disable leave last arrow while crouching", "Cheat build only. On: Leave Last Arrow is suspended while you hold the crouch key, so the Aura may click that arrow (if the Aura itself is not disabled by crouching). Off: it keeps holding the arrow back.");
-        d.put("arrow align/trigger bot cps", "Cheat build only: Trigger Bot clicks per second, 1 to 20, a fresh random value between the two ends for every click.");
+        d.put("arrow align/trigger bot delay", "Cheat build only: time between Trigger Bot clicks, 50-1000 ms, a fresh random value between the two ends for every click.");
         d.put("croesus/highlight runs", "Marks each run in the Croesus menu by what is left in it: solid orange unclaimed, solid magenta worth a Dungeon Chest Key, outlines for runs with nothing to do.");
         d.put("croesus/unclaimed run color", "The tint and border color of a run you have not claimed anything from yet.");
         d.put("croesus/not looked at color", "A run you claimed one chest from whose chests have not been looked at since; drawn as a muted teal outline, no fill. Open the run once and it resolves. Never hidden.");
@@ -2834,12 +2832,12 @@ final class SettingTooltipsData {
         d.put("mask keybinds/dungeons only", "The key only works in dungeons.");
         d.put("mask keybinds/boss only", "The key only works in a boss fight.");
         d.put("wither boss triggerbot", "Cheat build: in the F7/M7 boss, clicks Goldor (or every wither boss) while your crosshair is on him, from any range.");
-        d.put("wither boss triggerbot/cps", "Clicks per second, randomized between the two ends of the range.");
+        d.put("wither boss triggerbot/delay", "Time between clicks, 50-1000 ms, randomized between the two ends of the range.");
         d.put("wither boss triggerbot/click type", "Attack is a left click: an attack in melee reach, the swing alone from further (what a Terminator or a mage beam fires on). Use is a right click for a Terminator or Juju shot.");
         d.put("wither boss triggerbot/aim delay", "How long your crosshair must stay on the boss before it clicks, 0-500 ms. Clicks go out on the game tick, so it rounds up to whole 50 ms ticks.");
         d.put("wither boss triggerbot/all wither bosses", "Works on every wither boss of the F7/M7 fight (Maxor, Storm, Goldor, Necron), not only Goldor in P3.");
         d.put("wither boss triggerbot/wither aimbot", "Cheat build: in the F7/M7 boss, smoothly turns your view onto the boss wither of the phases picked below, from any range. Moving your mouse pauses it for half a second. Off by default.");
-        d.put("wither boss triggerbot/auto hit", "The aimbot also clicks the boss while your crosshair is on him, at the CPS and Click Type set below. Off: it only aims.");
+        d.put("wither boss triggerbot/auto hit", "The aimbot also clicks the boss while your crosshair is on him, at the Delay and Click Type set below. Off: it only aims.");
         d.put("wither boss triggerbot/hold left click", "The aimbot only turns while you hold your attack key; let go and your view is yours again.");
         d.put("wither boss triggerbot/maxor", "The aimbot works on Maxor (Phase 1).");
         d.put("wither boss triggerbot/storm", "The aimbot works on Storm (Phase 2).");

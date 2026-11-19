@@ -241,11 +241,11 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
             widgets.add(holdSlider(contentX, y, half, TerminalSolverConfig.MIN_HOLD_FIRST_DELAY_MS, TerminalSolverConfig.MAX_HOLD_FIRST_DELAY_MS,
                     () -> TerminalSolverConfig.getInstance().getHoldToClickFirstDelayMs(),
                     v -> TerminalSolverConfig.getInstance().setHoldToClickFirstDelayMs(v),
-                    () -> Component.literal("Hold First Delay: " + TerminalSolverConfig.getInstance().getHoldToClickFirstDelayMs() + "ms")));
+                    () -> Component.literal("Hold First Delay: " + TerminalSolverConfig.getInstance().getHoldToClickFirstDelayMs() + " ms")));
             widgets.add(holdSlider(contentX + half + gap, y, half, TerminalSolverConfig.MIN_HOLD_REPEAT_MS, TerminalSolverConfig.MAX_HOLD_REPEAT_MS,
                     () -> TerminalSolverConfig.getInstance().getHoldToClickRepeatMs(),
                     v -> TerminalSolverConfig.getInstance().setHoldToClickRepeatMs(v),
-                    () -> Component.literal("Hold Repeat: " + TerminalSolverConfig.getInstance().getHoldToClickRepeatMs() + "ms")));
+                    () -> Component.literal("Hold Repeat: " + TerminalSolverConfig.getInstance().getHoldToClickRepeatMs() + " ms")));
             y += 24;
         }
 
@@ -384,7 +384,7 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
     }
 
     private static Component thresholdText(TerminalQolConfig cfg) {
-        return Component.literal("Threshold: " + cfg.getProtectionThresholdMs() + "ms");
+        return Component.literal("Threshold: " + cfg.getProtectionThresholdMs() + " ms");
     }
 
     private static Component terminalScaleText(TerminalQolConfig cfg) {

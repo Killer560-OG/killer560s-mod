@@ -81,19 +81,8 @@ public class GoldorTriggerbotTab extends BaseTab {
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Clicks", true));
         y += 16;
 
-        widgets.add(new RangeSliderWidget(contentX, y, contentWidth, ROW,
-                GoldorTriggerbotConfig.MIN_CPS, GoldorTriggerbotConfig.MAX_CPS, cfg.getCpsMin(), cfg.getCpsMax()) {
-            @Override
-            protected Component label(int low, int high) {
-                return cpsText(low, high);
-            }
-
-            @Override
-            protected void onRangeChanged(int low, int high) {
-                cfg.setCpsRange(low, high);
-                com.killer560.hub.gui.ThemedSliderButton.saveOnRelease(cfg::save);
-            }
-        });
+        widgets.add(msRange(contentX, y, contentWidth, "Delay", cfg.getDelayMin(), cfg.getDelayMax(),
+                cfg::setDelayRange, cfg::save));
         y += ROW + GAP;
 
         widgets.add(SettingsButtonWidget.cycling(clickTypeText(cfg), (btn, dir) -> {
@@ -101,8 +90,8 @@ public class GoldorTriggerbotTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(clickTypeText(cfg));
                 }).bounds(contentX, y, halfW, ROW).build());
-        widgets.add(valueSlider(contentX + halfW + GAP, y, rightW, "Aim Delay", "ms", 0, GoldorTriggerbotConfig.MAX_AIM_DELAY_MS,
-                25, 0, cfg::getAimDelayMs, v -> cfg.setAimDelayMs((int) v), cfg::save));
+        widgets.add(valueSlider(contentX + halfW + GAP, y, rightW, "Aim Delay", " ms", 0, GoldorTriggerbotConfig.MAX_AIM_DELAY_MS,
+                50, 0, cfg::getAimDelayMs, v -> cfg.setAimDelayMs((int) v), cfg::save));
         y += ROW + GAP;
 
         // Classes it works on (your class from the dungeon tab list); all on = every class, and an unknown class too.
@@ -121,15 +110,6 @@ public class GoldorTriggerbotTab extends BaseTab {
         }
         y += 24;
         return widgets;
-    }
-
-    /** More clicks per second is a shorter gap, so the high CPS end is the low millisecond end. */
-    private static Component cpsText(int low, int high) {
-        return Component.literal("CPS: " + low + " - " + high + " (" + msFor(high) + "-" + msFor(low) + " ms)");
-    }
-
-    private static long msFor(int cps) {
-        return Math.round(1000.0 / Math.max(1, cps));
     }
 
     private static Component clickTypeText(GoldorTriggerbotConfig cfg) {

@@ -71,7 +71,7 @@ public class SecretAuraTab extends BaseTab {
                     (cfg.getAuraSkullRange() - CheatUtilsConfig.MIN_AURA_RANGE) / (CheatUtilsConfig.MAX_AURA_SKULL_RANGE - CheatUtilsConfig.MIN_AURA_RANGE),
                     v -> cfg.setAuraSkullRange(CheatUtilsConfig.MIN_AURA_RANGE + v * (CheatUtilsConfig.MAX_AURA_SKULL_RANGE - CheatUtilsConfig.MIN_AURA_RANGE)));
             y[0] += 24;
-            slider(w, contentX, y[0], BTN_W, () -> "Click Cooldown: " + cfg.getAuraCooldownMs() + "ms",
+            slider(w, contentX, y[0], BTN_W, () -> "Click Cooldown: " + cfg.getAuraCooldownMs() + " ms",
                     norm(cfg.getAuraCooldownMs(), CheatUtilsConfig.MIN_AURA_COOLDOWN_MS, CheatUtilsConfig.MAX_AURA_COOLDOWN_MS),
                     v -> cfg.setAuraCooldownMs(denorm(v, CheatUtilsConfig.MIN_AURA_COOLDOWN_MS, CheatUtilsConfig.MAX_AURA_COOLDOWN_MS)));
             y[0] += 24;
@@ -124,12 +124,12 @@ public class SecretAuraTab extends BaseTab {
         if (!t.isEnabled()) {
             return;
         }
-        slider(w, x, y[0], half, () -> "Delay: " + t.getDelayMs() + "ms",
+        slider(w, x, y[0], half, () -> "Delay: " + t.getDelayMs() + " ms",
                 norm(t.getDelayMs(), 0, SecretTriggerbotConfig.MAX_DELAY_MS),
-                v -> t.setDelayMs(denorm(v, 0, SecretTriggerbotConfig.MAX_DELAY_MS)), t::save);
-        slider(w, x + half + 8, y[0], half, () -> "Cooldown: " + t.getCooldownMs() + "ms",
+                v -> t.setDelayMs(denorm50(v, SecretTriggerbotConfig.MAX_DELAY_MS)), t::save);
+        slider(w, x + half + 8, y[0], half, () -> "Cooldown: " + t.getCooldownMs() + " ms",
                 norm(t.getCooldownMs(), 0, SecretTriggerbotConfig.MAX_COOLDOWN_MS),
-                v -> t.setCooldownMs(denorm(v, 0, SecretTriggerbotConfig.MAX_COOLDOWN_MS)), t::save);
+                v -> t.setCooldownMs(denorm50(v, SecretTriggerbotConfig.MAX_COOLDOWN_MS)), t::save);
         y[0] += 24;
         toggle(w, x, y, "Swap To Slot", t::isSwapEnabled, t::setSwapEnabled, rebuild, t::save);
         if (t.isSwapEnabled()) {
@@ -144,6 +144,11 @@ public class SecretAuraTab extends BaseTab {
 
     private static double norm(int value, int min, int max) {
         return (value - min) / (double) (max - min);
+    }
+
+    /** 0..max in whole 50 ms ticks: the triggerbot acts on client ticks, so a finer step does nothing. */
+    private static int denorm50(double v, int max) {
+        return (int) Math.round(v * max / 50.0) * 50;
     }
 
     private static int denorm(double v, int min, int max) {

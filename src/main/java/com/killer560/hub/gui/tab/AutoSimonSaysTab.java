@@ -67,15 +67,15 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
         if (cfg.isTriggerBotEnabled()) {
             double triggerDelayNorm = cfg.getTriggerBotDelayMs() / (double) SimonSaysConfig.MAX_TRIGGER_BOT_DELAY_MS;
             widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18,
-                    Component.literal("Trigger Bot Delay: " + cfg.getTriggerBotDelayMs() + "ms"), triggerDelayNorm) {
+                    Component.literal("Trigger Bot Delay: " + cfg.getTriggerBotDelayMs() + " ms"), triggerDelayNorm) {
                 @Override
                 protected void updateMessage() {
-                    setMessage(Component.literal("Trigger Bot Delay: " + cfg.getTriggerBotDelayMs() + "ms"));
+                    setMessage(Component.literal("Trigger Bot Delay: " + cfg.getTriggerBotDelayMs() + " ms"));
                 }
 
                 @Override
                 protected void applyValue() {
-                    cfg.setTriggerBotDelayMs((int) Math.round(this.value * SimonSaysConfig.MAX_TRIGGER_BOT_DELAY_MS));
+                    cfg.setTriggerBotDelayMs((int) Math.round(this.value * SimonSaysConfig.MAX_TRIGGER_BOT_DELAY_MS / 50.0) * 50);
                     saveOnRelease(() -> cfg.save());
                 }
             });
@@ -109,10 +109,10 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
             // Range is 1-20, not 0-20 (killer560's own call - 0 ticks isn't a real delay option).
             double delayNorm = (cfg.getAutoStartClickDelayTicks() - 1) / 19.0;
             widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18,
-                    Component.literal("Delay: " + cfg.getAutoStartClickDelayTicks() + "t (" + cfg.getAutoStartClickDelayTicks() * 50 + "ms)"), delayNorm) {
+                    Component.literal("Delay: " + cfg.getAutoStartClickDelayTicks() + " ticks (" + cfg.getAutoStartClickDelayTicks() * 50 + " ms)"), delayNorm) {
                 @Override
                 protected void updateMessage() {
-                    setMessage(Component.literal("Delay: " + cfg.getAutoStartClickDelayTicks() + "t (" + cfg.getAutoStartClickDelayTicks() * 50 + "ms)"));
+                    setMessage(Component.literal("Delay: " + cfg.getAutoStartClickDelayTicks() + " ticks (" + cfg.getAutoStartClickDelayTicks() * 50 + " ms)"));
                 }
 
                 @Override
@@ -165,10 +165,10 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
             if (cfg.isAutoSolveFixedDelayMode()) {
                 double fixedDelayNorm = cfg.getAutoSolveFixedDelayMs() / 3000.0;
                 widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18,
-                        Component.literal("Click Delay: " + cfg.getAutoSolveFixedDelayMs() + "ms"), fixedDelayNorm) {
+                        Component.literal("Click Delay: " + cfg.getAutoSolveFixedDelayMs() + " ms"), fixedDelayNorm) {
                     @Override
                     protected void updateMessage() {
-                        setMessage(Component.literal("Click Delay: " + cfg.getAutoSolveFixedDelayMs() + "ms"));
+                        setMessage(Component.literal("Click Delay: " + cfg.getAutoSolveFixedDelayMs() + " ms"));
                     }
 
                     @Override
@@ -190,10 +190,10 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
                 int maxTarget = SimonSaysConfig.MAX_CLICK_TIMER_TARGET_MS;
                 double targetNorm = (cfg.getClickTimerTargetMs() - (double) minTarget) / (maxTarget - minTarget);
                 widgets.add(new ThemedSliderButton(col2aX, y, col2W, 18,
-                        Component.literal("Timer Target: " + (cfg.getClickTimerTargetMs() / 100) / 10.0 + "s"), targetNorm) {
+                        Component.literal("Timer Target: " + (cfg.getClickTimerTargetMs() / 100) / 10.0 + " s"), targetNorm) {
                     @Override
                     protected void updateMessage() {
-                        setMessage(Component.literal("Timer Target: " + (cfg.getClickTimerTargetMs() / 100) / 10.0 + "s"));
+                        setMessage(Component.literal("Timer Target: " + (cfg.getClickTimerTargetMs() / 100) / 10.0 + " s"));
                     }
 
                     @Override
@@ -205,10 +205,10 @@ public class AutoSimonSaysTab extends BaseTab implements KeyCaptureTab {
 
                 double varianceNorm = cfg.getClickTimerVarianceMs() / (double) SimonSaysConfig.MAX_CLICK_TIMER_VARIANCE_MS;
                 widgets.add(new ThemedSliderButton(col2bX, y, col2W, 18,
-                        Component.literal("Variance: ±" + cfg.getClickTimerVarianceMs() + "ms"), varianceNorm) {
+                        Component.literal("Variance: ±" + cfg.getClickTimerVarianceMs() + " ms"), varianceNorm) {
                     @Override
                     protected void updateMessage() {
-                        setMessage(Component.literal("Variance: ±" + cfg.getClickTimerVarianceMs() + "ms"));
+                        setMessage(Component.literal("Variance: ±" + cfg.getClickTimerVarianceMs() + " ms"));
                     }
 
                     @Override

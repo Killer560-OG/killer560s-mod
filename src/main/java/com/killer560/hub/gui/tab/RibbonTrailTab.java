@@ -210,7 +210,7 @@ public class RibbonTrailTab extends BaseTab {
     }
 
     private static Component lengthLabel(RibbonTrailConfig cfg) {
-        return Component.literal(String.format(Locale.US, "Ribbon Length: %.1fs", cfg.getRibbonSeconds()));
+        return Component.literal(String.format(Locale.US, "Ribbon Length: %.1f s", cfg.getRibbonSeconds()));
     }
 
     private static Component opacityLabel(RibbonTrailConfig cfg) {

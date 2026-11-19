@@ -165,10 +165,10 @@ public class TerminalAuraTab extends BaseTab {
     }
 
     private static Component delayText(TerminalAuraConfig cfg) {
-        return Component.literal("Delay: " + cfg.getDelayMs() + "ms");
+        return Component.literal("Delay: " + cfg.getDelayMs() + " ms");
     }
 
     private static Component leapDelayText(TerminalAuraConfig cfg) {
-        return Component.literal(String.format(Locale.US, "Leap Delay Time: %.1fs", cfg.getLeapDelaySeconds()));
+        return Component.literal(String.format(Locale.US, "Leap Delay Time: %.1f s", cfg.getLeapDelaySeconds()));
     }
 }

@@ -278,7 +278,8 @@ public class LiveMapTab extends BaseTab implements KeyCaptureTab {
                                  Runnable save, int x, int y, int w) {
         Supplier<Component> text = () -> {
             double v = get.getAsDouble();
-            String num = v == Math.rint(v) ? String.valueOf((long) v) : String.format(Locale.US, "%.2f", v);
+            String num = v == Math.rint(v) ? String.valueOf((long) v)
+                    : String.format(Locale.US, Math.abs(v * 10 - Math.rint(v * 10)) < 1e-6 ? "%.1f" : "%.2f", v);
             return Component.literal(label + ": " + num + unit);
         };
         return new ThemedSliderButton(x, y, w, 18, text.get(), (get.getAsDouble() - min) / (max - min)) {

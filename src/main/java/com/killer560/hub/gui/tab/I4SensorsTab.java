@@ -130,19 +130,8 @@ public class I4SensorsTab extends BaseTab {
                     null, contentX, y, contentWidth, 18));
             y += 22;
 
-            widgets.add(new com.killer560.hub.gui.RangeSliderWidget(contentX, y, contentWidth, 18,
-                    I4SensorsConfig.MIN_CPS, I4SensorsConfig.MAX_CPS, cfg.getCpsMin(), cfg.getCpsMax()) {
-                @Override
-                protected Component label(int low, int high) {
-                    return Component.literal("CPS: " + low + " - " + high);
-                }
-
-                @Override
-                protected void onRangeChanged(int low, int high) {
-                    cfg.setCpsRange(low, high);
-                    ThemedSliderButton.saveOnRelease(cfg::save);
-                }
-            });
+            widgets.add(msRange(contentX, y, contentWidth, "Delay", I4SensorsConfig.MIN_DELAY, I4SensorsConfig.MAX_DELAY,
+                    cfg.getDelayMin(), cfg.getDelayMax(), cfg::setDelayRange, cfg::save));
             y += 22;
 
             widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18,
@@ -184,11 +173,11 @@ public class I4SensorsTab extends BaseTab {
     }
 
     private static String prefireLeadLabel(I4SensorsConfig cfg) {
-        return "Prefire Lead: " + cfg.getAutoI4PrefireLeadMs() + "ms";
+        return "Prefire Lead: " + cfg.getAutoI4PrefireLeadMs() + " ms";
     }
 
     private static String rotationLabel(I4SensorsConfig cfg) {
-        return "Rotation Time: " + cfg.getAutoI4RotationTimeMs() + "ms";
+        return "Rotation Time: " + cfg.getAutoI4RotationTimeMs() + " ms";
     }
 
     private static Component rotateText(I4SensorsConfig cfg) {

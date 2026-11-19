@@ -282,7 +282,7 @@ public class SpotifyTab extends BaseTab implements KeyCaptureTab {
     }
 
     private static Component seekText() {
-        return Component.literal("Rewind/Skip Step: " + SpotifyControlsConfig.getInstance().getSeekSeconds() + "s");
+        return Component.literal("Rewind/Skip Step: " + SpotifyControlsConfig.getInstance().getSeekSeconds() + " s");
     }
 
     private static Component volumeStepText() {

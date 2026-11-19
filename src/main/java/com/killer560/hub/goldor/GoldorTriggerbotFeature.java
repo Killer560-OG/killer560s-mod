@@ -18,20 +18,19 @@ import net.minecraft.world.phys.Vec3;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
-import java.util.concurrent.ThreadLocalRandom;
 import com.killer560.hub.compat.McCompat;
 
 /**
  * Wither Boss Triggerbot (Goldor Triggerbot until 2026-11-01; "All Wither Bosses" widens it past Goldor, and it works
  * from any range) - killer560, 2026-09-21: "Create goldore triggerbot with cps range". While the crosshair is
- * actually on the F7/M7 P3 boss wither (Goldor), click him at a rate rolled inside the configured CPS band.
+ * actually on the F7/M7 P3 boss wither (Goldor), click him at a rate rolled inside the configured delay range.
  * Cheat build only, default OFF.
  * <p>
  * The same shape as {@code SecretTriggerbotFeature} / {@code TerminalTriggerbotFeature} - it only ever acts on what
  * you are already aiming at and never moves the camera - with two differences:
  * <ul>
  * <li><b>Rate, not delay.</b> Instead of one fixed Delay slider the gap before every single click is rolled fresh
- * between the two ends of the CPS range (see {@link #rollIntervalMs}). Rolling once and reusing the value would put
+ * between the two ends of the delay range (see {@link #rollIntervalMs}). Rolling once and reusing the value would put
  * a constant interval on the wire, which is the machine signature this whole subsystem exists to avoid - it is the
  * same reason {@code ActionGate} jitters its own one-tick floor. With the two ends set equal there is nothing left
  * to roll and only the gate's jitter varies the spacing, which is the player asking for a fixed rate.
@@ -48,9 +47,9 @@ import com.killer560.hub.compat.McCompat;
  * Clicks at the START of the client tick, like every clean trigger bot. It used to click from the world-render hook
  * for sub-tick spacing, and a click sent from a frame follows that tick's movement packet: GrimAC Post on every
  * attack (testkit 787, 2026-10-11). The Aim Delay is now whole ticks, rounded up ({@link ActionGate#delayTicks}).
- * The CPS band still holds on average: each click is scheduled from the previous one's DUE tick (fractional), not
- * from the tick it went out on, so a 16 CPS roll (1.25 ticks) comes out as gaps of 1 and 2 ticks averaging 16, not a
- * flat 10. At most one click a tick, so nothing above 20 CPS (the gate's cap anyway).
+ * The delay range still holds on average: each click is scheduled from the previous one's DUE tick (fractional), not
+ * from the tick it went out on, so a 63 ms roll (1.25 ticks) comes out as gaps of 1 and 2 ticks averaging 63 ms, not a
+ * flat 10. At most one click a tick, so nothing under 50 ms (the gate's cap anyway).
  */
 public final class GoldorTriggerbotFeature {
 
@@ -62,7 +61,7 @@ public final class GoldorTriggerbotFeature {
     /** Said once per session, not once per tick. */
     private static boolean warnedOutOfMeleeRange;
     private static int aimTargetId = -1;
-    /** The client tick ({@link ActionGate#currentTick}) the next click is due on; fractional so a rolled CPS between
+    /** The client tick ({@link ActionGate#currentTick}) the next click is due on; fractional so a rolled gap between
      *  20 and 10 is kept on average rather than rounded to one of them. */
     private static double nextClickDueTick = 0.0;
     private static Object lastLevel = null;
@@ -242,15 +241,9 @@ public final class GoldorTriggerbotFeature {
         return aimTurns;
     }
 
-    /**
-     * A fresh interval for every click: a CPS uniformly inside the configured band, converted to milliseconds.
-     * Rolled in the CPS domain because that is the unit the slider promises.
-     */
+    /** A fresh interval for every click: uniformly inside the configured delay range, in ms. */
     private static long rollIntervalMs(GoldorTriggerbotConfig cfg) {
-        double min = cfg.getCpsMin();
-        double max = Math.max(min, cfg.getCpsMax());
-        double cps = max > min ? ThreadLocalRandom.current().nextDouble(min, max) : min;
-        return Math.max(1L, Math.round(1000.0 / Math.max(1.0, cps)));
+        return Math.max(1L, Math.round(com.killer560.hub.util.RateMs.roll(cfg.getDelayMin(), cfg.getDelayMax())));
     }
 
     /**

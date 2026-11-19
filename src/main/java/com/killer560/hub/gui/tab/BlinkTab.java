@@ -167,6 +167,6 @@ public class BlinkTab extends BaseTab implements KeyCaptureTab {
     }
 
     private static Component ticksText(String label, int t) {
-        return Component.literal(String.format(Locale.US, "%s: %d (%.2fs)", label, t, t / 20.0));
+        return Component.literal(String.format(Locale.US, "%s: %d (%.2f s)", label, t, t / 20.0));
     }
 }

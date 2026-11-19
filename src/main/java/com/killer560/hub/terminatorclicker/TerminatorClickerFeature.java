@@ -56,8 +56,8 @@ public final class TerminatorClickerFeature {
         McCompat.swingAttack(player);
         clicks++;
         TerminatorClickerConfig cfg = TerminatorClickerConfig.getInstance();
-        double cps = ThreadLocalRandom.current().nextInt(cfg.getCpsMin(), cfg.getCpsMax() + 1);
-        double ms = 1000.0 / cps + ThreadLocalRandom.current().nextDouble(-30, 30);
+        double ms = com.killer560.hub.util.RateMs.roll(cfg.getDelayMin(), cfg.getDelayMax())
+                + ThreadLocalRandom.current().nextDouble(-30, 30);
         dueTick = Math.max(dueTick, now - 1) + Math.max(50.0, ms) / 50.0;
     }
 }

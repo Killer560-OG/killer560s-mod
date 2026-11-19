@@ -376,7 +376,7 @@ public final class AutoI4Feature {
     /** Picks this attempt's base CPS once - when the device starts, or when prefiring starts before it. */
     private static void startCadence(I4SensorsConfig cfg) {
         if (sessionBaseCps <= 0) {
-            sessionBaseCps = cfg.getCpsMin() + Math.random() * (cfg.getCpsMax() - cfg.getCpsMin());
+            sessionBaseCps = 1000.0 / com.killer560.hub.util.RateMs.roll(cfg.getDelayMin(), cfg.getDelayMax());
             nextClickAtMs = 0L;
         }
     }

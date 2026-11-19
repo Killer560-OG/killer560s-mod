@@ -107,7 +107,7 @@ public class VoiceToTextTab extends BaseTab implements KeyCaptureTab {
     }
 
     private static Component silenceText(VoiceToTextConfig cfg) {
-        return Component.literal(String.format(java.util.Locale.ROOT, "Silence Before Send: §b%.1fs",
+        return Component.literal(String.format(java.util.Locale.ROOT, "Silence Before Send: §b%.1f s",
                 cfg.getOpenMicSilenceMs() / 1000.0));
     }
 

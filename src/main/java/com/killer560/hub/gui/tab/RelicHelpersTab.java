@@ -87,7 +87,7 @@ public class RelicHelpersTab extends BaseTab {
     }
 
     private static Component cooldownText(RelicHelpersConfig cfg) {
-        return Component.literal("Cooldown: " + cfg.getCooldownMs() + "ms");
+        return Component.literal("Cooldown: " + cfg.getCooldownMs() + " ms");
     }
 
     private static Component rangeText(RelicHelpersConfig cfg) {

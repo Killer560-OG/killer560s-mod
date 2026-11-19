@@ -635,7 +635,7 @@ public final class FastLeapSection {
     }
 
     private static String timeoutLabel(FastLeapConfig cfg) {
-        return "Leap Timeout: " + String.format(java.util.Locale.ROOT, "%.2f", cfg.getTimeoutMs() / 1000.0) + "s";
+        return "Leap Timeout: " + String.format(java.util.Locale.ROOT, "%.2f", cfg.getTimeoutMs() / 1000.0) + " s";
     }
 
     private static String delayLabel(FastLeapConfig cfg) {

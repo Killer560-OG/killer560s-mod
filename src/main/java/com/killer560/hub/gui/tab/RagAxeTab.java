@@ -138,7 +138,7 @@ public class RagAxeTab extends BaseTab {
     }
 
     private static Component cooldownLabel(RagAxeConfig cfg) {
-        return Component.literal(String.format(Locale.US, "Cooldown: §6%.1fs", cfg.getCooldownSeconds()));
+        return Component.literal(String.format(Locale.US, "Cooldown: §6%.1f s", cfg.getCooldownSeconds()));
     }
 
     private static Component leadLabel(RagAxeConfig cfg, RagAxePrompt prompt) {

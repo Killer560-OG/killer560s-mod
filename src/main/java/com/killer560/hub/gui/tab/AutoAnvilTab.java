@@ -38,9 +38,9 @@ public class AutoAnvilTab extends BaseTab {
         }
         toggle(w, contentX, y, "Combine Results Again", cfg::isCascade, cfg::setCascade, null);
         toggle(w, contentX, y, "Close When Done", cfg::isCloseWhenDone, cfg::setCloseWhenDone, null);
-        slider(w, contentX, y[0], half, () -> "Min Delay: " + cfg.getMinDelayMs() + "ms",
+        slider(w, contentX, y[0], half, () -> "Min Delay: " + cfg.getMinDelayMs() + " ms",
                 norm(cfg.getMinDelayMs()), v -> cfg.setMinDelayMs(denorm(v)));
-        slider(w, contentX + half + 8, y[0], half, () -> "Max Delay: " + cfg.getMaxDelayMs() + "ms",
+        slider(w, contentX + half + 8, y[0], half, () -> "Max Delay: " + cfg.getMaxDelayMs() + " ms",
                 norm(cfg.getMaxDelayMs()), v -> cfg.setMaxDelayMs(denorm(v)));
         y[0] += 24;
         return w;

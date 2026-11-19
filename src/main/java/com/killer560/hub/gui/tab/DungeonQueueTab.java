@@ -339,7 +339,7 @@ public class DungeonQueueTab extends BaseTab {
     }
 
     private static Component delayText(DungeonQueueConfig cfg) {
-        return Component.literal("Requeue Delay: " + cfg.getDelaySeconds() + "s");
+        return Component.literal("Requeue Delay: " + cfg.getDelaySeconds() + " s");
     }
 
     private static Component valueText(String label, String value) {

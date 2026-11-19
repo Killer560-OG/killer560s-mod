@@ -200,11 +200,11 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
         toggle(w, contentX + half + GAP, y[0], right, "Chat Feedback", cfg::isChatFeedback, cfg::setChatFeedback);
         y[0] += ROW;
         int pSpan = AutoSecretConfig.MAX_PUZZLE_WAIT_S - AutoSecretConfig.MIN_PUZZLE_WAIT_S;
-        slider(w, contentX, y[0], half, () -> "Puzzle Wait: " + cfg.getPuzzleWaitSeconds() + "s",
+        slider(w, contentX, y[0], half, () -> "Puzzle Wait: " + cfg.getPuzzleWaitSeconds() + " s",
                 (cfg.getPuzzleWaitSeconds() - AutoSecretConfig.MIN_PUZZLE_WAIT_S) / (double) pSpan,
                 v -> cfg.setPuzzleWaitSeconds((int) Math.round(AutoSecretConfig.MIN_PUZZLE_WAIT_S + v * pSpan)));
         int sSpan = AutoSecretConfig.MAX_STALL_S - AutoSecretConfig.MIN_STALL_S;
-        slider(w, contentX + half + GAP, y[0], right, () -> "Route Stall: " + cfg.getRouteStallSeconds() + "s",
+        slider(w, contentX + half + GAP, y[0], right, () -> "Route Stall: " + cfg.getRouteStallSeconds() + " s",
                 (cfg.getRouteStallSeconds() - AutoSecretConfig.MIN_STALL_S) / (double) sSpan,
                 v -> cfg.setRouteStallSeconds((int) Math.round(AutoSecretConfig.MIN_STALL_S + v * sSpan)));
         y[0] += ROW;

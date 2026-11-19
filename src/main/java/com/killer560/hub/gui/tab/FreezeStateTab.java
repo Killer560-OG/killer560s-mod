@@ -143,7 +143,7 @@ public class FreezeStateTab extends BaseTab implements KeyCaptureTab {
     }
 
     private static Component rewindText(Ap3Config cfg) {
-        return Component.literal(String.format(Locale.US, "Rewind Memory: %d ticks (%.1fs)", cfg.getRewindTicks(),
+        return Component.literal(String.format(Locale.US, "Rewind Memory: %d ticks (%.1f s)", cfg.getRewindTicks(),
                 cfg.getRewindTicks() / 20.0));
     }
 }

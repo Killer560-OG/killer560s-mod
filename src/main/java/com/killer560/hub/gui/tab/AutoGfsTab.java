@@ -51,7 +51,7 @@ public class AutoGfsTab extends BaseTab {
         slider(w, contentX, y[0], half, () -> "Refill Below: " + cfg.getGfsThresholdPercent() + "%",
                 norm(cfg.getGfsThresholdPercent(), CheatUtilsConfig.MIN_GFS_THRESHOLD_PERCENT, CheatUtilsConfig.MAX_GFS_THRESHOLD_PERCENT),
                 v -> cfg.setGfsThresholdPercent(denorm(v, CheatUtilsConfig.MIN_GFS_THRESHOLD_PERCENT, CheatUtilsConfig.MAX_GFS_THRESHOLD_PERCENT)));
-        slider(w, contentX + half + 8, y[0], half, () -> "Check Every: " + cfg.getGfsIntervalSec() + "s",
+        slider(w, contentX + half + 8, y[0], half, () -> "Check Every: " + cfg.getGfsIntervalSec() + " s",
                 norm(cfg.getGfsIntervalSec(), CheatUtilsConfig.MIN_GFS_INTERVAL_SEC, CheatUtilsConfig.MAX_GFS_INTERVAL_SEC),
                 v -> cfg.setGfsIntervalSec(denorm(v, CheatUtilsConfig.MIN_GFS_INTERVAL_SEC, CheatUtilsConfig.MAX_GFS_INTERVAL_SEC)));
         y[0] += 28;

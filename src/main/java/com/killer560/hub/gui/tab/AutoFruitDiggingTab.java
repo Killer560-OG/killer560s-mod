@@ -30,8 +30,8 @@ public class AutoFruitDiggingTab extends BaseTab {
             return w;
         }
         int half = (contentWidth - 4) / 2;
-        IslandRows.slider(w, contentX, y, half, AutoFruitConfig.MIN_DELAY_MS, AutoFruitConfig.MAX_DELAY_MS, 10,
-                cfg::getDelayMs, cfg::setDelayMs, v -> "Dig Delay: " + v + "ms", save);
+        IslandRows.slider(w, contentX, y, half, AutoFruitConfig.MIN_DELAY_MS, AutoFruitConfig.MAX_DELAY_MS, 50,
+                cfg::getDelayMs, cfg::setDelayMs, v -> "Dig Delay: " + v + " ms", save);
         IslandRows.toggle(w, contentX + half + 4, y, half, "Free Camera", cfg::isFreeCamera, cfg::setFreeCamera, save);
         return w;
     }

@@ -28,8 +28,8 @@ public class AutoShovelSwapTab extends BaseTab {
         if (!cfg.isEnabledRaw() && !isSearchScan()) {
             return w;
         }
-        IslandRows.slider(w, contentX, y, contentWidth, AutoFruitConfig.MIN_DELAY_MS, AutoFruitConfig.MAX_DELAY_MS, 10,
-                cfg::getDelayMs, cfg::setDelayMs, v -> "Swap Delay: " + v + "ms", cfg::save);
+        IslandRows.slider(w, contentX, y, contentWidth, AutoFruitConfig.MIN_DELAY_MS, AutoFruitConfig.MAX_DELAY_MS, 50,
+                cfg::getDelayMs, cfg::setDelayMs, v -> "Swap Delay: " + v + " ms", cfg::save);
         return w;
     }
 }

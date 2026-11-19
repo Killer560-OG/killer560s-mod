@@ -223,7 +223,7 @@ public class AutoExperimentsTab extends BaseTab {
     }
 
     private static Component msText(String label, int ms) {
-        return Component.literal(label + ": §b" + ms + "ms");
+        return Component.literal(label + ": §b" + ms + " ms");
     }
 
     /** Max Titanic Price slider, snapping to 50k coins. Dragging it rewrites the box beside it; typing in

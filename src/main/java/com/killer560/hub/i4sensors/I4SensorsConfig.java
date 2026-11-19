@@ -1,6 +1,7 @@
 package com.killer560.hub.i4sensors;
 
 import com.killer560.hub.util.ConfigJson;
+import com.killer560.hub.util.RateMs;
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
@@ -113,10 +114,11 @@ public final class I4SensorsConfig {
     // CPS range (2026-09-14, killer560: "a cps range between 1-15 that has both ends of a slider. Whenever i4 starts
     // itll pick a number from that and go +-1 or 2 each way... somewhat evenly balanced"). Default 4-6: the
     // Terminator's own cooldown swallowed shots closer than ~180ms in a real p3sim log.
-    public static final int MIN_CPS = 1;
-    public static final int MAX_CPS = 15;
-    private int cpsMin = 4;
-    private int cpsMax = 6;
+    // sliderunits-1118: now a delay range in ms (the old 15 CPS top is 67 ms); old cpsMin/cpsMax keys convert on load.
+    public static final int MIN_DELAY = 67;
+    public static final int MAX_DELAY = RateMs.MAX;
+    private int delayMin = 167;
+    private int delayMax = 250;
 
     private I4SensorsConfig() {
     }
@@ -162,7 +164,7 @@ public final class I4SensorsConfig {
         cfg.autoMask = ConfigJson.getBool(obj, "autoMask", false);
         cfg.setMaskOrderIndex(readMaskOrderIndex(obj));
         cfg.setShotAccuracyPercent(ConfigJson.getInt(obj, "shotAccuracyPercent", 100));
-        cfg.setCpsRange(ConfigJson.getInt(obj, "cpsMin", 4), ConfigJson.getInt(obj, "cpsMax", 6));
+        cfg.setDelayRange(RateMs.read(obj, "delayMin", "cpsMax", 167), RateMs.read(obj, "delayMax", "cpsMin", 250));
         instance = cfg;
     }
 
@@ -194,25 +196,25 @@ public final class I4SensorsConfig {
         obj.addProperty("maskOrderIndex", maskOrderIndex);
         obj.addProperty("maskOrderVersion", MASK_ORDER_VERSION);
         obj.addProperty("shotAccuracyPercent", shotAccuracyPercent);
-        obj.addProperty("cpsMin", cpsMin);
-        obj.addProperty("cpsMax", cpsMax);
+        obj.addProperty("delayMin", delayMin);
+        obj.addProperty("delayMax", delayMax);
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
     /** Visual only - available on both builds. */
-    public int getCpsMin() {
-        return cpsMin;
+    public int getDelayMin() {
+        return delayMin;
     }
 
-    public int getCpsMax() {
-        return cpsMax;
+    public int getDelayMax() {
+        return delayMax;
     }
 
-    public void setCpsRange(int min, int max) {
-        int lo = Math.max(MIN_CPS, Math.min(MAX_CPS, Math.min(min, max)));
-        int hi = Math.max(MIN_CPS, Math.min(MAX_CPS, Math.max(min, max)));
-        this.cpsMin = lo;
-        this.cpsMax = hi;
+    public void setDelayRange(int min, int max) {
+        int lo = Math.max(MIN_DELAY, Math.min(MAX_DELAY, Math.min(min, max)));
+        int hi = Math.max(MIN_DELAY, Math.min(MAX_DELAY, Math.max(min, max)));
+        this.delayMin = lo;
+        this.delayMax = hi;
     }
 
     public int getShotAccuracyPercent() {

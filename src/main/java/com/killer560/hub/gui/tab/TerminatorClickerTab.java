@@ -33,19 +33,8 @@ public class TerminatorClickerTab extends BaseTab {
         if (!cfg.isEnabled() && !isSearchScan()) {
             return widgets;
         }
-        widgets.add(new RangeSliderWidget(contentX, contentY + 24, contentWidth, 18, TerminatorClickerConfig.MIN_CPS,
-                TerminatorClickerConfig.MAX_CPS, cfg.getCpsMin(), cfg.getCpsMax()) {
-            @Override
-            protected Component label(int low, int high) {
-                return Component.literal("Clicks Per Second: " + low + " - " + high);
-            }
-
-            @Override
-            protected void onRangeChanged(int low, int high) {
-                cfg.setCpsRange(low, high);
-                com.killer560.hub.gui.ThemedSliderButton.saveOnRelease(cfg::save);
-            }
-        });
+        widgets.add(msRange(contentX, contentY + 24, contentWidth, "Delay", TerminatorClickerConfig.MIN_DELAY,
+                TerminatorClickerConfig.MAX_DELAY, cfg.getDelayMin(), cfg.getDelayMax(), cfg::setDelayRange, cfg::save));
         return widgets;
     }
 }

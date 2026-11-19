@@ -4,6 +4,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.util.ConfigJson;
+import com.killer560.hub.util.RateMs;
 import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.util.SkyblockGate;
 
@@ -53,8 +54,8 @@ public final class PowderMiningConfig {
     private boolean chestTriggerbot = false;
     private boolean chestTriggerbotSwap = true;
     /** Powder Chest Triggerbot clicks per second (one a tick at most, so 20 is the top). */
-    public static final int MIN_CHEST_CPS = 1, MAX_CHEST_CPS = 20;
-    private int chestTriggerbotMinCps = 10, chestTriggerbotMaxCps = 10;
+    /** Gap between chest clicks in ms (sliderunits-1118; was Min/Max CPS: 10 CPS = 100 ms). */
+    private int chestTriggerbotMinDelayMs = 100, chestTriggerbotMaxDelayMs = 100;
     private boolean chestTriggerbotSwapBack = true, chestTriggerbotNoSwapMining = true;
     private int lockpickColor = DEFAULT_LOCKPICK_COLOR;
 
@@ -139,10 +140,12 @@ public final class PowderMiningConfig {
                 cfg.lockpickHelper = ConfigJson.getBool(o, "lockpickHelper", cfg.lockpickHelper);
                 cfg.chestTriggerbot = ConfigJson.getBool(o, "chestTriggerbot", cfg.chestTriggerbot);
                 cfg.chestTriggerbotSwap = ConfigJson.getBool(o, "chestTriggerbotSwap", cfg.chestTriggerbotSwap);
-                int oldCps = ConfigJson.getInt(o, "chestTriggerbotCps", cfg.chestTriggerbotMinCps); // single value before chestcps-1105
-                cfg.chestTriggerbotMaxCps = clampCps(ConfigJson.getInt(o, "chestTriggerbotMaxCps", oldCps));
-                cfg.chestTriggerbotMinCps = Math.min(cfg.chestTriggerbotMaxCps,
-                        clampCps(ConfigJson.getInt(o, "chestTriggerbotMinCps", oldCps)));
+                // Old CPS keys (a single chestTriggerbotCps before chestcps-1105) become the nearest gap: more CPS = shorter gap.
+                int oldCps = ConfigJson.getInt(o, "chestTriggerbotCps", 10);
+                int lo = RateMs.read(o, "chestTriggerbotMinDelayMs", "chestTriggerbotMaxCps", RateMs.fromCps(oldCps));
+                int hi = RateMs.read(o, "chestTriggerbotMaxDelayMs", "chestTriggerbotMinCps", RateMs.fromCps(oldCps));
+                cfg.chestTriggerbotMinDelayMs = RateMs.clamp(Math.min(lo, hi));
+                cfg.chestTriggerbotMaxDelayMs = RateMs.clamp(Math.max(lo, hi));
                 cfg.chestTriggerbotSwapBack = ConfigJson.getBool(o, "chestTriggerbotSwapBack", cfg.chestTriggerbotSwapBack);
                 cfg.chestTriggerbotNoSwapMining = ConfigJson.getBool(o, "chestTriggerbotNoSwapMining", cfg.chestTriggerbotNoSwapMining);
                 cfg.lockpickColor = intOr(o, "lockpickColor", cfg.lockpickColor);
@@ -193,8 +196,8 @@ public final class PowderMiningConfig {
         o.addProperty("lockpickHelper", lockpickHelper);
         o.addProperty("chestTriggerbot", chestTriggerbot);
         o.addProperty("chestTriggerbotSwap", chestTriggerbotSwap);
-        o.addProperty("chestTriggerbotMinCps", chestTriggerbotMinCps);
-        o.addProperty("chestTriggerbotMaxCps", chestTriggerbotMaxCps);
+        o.addProperty("chestTriggerbotMinDelayMs", chestTriggerbotMinDelayMs);
+        o.addProperty("chestTriggerbotMaxDelayMs", chestTriggerbotMaxDelayMs);
         o.addProperty("chestTriggerbotSwapBack", chestTriggerbotSwapBack);
         o.addProperty("chestTriggerbotNoSwapMining", chestTriggerbotNoSwapMining);
         o.addProperty("lockpickColor", lockpickColor);
@@ -400,17 +403,16 @@ public final class PowderMiningConfig {
 
     public void setChestTriggerbotNoSwapMining(boolean v) { chestTriggerbotNoSwapMining = v; }
 
-    private static int clampCps(int v) { return Math.max(MIN_CHEST_CPS, Math.min(MAX_CHEST_CPS, v)); }
+    public int getChestTriggerbotMinDelayMs() { return chestTriggerbotMinDelayMs; }
 
-    public int getChestTriggerbotMinCps() { return chestTriggerbotMinCps; }
+    public int getChestTriggerbotMaxDelayMs() { return chestTriggerbotMaxDelayMs; }
 
-    public int getChestTriggerbotMaxCps() { return chestTriggerbotMaxCps; }
-
-    /** Min never goes above Max. */
-    public void setChestTriggerbotMinCps(int v) { chestTriggerbotMinCps = Math.min(chestTriggerbotMaxCps, clampCps(v)); }
-
-    /** Max never goes below Min. */
-    public void setChestTriggerbotMaxCps(int v) { chestTriggerbotMaxCps = Math.max(chestTriggerbotMinCps, clampCps(v)); }
+    /** Clamped into {@link RateMs#MIN}..{@link RateMs#MAX}, min never above max. */
+    public void setChestTriggerbotDelayRange(int min, int max) {
+        int lo = RateMs.clamp(min), hi = RateMs.clamp(max);
+        chestTriggerbotMinDelayMs = Math.min(lo, hi);
+        chestTriggerbotMaxDelayMs = Math.max(lo, hi);
+    }
 
     public int getLockpickColor() { return lockpickColor; }
 

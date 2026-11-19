@@ -3,6 +3,7 @@ package com.killer560.hub.lightsdevice;
 import com.google.gson.JsonObject;
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.util.ConfigJson;
+import com.killer560.hub.util.RateMs;
 import com.killer560.hub.util.ModPaths;
 import com.killer560.hub.util.SkyblockGate;
 
@@ -30,10 +31,8 @@ public final class LightsDeviceConfig {
     public static final double MIN_RANGE = 2.1;
     /** Capped at the reach measured to be accepted and unflagged - see CheatUtilsConfig.MEASURED_MAX_REACH. */
     public static final double MAX_RANGE = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH;
-    public static final int MIN_CPS = 1;
-    /** One flick a tick, the most the mod-wide gate allows anyway. */
-    public static final int MAX_CPS = 20;
-    public static final int DEFAULT_CPS = 4;
+    /** Gap between Aura flicks in ms (sliderunits-1118; was Aura CPS, 4 CPS = 250 ms): RateMs.MIN is one flick a tick. */
+    public static final int DEFAULT_COOLDOWN_MS = 250;
     public static final int MAX_TRIGGER_DELAY_MS = 500;
     public static final int MAX_TRIGGER_COOLDOWN_MS = 2000;
 
@@ -45,7 +44,7 @@ public final class LightsDeviceConfig {
     /** Once S1 is done, finish (or, all lit, activate) the device with one flick in S2. */
     private boolean finish = true;
     private double range = MAX_RANGE;
-    private int cps = DEFAULT_CPS;
+    private int cooldownMs = DEFAULT_COOLDOWN_MS;
     private boolean auraSwingHand = true;
     private boolean chatFeedback = true;
 
@@ -72,7 +71,7 @@ public final class LightsDeviceConfig {
             cfg.preFlick = ConfigJson.getBool(o, "preFlick", cfg.preFlick);
             cfg.finish = ConfigJson.getBool(o, "finish", cfg.finish);
             cfg.setRange(ConfigJson.getDouble(o, "range", cfg.range));
-            cfg.setCps(ConfigJson.getInt(o, "cps", cfg.cps));
+            cfg.setCooldownMs(RateMs.read(o, "cooldownMs", "cps", cfg.cooldownMs));
             cfg.auraSwingHand = ConfigJson.getBool(o, "auraSwingHand", cfg.auraSwingHand);
             cfg.chatFeedback = ConfigJson.getBool(o, "chatFeedback", cfg.chatFeedback);
             cfg.triggerEnabled = ConfigJson.getBool(o, "triggerEnabled", cfg.triggerEnabled);
@@ -88,7 +87,7 @@ public final class LightsDeviceConfig {
      * only when In Boss was on and at least one Lights option was - exactly when the old code flicked the device - and
      * never switched off by a migration. Saved at once.
      */
-    public static void migrateFromLeverAura(boolean preFlick, boolean finish, boolean inBossOn, double range, int cps,
+    public static void migrateFromLeverAura(boolean preFlick, boolean finish, boolean inBossOn, double range, int cooldownMs,
                                             boolean swingHand, boolean chatFeedback) {
         LightsDeviceConfig cfg = getInstance();
         cfg.preFlick = preFlick;
@@ -97,7 +96,7 @@ public final class LightsDeviceConfig {
             cfg.auraEnabled = true;
         }
         cfg.setRange(range);
-        cfg.setCps(cps);
+        cfg.setCooldownMs(cooldownMs);
         cfg.auraSwingHand = swingHand;
         cfg.chatFeedback = chatFeedback;
         cfg.save();
@@ -109,7 +108,7 @@ public final class LightsDeviceConfig {
         o.addProperty("preFlick", preFlick);
         o.addProperty("finish", finish);
         o.addProperty("range", range);
-        o.addProperty("cps", cps);
+        o.addProperty("cooldownMs", cooldownMs);
         o.addProperty("auraSwingHand", auraSwingHand);
         o.addProperty("chatFeedback", chatFeedback);
         o.addProperty("triggerEnabled", triggerEnabled);
@@ -138,8 +137,8 @@ public final class LightsDeviceConfig {
     public void setRange(double v) { range = Math.max(MIN_RANGE, Math.min(MAX_RANGE, Math.round(v * 10.0) / 10.0)); }
 
     /** Flicks per second, 1-20. */
-    public int getCps() { return cps; }
-    public void setCps(int v) { cps = Math.max(MIN_CPS, Math.min(MAX_CPS, v)); }
+    public int getCooldownMs() { return cooldownMs; }
+    public void setCooldownMs(int v) { cooldownMs = RateMs.clamp(v); }
 
     public boolean isAuraSwingHand() { return auraSwingHand; }
     public void setAuraSwingHand(boolean v) { auraSwingHand = v; }

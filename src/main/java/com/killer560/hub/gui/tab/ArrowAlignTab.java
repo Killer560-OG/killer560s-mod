@@ -112,20 +112,8 @@ public class ArrowAlignTab extends BaseTab {
         y += 22;
 
         if (cfg.getTriggerBotRaw()) {
-            widgets.add(new RangeSliderWidget(contentX, y, contentWidth, 18,
-                    ArrowAlignConfig.MIN_TRIGGER_BOT_CPS, ArrowAlignConfig.MAX_TRIGGER_BOT_CPS,
-                    cfg.getTriggerBotCpsMin(), cfg.getTriggerBotCpsMax()) {
-                @Override
-                protected Component label(int low, int high) {
-                    return Component.literal("Trigger Bot CPS: " + low + " - " + high);
-                }
-
-                @Override
-                protected void onRangeChanged(int low, int high) {
-                    cfg.setTriggerBotCpsRange(low, high);
-                    ThemedSliderButton.saveOnRelease(cfg::save);
-                }
-            });
+            widgets.add(msRange(contentX, y, contentWidth, "Trigger Bot Delay", cfg.getTriggerBotDelayMin(),
+                    cfg.getTriggerBotDelayMax(), cfg::setTriggerBotDelayRange, cfg::save));
             y += 22;
             widgets.add(onOffButton("Disable Trigger Bot While Crouching", cfg::isTriggerBotDisableWhileCrouching,
                     cfg::setTriggerBotDisableWhileCrouching, cfg::save, null, contentX, y, contentWidth, 18));
@@ -154,22 +142,8 @@ public class ArrowAlignTab extends BaseTab {
                     cfg::isLeaveLastArrowDisableWhileCrouching, cfg::setLeaveLastArrowDisableWhileCrouching,
                     cfg::save, null, contentX, y, contentWidth, 18));
             y += 22;
-            int minCps = ArrowAlignConfig.MIN_AURA_CPS;
-            int maxCps = ArrowAlignConfig.MAX_AURA_CPS;
-            widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18,
-                    Component.literal("Aura CPS: " + cfg.getAuraCps()),
-                    (cfg.getAuraCps() - minCps) / (double) (maxCps - minCps)) {
-                @Override
-                protected void updateMessage() {
-                    setMessage(Component.literal("Aura CPS: " + cfg.getAuraCps()));
-                }
-
-                @Override
-                protected void applyValue() {
-                    cfg.setAuraCps((int) Math.round(minCps + this.value * (maxCps - minCps)));
-                    saveOnRelease(() -> cfg.save());
-                }
-            });
+            widgets.add(msSlider(contentX, y, contentWidth, "Aura Cooldown", cfg::getAuraCooldownMs,
+                    cfg::setAuraCooldownMs, cfg::save));
             y += 22;
 
             double minRange = ArrowAlignConfig.MIN_AURA_RANGE;

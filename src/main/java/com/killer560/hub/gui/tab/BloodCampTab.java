@@ -47,10 +47,10 @@ public class BloodCampTab extends BaseTab {
         if (cfg.getKillPopupRaw()) {
             double leadNorm = cfg.getKillPopupLeadTicks() / (double) BloodCampConfig.MAX_KILL_POPUP_LEAD_TICKS;
             widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18,
-                    Component.literal("Kill Popup Lead: " + cfg.getKillPopupLeadTicks() + "t"), leadNorm) {
+                    Component.literal("Kill Popup Lead: " + cfg.getKillPopupLeadTicks() + " ticks"), leadNorm) {
                 @Override
                 protected void updateMessage() {
-                    setMessage(Component.literal("Kill Popup Lead: " + cfg.getKillPopupLeadTicks() + "t"));
+                    setMessage(Component.literal("Kill Popup Lead: " + cfg.getKillPopupLeadTicks() + " ticks"));
                 }
 
                 @Override

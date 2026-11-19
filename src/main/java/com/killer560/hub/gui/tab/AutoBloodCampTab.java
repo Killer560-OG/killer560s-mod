@@ -166,6 +166,6 @@ public class AutoBloodCampTab extends BaseTab {
     /** "Trigger Offset: +1t (late)" - which way the click moves from the kill timer (positive late since 2026-11-01). */
     static String offsetLabel(int ticks) {
         String dir = ticks > 0 ? " (late)" : ticks < 0 ? " (early)" : "";
-        return "Trigger Offset: " + (ticks > 0 ? "+" : "") + ticks + "t" + dir;
+        return "Trigger Offset: " + (ticks > 0 ? "+" : "") + ticks + " ticks" + dir;
     }
 }

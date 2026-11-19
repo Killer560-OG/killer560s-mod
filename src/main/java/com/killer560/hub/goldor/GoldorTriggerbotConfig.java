@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import com.killer560.hub.BuildVariant;
 import com.killer560.hub.util.ConfigJson;
+import com.killer560.hub.util.RateMs;
 import com.killer560.hub.util.SkyblockGate;
 
 import java.nio.charset.StandardCharsets;
@@ -14,27 +15,19 @@ import java.nio.file.Path;
 /**
  * Persisted Wither Boss Triggerbot (Goldor Triggerbot until 2026-11-01) settings - see {@link GoldorTriggerbotFeature}. Cheat build only; ships disabled.
  * <p>
- * The rate is a <b>CPS range</b>, not a delay, because that is what killer560 asked for ("goldore triggerbot with
- * cps range") and because the mod already has exactly that control for i4 ({@code I4SensorsConfig} 1-15 CPS on a
- * two-handled {@code RangeSliderWidget}). Arrow Align's cps-derived millisecond defaults were the other candidate,
- * but they express one value per slider; a genuine min/max band reads better as a single range slider, and it is
- * the band - not a fixed delay - that keeps the click spacing off a metronome. Every interval is rolled fresh
- * between the two ends (see {@link GoldorTriggerbotFeature}).
- * <p>
- * {@link #MAX_CPS} is 20 on purpose: {@code ActionGate} allows one automated interaction per client tick plus
- * 0-20 ms of jitter, so anything above roughly 20 CPS is a number the gate would quietly refuse to honor.
+ * The rate is a <b>delay range in ms</b> (sliderunits-1118; it was a CPS range): the band, not a fixed delay, keeps the
+ * click spacing off a metronome. Every interval is rolled fresh between the two ends (see {@link GoldorTriggerbotFeature}).
+ * {@link RateMs#MIN} is 50 on purpose: {@code ActionGate} allows one automated interaction per client tick plus
+ * 0-20 ms of jitter, so anything faster is a number the gate would quietly refuse to honor.
  */
 public final class GoldorTriggerbotConfig {
 
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-goldortriggerbot.json");
 
-    public static final int MIN_CPS = 1;
-    /** The gate's one-tick floor caps any automation here - see this class's doc. */
-    public static final int MAX_CPS = 20;
-    /** Same 15-17 band killer560 asked Arrow Align's aura for on 2026-09-21. */
-    public static final int DEFAULT_CPS_MIN = 15;
-    public static final int DEFAULT_CPS_MAX = 17;
+    /** The old 15-17 CPS band as a gap (1000/17 and 1000/15). */
+    public static final int DEFAULT_DELAY_MIN = 59;
+    public static final int DEFAULT_DELAY_MAX = 67;
 
     /** How far down the crosshair a boss's hitbox is looked for. Not a setting since 2026-11-01 (killer560: "It
      *  shouldnt have a range ... It should work from any range since i could be holding a bow or my mage beam"): far
@@ -56,8 +49,8 @@ public final class GoldorTriggerbotConfig {
     private static GoldorTriggerbotConfig instance;
 
     private boolean enabled = false;
-    private int cpsMin = DEFAULT_CPS_MIN;
-    private int cpsMax = DEFAULT_CPS_MAX;
+    private int delayMin = DEFAULT_DELAY_MIN;
+    private int delayMax = DEFAULT_DELAY_MAX;
     private ClickType clickType = ClickType.ATTACK;
     private int aimDelayMs = 0;
     /** Every real wither boss of the F7/M7 fight (Maxor, Storm, Goldor, Necron), not just Goldor in P3. */
@@ -94,8 +87,9 @@ public final class GoldorTriggerbotConfig {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8))
                         .getAsJsonObject();
                 cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
-                cfg.setCpsRange(ConfigJson.getInt(obj, "cpsMin", DEFAULT_CPS_MIN),
-                        ConfigJson.getInt(obj, "cpsMax", DEFAULT_CPS_MAX));
+                // Old cpsMin/cpsMax keys: more clicks a second is a shorter gap.
+                cfg.setDelayRange(RateMs.read(obj, "delayMin", "cpsMax", DEFAULT_DELAY_MIN),
+                        RateMs.read(obj, "delayMax", "cpsMin", DEFAULT_DELAY_MAX));
                 cfg.clickType = ConfigJson.getEnum(obj, "clickType", ClickType.class, ClickType.ATTACK);
                 cfg.setAimDelayMs(ConfigJson.getInt(obj, "aimDelayMs", 0));
                 cfg.allWithers = ConfigJson.getBool(obj, "allWithers", false);
@@ -122,8 +116,8 @@ public final class GoldorTriggerbotConfig {
     public void save() {
         JsonObject obj = new JsonObject();
         obj.addProperty("enabled", enabled);
-        obj.addProperty("cpsMin", cpsMin);
-        obj.addProperty("cpsMax", cpsMax);
+        obj.addProperty("delayMin", delayMin);
+        obj.addProperty("delayMax", delayMax);
         obj.addProperty("clickType", clickType.name());
         obj.addProperty("aimDelayMs", aimDelayMs);
         obj.addProperty("allWithers", allWithers);
@@ -151,20 +145,20 @@ public final class GoldorTriggerbotConfig {
         this.enabled = enabled;
     }
 
-    public int getCpsMin() {
-        return cpsMin;
+    public int getDelayMin() {
+        return delayMin;
     }
 
-    public int getCpsMax() {
-        return cpsMax;
+    public int getDelayMax() {
+        return delayMax;
     }
 
-    /** Clamped into {@link #MIN_CPS}..{@link #MAX_CPS}, with min &lt;= max always holding. */
-    public void setCpsRange(int min, int max) {
-        int lo = Math.max(MIN_CPS, Math.min(MAX_CPS, min));
-        int hi = Math.max(MIN_CPS, Math.min(MAX_CPS, max));
-        this.cpsMin = Math.min(lo, hi);
-        this.cpsMax = Math.max(lo, hi);
+    /** Clamped into {@link RateMs#MIN}..{@link RateMs#MAX}, with min &lt;= max always holding. */
+    public void setDelayRange(int min, int max) {
+        int lo = RateMs.clamp(min);
+        int hi = RateMs.clamp(max);
+        this.delayMin = Math.min(lo, hi);
+        this.delayMax = Math.max(lo, hi);
     }
 
     public ClickType getClickType() {

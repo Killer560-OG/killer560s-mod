@@ -58,9 +58,7 @@ public class LightsDeviceTab extends BaseTab {
                     (cfg.getRange() - LightsDeviceConfig.MIN_RANGE) / (LightsDeviceConfig.MAX_RANGE - LightsDeviceConfig.MIN_RANGE),
                     v -> cfg.setRange(LightsDeviceConfig.MIN_RANGE + v * (LightsDeviceConfig.MAX_RANGE - LightsDeviceConfig.MIN_RANGE)));
             y[0] += 24;
-            slider(w, contentX, y[0], BTN_W, () -> "Aura CPS: " + cfg.getCps(),
-                    (cfg.getCps() - LightsDeviceConfig.MIN_CPS) / (double) (LightsDeviceConfig.MAX_CPS - LightsDeviceConfig.MIN_CPS),
-                    v -> cfg.setCps((int) Math.round(LightsDeviceConfig.MIN_CPS + v * (LightsDeviceConfig.MAX_CPS - LightsDeviceConfig.MIN_CPS))));
+            w.add(msSlider(contentX, y[0], BTN_W, "Aura Cooldown", cfg::getCooldownMs, cfg::setCooldownMs, cfg::save));
             y[0] += 24;
             toggle(w, contentX, y, "Aura Swing Hand", cfg::isAuraSwingHand, cfg::setAuraSwingHand, null);
             toggle(w, contentX, y, "Chat Feedback", cfg::isChatFeedback, cfg::setChatFeedback, null);
@@ -70,7 +68,7 @@ public class LightsDeviceTab extends BaseTab {
         toggle(w, contentX, y, "Lights Triggerbot", cfg::isTriggerEnabledRaw, cfg::setTriggerEnabled, requestRebuild);
         if (cfg.isTriggerEnabledRaw()) {
             w.add(SettingsButtonWidget.cycling(delayText(cfg), (btn, dir) -> {
-                cfg.setTriggerDelayMs((int) SettingsButtonWidget.step(cfg.getTriggerDelayMs(), 25, 0,
+                cfg.setTriggerDelayMs((int) SettingsButtonWidget.step(cfg.getTriggerDelayMs(), 50, 0,
                         LightsDeviceConfig.MAX_TRIGGER_DELAY_MS, dir));
                 cfg.save();
                 btn.setMessage(delayText(cfg));
@@ -93,11 +91,11 @@ public class LightsDeviceTab extends BaseTab {
     }
 
     private static Component delayText(LightsDeviceConfig cfg) {
-        return Component.literal("Triggerbot Delay: " + cfg.getTriggerDelayMs() + "ms");
+        return Component.literal("Triggerbot Delay: " + cfg.getTriggerDelayMs() + " ms");
     }
 
     private static Component cooldownText(LightsDeviceConfig cfg) {
-        return Component.literal("Triggerbot Cooldown: " + cfg.getTriggerCooldownMs() + "ms");
+        return Component.literal("Triggerbot Cooldown: " + cfg.getTriggerCooldownMs() + " ms");
     }
 
     private static void header(List<AbstractWidget> w, int x, int[] y, int width, String text) {

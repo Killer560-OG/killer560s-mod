@@ -217,11 +217,11 @@ public class AutoCroesusTab extends BaseTab {
     }
 
     private static Component minDelayText() {
-        return Component.literal("Min Delay: " + CroesusConfig.getInstance().getAutoMinDelayMs() + "ms");
+        return Component.literal("Min Delay: " + CroesusConfig.getInstance().getAutoMinDelayMs() + " ms");
     }
 
     private static Component maxDelayText() {
-        return Component.literal("Max Delay: " + CroesusConfig.getInstance().getAutoMaxDelayMs() + "ms");
+        return Component.literal("Max Delay: " + CroesusConfig.getInstance().getAutoMaxDelayMs() + " ms");
     }
 
     private static StringWidget label(int x, int y, int width, String text) {

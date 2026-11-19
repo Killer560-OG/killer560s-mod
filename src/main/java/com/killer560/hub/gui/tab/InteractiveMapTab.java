@@ -122,12 +122,12 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
             // "Path Threads" (1-16) is gone - killer560: "Remove path threads it should be the minimum amount of
             // threads required to reach the end room." The search now sizes its own worker count off the room
             // path itself (EtherwarpPathfinder.threadsFor), so Path Timeout takes the full row on its own.
-            widgets.add(LiveMapTab.slider("Path Timeout", cfg::getTimeoutMs,
-                    v -> cfg.setTimeoutMs((int) (Math.round(v / 50.0) * 50)), 200, 1000, "ms", cfg, contentX, y, colW));
+            widgets.add(LiveMapTab.slider("Path Timeout", () -> cfg.getTimeoutMs() / 1000.0,
+                    v -> cfg.setTimeoutMs((int) Math.round(v * 10) * 100), 0.2, 1.0, " s", cfg, contentX, y, colW));
             // killer560, 2026-10-09: "add an amount of ticks to make the etherwarps as well" - 1 is a hop every tick.
             widgets.add(LiveMapTab.slider("Ticks Between Etherwarps", cfg::getEtherwarpTickGap,
                     v -> cfg.setEtherwarpTickGap((int) Math.round(v)), LiveMapConfig.MIN_ETHERWARP_TICK_GAP,
-                    LiveMapConfig.MAX_ETHERWARP_TICK_GAP, "", cfg, colB, y, colW));
+                    LiveMapConfig.MAX_ETHERWARP_TICK_GAP, " ticks", cfg, colB, y, colW));
             y += 20;
             // killer560, 2026-09-29: "If I double click a room then it should auto pathfind to the start node to
             // start secreting. If I click a different room mid path then it goes doesn't have to be a double
@@ -139,7 +139,7 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
             // Shown whether or not Double-Press Secrets is on: the window is also what stops two quick presses
             // on the same room from reading as two separate goals, so it is never dead weight.
             widgets.add(LiveMapTab.slider("Double-Press Window", cfg::getMapDoublePressMs,
-                    v -> cfg.setMapDoublePressMs((int) (Math.round(v / 50.0) * 50)), 150, 1000, "ms",
+                    v -> cfg.setMapDoublePressMs((int) (Math.round(v / 50.0) * 50)), 150, 1000, " ms",
                     cfg, colB, y, colW));
             y += 24;
 
@@ -165,7 +165,7 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
             // "Click Door on Arrival" removed (killer560: "remove the click door on arrival setting from auto
             // blood rush") - opening the door is Auto Door Opener's job now, so Door Timeout takes the full row.
             widgets.add(LiveMapTab.slider("Door Timeout", cfg::getBloodRushDoorTimeoutSec,
-                    v -> cfg.setBloodRushDoorTimeoutSec((int) Math.round(v)), 5, 60, "s", cfg, colB, y, colW));
+                    v -> cfg.setBloodRushDoorTimeoutSec((int) Math.round(v)), 5, 60, " s", cfg, colB, y, colW));
             y += 20;
         }
         com.killer560.hub.gui.ScreenThemes.append(widgets, com.killer560.hub.livemap.InteractiveMapScreen.THEME_ID,

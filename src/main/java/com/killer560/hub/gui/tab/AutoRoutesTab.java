@@ -175,7 +175,7 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
                 cfg::setReplanForRange, null);
         // killer560, 2026-10-16: "kill mimic also needs a timeout slider" - how long the Spirit Sceptre keeps at it.
         slider(w, contentX + half + GAP, y[0], right,
-                () -> String.format(Locale.US, "Mimic Timeout: %.1fs", cfg.getMimicTimeoutTicks() / 20.0),
+                () -> String.format(Locale.US, "Mimic Timeout: %.1f s", cfg.getMimicTimeoutTicks() / 20.0),
                 (cfg.getMimicTimeoutTicks() - AutoRoutesConfig.MIN_MIMIC_TIMEOUT_TICKS)
                         / (double) (AutoRoutesConfig.MAX_MIMIC_TIMEOUT_TICKS - AutoRoutesConfig.MIN_MIMIC_TIMEOUT_TICKS),
                 v -> cfg.setMimicTimeoutTicks((int) Math.round(AutoRoutesConfig.MIN_MIMIC_TIMEOUT_TICKS
@@ -185,7 +185,7 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         w.add(SettingsButtonWidget.cycleEnum(() -> cryptWeaponText(cfg), cfg::getCryptWeapon, cfg::setCryptWeapon, cfg::save).bounds(contentX, y[0], half, 20).build());
         // killer560, 2026-10-05: how long a crypt node attacks before moving on, in case the undead walk out of reach.
         slider(w, contentX + half + GAP, y[0], right,
-                () -> String.format(Locale.US, "Crypt Attack Time: %.1fs", cfg.getCryptAttackTicks() / 20.0),
+                () -> String.format(Locale.US, "Crypt Attack Time: %.1f s", cfg.getCryptAttackTicks() / 20.0),
                 (cfg.getCryptAttackTicks() - AutoRoutesConfig.MIN_CRYPT_ATTACK_TICKS)
                         / (double) (AutoRoutesConfig.MAX_CRYPT_ATTACK_TICKS - AutoRoutesConfig.MIN_CRYPT_ATTACK_TICKS),
                 v -> cfg.setCryptAttackTicks((int) Math.round(AutoRoutesConfig.MIN_CRYPT_ATTACK_TICKS
@@ -194,7 +194,7 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
         // killer560, 2026-10-13: a bat node, "just like crypts" - its own weapon and attack time.
         w.add(SettingsButtonWidget.cycleEnum(() -> batWeaponText(cfg), cfg::getBatWeapon, cfg::setBatWeapon, cfg::save).bounds(contentX, y[0], half, 20).build());
         slider(w, contentX + half + GAP, y[0], right,
-                () -> String.format(Locale.US, "Bat Attack Time: %.1fs", cfg.getBatAttackTicks() / 20.0),
+                () -> String.format(Locale.US, "Bat Attack Time: %.1f s", cfg.getBatAttackTicks() / 20.0),
                 (cfg.getBatAttackTicks() - AutoRoutesConfig.MIN_CRYPT_ATTACK_TICKS)
                         / (double) (AutoRoutesConfig.MAX_CRYPT_ATTACK_TICKS - AutoRoutesConfig.MIN_CRYPT_ATTACK_TICKS),
                 v -> cfg.setBatAttackTicks((int) Math.round(AutoRoutesConfig.MIN_CRYPT_ATTACK_TICKS

@@ -133,7 +133,7 @@ public class AbilityCooldownTab extends BaseTab {
     }
 
     private static Component clickWindowLabel(AbilityCooldownConfig cfg) {
-        return Component.literal("Click Window: " + cfg.getClickWindowMs() + "ms");
+        return Component.literal("Click Window: " + cfg.getClickWindowMs() + " ms");
     }
 
     private static Component mageCutLabel(AbilityCooldownConfig cfg) {

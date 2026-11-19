@@ -539,9 +539,9 @@ public final class ArrowAlignFeature {
         if (index != triggerAimIndex) {
             triggerAimIndex = index;
             nextTriggerClickDueTick = tick + rollTriggerGapTicks(cfg);
-            LOGGER.info("[ArrowAlign] Trigger Bot aimed at frame {}: needed {} first click due at tick {} (now {}) cps {}-{}",
+            LOGGER.info("[ArrowAlign] Trigger Bot aimed at frame {}: needed {} first click due at tick {} (now {}) delay {}-{} ms",
                     index, clicksNeeded(index), String.format(Locale.ROOT, "%.2f", nextTriggerClickDueTick), tick,
-                    cfg.getTriggerBotCpsMin(), cfg.getTriggerBotCpsMax());
+                    cfg.getTriggerBotDelayMin(), cfg.getTriggerBotDelayMax());
         }
         if (tick < nextTriggerClickDueTick) {
             return;
@@ -554,12 +554,9 @@ public final class ArrowAlignFeature {
         nextTriggerClickDueTick = Math.max(nextTriggerClickDueTick, tick - 1) + rollTriggerGapTicks(cfg);
     }
 
-    /** A fresh gap for every click: a CPS uniformly inside the Trigger Bot's range, as client ticks (fractional). */
+    /** A fresh gap for every click: a delay uniformly inside the Trigger Bot's range, as client ticks (fractional). */
     static double rollTriggerGapTicks(ArrowAlignConfig cfg) {
-        double min = cfg.getTriggerBotCpsMin();
-        double max = Math.max(min, cfg.getTriggerBotCpsMax());
-        double cps = max > min ? ThreadLocalRandom.current().nextDouble(min, max) : min;
-        return 1000.0 / Math.max(1.0, cps) / 50.0;
+        return com.killer560.hub.util.RateMs.roll(cfg.getTriggerBotDelayMin(), cfg.getTriggerBotDelayMax()) / 50.0;
     }
 
     private static void tickAura(Minecraft client, ArrowAlignConfig cfg, long now) {
@@ -618,11 +615,11 @@ public final class ArrowAlignFeature {
         // added to the gap (Lever Aura's identical schedule measured 7.89 at 10 CPS, testkit 846; the sweep here, 832).
         long base = auraTurnStartTick >= 0 ? auraTurnStartTick : tick;
         auraTurnStartTick = -1L;
-        // Aura CPS: each gap is 1000 / CPS ms with +-10% jitter so no two gaps are alike (never a metronome), and is
-        // scheduled from the due tick, not this one, so the average is the CPS set even where the gap is a fraction of a
-        // tick (16 CPS = 1.25 ticks: gaps of 1 and 2). One click a tick at most, so 20 is the ceiling. A click the gate
+        // Aura cooldown: each gap is the set ms with +-10% jitter so no two gaps are alike (never a metronome), and is
+        // scheduled from the due tick, not this one, so the average is the cooldown set even where the gap is a fraction of a
+        // tick (63 ms = 1.25 ticks: gaps of 1 and 2). One click a tick at most, so 50 ms is the floor. A click the gate
         // held back carries at most a tick of backlog.
-        double gapMs = 1000.0 / cfg.getAuraCps() * (0.9 + ThreadLocalRandom.current().nextDouble() * 0.2);
+        double gapMs = cfg.getAuraCooldownMs() * (0.9 + ThreadLocalRandom.current().nextDouble() * 0.2);
         nextAuraClickDueTick = Math.max(nextAuraClickDueTick, base - 1) + gapMs / 50.0;
     }
 
