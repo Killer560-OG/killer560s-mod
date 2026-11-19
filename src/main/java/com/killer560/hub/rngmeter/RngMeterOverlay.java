@@ -259,16 +259,30 @@ public final class RngMeterOverlay {
         bestScreen = screen;
     }
 
-    /** Called from extractSlot (slot-local pose): a theme-colored fill and border on the best slot. */
+    /** Pulse cycle of the best-slot highlight in ms; strength eases between 45% and 100% (full at 300 ms into the cycle). */
+    private static final long PULSE_MS = 1200L;
+    /** Test hook: when 0 or more, the pulse reads this time instead of the wall clock. */
+    public static volatile long pulseClockForTest = -1L;
+
+    /** Strength 0.45..1.0 of the highlight at {@code ms}. */
+    public static double pulse(long ms) {
+        return 0.725 + 0.275 * Math.sin(2 * Math.PI * (ms % PULSE_MS) / PULSE_MS);
+    }
+
+    /** Called from extractSlot (slot-local pose): a theme-colored fill and border on the best slot, pulsing gently. */
     public static void drawBestSlot(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen, Slot slot) {
         if (slot.index != bestSlot || screen != bestScreen || !RngMeterConfig.getInstance().isHighlightBest()
                 || !RngMeterConfig.getInstance().isEnabled()) return;
+        long t = pulseClockForTest >= 0 ? pulseClockForTest : System.currentTimeMillis();
+        double f = pulse(t);
         int c = com.killer560.hub.gui.ThemeAccent.light(0xFFFFAA00) & 0xFFFFFF;
-        graphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, 0x66000000 | c);
-        graphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 1, 0xFF000000 | c);
-        graphics.fill(slot.x, slot.y + 15, slot.x + 16, slot.y + 16, 0xFF000000 | c);
-        graphics.fill(slot.x, slot.y + 1, slot.x + 1, slot.y + 15, 0xFF000000 | c);
-        graphics.fill(slot.x + 15, slot.y + 1, slot.x + 16, slot.y + 15, 0xFF000000 | c);
+        int fill = ((int) (0x66 * f) << 24) | c;
+        int edge = ((int) (0xFF * f) << 24) | c;
+        graphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, fill);
+        graphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 1, edge);
+        graphics.fill(slot.x, slot.y + 15, slot.x + 16, slot.y + 16, edge);
+        graphics.fill(slot.x, slot.y + 1, slot.x + 1, slot.y + 15, edge);
+        graphics.fill(slot.x + 15, slot.y + 1, slot.x + 16, slot.y + 15, edge);
     }
 
     private static long lastErrorLogMs = 0L;
