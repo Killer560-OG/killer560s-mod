@@ -219,6 +219,7 @@ final class CardBlurbsData {
         d.put("InventoryHudTab", "Inventory as a HUD.");
         d.put("ArmorHudTab", "Worn armor and equipment HUD.");
         d.put("InventorySearchTab", "Ctrl+F finds slots.");
+        d.put("AutoReclaimTab", "Marks items to reclaim.");
         d.put("InventoryThemeTab", "Menu-themed inventory.");
         d.put("HidePotionEffectsTab", "Hides your potion effects.");
         d.put("ItemBrowserTab", "Every Skyblock item in a panel.");

@@ -1429,6 +1429,7 @@ public final class StorageOverlayFeature {
             // own drawSlotGrid) so the item area reads as a real grid even for slots with nothing in
             // them right now, instead of just blank background.
             drawSlotCells(graphics, panelX + 2, gridY, rows, theme);
+            boolean reclaimHit = false;
             for (int i = 0; i < contents.size(); i++) {
                 ItemStack stack = contents.get(i);
                 if (stack == null || stack.isEmpty()) continue;
@@ -1438,6 +1439,7 @@ public final class StorageOverlayFeature {
                 // icon straddling the border line above/left of where it visually belonged.
                 int slotX = panelX + (i % 9) * SLOT_SIZE + 2 + 1;
                 int slotY = gridY + (i / 9) * SLOT_SIZE + 1;
+                reclaimHit |= com.killer560.hub.autoreclaim.AutoReclaimFeature.drawGridHighlight(graphics, stack, slotX, slotY);
                 com.killer560.hub.gui.ItemCell.draw(graphics, null, stack, slotX, slotY, 16); // with its rarity box
                 // Vanilla's own count/durability-bar/cooldown overlay, positioned and scaled exactly
                 // like a real slot - replaces the old manual push/scale/text hack that hand-placed the
@@ -1455,6 +1457,9 @@ public final class StorageOverlayFeature {
                 }
             }
 
+            if (reclaimHit) { // Auto Reclaim: this page holds an item to reclaim
+                graphics.outline(panelX, panelY, PANEL_WIDTH, panelHeight, com.killer560.hub.autoreclaim.AutoReclaimFeature.panelColor());
+            }
             // The Storage Item Search hit, drawn in the grid's own coordinates - the real slot this stands for is
             // hidden, so nothing else can outline it (see highlightItem).
             if (key.equals(highlightKey) && highlightIndex >= 0 && highlightIndex < contents.size()

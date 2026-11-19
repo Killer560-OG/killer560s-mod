@@ -29,7 +29,8 @@
      "Timing sliders now use the unit that fits: click rates are a delay in ms instead of CPS (Arrow Align, Lights Device, Powder Chest, Wither Boss Triggerbot, Auto i4, Shortbow Auto Clicker), delays that act on whole game ticks step by 50 ms, Interactive Map Path Timeout is in seconds, and every unit reads with a space. Old CPS settings convert on load.",
      "One jar for Prism and the Modrinth App: Account Swapper, its ban status and the Proxy Client work the same under both launchers; a Modrinth-only PC keeps the shared ban status and Universal proxy files beside the app's own data.",
      "Run Stats: your own secrets are now exact from the end-of-run Stats block, and teammates' secrets show only once they add up to the team total (a ? instead of a stale or wrong number).",
-     "RNG Meter Overlay: new Highlight Best option (on by default while the overlay is on) marks the slot of the best reward on the open RNG Meter page, the most coins per meter point, the same number the ranking shows; rewards with no price are never picked."
+     "RNG Meter Overlay: new Highlight Best option (on by default while the overlay is on) marks the slot of the best reward on the open RNG Meter page, the most coins per meter point, the same number the ranking shows; rewards with no price are never picked.",
+     "Auto Reclaim (Items): highlights every item the new /reclaim command would give something back for, /autoreclaim lists them in chat, and the cheat build can pull them out of storage and reclaim them; the Reclaim Menu now has Reclaim Inventory (what you carry) and Reclaim All (every storage page) buttons"
     ]
    }
   ]

@@ -498,6 +498,7 @@ public class Killer560ModClient implements ClientModInitializer {
         // Class Selection Overlay removed 2026-11-01 (its settings went first; killer560 did not know what it was for).
         com.killer560.hub.commandkeybinds.CommandKeybindsFeature.register();
         com.killer560.hub.inventorysearch.InventorySearchFeature.register();
+        com.killer560.hub.autoreclaim.AutoReclaimFeature.register();
         com.killer560.hub.inventorytheme.InventoryThemeFeature.register();
         com.killer560.hub.inventorytheme.HotbarTheme.register();
         com.killer560.hub.hideeffects.HideEffectsFeature.register();

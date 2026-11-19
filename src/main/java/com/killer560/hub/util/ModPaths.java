@@ -213,6 +213,7 @@ public final class ModPaths {
         t.put("storage", "skyblock/storage");
         t.put("invsort", "skyblock/invsort");
         t.put("inventory", "skyblock/inventory");
+        t.put("autoreclaim", "skyblock/autoreclaim");
         // Armor HUD (killer560smod-armorhud.json) and its equipment cache (-armorhud-equipment.json), 2026-11-03.
         t.put("armorhud", "skyblock/armorhud");
         t.put("itembrowser", "skyblock/itembrowser");

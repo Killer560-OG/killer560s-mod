@@ -273,6 +273,10 @@ public final class ActionGate {
         /** Auto Relist clicking in /ah's menus (View Bids, Manage Auctions, Collect Auction, Create BIN Auction, Confirm).
          *  {@code ahflip.AhRelistMacro#click} is its only caller. */
         AH_RELIST_MENU(Kind.SCREEN),
+        /** Auto Reclaim (cheat build, 2026-11-17): the {@code /accessories}, {@code /enderchest}, {@code /backpack} and {@code /reclaim} sends. {@code autoreclaim.ReclaimMenu} is its only caller. */
+        AUTO_RECLAIM_CMD(Kind.COMMAND),
+        /** Auto Reclaim clicking in a storage page and in the Reclaim Menu. Same caller. */
+        AUTO_RECLAIM_MENU(Kind.SCREEN),
         /** Swap To Drill On Pigeon (killer560, 2026-11-03): the held-slot change to the best drill right after a Royal
          *  Pigeon use, before the Commissions menu opens. {@code miningqol.PigeonDrillSwap} is its only caller. */
         PIGEON_DRILL(Kind.HOTBAR),

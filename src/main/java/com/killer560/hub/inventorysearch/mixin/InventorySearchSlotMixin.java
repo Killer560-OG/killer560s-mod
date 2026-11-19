@@ -24,5 +24,6 @@ public abstract class InventorySearchSlotMixin {
     private void killer560smod$drawSearchMatch(GuiGraphicsExtractor graphics, Slot slot, int mouseX, int mouseY,
                                                CallbackInfo ci) {
         InventorySearchFeature.drawSlotHighlight(graphics, (AbstractContainerScreen<?>) (Object) this, slot);
+        com.killer560.hub.autoreclaim.AutoReclaimFeature.drawSlotHighlight(graphics, (AbstractContainerScreen<?>) (Object) this, slot);
     }
 }

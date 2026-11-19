@@ -17,6 +17,7 @@ public class ItemsTab extends FolderTab {
                 new ArmorHudTab(),
                 new InventoryHudTab(),
                 new InventorySearchTab(),
+                new AutoReclaimTab(),
                 new InventoryThemeTab(),
                 // Hide Potion Effects (killer560, 2026-11-02): its own card again, beside the Inventory Theme it left.
                 new HidePotionEffectsTab(),

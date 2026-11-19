@@ -560,6 +560,7 @@ public final class ProfileManager {
                 com.killer560.hub.inventoryhud.InventoryHudConfig::load,
                 com.killer560.hub.armorhud.ArmorHudConfig::load,
                 com.killer560.hub.inventorysearch.InventorySearchConfig::load,
+                com.killer560.hub.autoreclaim.AutoReclaimConfig::load,
                 com.killer560.hub.inventorytheme.InventoryThemeConfig::load,
                 com.killer560.hub.hideeffects.HideEffectsConfig::load,
                 com.killer560.hub.modlist.ModListConfig::load,

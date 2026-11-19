@@ -104,6 +104,7 @@ public final class SearchCommands {
             Map.entry("lfg", "CustomPartyFinderTab"),
             Map.entry("scorecalc", "ScoreCalculatorTab"),
             Map.entry("storagesearch", "StorageSearchTab"),
+            Map.entry("autoreclaim", "AutoReclaimTab"),
             Map.entry("profileviewer", "ProfileViewerTab"));
 
     /** Commands with no card, and why (the testkit requires every other mod command to have one). */

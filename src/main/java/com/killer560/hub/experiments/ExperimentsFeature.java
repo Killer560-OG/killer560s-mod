@@ -366,7 +366,7 @@ public final class ExperimentsFeature {
     private static final int START_BUTTON_BG = 0xFF1A1A1A;
     private static final int START_BUTTON_BORDER = 0xFFCC6600;
 
-    private static void drawButtonBox(GuiGraphicsExtractor graphics, int x, int y, String label) {
+    public static void drawButtonBox(GuiGraphicsExtractor graphics, int x, int y, String label) {
         com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.EXPERIMENTS_START_BUTTONS);
         graphics.fill(x, y, x + START_BUTTON_WIDTH, y + START_BUTTON_HEIGHT, menu == null ? START_BUTTON_BG : menu.control());
         graphics.outline(x, y, START_BUTTON_WIDTH, START_BUTTON_HEIGHT, menu == null ? ThemeAccent.accent(START_BUTTON_BORDER) : menu.accent());
