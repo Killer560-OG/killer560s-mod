@@ -22,7 +22,8 @@
      "Puzzle HUD no longer lists puzzles from your previous dungeon run next to the current run's puzzles.",
      "Auto Routes: the Legit/Obvious Mode setting is gone from every build for now; Auto Routes always runs in obvious mode.",
      "Party tracking no longer goes stale: joining a Party Finder group, restarting the game while in a party, a promotion, a transfer or a leave now update who is in your party and who leads it at once, without running /party list; Party Commands, the Custom Scoreboard crown and Spotify lyrics all read the same party state.",
-     "Iced Mob Boxes now outlines a mob only while it shows the Ice Spray freeze (the ice block on its head) and drops the box the moment the ice goes; it works for any player's freeze and no longer guesses from your wand clicks."
+     "Iced Mob Boxes now outlines a mob only while it shows the Ice Spray freeze (the ice block on its head) and drops the box the moment the ice goes; it works for any player's freeze and no longer guesses from your wand clicks.",
+     "Profile Viewer Networth page: Priced at is now a button (Est. Item Value, Instant Sell, Average BIN, NPC Sell), Showing adds a Non-Soulbound total (leaves out soulbound items and the Museum), and the Bazaar Prices and Lowest BIN Prices rows are gone."
     ]
    }
   ]

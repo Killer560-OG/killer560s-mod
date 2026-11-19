@@ -38,33 +38,67 @@ public final class Networth {
      * {@code calcReady} is false when the Price Tooltip's price table was still empty (so items fell back to base prices).
      */
     public record Result(long total, List<Category> categories, int bazaarPrices, int binPrices, boolean museumIncluded,
-                         long totalNonCosmetic, List<Category> categoriesNonCosmetic, boolean calcReady) {
-        public long total(boolean nonCosmetic) { return nonCosmetic ? totalNonCosmetic : total; }
+                         long totalNonCosmetic, List<Category> categoriesNonCosmetic, boolean calcReady,
+                         long totalNonSoulbound, List<Category> categoriesNonSoulbound) {
+        public long total(boolean nonCosmetic) { return total(nonCosmetic ? View.NON_COSMETIC : View.ALL); }
 
-        public List<Category> categories(boolean nonCosmetic) { return nonCosmetic ? categoriesNonCosmetic : categories; }
+        public List<Category> categories(boolean nonCosmetic) { return categories(nonCosmetic ? View.NON_COSMETIC : View.ALL); }
+
+        public long total(View v) {
+            return v == View.NON_COSMETIC ? totalNonCosmetic : v == View.NON_SOULBOUND ? totalNonSoulbound : total;
+        }
+
+        public List<Category> categories(View v) {
+            return v == View.NON_COSMETIC ? categoriesNonCosmetic : v == View.NON_SOULBOUND ? categoriesNonSoulbound : categories;
+        }
+    }
+
+    /**
+     * Which total the page and the Basic Info line show. Non-Soulbound leaves out what cannot be traded: items whose
+     * lore says Soulbound or Co-op Soulbound, items donated to the Museum, and the whole Museum category. Coins, sacks,
+     * essence and pets stay (all of them can be sold).
+     */
+    public enum View {
+        ALL("All Value"), NON_COSMETIC("Non-Cosmetic"), NON_SOULBOUND("Non-Soulbound");
+
+        public final String label;
+
+        View(String label) {
+            this.label = label;
+        }
     }
 
     /** One stack's value: {@code total} for the whole stack, {@code cosmetic} the part of it that is cosmetic. */
-    public record ItemValue(double total, double cosmetic) { static final ItemValue ZERO = new ItemValue(0, 0); }
+    public record ItemValue(double total, double cosmetic, boolean soulbound) {
+        static final ItemValue ZERO = new ItemValue(0, 0, false);
+    }
 
     /** True when a finished result should be calculated again: Bazaar prices or the item price table arrived since. */
     public static boolean stale(Result r) {
         return r.bazaarPrices() == 0 && bazaarCount() > 0 || !r.calcReady() && PriceData.lowestBinCount() > 0;
     }
 
-    /** Accumulates one category's per-item values twice: all of it, and without cosmetics. */
+    /** Accumulates one category's per-item values three ways: all of it, without cosmetics, and without soulbound. */
     private static final class Acc {
         final String name;
         final Map<String, Long> all = new LinkedHashMap<>();
         final Map<String, Long> non = new LinkedHashMap<>();
+        final Map<String, Long> tradable = new LinkedHashMap<>();
 
         Acc(String name) {
             this.name = name;
         }
 
         void add(String label, double total, double cosmetic) {
+            add(label, total, cosmetic, false);
+        }
+
+        void add(String label, double total, double cosmetic, boolean soulbound) {
             if (total > 0) {
                 all.merge(label, (long) total, Long::sum);
+                if (!soulbound) {
+                    tradable.merge(label, (long) total, Long::sum);
+                }
             }
             if (total - cosmetic > 0) {
                 non.merge(label, (long) (total - cosmetic), Long::sum);
@@ -77,6 +111,22 @@ public final class Networth {
 
     public static Result calculate(SbProfile p, SbProfile.Inventories inv, ProfileExtras extras, Map<String, Double> lbin,
                                    List<ItemStack> museumItems) {
+        return calculate(p, inv, extras, lbin, museumItems, PriceData.Pricing.ITEM_VALUE);
+    }
+
+    /** Prices every item by {@code pricing} (set for this thread only while it runs, so the Price Tooltip is untouched). */
+    public static Result calculate(SbProfile p, SbProfile.Inventories inv, ProfileExtras extras, Map<String, Double> lbin,
+                                   List<ItemStack> museumItems, PriceData.Pricing pricing) {
+        PriceData.Pricing old = PriceData.usePricing(pricing);
+        try {
+            return calc(p, inv, extras, lbin, museumItems);
+        } finally {
+            PriceData.usePricing(old);
+        }
+    }
+
+    private static Result calc(SbProfile p, SbProfile.Inventories inv, ProfileExtras extras, Map<String, Double> lbin,
+                               List<ItemStack> museumItems) {
         Map<String, Double> bins = lbin == null ? Map.of() : lbin;
         PriceData.touchFromOtherFeature();
         boolean ready = PriceData.lowestBinCount() > 0;
@@ -158,23 +208,31 @@ public final class Networth {
         }
         cats.add(pets);
         if (museumItems != null) {
-            cats.add(items("Museum", museumItems, bins));
+            Acc museum = items("Museum", museumItems, bins);
+            museum.tradable.clear(); // donated items cannot be taken back out or sold
+            cats.add(museum);
         }
         List<Category> all = new ArrayList<>();
         List<Category> non = new ArrayList<>();
+        List<Category> tradable = new ArrayList<>();
         long total = 0;
         long totalNon = 0;
+        long totalTrade = 0;
         for (Acc c : cats) {
             Category a = category(c.name, c.all);
             Category n = category(c.name, c.non);
             all.add(a);
             non.add(n);
+            Category t = category(c.name, c.tradable);
+            tradable.add(t);
             total += a.total();
             totalNon += n.total();
+            totalTrade += t.total();
         }
         all.sort((x, y) -> Long.compare(y.total(), x.total()));
         non.sort((x, y) -> Long.compare(y.total(), x.total()));
-        return new Result(total, all, bazaarCount(), bins.size(), museumItems != null, totalNon, non, ready);
+        tradable.sort((x, y) -> Long.compare(y.total(), x.total()));
+        return new Result(total, all, bazaarCount(), bins.size(), museumItems != null, totalNon, non, ready, totalTrade, tradable);
     }
 
     private static List<ItemStack> flatten(List<List<ItemStack>> pages) {
@@ -190,7 +248,7 @@ public final class Networth {
         for (ItemStack s : stacks) {
             if (s == null || s.isEmpty()) continue;
             ItemValue v = itemValue(s, bins);
-            acc.add(s.getHoverName().getString(), v.total(), v.cosmetic());
+            acc.add(s.getHoverName().getString(), v.total(), v.cosmetic(), v.soulbound());
         }
         return acc;
     }
@@ -270,12 +328,25 @@ public final class Networth {
             unit += base;
         }
         double total = unit * count;
-        if (isCosmeticItem(id)) return new ItemValue(total, total);
-        return new ItemValue(total, Math.min(total, cosmetic * count));
+        boolean soulbound = isSoulbound(s);
+        if (isCosmeticItem(id)) return new ItemValue(total, total, soulbound);
+        return new ItemValue(total, Math.min(total, cosmetic * count), soulbound);
+    }
+
+    /** Soulbound or Co-op Soulbound in the lore, or donated to the Museum. */
+    static boolean isSoulbound(ItemStack s) {
+        net.minecraft.world.item.component.ItemLore lore = s.get(DataComponents.LORE);
+        if (lore != null) {
+            for (net.minecraft.network.chat.Component c : lore.lines()) {
+                if (c.getString().contains("Soulbound")) return true;
+            }
+        }
+        CompoundTag tag = ItemNbt.view(s);
+        return tag != null && tag.contains("donated_museum");
     }
 
     private static double petPrice(String type, String tier, Map<String, Double> bins) {
-        if (type == null || type.isEmpty()) return 0;
+        if (type == null || type.isEmpty() || PriceData.pricing() == PriceData.Pricing.NPC_SELL) return 0;
         Double v = bins.get(type.toUpperCase(Locale.ROOT) + ";" + LevelTables.rarityIndex(tier));
         return v == null ? 0 : v;
     }
@@ -284,6 +355,7 @@ public final class Networth {
     public static double price(String id, Map<String, Double> bins) {
         if (id == null || id.isEmpty()) return 0;
         String key = id.toUpperCase(Locale.ROOT);
+        if (PriceData.pricing() != PriceData.Pricing.ITEM_VALUE) return PriceData.unitPrice(key);
         try {
             Long bz = com.killer560.hub.rngmeter.RngMeterEngine.PRICES.getPrice(
                     new com.killer560.hub.rngmeter.RngItem("", "", key, com.killer560.hub.rngmeter.RngSource.BAZAAR, 0, false));

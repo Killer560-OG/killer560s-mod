@@ -6,6 +6,7 @@ import com.killer560.hub.profileviewer.api.ProfileViewerApi;
 import com.killer560.hub.profileviewer.data.ExtraTables;
 import com.killer560.hub.profileviewer.data.LevelTables;
 import com.killer560.hub.profileviewer.data.Networth;
+import com.killer560.hub.pricetooltip.PriceData;
 import com.killer560.hub.profileviewer.data.ProfileExtras;
 import com.killer560.hub.profileviewer.data.SbProfile;
 import com.killer560.hub.profileviewer.item.ItemIcons;
@@ -70,6 +71,8 @@ final class ExtraPages {
     private final Map<SbProfile, Boolean> networthHasMuseum = new IdentityHashMap<>();
     /** The last finished estimate per profile, so the per-frame ask is one map read. */
     private final Map<SbProfile, NetworthState> networthSettled = new IdentityHashMap<>();
+    /** The pricing each cached networth was calculated with; a different choice calculates again. */
+    private final Map<SbProfile, PriceData.Pricing> networthPriced = new IdentityHashMap<>();
     private final Map<JsonObject, CompletableFuture<MuseumView>> museumViews = new IdentityHashMap<>();
     private final Map<SbProfile, CompletableFuture<RiftInventory>> riftInventories = new IdentityHashMap<>();
 
@@ -2061,8 +2064,9 @@ final class ExtraPages {
     NetworthState networthState(SbProfile p) {
         // The Basic Info page asks every frame. A finished estimate only changes when Bazaar prices arrive for one
         // calculated without them, so hand it back as is until then.
+        PriceData.Pricing pricing = com.killer560.hub.profileviewer.ProfileViewerConfig.getInstance().getNetworthPricing();
         NetworthState settled = networthSettled.get(p);
-        if (settled != null && !Networth.stale(settled.result())) return settled;
+        if (settled != null && !Networth.stale(settled.result()) && networthPriced.get(p) == pricing) return settled;
         CompletableFuture<ProfileExtras> ef = p.extras();
         if (!ef.isDone()) return NW_PENDING;
         ProfileExtras ex = ef.isCompletedExceptionally() ? null : ef.getNow(null);
@@ -2085,20 +2089,32 @@ final class ExtraPages {
         CompletableFuture<Networth.Result> nf = networth.get(p);
         Networth.Result done = nf == null ? null : ExtraTables.now(nf);
         boolean pricesArrived = done != null && Networth.stale(done);
-        if (nf == null || pricesArrived || (withMuseum && !networthHasMuseum.getOrDefault(p, false))) {
+        if (nf == null || pricesArrived || networthPriced.get(p) != pricing || (withMuseum && !networthHasMuseum.getOrDefault(p, false))) {
             SbProfile.Inventories inventories = inv == null || inv.isCompletedExceptionally() ? null : inv.getNow(null);
             Map<String, Double> lbin = ExtraTables.now(bins);
             List<ItemStack> museumItems = mv == null ? null : mv.allOwned();
-            nf = CompletableFuture.supplyAsync(() -> Networth.calculate(p, inventories, ex, lbin, museumItems), ProfileViewerApi.EXECUTOR)
+            nf = CompletableFuture.supplyAsync(() -> Networth.calculate(p, inventories, ex, lbin, museumItems, pricing), ProfileViewerApi.EXECUTOR)
                     .exceptionally(t -> null);
             networth.put(p, nf);
             networthHasMuseum.put(p, withMuseum);
+            networthPriced.put(p, pricing);
+            networthSettled.remove(p); // the settled one is the old calculation
         }
         Networth.Result r = ExtraTables.now(nf);
         if (r == null) return nf.isDone() ? NW_FAILED : NW_PENDING;
         NetworthState ready = new NetworthState(r, false);
         networthSettled.put(p, ready);
         return ready;
+    }
+
+    private static void stepNetworth(com.killer560.hub.profileviewer.ProfileViewerConfig c, int dir) {
+        c.setNetworthView(com.killer560.hub.gui.SettingsButtonWidget.step(c.getNetworthView(), dir));
+        c.save();
+    }
+
+    private static void stepPricing(com.killer560.hub.profileviewer.ProfileViewerConfig c, int dir) {
+        c.setNetworthPricing(com.killer560.hub.gui.SettingsButtonWidget.step(c.getNetworthPricing(), dir));
+        c.save();
     }
 
     private void drawNetworth(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
@@ -2110,37 +2126,42 @@ final class ExtraPages {
         }
 
         com.killer560.hub.profileviewer.ProfileViewerConfig cfgNw = com.killer560.hub.profileviewer.ProfileViewerConfig.getInstance();
-        boolean nonCos = cfgNw.isNonCosmeticNetworth();
+        Networth.View view = cfgNw.getNetworthView();
         int lw = 150;
         s.box(g, s.contentX, s.contentY, lw, s.contentH);
         int x = s.contentX + 6;
         int w = lw - 12;
         int y = s.contentY + 5;
-        title(g, nonCos ? "Networth (non-cosmetic)" : "Networth (estimate)", x, y);
+        title(g, view == Networth.View.ALL ? "Networth (estimate)" : "Networth (" + view.label.toLowerCase(Locale.ROOT) + ")", x, y);
         y += 13;
         g.pose().pushMatrix();
         g.pose().translate(x, y);
         g.pose().scale(1.5f, 1.5f);
-        tx(g, shorten(r.total(nonCos)), 0, 0, MAXED);
+        tx(g, shorten(r.total(view)), 0, 0, MAXED);
         g.pose().popMatrix();
         if (hover(mx, my, x, y, w, 13)) {
-            tip(List.of(line(commas(r.total(nonCos)) + " coins", VALUE)));
+            tip(List.of(line(commas(r.total(view)) + " coins", VALUE)));
         }
         y += 18;
-        s.button(g, x, y, w, 14, nonCos ? "Showing: Non-Cosmetic" : "Showing: All Value", mx, my, nonCos, () -> {
-            cfgNw.setNonCosmeticNetworth(!cfgNw.isNonCosmeticNetworth());
-            cfgNw.save();
-        });
+        s.button(g, x, y, w, 14, "Showing: " + view.label, mx, my, view != Networth.View.ALL, () -> stepNetworth(cfgNw, 1), () -> stepNetworth(cfgNw, -1));
         if (hover(mx, my, x, y, w, 14)) {
-            tip(List.of(line("Click to switch between the total with everything and the total without cosmetics", DIM),
-                    line("Pet skins, armor/helmet skins, dyes, runes and cosmetic-only items", DIM)));
+            tip(List.of(line("Click for the next total, right click for the previous", DIM),
+                    line("All Value: everything. Non-Cosmetic: without pet skins, armor skins, dyes, runes", DIM),
+                    line("Non-Soulbound: only what can be traded, without soulbound items and the Museum", DIM)));
         }
         y += 18;
         y = s.stat2(g, x, y, w, "All Value", shorten(r.total()));
         y = s.stat2(g, x, y, w, "Non-Cosmetic", shorten(r.totalNonCosmetic()));
-        y = s.stat2(g, x, y, w, "Priced at", "Est. Item Value");
-        y = s.stat2(g, x, y, w, "Bazaar Prices", commas(r.bazaarPrices()));
-        y = s.stat2(g, x, y, w, "Lowest BIN Prices", commas(r.binPrices()));
+        y = s.stat2(g, x, y, w, "Non-Soulbound", shorten(r.totalNonSoulbound()));
+        s.button(g, x, y, w, 14, "Priced at: " + cfgNw.getNetworthPricing().label, mx, my, false, () -> stepPricing(cfgNw, 1), () -> stepPricing(cfgNw, -1));
+        if (hover(mx, my, x, y, w, 14)) {
+            tip(List.of(line("Click for the next pricing, right click for the previous", DIM),
+                    line("Est. Item Value: Bazaar buy price, else lowest BIN, plus enchants, stars and the rest", DIM),
+                    line("Instant Sell: what the Bazaar pays at once, else lowest BIN, same additions", DIM),
+                    line("Average BIN: the 3 day average lowest BIN, same additions", DIM),
+                    line("NPC Sell: the coins an NPC pays for the item itself, nothing added", DIM)));
+        }
+        y += 18;
         y = s.stat2(g, x, y, w, "Museum", r.museumIncluded() ? "Included" : "Not included");
         s.stat2(g, x, y, w, "Inventory API", p.inventoryApi ? "On" : "Off");
 
@@ -2151,7 +2172,7 @@ final class ExtraPages {
         int top = s.contentY + 18;
         int rowH = 16;
         int visible = Math.max(1, (s.contentH - 22) / rowH);
-        List<Networth.Category> cats = r.categories(nonCos);
+        List<Networth.Category> cats = r.categories(view);
         int scroll = clampScroll(cats.size(), visible);
         long maxCat = cats.isEmpty() ? 1 : Math.max(1, cats.get(0).total());
         for (int i = scroll; i < cats.size() && i - scroll < visible; i++) {
@@ -2159,7 +2180,7 @@ final class ExtraPages {
             int cy = top + (i - scroll) * rowH;
             int cw = rw - 20;
             tx(g, c.name(), rx + 6, cy, c.total() > 0 ? TEXT : DIM);
-            String val = shorten(c.total()) + (r.total(nonCos) > 0 ? String.format(Locale.ROOT, "  %.1f%%", 100.0 * c.total() / r.total(nonCos)) : "");
+            String val = shorten(c.total()) + (r.total(view) > 0 ? String.format(Locale.ROOT, "  %.1f%%", 100.0 * c.total() / r.total(view)) : "");
             rightText(g, val, rx + 6 + cw, cy, VALUE);
             progressBar(g, rx + 6, cy + 10, (int) Math.max(0, (long) cw * c.total() / maxCat), 1, false);
             if (hover(mx, my, rx + 4, cy - 1, cw + 4, rowH)) {

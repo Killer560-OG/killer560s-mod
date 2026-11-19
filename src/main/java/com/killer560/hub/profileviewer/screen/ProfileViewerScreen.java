@@ -1,5 +1,6 @@
 package com.killer560.hub.profileviewer.screen;
 
+import com.killer560.hub.profileviewer.data.Networth;
 import com.killer560.hub.profileviewer.ProfileViewerConfig;
 import com.killer560.hub.profileviewer.ProfileViewerFeature;
 import com.killer560.hub.profileviewer.api.ProfileViewerApi;
@@ -219,6 +220,8 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     }
 
     final List<Hotspot> hotspots = new ArrayList<>();
+    /** Right-click targets (a cycling button's step back). */
+    private final List<Hotspot> rightHotspots = new ArrayList<>();
     private final List<Hotspot> overlayHotspots = new ArrayList<>();
     List<Component> pendingTooltip;
     ItemStack pendingItemTooltip = ItemStack.EMPTY;
@@ -570,6 +573,11 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                 }
             }
         } else if (com.killer560.hub.compat.McInput.button(event) == 1 && !dropdownOpen
+                && rightHotspots.stream().anyMatch(h -> h.contains(event.x(), event.y()))) {
+            click();
+            rightHotspots.stream().filter(h -> h.contains(event.x(), event.y())).findFirst().get().action().run();
+            return true;
+        } else if (com.killer560.hub.compat.McInput.button(event) == 1 && !dropdownOpen
                 && inside(event.x(), event.y(), styleButton[0], styleButton[1], styleButton[2], styleButton[3])) {
             click();
             stepStyle(-1);
@@ -701,6 +709,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
     private void drawScreen(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
         hotspots.clear();
+        rightHotspots.clear();
         overlayHotspots.clear();
         pendingTooltip = null;
         pendingItemTooltip = ItemStack.EMPTY;
@@ -1121,7 +1130,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             }
         }
         ExtraPages.NetworthState nw = extraPages.networthState(p);
-        boolean nonCos = ProfileViewerConfig.getInstance().isNonCosmeticNetworth();
+        Networth.View nonCos = ProfileViewerConfig.getInstance().getNetworthView();
         String[] info = {"Purse: " + commas(p.purse),
                 "Bank: " + (p.bank < 0 ? "API off" : p.personalBank > 0 && p.bank > 0 ? shorten(p.personalBank) + "/" + shorten(p.bank)
                         : shorten(Math.max(0, p.bank) + Math.max(0, p.personalBank))),
@@ -1324,7 +1333,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         // Networth page (shared cache), and a click opens that page.
         ExtraPages.NetworthState nw = extraPages.networthState(p);
         int ny = y;
-        boolean nonCos = com.killer560.hub.profileviewer.ProfileViewerConfig.getInstance().isNonCosmeticNetworth();
+        Networth.View nonCos = com.killer560.hub.profileviewer.ProfileViewerConfig.getInstance().getNetworthView();
         lastBasicNetworth = nw.result() == null ? null : nw.result().total(nonCos);
         y = stat2(g, lx, y, sw, "Networth", nw.result() != null ? shorten(nw.result().total(nonCos)) : nw.failed() ? "-" : "...");
         if (inside(mx, my, lx, ny, sw, 10) && !dropdownOpen) {
@@ -2371,6 +2380,12 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         MenuStyle.bevel(r, x, y, w, h, MenuStyle.DRAWER_TOP, MenuStyle.DRAWER_BOTTOM);
         r.outline(x - 1, y - 1, w + 2, h + 2, MenuStyle.OR2);
         r.submit();
+    }
+
+    /** A cycling button: left click runs {@code action}, right click {@code back}. */
+    void button(GuiGraphicsExtractor g, int x, int y, int w, int h, String label, int mx, int my, boolean selected, Runnable action, Runnable back) {
+        button(g, x, y, w, h, label, mx, my, selected, action);
+        rightHotspots.add(new Hotspot(x, y, w, h, back));
     }
 
     void button(GuiGraphicsExtractor g, int x, int y, int w, int h, String label, int mx, int my, boolean selected, Runnable action) {

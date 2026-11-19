@@ -1,6 +1,8 @@
 package com.killer560.hub.profileviewer;
 
 import com.killer560.hub.util.ModPaths;
+import com.killer560.hub.pricetooltip.PriceData;
+import com.killer560.hub.profileviewer.data.Networth;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
@@ -87,7 +89,9 @@ public final class ProfileViewerConfig {
     private int lastPage = 0;
     private boolean showSkin = true;
     /** Networth page and Basic Info line show the total without cosmetic value (killer560, 2026-11-04). */
-    private boolean nonCosmeticNetworth = false;
+    private Networth.View networthView = Networth.View.ALL;
+    /** How the Networth page prices items (killer560, 2026-11-18). */
+    private PriceData.Pricing networthPricing = PriceData.Pricing.ITEM_VALUE;
     private Style style = Style.DEFAULT;
     /** Most-recently-viewed first. */
     private final List<RecentView> recentViews = new ArrayList<>();
@@ -118,7 +122,9 @@ public final class ProfileViewerConfig {
                 cfg.rememberLastPage = ConfigJson.getBool(obj, "rememberLastPage", true);
                 cfg.lastPage = ConfigJson.getInt(obj, "lastPage", 0);
                 cfg.showSkin = ConfigJson.getBool(obj, "showSkin", true);
-                cfg.nonCosmeticNetworth = ConfigJson.getBool(obj, "nonCosmeticNetworth", false);
+                cfg.networthView = ConfigJson.getEnum(obj, "networthView", Networth.View.class,
+                        ConfigJson.getBool(obj, "nonCosmeticNetworth", false) ? Networth.View.NON_COSMETIC : Networth.View.ALL);
+                cfg.networthPricing = ConfigJson.getEnum(obj, "networthPricing", PriceData.Pricing.class, PriceData.Pricing.ITEM_VALUE);
                 cfg.style = ConfigJson.getEnum(obj, "style", Style.class, Style.DEFAULT);
                 JsonArray recent = ConfigJson.getArray(obj, "recentViews");
                 if (recent != null) {
@@ -148,7 +154,8 @@ public final class ProfileViewerConfig {
         obj.addProperty("rememberLastPage", rememberLastPage);
         obj.addProperty("lastPage", lastPage);
         obj.addProperty("showSkin", showSkin);
-        obj.addProperty("nonCosmeticNetworth", nonCosmeticNetworth);
+        obj.addProperty("networthView", networthView.name());
+        obj.addProperty("networthPricing", networthPricing.name());
         obj.addProperty("style", style.name());
         JsonArray recent = new JsonArray();
         for (RecentView v : recentViews) {
@@ -213,10 +220,21 @@ public final class ProfileViewerConfig {
 
     public synchronized void setShowSkin(boolean showSkin) { this.showSkin = showSkin; }
 
-    public synchronized boolean isNonCosmeticNetworth() { return nonCosmeticNetworth; }
+    public synchronized boolean isNonCosmeticNetworth() { return networthView == Networth.View.NON_COSMETIC; }
 
+    /** The settings switch: on = Non-Cosmetic, off = All Value (a Non-Soulbound view reads as off). */
     public synchronized void setNonCosmeticNetworth(boolean nonCosmeticNetworth) {
-        this.nonCosmeticNetworth = nonCosmeticNetworth;
+        this.networthView = nonCosmeticNetworth ? Networth.View.NON_COSMETIC : Networth.View.ALL;
+    }
+
+    public synchronized Networth.View getNetworthView() { return networthView; }
+
+    public synchronized void setNetworthView(Networth.View v) { networthView = v == null ? Networth.View.ALL : v; }
+
+    public synchronized PriceData.Pricing getNetworthPricing() { return networthPricing; }
+
+    public synchronized void setNetworthPricing(PriceData.Pricing p) {
+        networthPricing = p == null ? PriceData.Pricing.ITEM_VALUE : p;
     }
 
     public synchronized Style getStyle() { return style; }

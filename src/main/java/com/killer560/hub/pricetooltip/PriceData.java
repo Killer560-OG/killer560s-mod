@@ -150,17 +150,41 @@ public final class PriceData {
      */
     public static double unitPrice(String id) {
         if (id == null || id.isEmpty()) return 0;
-        Double v = bazaarBuy.get(id);
-        if (v == null || v <= 0) {
-            v = bazaarSell.get(id);
+        Pricing mode = MODE.get();
+        if (mode == Pricing.NPC_SELL) {
+            ItemInfo info = items.get(id);
+            return info == null || info.npcPrice() == null ? 0 : info.npcPrice();
         }
-        if (v == null || v <= 0) {
-            v = lowestBin.get(id);
+        Double v = null;
+        for (Map<String, Double> m : mode == Pricing.INSTANT_SELL ? List.of(bazaarSell, lowestBin, average3, bazaarBuy)
+                : mode == Pricing.AVERAGE_BIN ? List.of(average3, lowestBin, bazaarBuy, bazaarSell)
+                : List.of(bazaarBuy, bazaarSell, lowestBin, average3)) {
+            v = m.get(id);
+            if (v != null && v > 0) return v;
         }
-        if (v == null || v <= 0) {
-            v = average3.get(id);
+        return 0;
+    }
+
+    /** How unitPrice values things on the calling thread (the Profile Viewer's networth sets it while it calculates). */
+    public enum Pricing {
+        ITEM_VALUE("Est. Item Value"), INSTANT_SELL("Instant Sell"), AVERAGE_BIN("Average BIN"), NPC_SELL("NPC Sell");
+
+        public final String label;
+
+        Pricing(String label) {
+            this.label = label;
         }
-        return v == null || v <= 0 ? 0 : v;
+    }
+
+    private static final ThreadLocal<Pricing> MODE = ThreadLocal.withInitial(() -> Pricing.ITEM_VALUE);
+
+    public static Pricing pricing() { return MODE.get(); }
+
+    /** Sets this thread's pricing; returns the one to put back in a finally. */
+    public static Pricing usePricing(Pricing m) {
+        Pricing old = MODE.get();
+        MODE.set(m == null ? Pricing.ITEM_VALUE : m);
+        return old;
     }
 
     public static int bazaarCount() { return bazaarBuy.size(); }
