@@ -1267,6 +1267,9 @@ public final class AutoSecretFeature {
             if (pick != null && goSecret(layout, pick, dist, "-", "-")) {
                 return true;
             }
+            if (quizGapMobClear(layout, rooms, dist, quiz, left)) {
+                return true;
+            }
         }
         target = quiz.name();
         targetRoomId = quiz.room();
@@ -1466,6 +1469,60 @@ public final class AutoSecretFeature {
                 left, com.killer560.hub.puzzlesolvers.QuizState.nextQuestion(), why,
                 best == null ? "none fits, waiting at the Quiz" : best.name());
         return best;
+    }
+
+    /**
+     * No secret room fits the countdown (acquiz2-1118, his 11-18 run: three countdowns of 176, 138 and 138 ticks stood at the
+     * Quiz while Multicolored, a 25-tick clear next door, and others were uncleared): an uncleared mob room with no secrets
+     * to route is cleared meanwhile when the trip, the clear (a room out of sight priced by
+     * {@link AutoClearFeature#estimateClearOrGuess}) and the trip back fit in {@code left} with the spare in hand; the longest
+     * that fits, else the least late within {@link AutoClearFeature#QUIZ_GAP_LATE_TICKS}. Re-decided after each clear, so
+     * the countdown keeps being filled and he is back just in time.
+     */
+    private static boolean quizGapMobClear(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist,
+                                           RoomStatus.Room quiz, long left) {
+        Minecraft client = Minecraft.getInstance();
+        BlockPos spot = AutoPuzzlesFeature.quizAnswerSpot();
+        if (client.player == null || spot == null || leaveWaitRoom != null || !AutoClearFeature.isAvailable()
+                || !AutoSecretConfig.getInstance().isAutoClearRooms()) {
+            return false;
+        }
+        net.minecraft.world.phys.Vec3 back = net.minecraft.world.phys.Vec3.atBottomCenterOf(spot.above());
+        if (left <= AutoClearFeature.etherTicks(client.player.position(), back) + AutoClearFeature.ETHER_FIXED_TICKS) {
+            return false;   // the answer opens about as he would get there
+        }
+        RoomStatus.Room best = null;
+        RoomStatus.Room late = null;
+        double bestTicks = 0;
+        double lateBy = AutoClearFeature.QUIZ_GAP_LATE_TICKS;
+        for (RoomStatus.Room r : rooms) {
+            if (r.room() == quiz.room() || !dist.containsKey(r.room()) || !needsClear(layout, r)
+                    || eligibleForSecrets(r) && RouteStore.getInstance().forRoom(r.name()) != null) {
+                continue;
+            }
+            double[] est = AutoClearFeature.estimateClearOrGuess(client.player.position(), r.name(), layout);
+            if (est == null) {
+                continue;
+            }
+            double over = est[0] + AutoClearFeature.etherTicks(new net.minecraft.world.phys.Vec3(est[1], est[2], est[3]),
+                    back) + QUIZ_GAP_CLEAR_SPARE_TICKS - left;
+            if (over <= 0 && est[0] > bestTicks) {
+                best = r;
+                bestTicks = est[0];
+            } else if (over > 0 && over <= lateBy && best == null) {
+                late = r;
+                lateBy = over;
+            }
+        }
+        RoomStatus.Room pick = best != null ? best : late;
+        if (pick == null) {
+            return false;
+        }
+        LOGGER.info("[AutoSecret] Quiz: {} tick(s) until question {} opens; clearing {} meanwhile ({})", left,
+                com.killer560.hub.puzzlesolvers.QuizState.nextQuestion(), pick.name(),
+                best != null ? "back in time" : "back about " + Math.round(lateBy) + " ticks late");
+        goClear(layout, pick, dist, "Quiz gap: ");
+        return true;
     }
 
     /** The Quiz as a trip's end: Auto Quiz's answer spot (exact), else a landing in its tile. */

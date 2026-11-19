@@ -85,7 +85,7 @@ public final class AutoClearFeature {
      * landing ({@code ClearExecutor.etherPathFast}). It was 14 while every trip also waited the ~9-tick arrival settle;
      * the 2026-10-19 log had one-to-three-warp trips at 14-16 ticks with it, so about 5 without.
      */
-    static final int ETHER_FIXED_TICKS = 5;
+    public static final int ETHER_FIXED_TICKS = 5;
     /** Ticks per warp of a chain once it is going (ClearExecutor issues one hop a tick and waits on the server). */
     static final int ETHER_TICKS_PER_WARP = 2;
     /** A held use repeats every 4 ticks (vanilla {@code rightClickDelay}, javap 26.1.2 and 26.2 - LESSONS). */
@@ -1602,7 +1602,7 @@ public final class AutoClearFeature {
 
     /** How late a Quiz-gap clear may bring him back (killer560, 2026-11-17: "It can return a hair late as well if there are
      *  other things to do. It doesn't need to be back tick perfect") - about one small room's clear. */
-    static final int QUIZ_GAP_LATE_TICKS = 100;
+    public static final int QUIZ_GAP_LATE_TICKS = 100;
 
     /**
      * While Oruo's countdown runs and its opening tick is known, and going back now would only stand him at the Quiz: a room
@@ -1636,7 +1636,7 @@ public final class AutoClearFeature {
         double lateBy = QUIZ_GAP_LATE_TICKS;
         for (int r : AutoClearTargets.candidates(layout, AutoClearConfig.getInstance().getMode(), skip)) {
             AutoClearTargets.Choice c = r == quiz ? null : AutoClearTargets.choose(layout, List.of(r));
-            double[] est = c == null || c.door() >= 0 ? null : estimateClear(player.position(), layout.name(r));
+            double[] est = c == null || c.door() >= 0 ? null : estimateClearOrGuess(player.position(), layout.name(r), layout);
             if (est == null) {
                 continue;
             }
@@ -4969,6 +4969,24 @@ public final class AutoClearFeature {
             at = s;
         }
         return new double[]{ticks, at[0], at[1], at[2], list.size()};
+    }
+
+    /** Ticks guessed for clearing a room whose starred mobs are not in sight yet (acquiz2-1118: Slime took 98, Multicolored 25). */
+    public static final int UNSEEN_CLEAR_TICKS = 60;
+
+    /**
+     * {@link #estimateClear}, or for a room whose mobs are not in sight (the far rooms a Quiz gap is spent on, acquiz2-1118)
+     * the trip to its middle plus {@link #UNSEEN_CLEAR_TICKS}, ending there; null only for an unknown room.
+     */
+    public static double[] estimateClearOrGuess(Vec3 from, String room, DungeonLayout layout) {
+        double[] e = estimateClear(from, room);
+        int id = AutoClearTargets.roomByName(layout, room);
+        if (e != null || id < 0 || layout.tiles(id).length == 0) {
+            return e;
+        }
+        BlockPos c = DungeonLayout.cellCenter(layout.tiles(id)[0]);
+        Vec3 mid = new Vec3(c.getX() + 0.5, from.y, c.getZ() + 0.5);
+        return new double[]{etherTicks(from, mid) + UNSEEN_CLEAR_TICKS, mid.x, mid.y, mid.z, 0};
     }
 
     /** An etherwarp trip's ticks between two points as {@link #estimateClear} prices one (0 within a block and a half). */
