@@ -327,6 +327,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.pathfinding.PathfindingFeature.register();
         com.killer560.hub.chocolatefactory.ChocolateFactoryHelper.register();
         com.killer560.hub.accadvisor.AccessoryAdvisor.register();
+        com.killer560.hub.chestvalue.ChestValue.register();
         HudElementRegistry.register(new com.killer560.hub.witherdragons.WitherDragonsFeature.DragonTimersHudElement());
         HudElementRegistry.register(new com.killer560.hub.witherdragons.KingRelicsFeature.RelicTimerHudElement());
         HudElementRegistry.register(com.killer560.hub.scorecalc.ScoreCalculatorFeature.ScoreHudElement.INSTANCE);

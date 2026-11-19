@@ -300,6 +300,7 @@ public final class ModPaths {
         t.put("slottext", "interface/slottext");
         t.put("compactorpreview", "interface/compactorpreview");
         t.put("accadvisor", "skyblock/accadvisor");
+        t.put("chestvalue", "skyblock/chestvalue");
         t.put("tooltipscroll", "interface/tooltipscroll");
         t.put("motionblur", "interface/motionblur");
         t.put("darkmode", "interface/darkmode");

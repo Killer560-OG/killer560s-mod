@@ -26,6 +26,7 @@ public class ItemsTab extends FolderTab {
                 new SlotTextTab(),
                 new CompactorPreviewTab(),
                 new AccessoryAdvisorTab(),
+                new ChestValueTab(),
                 // Gyrokinetic Wand Overlay (to-do Doc 2026-11-01): the gyro ring.
                 new GyroOverlayTab(),
                 new LoadoutKeybindsTab(),
