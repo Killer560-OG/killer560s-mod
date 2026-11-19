@@ -1018,7 +1018,8 @@ public final class AutoSecretFeature {
             return;
         }
         // The Quiz before everything, Blood First included (killer560, 2026-10-20: "It should have focused quiz from the
-        // start prioritizing opening it as fast as possible").
+        // start prioritizing opening it as fast as possible"), except while Blood First owes the blood door
+        // (bloodFirstHoldsPuzzles, killer560 2026-11-18).
         if (decideQuiz(layout, rooms, dist) || decideBloodFirst(layout, rooms, dist) || decideIceFill(layout, rooms, dist) || decideClearHere(layout, rooms, here) || decideInstaClear(layout, rooms, dist, here) || decideSecrets(layout, rooms, dist)) {
             return;
         }
@@ -1155,7 +1156,24 @@ public final class AutoSecretFeature {
                 && !r.isType("ENTRANCE") && r.unfound() > 0 && !secreted.contains(r.name());
     }
 
+    /**
+     * Blood First still owes the blood door: no Quiz (not even the answers of one already started), no Ice Fill and no
+     * other puzzle until it reads open (killer560, 2026-11-18: "if it is on blood rush first that should ignore quiz until
+     * after blood rush same with things like ice fill"). A puzzle room on the way is only crossed, as any room is.
+     */
+    static boolean bloodFirstHoldsPuzzles(DungeonLayout layout) {
+        int blood = layout.bloodDoor();
+        if (blood >= 0 && !layout.isLocked(blood)) {
+            return false;
+        }
+        return pilot ? AutoSecretConfig.getInstance().isBloodFirst() && !Autopilot.bloodOpened()
+                : bloodFirstMode != AutoSecretConfig.SecretBloodFirst.OFF && !bloodFirstDone;
+    }
+
     private static boolean decideIceFill(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist) {
+        if (bloodFirstHoldsPuzzles(layout)) {
+            return false;
+        }
         if (iceFillTried || !AutoSecretConfig.getInstance().isIceFillFirst()
                 || !AutoPuzzlesConfig.getInstance().isAutoIceFillEnabled()) {
             return false;
@@ -1192,6 +1210,9 @@ public final class AutoSecretFeature {
      * @return true when this decision is the Quiz's
      */
     private static boolean decideQuiz(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist) {
+        if (bloodFirstHoldsPuzzles(layout)) {
+            return false;
+        }
         if (!QuizPlan.wanted() || QuizPlan.gaveUp() || com.killer560.hub.puzzlesolvers.QuizState.done()) {
             return false;
         }
@@ -2370,6 +2391,11 @@ public final class AutoSecretFeature {
         // Quiz First runs the Autopilot too (killer560, 2026-10-20 F6: Dungeon Autopilot ranked the Quiz like any puzzle
         // and never went, its way being behind wither doors): the Quiz and the way to it come before anything it ranks.
         Autopilot.closeAction();
+        if (Autopilot.awaitKeyAfterClear(layout, dist)) {
+            Autopilot.setHud("Waiting for the key", "Blood First: the room's key is dropping");
+            setPhase(Phase.SETTLE);
+            return;
+        }
         if (decideQuiz(layout, rooms, dist)) {
             Autopilot.setHud(status, "Quiz first");
             return;
@@ -2659,6 +2685,9 @@ public final class AutoSecretFeature {
                     && !puzzlesDone.contains(r.name()) && dist.containsKey(r.room())) {
                 puzzles.add(r);
             }
+        }
+        if (bloodFirstHoldsPuzzles(layout)) {
+            puzzles.clear();
         }
         puzzles.sort(Comparator.comparingInt(r -> dist.get(r.room())));
         // Fastest Total: puzzles and clears are one list, nearest first (an uncleared room next door before a puzzle across

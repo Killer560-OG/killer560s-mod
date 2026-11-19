@@ -14,7 +14,8 @@
      "The Dungeon ESP card is now Dungeon Mob Highlight (search still finds it by esp); mob color rows show only while that mob is on, Wither Boss Highlight has per-boss switches, and the cheat ESP switch is split into Mob ESP and Wither ESP.",
      "Item Protect: in a dungeon the drop key still works as your class ability and ultimate even while you hold a protected item or Block Every Drop is on; menu drops stay blocked.",
      "Dungeon map: a room no longer reads all secrets found (and stays white) when Hypixel credited fewer; the map's secret count now follows the action bar even with Hide Actionbar on, and lever clicks are no longer counted as secrets.",
-     "Interactive Map: you can now click the predicted part of a room (a tile the map draws from Predictive Rooms but has not scanned yet) and the strip joining it, and it goes to that room like a click on a scanned tile."
+     "Interactive Map: you can now click the predicted part of a room (a tile the map draws from Predictive Rooms but has not scanned yet) and the strip joining it, and it goes to that room like a click on a scanned tile.",
+     "Dungeon Autopilot Blood First: after a key room it now goes straight to the door (a just-picked-up key counts at once, and it waits a moment for the room's key to drop instead of starting another room), and no puzzle (Quiz, Ice Fill and the rest) is started until the blood door is open; a puzzle room on the way is only walked through"
     ]
    }
   ]

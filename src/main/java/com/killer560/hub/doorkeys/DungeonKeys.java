@@ -129,18 +129,62 @@ public final class DungeonKeys {
         if (WITHER_OBTAINED.matcher(msg).matches()) {
             chatWither++;
             lastPickupLine = msg;
+            witherAhead(1);
         } else if (WITHER_PICKED_UP.matcher(msg).matches()) {
             // May come beside the "has obtained" line: never more than one key from it.
             chatWither = Math.max(chatWither, 1);
             lastPickupLine = msg;
         } else if (WITHER_DOOR_OPENED.matcher(msg).matches()) {
             chatWither = Math.max(0, chatWither - 1);
+            witherAhead(-1);
         } else if (BLOOD_OBTAINED.matcher(msg).matches() || BLOOD_PICKED_UP.matcher(msg).matches()) {
             chatBlood = true;
             lastPickupLine = msg;
+            bloodAhead(1);
         } else if (BLOOD_DOOR_OPENED.matcher(msg).matches()) {
             chatBlood = false;
+            bloodAhead(0);
         }
+    }
+
+    // ---- chat ahead of the sidebar (acbloodfirst-1118) ----
+    // Hypixel redraws the sidebar's Keys line about once a second, so it shows a pickup or a door 0.05-1.0 s after the chat
+    // line (his 11-18 logger: "has obtained Wither Key!" at 4:58:50.217, "Keys ... 1x" at 4:58:50.823). Read in between,
+    // the sidebar said 0 keys and Blood First went to a puzzle or another room instead of the door. A chat change is
+    // laid over the sidebar value it was seen on until that value changes or SIDEBAR_LAG_MS passes.
+    static final long SIDEBAR_LAG_MS = 2000L;
+    private static int witherDelta;
+    private static int witherBase = -1;
+    private static long witherAt;
+    private static int bloodNow = -1;
+    private static int bloodBase = -1;
+    private static long bloodAt;
+
+    private static void witherAhead(int delta) {
+        int s = DungeonState.sidebarWitherKeys();
+        if (s < 0) {
+            return;
+        }
+        if (pendingWither(s) < 0) {
+            witherDelta = 0;
+        }
+        witherBase = s;
+        witherDelta += delta;
+        witherAt = System.currentTimeMillis();
+    }
+
+    private static void bloodAhead(int has) {
+        bloodBase = DungeonState.sidebarBloodKey();
+        bloodNow = has;
+        bloodAt = System.currentTimeMillis();
+    }
+
+    /** The wither count with chat's not-yet-shown change on top, or -1 when there is none for this sidebar value. */
+    private static int pendingWither(int sidebar) {
+        if (witherDelta == 0 || sidebar != witherBase || System.currentTimeMillis() - witherAt > SIDEBAR_LAG_MS) {
+            return -1;
+        }
+        return Math.max(0, sidebar + witherDelta);
     }
 
     /**
@@ -160,6 +204,8 @@ public final class DungeonKeys {
             level = now;
             chatWither = 0;
             chatBlood = false;
+            witherDelta = 0;
+            bloodNow = -1;
         }
     }
 
@@ -167,13 +213,21 @@ public final class DungeonKeys {
     public static int witherKeys() {
         sync();
         int sidebar = DungeonState.sidebarWitherKeys();
-        return sidebar >= 0 ? sidebar : chatWither;
+        if (sidebar < 0) {
+            return chatWither;
+        }
+        int ahead = pendingWither(sidebar);
+        return ahead >= 0 ? ahead : sidebar;
     }
 
     /** Whether the team holds the blood key: 1 yes, 0 no, -1 unknown (no Keys line and no chat line yet). */
     public static int bloodKey() {
         sync();
         int sidebar = DungeonState.sidebarBloodKey();
+        if (sidebar >= 0 && bloodNow >= 0 && sidebar == bloodBase
+                && System.currentTimeMillis() - bloodAt <= SIDEBAR_LAG_MS) {
+            return bloodNow;
+        }
         return sidebar >= 0 ? sidebar : chatBlood ? 1 : -1;
     }
 

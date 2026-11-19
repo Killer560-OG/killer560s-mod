@@ -197,3 +197,14 @@ there); Auto Routes is in [LESSONS-ROUTES.md](LESSONS-ROUTES.md); the sim's side
 - Dungeon Mob Highlight's Fel Skulls took only a player head or a plain skull; the sim's sleeping Fels wear a wither skeleton skull
   (his "black fel skulls"), so none was drawn. It takes all three now (1102-sim-felskulls).
 - Auto Clear alone (Quiz First, no Auto Secret) used to stand at the Quiz through all three locks (220, then 100 ticks). acquiz-1117: `quizGapPick` runs at each pick and once per countdown at the Quiz (keyed on `QuizState.answerAtTick()`), never per tick; it prices a room with `estimateClear` (mobs in sight only, its trips included) plus `etherTicks` back onto Auto Quiz's answer spot. The owner allows a late return while work remains ("It doesn't need to be back tick perfect"), so a room up to `QUIZ_GAP_LATE_TICKS` (100) late is taken when none fits; it stops starting gaps once the trip back alone fills what is left. Testkit 1117-sim-acquiz-gap / -wait (a mob F7 with the Quiz pinned; -PmobfloorCode replays it).
+- Blood First detoured after every key room (acbloodfirst-1118, his 11-18 runs): Hypixel redraws the sidebar Keys line about once
+  a second, 0.05-1.0 s AFTER the "has obtained Wither Key!" / "opened a WITHER door!" chat line, and `DungeonKeys.witherKeys()`
+  preferred the sidebar, so the decision taken the same tick read 0 keys and went to a puzzle or room (Ice Path 14 s, Tic Tac
+  Toe 11 s) before the door. A chat change now overrides the sidebar value it was seen on until that value changes or 2 s
+  pass (blood key too). The logger mod's "in team team_7" lines show the redraw times. The sim has no Keys line (his 10-04
+  wish), so testkit 1118-sim-acbloodfirst draws one every 20 ticks. Same job: under Blood First no puzzle (Quiz First, Ice Fill
+  First, Autopilot PUZZLE picks, endgame puzzles) starts before the blood door is open (`AutoSecretFeature.bloodFirstHoldsPuzzles`).
+  A second cause showed in the sim: the room is "done" when its last mob dies, but its key reaches the team 0.3-0.6 s later, so
+  the decision of that tick planned another room (Gold, Buttons, Overgrown). After a clear, while the next door wants a key it
+  lacks, `Autopilot.awaitKeyAfterClear` now waits up to 1.5 s (SETTLE) for it. A testkit case that reads a long run's log must
+  collect it as it goes (`LogTap.between`): the 4000-line ring had dropped the early keys and the case judged only the tail.

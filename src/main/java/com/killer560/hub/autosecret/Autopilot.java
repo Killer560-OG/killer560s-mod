@@ -281,6 +281,38 @@ final class Autopilot {
      * (Auto Blood Rush's rule), then the blood door itself. Null when the team lacks the key for it (the rest of the
      * floor is planned meanwhile) or there is no door on the way.
      */
+    /**
+     * Blood First right after a clear, while the next door wants a key the team lacks and none lies in reach: the room's
+     * key drops at its last mob's death and reaches the team a moment later, so it waits for it (at most
+     * {@link #KEY_DROP_WAIT_MS}) instead of starting another room (sim F7, 2026-11-18: Gold, Buttons and Overgrown were
+     * planned 0.3-0.6 s before their key came, then the door).
+     */
+    static boolean awaitKeyAfterClear(DungeonLayout layout, Map<Integer, Integer> dist) {
+        if (clearEndedMs == 0 || System.currentTimeMillis() - clearEndedMs > KEY_DROP_WAIT_MS
+                || !AutoSecretConfig.getInstance().isBloodFirst() || bloodOpened) {
+            clearEndedMs = 0;
+            return false;
+        }
+        lastDist = dist;
+        bloodFirstWantsKey = false;
+        int blood = layout.bloodDoor();
+        if (blood >= 0 && !layout.isLocked(blood) || bloodFirstDoor(layout, blood, blood >= 0) != null || !bloodFirstWantsKey) {
+            clearEndedMs = 0;
+            return false;
+        }
+        if (clearEndedMs != keyWaitLogged) {
+            keyWaitLogged = clearEndedMs;
+            LOGGER.info("[Autopilot] Blood First: waiting up to {} ms for the cleared room's key", KEY_DROP_WAIT_MS);
+        }
+        return true;
+    }
+
+    private static long keyWaitLogged;
+
+    private static final long KEY_DROP_WAIT_MS = 1500;
+    private static long clearEndedMs;
+    private static boolean bloodFirstWantsKey;
+
     private static Order bloodFirstDoor(DungeonLayout layout, int blood, boolean bloodLocked) {
         int here = layout.currentRoom();
         if (here < 0) {
@@ -331,6 +363,7 @@ final class Autopilot {
         }
         boolean key = isBlood ? DungeonKeys.bloodKey() != 0
                 : WitherDoorOpener.haveKey(Minecraft.getInstance().player);
+        bloodFirstWantsKey = !key;
         if (!key) {
             // A key of that kind on the ground it can reach is the next step (killer560, 2026-10-06: "add in key logic").
             DungeonKeys.Dropped lying = reachableKey(layout, isBlood);
@@ -562,6 +595,7 @@ final class Autopilot {
             LOGGER.info("[Autopilot] (that trip failed - not learned from)");
         } else if (current.kind() == AutopilotPlanner.Kind.CLEAR) {
             clearSeconds = clearSeconds * (1 - LEARN) + work * LEARN;
+            clearEndedMs = System.currentTimeMillis();
         } else if (current.kind() == AutopilotPlanner.Kind.SECRET && currentNodes > 0) {
             routeSecondsPerNode = routeSecondsPerNode * (1 - LEARN) + (work / currentNodes) * LEARN;
         }
@@ -657,8 +691,10 @@ final class Autopilot {
                 out.add(new AutopilotPlanner.Candidate(AutopilotPlanner.Kind.CLEAR, key, AutopilotScore.roomValue(s),
                         travel + clearSeconds, mate, rushIndex));
             }
-            if (cfg.isDoPuzzles() && r.isType("PUZZLE") && !puzzlesDone.contains(r.name()) && !puzzleFinished(r)
-                    && autoFor(r.name())) {
+            // Blood First leaves every puzzle until the blood door is open (killer560, 2026-11-18: "if it is on blood rush
+            // first that should ignore quiz until after blood rush same with things like ice fill"); crossing one is a path.
+            if (cfg.isDoPuzzles() && !(cfg.isBloodFirst() && !bloodOpened) && r.isType("PUZZLE")
+                    && !puzzlesDone.contains(r.name()) && !puzzleFinished(r) && autoFor(r.name())) {
                 out.add(new AutopilotPlanner.Candidate(AutopilotPlanner.Kind.PUZZLE, key, AutopilotScore.puzzleValue(s),
                         travel + puzzleSeconds(r.name()), mate, -1));
             }
