@@ -37,10 +37,27 @@ public final class SimHelp {
         }
     }
 
-    public record Page(String title, List<Line> lines, boolean settingsButton) { }
+    /** A picture under a page's text: its file in textures/gui/simhelp/ and its pixel size (laid out before it loads). */
+    public record Pic(String file, int w, int h) { }
+
+    public record Page(String title, List<Line> lines, boolean settingsButton, List<Pic> pics) { }
 
     private SimHelp() {
     }
+
+    // The pages' pictures (simhelp-polish-1118): testkit 1118-sim-help-shots captures, cut and saved as small lossy WebP.
+    private static final Pic FLOOR = new Pic("floor.webp", 640, 360);
+    private static final Pic DESIGNER = new Pic("designer.webp", 932, 590);
+    private static final Pic PREVIOUS = new Pic("previous.webp", 744, 186);
+    private static final Pic SETTINGS = new Pic("settings.webp", 528, 168);
+    private static final Pic CHAT = new Pic("chat.webp", 420, 58);
+    private static final Pic ITEMS = new Pic("items.webp", 440, 224);
+    private static final Pic BOSS_START = new Pic("bossstart.webp", 516, 380);
+    private static final Pic BOSS = new Pic("boss.webp", 640, 360);
+    private static final Pic COOP = new Pic("coop.webp", 932, 248);
+    private static final Pic SIDEBAR = new Pic("sidebar.webp", 340, 170);
+    private static final Pic NOT_YET = new Pic("notyet.webp", 528, 100);
+    private static final Pic KEYS = new Pic("keys.webp", 528, 68);
 
     public static void register() {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, access) ->
@@ -81,7 +98,7 @@ public final class SimHelp {
                 Line.text("You pick a floor or a single room, clear it the way you would on Hypixel, and the mod keeps your time and score."),
                 Line.text("Pick a page on the left, or use Next and Back. Click a command row to run it (or to put it in chat if it needs a room name or a number). Esc closes this guide."),
                 cheat ? Line.text("This is the cheat build, so Auto Routes, Auto Clear and the other automation can be practiced in the sim too.") : Line.text("Everything you practice here carries over to the real dungeon."))
-                , false));
+                , false, List.of(FLOOR)));
         pages.add(new Page("Starting a Floor", List.of(
                 Line.head("The Dungeon Sim menu"),
                 Line.text("Open it with /map, or the Dungeon Sim button on the title screen. Its pages are down the left."),
@@ -91,13 +108,13 @@ public final class SimHelp {
                 Line.text("Route Practice: the rooms that have routes of yours, to practice them again and again."),
                 Line.text("F7 Boss: start the boss at any phase (see the Boss page). Multiplayer: see Co-op."),
                 Line.head("Moving between rooms"),
-                Line.text("The pause menu (Esc) has a Change Room button. /next and /back step through rooms, and /reset rebuilds the room you are in. /goto takes you to a room on the floor by name.")), false));
+                Line.text("The pause menu (Esc) has a Change Room button. /next and /back step through rooms, and /reset rebuilds the room you are in. /goto takes you to a room on the floor by name.")), false, List.of(DESIGNER, PREVIOUS)));
         pages.add(new Page("Settings", List.of(
                 Line.text("Sim Settings, in the mod menu, holds what you set before a floor."),
                 Line.text("Spawn Starred Mobs: starred mobs, Fels, wither doors and keys on the floor. Real Mob Looks (with it): mobs dressed as recorded on Hypixel."),
                 Line.text("Watcher Blood Camp: the Watcher runs the blood camp in the Blood room. Off, five seconds in Blood opens the portal."),
                 Line.text("Sim Armor: wear Terror or Thermodynamic. Dungeon Breaker charges, invites and the Next / Previous Room keys are there too."),
-                Line.text("Your hotbar is kept with /simloadout; /wardrobe and /stats show your armor sets and numbers.")), true));
+                Line.text("Your hotbar is kept with /simloadout; /wardrobe and /stats show your armor sets and numbers.")), true, List.of(SETTINGS)));
         pages.add(new Page("Commands", List.of(
                 Line.head("Rooms and movement"),
                 Line.cmd("/map", "Open the Dungeon Sim menu.", true, "map"),
@@ -128,33 +145,33 @@ public final class SimHelp {
                 Line.cmd("/siminvite <join|decline|block> <id>", "Answer a co-op invite.", false, "siminvite"),
                 Line.cmd("/pc <text>", "Party chat; the other chat commands are answered here too.", false,
                         SimPartyChat.SIM_CHAT_ROOTS.toArray(new String[0])),
-                Line.cmd("/help", "This guide.", true, "help")), false));
+                Line.cmd("/help", "This guide.", true, "help")), false, List.of(CHAT)));
         pages.add(new Page("Items", List.of(
                 Line.text("/simitem opens a grid: click an item to take one, Give me everything for all of them."),
                 Line.text("Aspect of the Void, Hyperion, Spirit Sceptre, Terminator, Machine Gun Shortbow, Architect's First Draft, Superboom TNT, Ender Pearl, Tactical Insertion, Dungeon Breaker, Bonzo's Staff, Jerry-chine Gun and Spring Boots."),
                 Line.text("They carry Hypixel's own item ids, so your routes and item nodes recorded on Hypixel match them."),
-                Line.text("The class is Mage with the left-click beam. Mobs have one health, so the beam kills what it hits.")), false));
+                Line.text("The class is Mage with the left-click beam. Mobs have one health, so the beam kills what it hits.")), false, List.of(ITEMS)));
         pages.add(new Page("Boss", List.of(
                 Line.text("Clear Blood and a portal opens in the Blood room; step in to start the F7 boss. Or start it straight from the menu's F7 Boss entry or /simboss."),
                 Line.text("You can start at P1 Maxor, P2 Storm, P3 sections 1 to 4, the core, P4 Necron or P5 dragons, as Floor 7 or Master Mode."),
                 Line.text("Spawn Withers off gives a quiet arena for setting up routes and waypoints. /tpto takes you to boss spots during a fight."),
-                Line.cmd("/simboss p1", "Start the boss at P1.", true, "simboss")), false));
+                Line.cmd("/simboss p1", "Start the boss at P1.", true, "simboss")), false, List.of(BOSS_START, BOSS)));
         pages.add(new Page("Co-op", List.of(
                 Line.text("The menu's Multiplayer entry plays the boss sim with friends. Create sets a room name, password, up to 5 players and the phase to start at."),
                 Line.text("Join lists open rooms. Friends on another Minecraft version are told which version to open."),
                 Line.text("Receive Sim Invites in Sim Settings turns invites on; /siminvite answers one."),
-                Line.text("The game itself is a direct connection to the host. Only the room's name and address go through the mod's relay.")), true));
+                Line.text("The game itself is a direct connection to the host. Only the room's name and address go through the mod's relay.")), true, List.of(COOP)));
         pages.add(new Page("Keys and Records", List.of(
                 Line.text("Next Room and Previous Room have their own keys in Sim Settings, the same as /next and /back."),
                 Line.text("Your run time and score show on the sidebar and in chat as you clear; /simscore says them again."),
                 Line.text("Finished runs are saved on the menu's Previous Runs page."),
-                Line.text("Your settings and records are the mod's, so they follow your profile and the same PC's other instances.")), false));
+                Line.text("Your settings and records are the mod's, so they follow your profile and the same PC's other instances.")), false, List.of(KEYS, SIDEBAR)));
         pages.add(new Page("Not Simulated Yet", List.of(
                 Line.text("Mage is the only class, with the left-click beam: no sheep, no ultimate, no class abilities."),
                 Line.text("Trap rooms are not working yet."),
                 Line.text("Machine Gun Shortbow's Rapid Fire (left click) is not modeled."),
                 Line.text("Necron's platform break is not modeled, and the older wiki text about it does not apply."),
-                Line.text("A friend on another Minecraft version cannot join your co-op room yet.")), false));
+                Line.text("A friend on another Minecraft version cannot join your co-op room yet.")), false, List.of(NOT_YET)));
         return pages;
     }
 }

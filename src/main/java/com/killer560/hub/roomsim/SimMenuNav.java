@@ -152,25 +152,33 @@ public final class SimMenuNav {
 
     /** Back alone (a co-op guest's column). */
     void addBack(Consumer<AbstractWidget> add, Screen parent) {
-        Minecraft mc = Minecraft.getInstance();
-        add.accept(new Item("Back", false, sideX + 4, backY(), sideW - 8, ITEM_H, () -> McCompat.setScreen(mc, parent)));
+        addBack(add, "Back", () -> McCompat.setScreen(Minecraft.getInstance(), parent));
     }
 
-    private int backY() { return sideY + sideH - 6 - ITEM_H; }
+    /** The column's bottom entry, under its separator: Back here, Close in the sim help. */
+    void addBack(Consumer<AbstractWidget> add, String label, Runnable press) {
+        add.accept(new Item(label, false, sideX + 4, backY(), sideW - 8, ITEM_H, press));
+    }
+
+    /** Top of the column's bottom entry; the help's Back / Next row shares it. */
+    int backY() { return sideY + sideH - 6 - ITEM_H; }
 
     private int multiplayerY() { return backY() - 12 - ITEM_H; }
 
     /** The panel, its header bar with the menu's name, and the column's raised box. Widgets draw over it. */
-    void drawFrame(GuiGraphicsExtractor g, int screenW, int screenH) {
+    void drawFrame(GuiGraphicsExtractor g, int screenW, int screenH) { drawFrame(g, screenW, screenH, "DUNGEON SIM", true); }
+
+    /** The same frame with another title; {@code builders} false leaves out the Multiplayer separator (the sim help). */
+    void drawFrame(GuiGraphicsExtractor g, int screenW, int screenH, String title, boolean builders) {
         ScreenChrome.backdrop(g, screenW, screenH);
         ScreenChrome.frame(g, panelX, panelY, panelW, panelH);
         ScreenChrome.headerBar(g, panelX, panelY, panelW);
-        ScreenChrome.title(g, "DUNGEON SIM", panelX + 10, panelY + 11, false);
+        ScreenChrome.title(g, title, panelX + 10, panelY + 11, false);
         GuiRects r = GuiRects.begin(g);
         MenuStyle.dropShadow(r, sideX, sideY, sideW, sideH, 2);
         MenuStyle.bevel(r, sideX, sideY, sideW, sideH, MenuStyle.SIDE_TOP, MenuStyle.SIDE_BOTTOM);
         MenuStyle.separator(r, sideX + 6, sideX + sideW - 6, backY() - 6);
-        MenuStyle.separator(r, sideX + 6, sideX + sideW - 6, multiplayerY() - 6);
+        if (builders) MenuStyle.separator(r, sideX + 6, sideX + sideW - 6, multiplayerY() - 6);
         r.submit();
     }
 

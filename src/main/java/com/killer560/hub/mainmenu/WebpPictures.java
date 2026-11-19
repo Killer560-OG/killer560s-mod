@@ -161,7 +161,7 @@ public final class WebpPictures {
     public static boolean fullForTest(String name) { return FULL.contains(id(name)) && REGISTERED.contains(id(name)); }
 
     /** Decodes WebP bytes into a fresh RGBA NativeImage (caller owns it). */
-    static NativeImage decode(byte[] bytes) throws IOException {
+    public static NativeImage decode(byte[] bytes) throws IOException {
         BufferedImage img;
         ImageReader reader = new com.twelvemonkeys.imageio.plugins.webp.WebPImageReaderSpi().createReaderInstance(null);
         try (ImageInputStream in = new com.twelvemonkeys.imageio.stream.ByteArrayImageInputStream(bytes)) {

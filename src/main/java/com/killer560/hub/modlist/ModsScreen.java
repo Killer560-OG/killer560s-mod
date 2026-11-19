@@ -2,35 +2,28 @@ package com.killer560.hub.modlist;
 
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.gui.CommitEditBox;
+import com.killer560.hub.gui.GuiImages;
 import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.gui.ThemedEditBox;
 import com.killer560.hub.util.ExternalOpen;
-import com.killer560.hub.util.ModLog;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
 import net.minecraft.util.FormattedCharSequence;
-import net.minecraft.util.Util;
-import org.slf4j.Logger;
 
 import java.io.ByteArrayInputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Set;
 
 /**
@@ -46,7 +39,6 @@ import java.util.Set;
  */
 public final class ModsScreen extends Screen implements MenuThemedScreen {
 
-    private static final Logger LOGGER = ModLog.get("killer560smod-modlist");
     private static final int PANEL_MAX_W = 620;
     private static final int PANEL_MAX_H = 360;
     private static final int PAD = 8;
@@ -64,15 +56,9 @@ public final class ModsScreen extends Screen implements MenuThemedScreen {
                        FormattedCharSequence fold) {
     }
 
-    private record Icon(Identifier id, int w, int h) {
-    }
-
-    /** Stands for "this mod has no usable icon" in {@link #icons}. */
-    private static final Icon NONE = new Icon(null, 0, 0);
-
     private final Screen parent;
     private final Set<String> expanded = new HashSet<>();
-    private final Map<String, Icon> icons = new HashMap<>();
+    private final GuiImages icons = new GuiImages("modlist/", false);
     private final List<Row> rows = new ArrayList<>();
     private List<FormattedCharSequence> descLines = List.of();
     private int panelX;
@@ -88,8 +74,6 @@ public final class ModsScreen extends Screen implements MenuThemedScreen {
     private int scroll;
     private int descScroll;
     private int visibleDescLines;
-    private int generation;
-    private boolean open;
     private String query = "";
     private ModList.Entry selected;
     private CommitEditBox search;
@@ -109,8 +93,6 @@ public final class ModsScreen extends Screen implements MenuThemedScreen {
 
     @Override
     protected void init() {
-        open = true;
-        generation++;
         panelW = Math.min(PANEL_MAX_W, this.width - 8);
         panelH = Math.min(PANEL_MAX_H, this.height - 8);
         panelX = (this.width - panelW) / 2;
@@ -245,64 +227,19 @@ public final class ModsScreen extends Screen implements MenuThemedScreen {
 
     // ---------------------------------------------------------------- icons
 
-    /** The icon of {@code e} once loaded; asks for it on the first call. */
-    private Icon icon(ModList.Entry e) {
-        Icon icon = icons.get(e.id);
-        if (icon != null) {
-            return icon;
-        }
-        icons.put(e.id, NONE); // until the read lands
+    /** The icon of {@code e} once loaded, else null; asks for it on the first call. */
+    private GuiImages.Image icon(ModList.Entry e) {
         String path = e.iconPath();
-        if (path == null) {
-            return NONE;
-        }
-        int gen = generation;
-        Util.ioPool().execute(() -> {
-            NativeImage image = null;
-            try {
-                Path p = e.container.findPath(path).orElse(null);
-                if (p != null && Files.size(p) <= MAX_ICON_BYTES) {
-                    image = NativeImage.read(new ByteArrayInputStream(Files.readAllBytes(p)));
-                }
-            } catch (Exception ex) {
-                LOGGER.warn("[ModList] icon of {} unreadable: {}", e.id, ex.toString());
-            }
-            NativeImage img = image;
-            if (img != null) {
-                Minecraft.getInstance().execute(() -> upload(e.id, img, gen));
-            }
+        return path == null ? null : icons.get(e.id, () -> {
+            Path p = e.container.findPath(path).orElse(null);
+            return p != null && Files.size(p) <= MAX_ICON_BYTES ? NativeImage.read(new ByteArrayInputStream(Files.readAllBytes(p))) : null;
         });
-        return NONE;
-    }
-
-    private void upload(String modId, NativeImage image, int gen) {
-        if (!open || gen != generation) {
-            image.close();
-            return;
-        }
-        Identifier id = Identifier.fromNamespaceAndPath("killer560smod",
-                "modlist/" + modId.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9._-]", "_"));
-        int w = image.getWidth();
-        int h = image.getHeight();
-        DynamicTexture texture = new DynamicTexture(() -> "killer560smod mod icon " + modId, image);
-        texture.upload();
-        Minecraft.getInstance().getTextureManager().register(id, texture);
-        icons.put(modId, new Icon(id, w, h));
-    }
-
-    private void releaseIcons() {
-        for (Icon i : icons.values()) {
-            if (i.id() != null) {
-                Minecraft.getInstance().getTextureManager().release(i.id());
-            }
-        }
-        icons.clear();
     }
 
     private void drawIcon(GuiGraphicsExtractor g, ModList.Entry e, int x, int y, int size) {
-        Icon i = icon(e);
-        if (i.id() != null) {
-            g.blit(RenderPipelines.GUI_TEXTURED, i.id(), x, y, 0f, 0f, size, size, i.w(), i.h(), i.w(), i.h());
+        GuiImages.Image i = icon(e);
+        if (i != null) {
+            GuiImages.draw(g, i, x, y, size, size);
             return;
         }
         g.fill(x, y, x + size, y + size, MenuStyle.OR_DARK);
@@ -399,8 +336,7 @@ public final class ModsScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public void removed() {
-        open = false;
-        releaseIcons();
+        icons.close();
         super.removed();
     }
 

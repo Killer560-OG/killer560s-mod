@@ -97,6 +97,12 @@ Problem, then fix; verified only. Part of the GUI lessons: [LESSONS-GUI.md](LESS
   drag without the value feeding back through the moving track (testkit 985; the small test window snaps every HUD Scale
   under 100% to one factor, so 985 measures at 1920x1080). ModScreen's sidebar does not scroll, so the menu factor is capped
   where the layout canvas stays 430 tall (at 280 the sidebar ran out of the panel at HUD Scale 200%, testkit 615).
+- The sim's /help screen looked "off" next to the other sim menus (killer560, 2026-11-18) because it was a hand-built
+  fixed small panel with a flat title bar and plain striped list rows, while the designer, Previous Runs and Multiplayer
+  are full-screen `roomsim/SimMenuNav` frames (title strip, raised left column with an accent-strip selected item, recessed
+  content). A new sim screen is built on SimMenuNav (`drawFrame`, `SimMenuNav.Item`, `addBack` for Close at the bottom
+  left) and only adds its own content; help pictures load through `gui/GuiImages` (WebP decoded on the IO pool, freed in
+  `removed()`), never on the render thread (simhelp-polish-1118, testkit 1117-sim-help).
 
 ## Tooltips
 
