@@ -2,6 +2,8 @@ package com.killer560.hub.partyinvites;
 
 import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.lfg.LfgCommandGate;
+import com.killer560.hub.social.BestFriendsStore;
+import com.killer560.hub.social.FriendsListConfig;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModChat;
@@ -57,7 +59,11 @@ public final class AutoAcceptInvitesFeature {
 
     private static void onChat(Component message) {
         String plain = ChatObserver.strip(message);
-        if (plain == null || plain.indexOf("arty") < 0) {
+        if (plain == null) {
+            return;
+        }
+        GuildMembers.onLine(plain);
+        if (plain.indexOf("arty") < 0) {
             return;
         }
         String trimmed = plain.trim();
@@ -97,7 +103,7 @@ public final class AutoAcceptInvitesFeature {
             RULE.observe(PartyTracker.teammates(), now);
         }
         AutoAcceptInvitesConfig cfg = AutoAcceptInvitesConfig.getInstance();
-        AutoAcceptRule.Decision d = RULE.decide(cfg.isEnabled(), cfg.getMode(), invite, now);
+        AutoAcceptRule.Decision d = RULE.decide(cfg.isEnabled(), cfg.getMode(), invite, now, senderOk(cfg, invite));
         String from = invite.inviter().equalsIgnoreCase(invite.leader())
                 ? invite.inviter() : invite.inviter() + " for " + invite.leader();
         event("invite from " + from + ": " + d);
@@ -132,11 +138,36 @@ public final class AutoAcceptInvitesFeature {
         ModChat.send(CHAT, ModChat.bad("Couldn't accept " + invite.leader() + "'s invite: " + refused));
     }
 
+    /** True when no who-group is ON, else when the inviter or the leader is in an ON group (friend, guild member, best friend). */
+    static boolean senderOk(AutoAcceptInvitesConfig cfg, AutoAcceptRule.Invite invite) {
+        if (!cfg.isFromFriends() && !cfg.isFromGuild() && !cfg.isFromBestFriends()) {
+            return true;
+        }
+        for (String s : invite.senders()) {
+            if (cfg.isFromFriends() && FriendsListConfig.getInstance().byName(s) != null
+                    || cfg.isFromGuild() && GuildMembers.contains(s)
+                    || cfg.isFromBestFriends() && isBestFriend(s)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isBestFriend(String name) {
+        for (BestFriendsStore.Record r : BestFriendsStore.records()) {
+            if (name.equalsIgnoreCase(r.lastKnownName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private static String why(AutoAcceptRule.Decision d) {
         return switch (d) {
             case IN_PARTY -> "you are in a party";
             case NO_RECENT_PARTY -> "no party left in the last 2 minutes";
             case NOT_IN_LAST_PARTY -> "not from your last party";
+            case NOT_IN_GROUP -> "not from a friend, guild member or best friend you allow";
             default -> d.name();
         };
     }
@@ -167,6 +198,7 @@ public final class AutoAcceptInvitesFeature {
     }
 
     public static void resetForTest() {
+        GuildMembers.clearForTest();
         RULE.reset();
         lastAcceptKey = null;
         lastAcceptAt = 0L;

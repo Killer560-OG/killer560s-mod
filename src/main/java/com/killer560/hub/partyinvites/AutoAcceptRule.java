@@ -46,7 +46,9 @@ public final class AutoAcceptRule {
         /** Reinvites Only, and you have not left a party in the last two minutes. */
         NO_RECENT_PARTY,
         /** Reinvites Only, and nobody who invited you was in the party you left. */
-        NOT_IN_LAST_PARTY
+        NOT_IN_LAST_PARTY,
+        /** Who-groups are on, and neither the inviter nor the leader is in one. */
+        NOT_IN_GROUP
     }
 
     private static final String NAME = "([A-Za-z0-9_]{1,16})";
@@ -158,11 +160,19 @@ public final class AutoAcceptRule {
     }
 
     public Decision decide(boolean enabled, Mode mode, Invite invite, long now) {
+        return decide(enabled, mode, invite, now, true);
+    }
+
+    /** {@code senderOk}: false when who-groups are on and no sender of the invite is in one of them. */
+    public Decision decide(boolean enabled, Mode mode, Invite invite, long now, boolean senderOk) {
         if (!enabled || invite == null) {
             return Decision.OFF;
         }
         if (inParty) {
             return Decision.IN_PARTY;
+        }
+        if (!senderOk) {
+            return Decision.NOT_IN_GROUP;
         }
         if (mode == Mode.ALL_INVITES) {
             return Decision.ACCEPT;

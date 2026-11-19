@@ -34,6 +34,13 @@ public class AutoAcceptInvitesTab extends BaseTab {
                     cfg.save();
                     btn.setMessage(modeText(cfg));
                 }).bounds(contentX, y, contentWidth, 20).build());
+        y += 26;
+
+        widgets.add(onOffButton("Only From Friends", cfg::isFromFriends, cfg::setFromFriends, cfg::save, null, contentX, y, contentWidth, 20));
+        y += 26;
+        widgets.add(onOffButton("Only From Guild Members", cfg::isFromGuild, cfg::setFromGuild, cfg::save, null, contentX, y, contentWidth, 20));
+        y += 26;
+        widgets.add(onOffButton("Only From Best Friends", cfg::isFromBestFriends, cfg::setFromBestFriends, cfg::save, null, contentX, y, contentWidth, 20));
         return widgets;
     }
 

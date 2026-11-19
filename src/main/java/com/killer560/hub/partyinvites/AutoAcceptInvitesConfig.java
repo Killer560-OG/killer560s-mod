@@ -21,6 +21,10 @@ public final class AutoAcceptInvitesConfig {
     private static AutoAcceptInvitesConfig instance;
 
     private boolean enabled = false;
+    /** Who an invite is accepted from: when any is ON, only an inviter (or leader) in an ON group; none ON = everyone. */
+    private boolean fromFriends = false;
+    private boolean fromGuild = false;
+    private boolean fromBestFriends = false;
     private AutoAcceptRule.Mode mode = AutoAcceptRule.Mode.ALL_INVITES;
 
     private AutoAcceptInvitesConfig() {
@@ -39,6 +43,9 @@ public final class AutoAcceptInvitesConfig {
             try {
                 JsonObject obj = JsonParser.parseString(Files.readString(CONFIG_PATH, StandardCharsets.UTF_8)).getAsJsonObject();
                 cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
+                cfg.fromFriends = ConfigJson.getBool(obj, "fromFriends", false);
+                cfg.fromGuild = ConfigJson.getBool(obj, "fromGuild", false);
+                cfg.fromBestFriends = ConfigJson.getBool(obj, "fromBestFriends", false);
                 cfg.mode = ConfigJson.getEnum(obj, "mode", AutoAcceptRule.Mode.class, AutoAcceptRule.Mode.ALL_INVITES);
             } catch (Exception ignored) {
                 // a broken file loads the defaults
@@ -52,6 +59,9 @@ public final class AutoAcceptInvitesConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("enabled", enabled);
+            obj.addProperty("fromFriends", fromFriends);
+            obj.addProperty("fromGuild", fromGuild);
+            obj.addProperty("fromBestFriends", fromBestFriends);
             obj.addProperty("mode", mode.name());
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
@@ -78,5 +88,29 @@ public final class AutoAcceptInvitesConfig {
 
     public void setMode(AutoAcceptRule.Mode mode) {
         this.mode = mode == null ? AutoAcceptRule.Mode.ALL_INVITES : mode;
+    }
+
+    public boolean isFromFriends() {
+        return fromFriends;
+    }
+
+    public void setFromFriends(boolean on) {
+        this.fromFriends = on;
+    }
+
+    public boolean isFromGuild() {
+        return fromGuild;
+    }
+
+    public void setFromGuild(boolean on) {
+        this.fromGuild = on;
+    }
+
+    public boolean isFromBestFriends() {
+        return fromBestFriends;
+    }
+
+    public void setFromBestFriends(boolean on) {
+        this.fromBestFriends = on;
     }
 }
