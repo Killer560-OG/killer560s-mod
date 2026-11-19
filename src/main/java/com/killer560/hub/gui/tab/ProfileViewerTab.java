@@ -70,6 +70,7 @@ public class ProfileViewerTab extends BaseTab implements KeyCaptureTab {
         y += 22;
 
         widgets.add(com.killer560.hub.gui.ScreenThemes.button(com.killer560.hub.profileviewer.screen.ProfileViewerScreen.THEME_ID, contentX, y, colW, 18));
+        widgets.add(onOffButton("/pv Command", cfg::isPvCommand, cfg::setPvCommand, cfg::save, null, colBX, y, colW, 18));
         y += 28;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal("Hypixel API Key"), mc.font));

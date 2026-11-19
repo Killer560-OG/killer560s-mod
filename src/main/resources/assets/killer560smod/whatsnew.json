@@ -44,7 +44,8 @@
      "Ability Cooldowns and Metal Detector now read the action bar line they depend on (before, nothing reached them, and Hide Actionbar blocked them too); the dungeon Self Derivation reads it the same way.",
      "Leap Order: the class you click for yourself now stays yours until you leave the party; leaving or a kick resets it and the layout",
      "Command Auto Correct now fixes a warp destination typed with a stray space, such as /warp d h.",
-     "Dungeon sim: terminals now send each slot as its own update, so Auto Terminals clicks are no longer blocked when another mod's terminal solver is also on (Click in Order never getting a click); every sim terminal type is tested against such solvers."
+     "Dungeon sim: terminals now send each slot as its own update, so Auto Terminals clicks are no longer blocked when another mod's terminal solver is also on (Click in Order never getting a click); every sim terminal type is tested against such solvers.",
+     "Profile Viewer: new /pv Command switch (default ON); while OFF the mod leaves /pv alone so the server's or another mod's /pv runs."
     ]
    }
   ]

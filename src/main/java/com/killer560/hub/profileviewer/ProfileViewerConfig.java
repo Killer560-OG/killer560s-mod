@@ -88,6 +88,8 @@ public final class ProfileViewerConfig {
     private boolean rememberLastPage = true;
     private int lastPage = 0;
     private boolean showSkin = true;
+    /** While false the mod leaves /pv to the server (the node's requires fails, so the text is sent on). */
+    private boolean pvCommand = true;
     /** Networth page and Basic Info line show the total without cosmetic value (killer560, 2026-11-04). */
     private Networth.View networthView = Networth.View.ALL;
     /** How the Networth page prices items (killer560, 2026-11-18). */
@@ -122,6 +124,7 @@ public final class ProfileViewerConfig {
                 cfg.rememberLastPage = ConfigJson.getBool(obj, "rememberLastPage", true);
                 cfg.lastPage = ConfigJson.getInt(obj, "lastPage", 0);
                 cfg.showSkin = ConfigJson.getBool(obj, "showSkin", true);
+                cfg.pvCommand = ConfigJson.getBool(obj, "pvCommand", true);
                 cfg.networthView = ConfigJson.getEnum(obj, "networthView", Networth.View.class,
                         ConfigJson.getBool(obj, "nonCosmeticNetworth", false) ? Networth.View.NON_COSMETIC : Networth.View.ALL);
                 cfg.networthPricing = ConfigJson.getEnum(obj, "networthPricing", PriceData.Pricing.class, PriceData.Pricing.ITEM_VALUE);
@@ -154,6 +157,7 @@ public final class ProfileViewerConfig {
         obj.addProperty("rememberLastPage", rememberLastPage);
         obj.addProperty("lastPage", lastPage);
         obj.addProperty("showSkin", showSkin);
+        obj.addProperty("pvCommand", pvCommand);
         obj.addProperty("networthView", networthView.name());
         obj.addProperty("networthPricing", networthPricing.name());
         obj.addProperty("style", style.name());
@@ -217,6 +221,8 @@ public final class ProfileViewerConfig {
     public synchronized void setLastPage(int lastPage) { this.lastPage = lastPage; }
 
     public synchronized boolean isShowSkin() { return showSkin; }
+    public synchronized boolean isPvCommand() { return pvCommand; }
+    public synchronized void setPvCommand(boolean v) { this.pvCommand = v; }
 
     public synchronized void setShowSkin(boolean showSkin) { this.showSkin = showSkin; }
 

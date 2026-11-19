@@ -1296,6 +1296,7 @@ final class SettingTooltipsData {
         d.put("custom scoreboard/border thickness", "Width of the scoreboard outline in pixels (1-5).");
         d.put("open my profile", "Opens the profile viewer on your own Skyblock profile.");
         d.put("source", "Where profile data comes from: your Hypixel API key, SkyBlockPV, or Auto.");
+        d.put("/pv command", "While OFF the mod leaves /pv alone, so the server's or another mod's /pv runs. The keybind and the buttons still open the viewer.");
         d.put("remember last page", "Reopens the profile viewer on the page you last used.");
         d.put("show skin", "Shows the player's 3D skin on the profile viewer's main page.");
         d.put("non-cosmetic networth", "The profile viewer's networth leaves out cosmetic value: pet skins, armor and helmet skins, dyes, runes, and items that are only cosmetic. The Networth page shows both totals either way.");

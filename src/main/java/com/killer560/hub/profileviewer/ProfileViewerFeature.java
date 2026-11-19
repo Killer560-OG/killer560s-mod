@@ -69,6 +69,7 @@ public final class ProfileViewerFeature {
             return builder.buildFuture();
         };
         return ClientCommands.literal(literal)
+                .requires(src -> ProfileViewerConfig.getInstance().isPvCommand())
                 .executes(ctx -> {
                     openDeferred(self());
                     return 1;
