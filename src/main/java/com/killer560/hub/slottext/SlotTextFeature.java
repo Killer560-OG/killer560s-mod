@@ -272,7 +272,7 @@ public final class SlotTextFeature {
             }
         }
         if (stack.is(Items.ENCHANTED_BOOK)) {
-            bookText(tag, name, on, out);
+            bookText(tag, name, title, on, out);
         }
         if (on.test(SlotTextType.MINION_TIER) && stack.is(Items.PLAYER_HEAD)) {
             Matcher m = MINION_NAME.matcher(name);
@@ -314,7 +314,7 @@ public final class SlotTextFeature {
         return out.isEmpty() ? List.of() : List.copyOf(out);
     }
 
-    private static void bookText(CompoundTag tag, String name, Predicate<SlotTextType> on, List<Entry> out) {
+    private static void bookText(CompoundTag tag, String name, String title, Predicate<SlotTextType> on, List<Entry> out) {
         boolean wantLevel = on.test(SlotTextType.ENCHANT_LEVEL);
         boolean wantAbbr = on.test(SlotTextType.ENCHANT_ABBREVIATION);
         if (!wantLevel && !wantAbbr) return;
@@ -329,8 +329,8 @@ public final class SlotTextFeature {
                 out.add(new Entry(SlotTextType.ENCHANT_ABBREVIATION, Pos.TOP_LEFT, abbreviate(key),
                         key.startsWith("ultimate_") ? PURPLE : CREAM));
             }
-        } else if (wantLevel && enchants.isEmpty()) {
-            // Bazaar listings are books with no enchantments tag; the level is the numeral ending the name.
+        } else if (wantLevel && enchants.isEmpty() && !title.endsWith(" Essence Shop")) {
+            // Bazaar listings (an Essence Shop book is a perk, see menuText) are books with no enchantments tag; the level is the numeral ending the name.
             int sp = name.lastIndexOf(' ');
             if (sp > 0 && isRoman(name.substring(sp + 1))) {
                 out.add(new Entry(SlotTextType.ENCHANT_LEVEL, Pos.BOTTOM_LEFT, String.valueOf(roman(name.substring(sp + 1))), CREAM));
@@ -374,10 +374,12 @@ public final class SlotTextFeature {
                 }
             }
         }
-        if (on.test(SlotTextType.PERK_LEVEL) && title.endsWith(" Essence Shop") && stack.getCount() == 1) {
+        if (on.test(SlotTextType.PERK_LEVEL) && title.endsWith(" Essence Shop")) {
             Matcher m = ESSENCE_PERK.matcher(name);
-            if (m.matches()) {
-                out.add(new Entry(SlotTextType.PERK_LEVEL, Pos.BOTTOM_RIGHT, String.valueOf(roman(m.group(1))), CREAM));
+            int level = m.matches() ? roman(m.group(1)) : 0;
+            if (level > 0 && stack.getCount() != level) {
+                // A count other than the level is moved clear of the level by clearOfCount at draw time.
+                out.add(new Entry(SlotTextType.PERK_LEVEL, Pos.BOTTOM_RIGHT, String.valueOf(level), CREAM));
             }
         }
         if (on.test(SlotTextType.STATS_TUNING) && title.startsWith("Stats Tuning")) {
