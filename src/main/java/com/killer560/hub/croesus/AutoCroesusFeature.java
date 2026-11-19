@@ -284,7 +284,9 @@ public final class AutoCroesusFeature {
         graphics.pose().pushMatrix();
         graphics.pose().translate(pos[0], pos[1]);
         graphics.pose().scale(scale, scale);
-        drawButtonBox(graphics, 0, 0, running ? "Running - Esc stops" : "Start Croesus", running);
+        if (!com.killer560.hub.hud.HudEditorScreen.drawingParent) {
+            drawButtonBox(graphics, 0, 0, running ? "Running - Esc stops" : "Start Croesus", running);
+        }
         graphics.pose().popMatrix();
     }
 

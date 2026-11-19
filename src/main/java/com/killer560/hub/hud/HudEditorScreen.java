@@ -287,11 +287,20 @@ public class HudEditorScreen extends Screen implements com.killer560.hub.gui.Men
             if (container.isInGameUi()) {
                 container.extractBackground(graphics, -1, -1, partialTick);
             }
+            drawingParent = true;
             container.extractRenderState(graphics, -1, -1, partialTick);
         } catch (RuntimeException e) {
             // A container that cannot draw while not the open screen just is not shown.
+        } finally {
+            drawingParent = false;
         }
     }
+
+    /** True only while this editor draws its parent container. A live overlay that draws from the container's own pass
+     *  (RNG Meter, Superpairs, start buttons, ContainerOverlayElement) skips its pixels then, since the editor draws
+     *  that element itself (its box, with the live content when it has it): both drew on top of each other. It still
+     *  marks itself seen. Render thread only. */
+    public static boolean drawingParent;
 
     /** Edit HUD's fixed stat bars (ids), for the testkit. */
     public List<String> fixedBarIds() {

@@ -96,7 +96,9 @@ public final class ContainerOverlayElement implements HudElement {
         try {
             graphics.pose().translate(pos[0], pos[1]);
             graphics.pose().scale(scale, scale);
-            content.draw(graphics, 0, 0);
+            if (!HudEditorScreen.drawingParent) {
+                content.draw(graphics, 0, 0);
+            }
         } finally {
             graphics.pose().popMatrix();
         }

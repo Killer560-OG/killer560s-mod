@@ -109,7 +109,8 @@ public final class SuperpairsHud {
         graphics.pose().pushMatrix();
         graphics.pose().translate(pos[0], pos[1]);
         graphics.pose().scale(scale, scale);
-        int[] size = drawPanel(graphics, 0, 0, lines);
+        int[] size = com.killer560.hub.hud.HudEditorScreen.drawingParent ? new int[]{element.width(), element.height()}
+                : drawPanel(graphics, 0, 0, lines);
         graphics.pose().popMatrix();
         com.killer560.hub.containercover.ContainerCover.coverRectOnCurrentScreen("experiments.superpairs",
                 pos[0], pos[1], pos[0] + size[0] * scale, pos[1] + size[1] * scale);

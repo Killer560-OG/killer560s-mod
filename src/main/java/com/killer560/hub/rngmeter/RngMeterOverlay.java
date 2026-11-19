@@ -126,10 +126,10 @@ public final class RngMeterOverlay {
              *  220x100 round a 236x43 preview). The real panel over the RNG Meter menu grows with the menu's rows;
              *  the preview shows the same number of sample rows the real one shows at most. */
             @Override
-            public int width() { return previewSize()[0]; }
+            public int width() { return liveInEditor() ? memoSize[0] : previewSize()[0]; }
 
             @Override
-            public int height() { return previewSize()[1]; }
+            public int height() { return liveInEditor() ? memoSize[1] : previewSize()[1]; }
 
             @Override
             public boolean isEnabledInSettings() {
@@ -141,7 +141,13 @@ public final class RngMeterOverlay {
 
             @Override
             public void render(GuiGraphicsExtractor graphics, int x, int y) {
-                // HUD position editor preview - no real menu is open, so show placeholder sample rows.
+                // HUD position editor: the real menu's panel when it is open behind the editor, else sample rows.
+                if (liveInEditor()) {
+                    drawLines(graphics, x, y, memoLines);
+                    editorDraws++;
+                    return;
+                }
+                editorDraws++;
                 renderRanking(graphics, x, y, "RNG Meter", PREVIEW_ROWS, PREVIEW_SELECTED);
             }
         });
@@ -230,7 +236,12 @@ public final class RngMeterOverlay {
                 memoScroll = scrollOffset;
                 memoAt = now;
             }
-            drawLines(graphics, 0, 0, memoLines);
+            if (com.killer560.hub.hud.HudEditorScreen.drawingParent) {
+                liveAtMs = now; // the editor draws this panel itself: render() below, from these same lines
+            } else {
+                drawLines(graphics, 0, 0, memoLines);
+                liveDraws++;
+            }
             graphics.pose().popMatrix();
             int[] size = memoSize;
             com.killer560.hub.containercover.ContainerCover.coverRect(screen, "rngmeter.ranking",
@@ -721,6 +732,15 @@ public final class RngMeterOverlay {
     private static int memoScroll;
     private static long memoAt;
     private static List<RankLine> memoLines = List.of();
+    /** Panels drawn over the real menu / by the editor's element (testkit reads them: one picture, never both). */
+    public static int liveDraws, editorDraws;
+    /** Last frame the editor's parent RNG menu computed the live panel (0: never). */
+    private static long liveAtMs;
+
+    /** The editor is open over the RNG menu, which has just ranked its rows: show those, not the sample. */
+    private static boolean liveInEditor() {
+        return System.currentTimeMillis() - liveAtMs < 500 && com.killer560.hub.hud.HudVisibility.editorOpen();
+    }
     private static int[] memoSize = {1, 1};
 
     private static void renderRanking(GuiGraphicsExtractor graphics, int x, int y, String title, List<RngMeterEngine.RankedItem> rows, SelectedDropInfo selected) {

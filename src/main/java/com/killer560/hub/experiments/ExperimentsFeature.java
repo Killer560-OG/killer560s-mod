@@ -354,7 +354,9 @@ public final class ExperimentsFeature {
             graphics.pose().pushMatrix();
             graphics.pose().translate(pos[0], pos[1]);
             graphics.pose().scale(scale, scale);
-            drawButtonBox(graphics, 0, 0, "Start ETable");
+            if (!com.killer560.hub.hud.HudEditorScreen.drawingParent) {
+                drawButtonBox(graphics, 0, 0, "Start ETable");
+            }
             graphics.pose().popMatrix();
         }
     }
