@@ -18,7 +18,8 @@
      "Dungeon Autopilot Blood First: after a key room it now goes straight to the door (a just-picked-up key counts at once, and it waits a moment for the room's key to drop instead of starting another room), and no puzzle (Quiz, Ice Fill and the rest) is started until the blood door is open; a puzzle room on the way is only walked through",
      "Profile Viewer, Mining page: the Heart of the Mountain perks are drawn as the real tree, each perk at its slot with its icon and level, and hovering shows the effect at your level.",
      "Auto Terminals no longer loses clicks to Hypixel's terminal click limit (5 clicks in 10 ticks): a Min Delay under 100 ms or Burst Finish right after paced clicks used to send clicks the server dropped, each costing a retry.",
-     "Fast/Auto Leap: the Set Class Targets page no longer shows the Universal-uses-the-Universal-target status line."
+     "Fast/Auto Leap: the Set Class Targets page no longer shows the Universal-uses-the-Universal-target status line.",
+     "Puzzle HUD no longer lists puzzles from your previous dungeon run next to the current run's puzzles."
     ]
    }
   ]

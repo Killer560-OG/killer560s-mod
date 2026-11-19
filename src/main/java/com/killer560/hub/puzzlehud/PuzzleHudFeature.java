@@ -125,7 +125,9 @@ public final class PuzzleHudFeature {
     /** Funny Map has identified the dungeon's puzzle rooms: list each at once, its clock waiting at 0:00 until the tab
      *  list names it (killer560, 2026-11-09). Public so the testkit can feed the names. */
     public static synchronized void seedFromMap(List<String> names, long now) {
-        boolean added = false;
+        // A name the map no longer lists (its grid reset after this poll's world change) and the tab list never named is stale.
+        boolean added = PUZZLES.values().removeIf(p -> p.start == 0L
+                && names.stream().noneMatch(n -> n.trim().equalsIgnoreCase(p.name)));
         for (String name : names) {
             String key = name.trim().toLowerCase(Locale.ROOT);
             if (!PUZZLES.containsKey(key) && PUZZLES.size() < MAX_PUZZLES) {
