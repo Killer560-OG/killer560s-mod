@@ -111,6 +111,14 @@ public final class SimClasses {
         return new Pick(DungeonClass.MAGE, MAX_LEVEL);
     }
 
+    /** The class of a Sim Teammate by name (its name is its class), else null; for a menu that has no tab row for an unplaced one. */
+    public static DungeonClass mateClass(String name) {
+        for (int i = 0; i < SimTeammates.MAX; i++) {
+            if (SimTeammates.nameOf(i).equals(name)) return teammate(i).cls();
+        }
+        return null;
+    }
+
     /** Whether nobody else in the sim party (real players and Sim Teammates) plays this player's class. */
     static boolean onlyOne(MinecraftServer server, ServerPlayer sp) {
         DungeonClass c = of(sp).cls();
@@ -141,6 +149,7 @@ public final class SimClasses {
             return;
         }
         MinecraftServer server = client.getSingleplayerServer();
+        if (classChanged) SimTeammates.reset(); // their names are their classes, so a new pick re-places them
         if (!classChanged || server == null || client.player == null || !SimState.canAct(client)) return;
         UUID id = client.player.getUUID();
         DungeonClass c = self().cls();

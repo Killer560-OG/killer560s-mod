@@ -535,7 +535,10 @@ public final class PartyTracker {
      *  showed. The leap menus, Live Map, Run Stats, Teammates, Ability Cooldown, Run Summary, Core Entry Times and
      *  {@code P5State.selfClass()} all read through here, so one override fixes all of them at once. */
     public static DungeonClass classOf(String name) {
-        return name == null ? null : ClassOverrides.classOf(name, CLASSES.get(name.toLowerCase(Locale.US)));
+        if (name == null) return null;
+        DungeonClass tab = CLASSES.get(name.toLowerCase(Locale.US));
+        if (tab == null && com.killer560.hub.roomsim.SimState.isActive()) tab = com.killer560.hub.roomsim.SimClasses.mateClass(name);
+        return ClassOverrides.classOf(name, tab);
     }
 
     /** What the dungeon tab list / Party Finder said this teammate is, ignoring any manual override (null = nothing yet).

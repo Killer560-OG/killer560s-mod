@@ -88,7 +88,7 @@ cancelled upon dealing damage"; from his 26.3 logs the menu title "Spirit Leap" 
 from fastleap/LeapRotation the teleport's look (the target's, absolute; relative 0/0 within about 1 s of another teleport).
 "Teleport to Player" is the ghost menu, not the InfiniLeap's. Trap rooms refuse leaps (the wiki says so).
 
-**Sim Teammates** (Sim Settings, 0-4, default none; `SimTeammates`): standing FakePlayers named Teammate1..4, placed round
+**Sim Teammates** (Sim Settings, 0-4, default none; `SimTeammates`): standing FakePlayers named by their class (Healer, Tank, Archer, Berserk, Mage: the four he does not play; picking another Sim Class re-places them under the new names, simleapnames-1118), placed round
 him on the next server tick at a run's countdown and when a sim opens, listed in the tab's party after the real players
 (`SimCoop.partyNames`), and skipped by every real-player loop (`SimMiniboss.isPlaced`). They never move, take no damage and
 are leap targets only.
@@ -101,7 +101,7 @@ teleport, not at the use. Refine from a real leap menu if a log ever records one
 killer560s-mod-logs/simleapspots-1117/SPEC.md): `bosssim/BossLeapSpots` maps (phase, P3 section, F7/M7, target class,
 leaper class) to a spot, null = a wrong leap. `SimLeap` uses it while `BossFight` is in P1-P5 for every head that is not
 a real player, and for real players too unless Co-op Leaps is Player Leaps (`SimMenuPrefs.playerLeaps`, the HOST's
-setting decides, the leap runs on his server). Alone the menu is always Teammate1-4 (`SimClasses.teammate(i)`, the
+setting decides, the leap runs on his server). Alone the menu is always the four classes he does not play, named by class (`SimClasses.teammate(i)`, the
 class on the head's lore), placed or not; an unplaced one is only a head. A wrong leap closes the menu, says
 "[Sim] You leaped wrong: Name (Class) has no spot in Stage. Try again!" and takes no leap and no cooldown. The landing is
 exact (no clear-spot search) with the spot's absolute look, unless another teleport came within a second (Hypixel's

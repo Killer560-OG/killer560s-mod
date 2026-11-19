@@ -41,6 +41,9 @@ public final class SimTeammates {
     /** The teammates' names in place order, for the tab (any thread). */
     public static List<String> names() { return names; }
 
+    /** Sim Teammate {@code index}'s name: its class as Hypixel writes it (Healer, Tank, Archer...), never repeated, since the four play different classes. */
+    static String nameOf(int index) { return SimClasses.name(SimClasses.teammate(index).cls()); }
+
     static boolean isDummy(Entity e) { return e instanceof Dummy; }
 
     /** A new map or a left session: the next server tick removes them (and places them again round him if wanted). */
@@ -82,7 +85,7 @@ public final class SimTeammates {
     }
 
     private static boolean place(MinecraftServer server, ServerLevel level, ServerPlayer host, int index) {
-        String name = "Teammate" + (index + 1);
+        String name = nameOf(index);
         Dummy d;
         try {
             d = new Dummy(level, new GameProfile(UUID.randomUUID(), name));

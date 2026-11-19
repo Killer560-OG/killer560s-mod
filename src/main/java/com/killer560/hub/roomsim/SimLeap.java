@@ -118,7 +118,7 @@ public final class SimLeap {
     /**
      * Every other living teammate: the real players in join order, then the Sim Teammates. In a single-player boss fight
      * (simleapspots-1117: "have the default player locations for names have the classes they are not playing") always the
-     * four classes he does not play, Teammate1-4 in Sim Teammates' order, placed or not.
+     * four classes he does not play, named by class, in Sim Teammates' order, placed or not.
      */
     private static List<Target> targets(ServerPlayer self) {
         List<Target> out = new ArrayList<>(4);
@@ -129,7 +129,7 @@ public final class SimLeap {
         List<ServerPlayer> mates = SimTeammates.placed();
         if (real.size() == 1 && BossLeapSpots.active()) {
             for (int i = 0; i < SimTeammates.MAX; i++) {
-                String name = "Teammate" + (i + 1);
+                String name = SimTeammates.nameOf(i);
                 ServerPlayer placed = mates.stream().filter(m -> m.getGameProfile().name().equals(name)).findFirst().orElse(null);
                 out.add(placed != null ? of(placed, false) : new Target(null, name, SimClasses.teammate(i).cls(),
                         new GameProfile(UUID.nameUUIDFromBytes(("sim-teammate:" + name).getBytes(java.nio.charset.StandardCharsets.UTF_8)), name), false));
