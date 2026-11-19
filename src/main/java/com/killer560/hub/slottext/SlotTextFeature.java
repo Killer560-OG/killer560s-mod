@@ -58,6 +58,8 @@ public final class SlotTextFeature {
     private static final Pattern BESTIARY_TITLE = Pattern.compile("^(?:\\(\\d+/\\d+\\) )?(?:Bestiary|Fishing) ➜ .+");
     private static final Pattern TUNING_STAT = Pattern.compile("Stat has: (\\d{1,5}) points?");
     private static final Pattern TUNING_FREE = Pattern.compile("Unassigned Points: (\\d{1,5})!*");
+    /** A perk in an Essence Shop menu: the name ends in its level as a numeral (I to XX); a stack count above 1 already shows it. */
+    private static final Pattern ESSENCE_PERK = Pattern.compile("^.+ (XX?|X?(?:IX|IV|VI{0,3}|I{1,3}))$");
     private static final Pattern PERK_LEVEL = Pattern.compile("^Level (\\d{1,4})(?:/\\d{1,4})?$");
 
     private static final Map<ItemStack, Cached> CACHE = new WeakHashMap<>();
@@ -370,6 +372,12 @@ public final class SlotTextFeature {
                     out.add(new Entry(SlotTextType.PERK_LEVEL, Pos.BOTTOM_RIGHT, m.group(1), CREAM));
                     break;
                 }
+            }
+        }
+        if (on.test(SlotTextType.PERK_LEVEL) && title.endsWith(" Essence Shop") && stack.getCount() == 1) {
+            Matcher m = ESSENCE_PERK.matcher(name);
+            if (m.matches()) {
+                out.add(new Entry(SlotTextType.PERK_LEVEL, Pos.BOTTOM_RIGHT, String.valueOf(roman(m.group(1))), CREAM));
             }
         }
         if (on.test(SlotTextType.STATS_TUNING) && title.startsWith("Stats Tuning")) {

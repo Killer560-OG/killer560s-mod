@@ -7,7 +7,8 @@
     "title": "More",
     "blurb": "Changes in this update.",
     "items": [
-     "Low Health Alert: new Alert For Yourself switch (on by default) also warns when your own health drops under 30% (50% for getting low), once until it recovers."
+     "Low Health Alert: new Alert For Yourself switch (on by default) also warns when your own health drops under 30% (50% for getting low), once until it recovers.",
+     "Slot Text: perks in the Essence Shops (such as Forbidden Blessing X) now show their level as the small slot number, unless the stack count already shows it."
     ]
    }
   ]

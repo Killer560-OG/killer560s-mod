@@ -13,7 +13,7 @@ public enum SlotTextType {
     SKILL_LEVEL("Skill Level", "Each skill's level in the Your Skills menu, bottom left. Gold when maxed.", true),
     COLLECTION_LEVEL("Collection Level", "Each collection's tier in the collection menus, bottom right. Gold when every tier is done.", true),
     BESTIARY_LEVEL("Bestiary Level", "Each mob's Bestiary level in the Bestiary and Fishing menus, bottom right. Gold at 100% progress.", true),
-    PERK_LEVEL("Heart Perk Level", "A perk's level in the Heart of the Mountain and Heart of the Forest menus, bottom right.", true),
+    PERK_LEVEL("Heart Perk Level", "A perk's level in the Heart of the Mountain and Heart of the Forest menus and each perk's level in the Essence Shops (a stack count already shows it), bottom right.", true),
     STATS_TUNING("Stats Tuning Points", "Points assigned to each stat in the Stats Tuning menu, and the unassigned points on its button, bottom right.", true);
 
     public final String label;
