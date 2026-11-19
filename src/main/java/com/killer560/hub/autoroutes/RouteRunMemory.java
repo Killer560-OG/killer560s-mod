@@ -118,7 +118,10 @@ public final class RouteRunMemory {
             // remembered here, so a route that reaches this room later counts it instead of waiting for it.
             Got g = new Got(key, pos, AwaitEvents.now(), what);
             got.put(key, g);
-            LiveMapFeature.noteSecretTakenAt(pos.x, pos.z);
+            // A lever is no secret to Hypixel (its action bar stayed 5/6 after one, 2026-11-18): it never raises the map's count.
+            if (what == null || !what.startsWith("lever")) {
+                LiveMapFeature.noteSecretTakenAt(pos.x, pos.z);
+            }
             LOGGER.info("[RouteMemory] remembered secret {} [{}] at {} in room {} tick {} ({} this run; route running={},"
                             + " Auto Clear running={})", what, key,
                     String.format(Locale.ROOT, "%.1f,%.1f,%.1f", pos.x, pos.y, pos.z), g.room() == null ? "?" : g.room(),
@@ -147,7 +150,7 @@ public final class RouteRunMemory {
             return false;
         }
         claimed.remove(key);
-        if (g.pos() != null) {
+        if (g.pos() != null && (g.what() == null || !g.what().startsWith("lever"))) {
             LiveMapFeature.noteSecretUndoneAt(g.pos().x, g.pos().z);
         }
         if (g.what() != null && g.what().startsWith("chest")) {

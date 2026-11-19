@@ -19,7 +19,6 @@ import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.secrets.DungeonRun;
 import com.killer560.hub.secretwaypoints.SecretWaypointsConfig;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.core.BlockPos;
@@ -251,16 +250,6 @@ public final class LiveMapFeature {
     public static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("LiveMapFeature", client -> tick()));
         InteractiveMapFeature.register();
-        ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
-            if (overlay) {
-                // A raw GAME listener runs on the packet path: a throw here disconnects him from Hypixel.
-                try {
-                    onActionBar(com.killer560.hub.util.ChatObserver.raw(message));
-                } catch (RuntimeException e) {
-                    LOGGER.warn("[MapScan] action bar parse failed", e);
-                }
-            }
-        });
     }
 
     /** A published sim floor's room-slot bounding box {@code {minCol, minRow, maxCol, maxRow}}, or null. */
@@ -992,7 +981,7 @@ public final class LiveMapFeature {
 
     /** The reference {@code ActionBarParser}: the action bar's "x/y Secrets" is the current room's count;
      *  only trusted when y matches the room's database secret total. */
-    private static void onActionBar(String text) {
+    public static void onActionBar(String text) {
         if (text == null || !DungeonState.isInDungeon() || isInBoss() || !text.contains("Secrets")) {
             return;
         }

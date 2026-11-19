@@ -290,6 +290,12 @@ public final class PlayerStatsFeature {
         noteManaShort(message.getString());
         // The area on the action bar (mining-1103): the mining features' area check reads it with the HUD off too.
         com.killer560.hub.pathfinding.IslandDetector.noteActionBar(message.getString());
+        // The dungeon map's per-room secret count is the server's own "x/y Secrets" (its GAME listener never saw the packet path).
+        try {
+            com.killer560.hub.livemap.LiveMapFeature.onActionBar(message.getString());
+        } catch (RuntimeException e) {
+            // Packet path: never throws.
+        }
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             com.killer560.hub.i4sensors.TerrorAim.noteActionBar(message.getString());
         }
