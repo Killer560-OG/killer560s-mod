@@ -119,6 +119,7 @@ final class SettingTooltipsData {
         d.put("low health alert", "Shows a title and plays a sound when a teammate's health turns red on the dungeon sidebar.");
         d.put("low health alert/only while healer", "Alerts only while you are playing Healer.");
         d.put("low health alert/alert at yellow health", "Also alerts one tier earlier, when a teammate's health turns yellow (\"getting low\", higher sound), not only red.");
+        d.put("low health alert/alert for yourself", "Also alerts when your own health (read from the action bar) drops under 30%, or 50% for \"getting low\", once until it recovers. Works whatever your class.");
         d.put("low health alert/alert sound", "Plays a sound with the low health title.");
         part1(d);
         part2(d);

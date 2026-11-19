@@ -320,6 +320,10 @@ public final class PlayerStatsFeature {
             manaSeen = num(m.group(1));
             manaSeenMax = num(m.group(2));
         }
+        Matcher h = HEALTH_REGEX.matcher(raw);
+        if (h.find()) {
+            com.killer560.hub.dungeonalerts.LowHealthAlert.onSelfHealth(num(h.group(1)), num(h.group(2)));
+        }
     }
 
     /** The last mana figure on the action bar, read with the HUD off too (0 while it says NOT ENOUGH MANA); -1 unseen. */

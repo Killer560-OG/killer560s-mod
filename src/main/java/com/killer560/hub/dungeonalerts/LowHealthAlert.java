@@ -32,6 +32,7 @@ public final class LowHealthAlert {
     private static volatile boolean dirty = true;
     private static int sinceRead = 0;
     private static int alertsFired = 0;
+    private static int alertSounds = 0;
     private static String lastAlertTitle = null;
 
     private LowHealthAlert() {
@@ -43,7 +44,12 @@ public final class LowHealthAlert {
                 || !com.killer560.hub.util.SkyblockGate.allows()) {
             wasTier.clear();
             dirty = true;
+            clearSelf();
             return;
+        }
+        if (selfDirty) {
+            selfDirty = false;
+            tickSelf(client, cfg);
         }
         if (!dirty && ++sinceRead < 20) {
             return;
@@ -79,16 +85,56 @@ public final class LowHealthAlert {
         wasTier.keySet().retainAll(seen);
     }
 
+    /** Fractions of max health under which your own health is "low" (red tier) and "getting low" (yellow tier). */
+    static final double SELF_LOW = 0.3, SELF_GETTING_LOW = 0.5;
+    /** Your own health from the action bar (set by {@link #onSelfHealth}, read on the client tick). */
+    private static volatile long selfCur = -1, selfMax = -1;
+    private static volatile boolean selfDirty;
+    private static int selfTier;
+
+    /** The action bar printed "cur/max" health (PlayerStatsFeature.noteManaShort, read with the HUD off too). */
+    public static void onSelfHealth(long cur, long max) {
+        selfCur = cur;
+        selfMax = max;
+        selfDirty = true;
+    }
+
+    /** A reading from before a world change (or a disabled state) is dropped, so a join never fires from a stale or zero figure. */
+    static void clearSelf() {
+        selfCur = -1;
+        selfMax = -1;
+        selfDirty = false;
+        selfTier = 0;
+    }
+
+    private static void tickSelf(Minecraft client, DungeonAlertsConfig cfg) {
+        long cur = selfCur, max = selfMax;
+        if (!cfg.isLowHealthSelf() || cur <= 0 || max <= 0 || client.player.isDeadOrDying()
+                || com.killer560.hub.compat.McCompat.screen(client) instanceof net.minecraft.client.gui.screens.DeathScreen) {
+            selfTier = 0;
+            return;
+        }
+        double f = (double) cur / max;
+        int tier = f < SELF_LOW ? 2 : cfg.isLowHealthYellow() && f < SELF_GETTING_LOW ? 1 : 0;
+        int was = selfTier;
+        selfTier = tier;
+        if (tier > was) {
+            alert(null, String.valueOf(cur), tier);
+        }
+    }
+
     private static void alert(String name, String health, int tier) {
         DungeonAlertsConfig cfg = DungeonAlertsConfig.getInstance();
-        String title = tier == 2 ? "§c" + name + " §ais low" : "§e" + name + " §ais getting low";
+        String who = name == null ? "You" : name;
+        String title = (tier == 2 ? "§c" : "§e") + who + (name == null ? " §aare " : " §ais ") + (tier == 2 ? "low" : "getting low");
         lastAlertTitle = title;
         alertsFired++;
         DungeonAlertsFeature.showTitle(Component.literal(title), Component.literal((tier == 2 ? "§c" : "§e") + health + "❤"), 0, 25, 5);
         if (cfg.isLowHealthSound()) {
+            alertSounds++;
             DungeonAlertsFeature.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f, tier == 2 ? 0.6f : 1.2f);
         }
-        DungeonAlertsFeature.LOGGER.info("[LowHealth] {} is {} ({})", name, tier == 2 ? "low" : "getting low", health);
+        DungeonAlertsFeature.LOGGER.info("[LowHealth] {} {} {} ({})", who, name == null ? "are" : "is", tier == 2 ? "low" : "getting low", health);
     }
 
     /** Your class: the tab list, else a pick on your own IGN ({@link PartyTracker#selfClass}, leaporder-1102). */
@@ -104,6 +150,12 @@ public final class LowHealthAlert {
     static void onWorldChange() {
         dirty = true;
         wasTier.clear();
+        clearSelf();
+    }
+
+    /** For the testkit: alert sounds played since the client started. */
+    public static int alertSounds() {
+        return alertSounds;
     }
 
     /** For the testkit: alerts shown since the client started. */

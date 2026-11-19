@@ -1,5 +1,18 @@
 [
  {
+  "date": "2026-11-19",
+  "summary": "Low Health Alert: new Alert For Yourself switch (on by defau",
+  "sections": [
+   {
+    "title": "More",
+    "blurb": "Changes in this update.",
+    "items": [
+     "Low Health Alert: new Alert For Yourself switch (on by default) also warns when your own health drops under 30% (50% for getting low), once until it recovers."
+    ]
+   }
+  ]
+ },
+ {
   "date": "2026-11-18",
   "summary": "Pickaxe ability HUD: \"Active\" is now green and the time left",
   "sections": [

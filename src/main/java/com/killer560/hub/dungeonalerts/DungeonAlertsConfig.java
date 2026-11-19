@@ -93,6 +93,7 @@ public final class DungeonAlertsConfig {
     private boolean lowHealthOnlyHealer = true;
     private boolean lowHealthSound = true;
     private boolean lowHealthYellow = true;
+    private boolean lowHealthSelf = true;
     // Secret Clicked and the sound mutes (2026-10-25), all OFF; the locked-chest sound defaults ON.
     private boolean secretClickedEnabled = false;
     private boolean secretClickedLockedSound = true;
@@ -160,6 +161,7 @@ public final class DungeonAlertsConfig {
                 cfg.lowHealthOnlyHealer = bool(o, "lowHealthOnlyHealer", cfg.lowHealthOnlyHealer);
                 cfg.lowHealthSound = bool(o, "lowHealthSound", cfg.lowHealthSound);
                 cfg.lowHealthYellow = bool(o, "lowHealthYellow", cfg.lowHealthYellow);
+                cfg.lowHealthSelf = bool(o, "lowHealthSelf", cfg.lowHealthSelf);
                 cfg.secretClickedEnabled = bool(o, "secretClickedEnabled", cfg.secretClickedEnabled);
                 cfg.secretClickedLockedSound = bool(o, "secretClickedLockedSound", cfg.secretClickedLockedSound);
                 cfg.secretClickedTakenBox = bool(o, "secretClickedTakenBox", cfg.secretClickedTakenBox);
@@ -212,6 +214,7 @@ public final class DungeonAlertsConfig {
             o.addProperty("lowHealthOnlyHealer", lowHealthOnlyHealer);
             o.addProperty("lowHealthSound", lowHealthSound);
             o.addProperty("lowHealthYellow", lowHealthYellow);
+            o.addProperty("lowHealthSelf", lowHealthSelf);
             o.addProperty("secretClickedEnabled", secretClickedEnabled);
             o.addProperty("secretClickedLockedSound", secretClickedLockedSound);
             o.addProperty("secretClickedTakenBox", secretClickedTakenBox);
@@ -245,6 +248,14 @@ public final class DungeonAlertsConfig {
 
     public void setLowHealthOnlyHealer(boolean v) {
         lowHealthOnlyHealer = v;
+    }
+
+    public boolean isLowHealthSelf() {
+        return lowHealthSelf;
+    }
+
+    public void setLowHealthSelf(boolean v) {
+        lowHealthSelf = v;
     }
 
     public boolean isLowHealthYellow() {
