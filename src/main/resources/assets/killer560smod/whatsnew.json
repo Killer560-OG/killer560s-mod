@@ -31,7 +31,8 @@
      "Dungeon sim: Sim Teammates are now named after their class (Healer, Tank, Archer, Berserk, Mage) instead of Teammate1-4, so leap menus, leap lines and the tab show the class, and each leap tile is drawn in its class color. session entry: 500-boss-session:,1116-sim-infileap,1116-sim-classes,1117-sim-leapspots",
      "Auto Superboom now also swaps to your Superboom when the block you click is not a target but a Superboom placed there would blow one up (within 3 blocks of the face you hit); new Also When In Blast Range switch, on by default.",
      "Dungeon Sim Help (/help) now looks like the other sim menus: the page list in the raised left column, Close at the bottom left, Back and Next at the bottom right with the page number centered, and pictures of the screens and places each page talks about.",
-     "Slot Text: Forbidden Intel in the Essence Shops no longer shows its level twice."
+     "Slot Text: Forbidden Intel in the Essence Shops no longer shows its level twice.",
+     "Party Commands: Officer chat is now a channel like Guild (off by default); it answers the same ! commands and replies with /oc."
     ]
    }
   ]

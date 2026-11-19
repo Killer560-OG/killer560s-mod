@@ -44,6 +44,7 @@ public final class PartyCommandsConfig {
     public enum Channel {
         PARTY("Party", "pc", true),
         GUILD("Guild", "gc", false),
+        OFFICER("Officer", "oc", false),
         ALL("All Chat", "ac", false),
         MOD_CHAT("Mod Chat", "kc", true),
         PRIVATE("Private", "msg", true),

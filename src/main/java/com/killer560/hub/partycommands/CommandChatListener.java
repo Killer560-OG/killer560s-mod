@@ -26,6 +26,7 @@ final class CommandChatListener {
 
     static final Pattern PARTY_REGEX = Pattern.compile("^Party > " + RANK + NAME + "(?: [ቾ⚒])?: ?(.+)$");
     static final Pattern GUILD_REGEX = Pattern.compile("^Guild > " + RANK + NAME + "(?: \\[[^]]{1,20}])?: ?(.+)$");
+    static final Pattern OFFICER_REGEX = Pattern.compile("^Officer > " + RANK + NAME + "(?: \\[[^]]{1,20}])?: ?(.+)$");
     static final Pattern PRIVATE_REGEX = Pattern.compile("^From " + RANK + NAME + ": ?(.+)$");
     static final Pattern COOP_REGEX = Pattern.compile("^Co-op > " + RANK + NAME + "(?: [ቾ⚒])?: ?(.+)$");
     /**
@@ -62,7 +63,7 @@ final class CommandChatListener {
             }
             PartyCommandsFeature.onServerLine(raw);
             if (raw.indexOf('!') < 0) {
-                return;   // a command line has a "!" in it; skip the five channel patterns for every other line
+                return;   // a command line has a "!" in it; skip the six channel patterns for every other line
             }
             Matcher m;
             Channel channel;
@@ -70,6 +71,8 @@ final class CommandChatListener {
                 channel = Channel.PARTY;
             } else if ((m = GUILD_REGEX.matcher(raw)).matches()) {
                 channel = Channel.GUILD;
+            } else if ((m = OFFICER_REGEX.matcher(raw)).matches()) {
+                channel = Channel.OFFICER;
             } else if ((m = PRIVATE_REGEX.matcher(raw)).matches()) {
                 channel = Channel.PRIVATE;
             } else if ((m = COOP_REGEX.matcher(raw)).matches()) {
