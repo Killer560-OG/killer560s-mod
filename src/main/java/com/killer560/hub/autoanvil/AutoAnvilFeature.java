@@ -1,6 +1,7 @@
 package com.killer560.hub.autoanvil;
 
 import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.croesus.AutoCroesusFeature;
 import com.killer560.hub.itemprotect.ItemProtect;
 import com.killer560.hub.util.ActionGate;
 import com.killer560.hub.util.FeatureGuard;
@@ -8,8 +9,11 @@ import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.ModLog;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLevelEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
@@ -83,6 +87,11 @@ public final class AutoAnvilFeature {
     }
 
     private static int containerId = -1;
+    /** Set by the Start button: the run begins as soon as the open anvil's layout is ready. */
+    private static boolean armed;
+    private static com.killer560.hub.hud.ContainerOverlayElement startElement;
+    private static java.lang.ref.WeakReference<AbstractContainerScreen<?>> titleChecked = new java.lang.ref.WeakReference<>(null);
+    private static boolean titleCheckedIsAnvil;
     /** The anvil this mod already finished or stopped in; nothing more happens there until another one opens. */
     private static int finishedContainerId = -1;
     private static Phase phase = Phase.PICK;
@@ -115,6 +124,71 @@ public final class AutoAnvilFeature {
         com.killer560.hub.macrostop.MacroStop.register("Auto Anvil", com.killer560.hub.macrostop.MacroStop.Kind.CLICK, AutoAnvilFeature::isRunning,
                 why -> stop("you pressed " + why));
         ClientLevelEvents.AFTER_CLIENT_LEVEL_CHANGE.register((client, level) -> reset());
+        // The Start button: the same box, size, default spot and Edit HUD element as Start Croesus / Start ETable.
+        startElement = com.killer560.hub.hud.ContainerOverlayElement.register("autoanvil_start_button", "Start Auto Anvil Button",
+                AutoCroesusFeature.sharedStartButtonWidth(), AutoCroesusFeature.sharedStartButtonHeight(),
+                0, 0, // the real default spot is set at every draw; the window does not exist yet here
+                () -> AutoAnvilConfig.getInstance().isEnabledRaw()
+                        && AutoAnvilConfig.getInstance().getStartMode() == AutoAnvilConfig.StartMode.START_BUTTON,
+                (g, x, y) -> AutoCroesusFeature.drawButtonBox(g, x, y, "Start Auto Anvil", false));
+        ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
+            if (screen instanceof AbstractContainerScreen<?> cs) {
+                com.killer560.hub.gui.BelowTooltip.register(screen, (s, g, mx, my, pt) -> renderStartButton(cs, g));
+                ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> !clickStartButton(cs, event.x(), event.y()));
+            }
+        });
+    }
+
+    /** Whether the Start / Stop button is on this screen: Start Button mode, feature on, and it is the anvil. */
+    private static boolean showsStartButton(AbstractContainerScreen<?> screen) {
+        AutoAnvilConfig cfg = AutoAnvilConfig.getInstance();
+        if (cfg.getStartMode() != AutoAnvilConfig.StartMode.START_BUTTON || !cfg.isEnabled()
+                || McCompat.screen(Minecraft.getInstance()) != screen) {
+            return false;
+        }
+        if (titleChecked.get() != screen) { // a screen's title never changes; this is asked every frame
+            titleCheckedIsAnvil = isAnvil(screen);
+            titleChecked = new java.lang.ref.WeakReference<>(screen);
+        }
+        return titleCheckedIsAnvil;
+    }
+
+    private static void renderStartButton(AbstractContainerScreen<?> screen, GuiGraphicsExtractor g) {
+        if (showsStartButton(screen)) {
+            boolean busy = armed || containerId != -1;
+            startElement.draw(g, AutoCroesusFeature.sharedStartButtonPosition()[0], AutoCroesusFeature.sharedStartButtonPosition()[1],
+                    AutoCroesusFeature.sharedStartButtonWidth(), AutoCroesusFeature.sharedStartButtonHeight(),
+                    (gg, x, y) -> AutoCroesusFeature.drawButtonBox(gg, x, y, busy ? "Stop Auto Anvil" : "Start Auto Anvil", busy));
+        }
+    }
+
+    /** Whether a click at (mx, my) hit the button (it is then used up: starts the run, or stops a running one). */
+    private static boolean clickStartButton(AbstractContainerScreen<?> screen, double mx, double my) {
+        if (!showsStartButton(screen) || !startElement.hits(mx, my)) {
+            return false;
+        }
+        pressStart();
+        return true;
+    }
+
+    /** The button's action, also for tests: Start arms a run in the open anvil, Stop ends the one going (or the armed one). */
+    public static void pressStart() {
+        if (containerId != -1) {
+            stop("you pressed Stop Auto Anvil");
+        } else {
+            armed = !armed;
+        }
+    }
+
+    /** For tests: the button's box {x, y, w, h} in screen pixels as last drawn. */
+    public static int[] startButtonBounds() {
+        float s = startElement.drawnScale();
+        return new int[]{startElement.drawnX(), startElement.drawnY(), Math.round(startElement.width() * s), Math.round(startElement.height() * s)};
+    }
+
+    /** For tests: whether a press has armed a run that has not begun yet. */
+    public static boolean isArmed() {
+        return armed;
     }
 
     /** For the GUI and tests: whether a session is running in an open anvil. */
@@ -135,6 +209,7 @@ public final class AutoAnvilFeature {
         // Off and idle (the usual state): skip the title read and string strip below, which would otherwise run on
         // every tick any container is open. A stale finished id is still cleared by the check underneath.
         if (containerId == -1 && finishedContainerId == -1 && !AutoAnvilConfig.getInstance().isEnabled()) {
+            armed = false;
             return;
         }
         AbstractContainerScreen<?> screen = McCompat.screen(client) instanceof AbstractContainerScreen<?> s ? s : null;
@@ -152,13 +227,17 @@ public final class AutoAnvilFeature {
             if (!anvil || !AutoAnvilConfig.getInstance().isEnabled() || client.player == null) {
                 if (!anvil) {
                     finishedContainerId = -1;
+                    armed = false;
                 }
                 return;
             }
             int id = screen.getMenu().containerId;
-            if (id == finishedContainerId || !layoutReady(screen.getMenu())) {
+            // A press runs again even on a menu that already finished; Auto Start runs once per open menu.
+            if (!armed && (AutoAnvilConfig.getInstance().getStartMode() != AutoAnvilConfig.StartMode.AUTO_START
+                    || id == finishedContainerId) || !layoutReady(screen.getMenu())) {
                 return;
             }
+            armed = false;
             begin(id);
         }
         run(client, screen);
@@ -543,6 +622,7 @@ public final class AutoAnvilFeature {
         LOGGER.info("[AutoAnvil] finished in container {}: {} combined", id, combined);
         containerId = -1;
         finishedContainerId = id;
+        armed = false;
     }
 
     private static void stop(String reason) {
@@ -557,6 +637,7 @@ public final class AutoAnvilFeature {
     }
 
     private static void reset() {
+        armed = false;
         containerId = -1;
         finishedContainerId = -1;
     }

@@ -143,6 +143,12 @@ public final class ContainerOverlayElement implements HudElement {
         return drawnScale;
     }
 
+    /** Whether a click at (mx, my) lands on the box as last drawn (needs a {@link #draw} this screen). */
+    public boolean hits(double mx, double my) {
+        return drawn && mx >= drawnX && mx < drawnX + Math.round(width * drawnScale)
+                && my >= drawnY && my < drawnY + Math.round(height * drawnScale);
+    }
+
     /** Sets how big the preview is until the live content has drawn. */
     public ContainerOverlayElement previewSize(java.util.function.Supplier<int[]> size) {
         this.previewSize = size;

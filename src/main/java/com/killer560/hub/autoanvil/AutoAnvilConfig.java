@@ -26,6 +26,19 @@ public final class AutoAnvilConfig {
     /** Close the anvil once nothing is left to combine, if anything was combined. */
     private boolean closeWhenDone = false;
 
+    /** How a run begins in an open anvil (killer560, 2026-11-18): a Start button over the menu, or by itself. */
+    public enum StartMode {
+        START_BUTTON("Start Button"), AUTO_START("Auto Start");
+
+        public final String label;
+
+        StartMode(String label) {
+            this.label = label;
+        }
+    }
+
+    private StartMode startMode = StartMode.START_BUTTON;
+
     private AutoAnvilConfig() {
     }
 
@@ -45,6 +58,8 @@ public final class AutoAnvilConfig {
             cfg.setMaxDelayMs(ConfigJson.getInt(obj, "maxDelayMs", cfg.maxDelayMs));
             cfg.cascade = ConfigJson.getBool(obj, "cascade", cfg.cascade);
             cfg.closeWhenDone = ConfigJson.getBool(obj, "closeWhenDone", cfg.closeWhenDone);
+            // A file from before the setting existed started by itself on menu open: keep that for it.
+            cfg.startMode = ConfigJson.getBool(obj, "autoStart", true) ? StartMode.AUTO_START : StartMode.START_BUTTON;
         }
         instance = cfg;
     }
@@ -56,6 +71,7 @@ public final class AutoAnvilConfig {
         obj.addProperty("maxDelayMs", maxDelayMs);
         obj.addProperty("cascade", cascade);
         obj.addProperty("closeWhenDone", closeWhenDone);
+        obj.addProperty("autoStart", startMode == StartMode.AUTO_START);
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
@@ -95,6 +111,14 @@ public final class AutoAnvilConfig {
 
     public void setCascade(boolean cascade) {
         this.cascade = cascade;
+    }
+
+    public StartMode getStartMode() {
+        return startMode;
+    }
+
+    public void setStartMode(StartMode startMode) {
+        this.startMode = startMode;
     }
 
     public boolean isCloseWhenDone() {

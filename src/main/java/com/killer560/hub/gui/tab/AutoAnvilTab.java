@@ -1,7 +1,9 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.autoanvil.AutoAnvilConfig;
+import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -36,6 +38,12 @@ public class AutoAnvilTab extends BaseTab {
         if (!cfg.isEnabledRaw()) {
             return w;
         }
+        w.add(SettingsButtonWidget.cycling(Component.literal("Start Mode: " + cfg.getStartMode().label), (btn, dir) -> {
+            cfg.setStartMode(SettingsButtonWidget.step(cfg.getStartMode(), dir));
+            cfg.save();
+            btn.setMessage(Component.literal("Start Mode: " + cfg.getStartMode().label));
+        }).bounds(contentX, y[0], BTN_W, 20).build());
+        y[0] += 24;
         toggle(w, contentX, y, "Combine Results Again", cfg::isCascade, cfg::setCascade, null);
         toggle(w, contentX, y, "Close When Done", cfg::isCloseWhenDone, cfg::setCloseWhenDone, null);
         slider(w, contentX, y[0], half, () -> "Min Delay: " + cfg.getMinDelayMs() + " ms",

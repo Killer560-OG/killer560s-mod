@@ -3166,6 +3166,7 @@ final class SettingTooltipsData {
         // generic labels other tabs use too.
         d.put("auto anvil", "In Hypixel's Anvil, combines two identical single-enchant books into the next level, where the anvil can make it (cheat build only).");
         d.put("auto anvil/combine results again", "Books Auto Anvil just made are paired again, so four III books end as one V.");
+        d.put("auto anvil/start mode", "Start Button shows a Start Auto Anvil button over the anvil menu (click it to start or stop); Auto Start begins by itself when the anvil opens.");
         d.put("auto anvil/close when done", "Closes the anvil once nothing is left to combine, if anything was combined.");
         d.put("auto anvil/min delay", "Shortest random wait after the server answers one Auto Anvil click, 50-1000 ms.");
         d.put("auto anvil/max delay", "Longest random wait after the server answers one Auto Anvil click, 50-1000 ms.");

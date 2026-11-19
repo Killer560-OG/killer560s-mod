@@ -352,7 +352,7 @@ public final class AutoCroesusFeature {
         });
     }
 
-    private static void drawButtonBox(GuiGraphicsExtractor graphics, int x, int y, String label, boolean running) {
+    public static void drawButtonBox(GuiGraphicsExtractor graphics, int x, int y, String label, boolean running) {
         com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.START_BUTTONS);
         graphics.fill(x, y, x + START_BUTTON_WIDTH, y + START_BUTTON_HEIGHT, menu == null ? START_BUTTON_BG : menu.control());
         graphics.outline(x, y, START_BUTTON_WIDTH, START_BUTTON_HEIGHT,
