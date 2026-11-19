@@ -5,6 +5,7 @@ import com.killer560.hub.util.ModLog;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -158,6 +159,17 @@ public final class BossTerminals {
             }
             setCarried(ItemStack.EMPTY);
             broadcastFullState();
+            sendSlots();
+        }
+
+        /** Hypixel describes a terminal one slot packet at a time, never with a whole-window contents packet, and other
+         *  mods' terminal solvers read only those (Odin's solves from AbstractContainerMenu.setItem, which a contents
+         *  packet never calls, and then cancels every click outside its empty solution: a friend's Auto Terminals never
+         *  clicked in the sim, friendterms2-1119). So after the contents packet every window slot follows as its own. */
+        void sendSlots() {
+            for (int i = 0; i < items.getContainerSize(); i++) {
+                owner.connection.send(new ClientboundContainerSetSlotPacket(containerId, getStateId(), i, items.getItem(i).copy()));
+            }
         }
 
         @Override
@@ -327,6 +339,9 @@ public final class BossTerminals {
         final Term term = t;
         player.openMenu(new SimpleMenuProvider((id, inv, p) -> new Menu(id, inv, term, container, player),
                 Component.literal(t.title)));
+        if (player.containerMenu instanceof Menu m && m.term == term) {
+            m.sendSlots();
+        }
         opened++;
         LOGGER.info("[BossSim] terminal {} {} opened: {} ({})", "S" + station.section(), station.label(), type, t.title);
     }

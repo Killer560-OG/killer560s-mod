@@ -213,6 +213,22 @@ The puzzle autos at run time (camera, timing, leaving, each puzzle). Part of the
   `TerminalSolverFeature.clickBudget` keeps the last 5 click times (550 ms window: 10 ticks plus one of jitter): paced, Stream
   Safe, Hover, Hold and Queue clicks wait for room and Burst Finish waits until its burst (up to 5) fits; Burst Mode and a
   Burst Size over 5 are the owner's and stay unpaced. Testkit 1119-boss-term-click-limit (`500-boss-session:,` prefix).
+- **Sim terminals must send slot packets, as Hypixel does (friendterms2-1119).** Auto Terminals clicks through
+  `screen.slotClicked`, so every other mod's slotClicked hook runs first. Odin's Terminal Solver (odtheking/Odin
+  `AbstractContainerScreenMixin` HEAD of slotClicked, `TerminalSolver` GuiEvent.SlotClick) cancels EVERY click while a terminal
+  is open and re-sends only the one its own solution allows; that solution is built only in `AbstractContainerMenu.setItem`
+  (a slot packet), which a whole-window contents packet never calls (`initializeContents` uses `Slot.set`, javap 26.3).
+  Hypixel opens an empty window and sends each slot as its own packet, so it works there; the sim sent contents packets only
+  (`openMenu`, `broadcastFullState`), Odin's solution stayed empty and a friend's sim Numbers never got one click through.
+  `BossTerminals.Menu.sendSlots` now sends every window slot as a slot packet after the open and after each click. A sim screen
+  that another mod must read as Hypixel's describes its slots the same way. Testkit 1119-boss-term-friend-numbers.
+  Why ONLY Click in Order failed for him (orderonly-1119, reproduced with test-side stand-ins of both filters, testkit
+  `ForeignTermFilter`): Odin's filter would have blocked every type but Melody (Melody's redraw is the one sim path that
+  sent slot packets), so his Odin Terminal Solver was off ("New terminal: NUMBERS" is Odin's TerminalUtils, which logs with
+  the solver off). NoFrills' Terminal Solvers has a switch per type, all off by default; with only In Order on, it cancels
+  every click on a "Click in order!" board while its slot-packet-built solution is missing, and leaves the other types
+  alone. On the pre-fix sim that gave exactly his report (Numbers 0 clicks through, the rest solved); with `sendSlots`
+  every type solves under both filters. Testkit 1119-boss-term-odin-filter, -nofrills-order, -nofrills-all.
 - **Auto Ice Fill on Hypixel (icefillbugs-1118, his 2026-11-18 run, table killer560s-mod-logs/icefillbugs-1118.md).** Hypixel
   judges where he stands ONCE PER SERVER TICK: two hops handled in one of its ticks are one two-tile move ("Don't move
   diagonally! Bad!", pos ids 11 and 12 in one tick). With Delay 1 / Adaptive off the old auto hopped every tick whatever he
