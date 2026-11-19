@@ -3,6 +3,7 @@ package com.killer560.hub.accounts.core;
 import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Locale;
@@ -27,7 +28,7 @@ public final class LauncherAccounts {
                 gameDir());
     }
 
-    static PrismAccount.Source detect(String override, String javaCommand, Path gameDir) {
+    public static PrismAccount.Source detect(String override, String javaCommand, Path gameDir) {
         if (override != null && !override.isBlank()) {
             return override.trim().toLowerCase(Locale.ROOT).startsWith("modrinth")
                     ? PrismAccount.Source.MODRINTH : PrismAccount.Source.PRISM;
@@ -43,6 +44,22 @@ public final class LauncherAccounts {
         return current() == PrismAccount.Source.MODRINTH
                 ? ModrinthAccountStore.load(ModrinthAccountStore.appDb(gameDir()))
                 : PrismAccountStore.load();
+    }
+
+    /**
+     * The folder holding the files every instance of this launcher shares ({@code ban-status.json},
+     * {@code universal-proxy.json}): {@code <Prism data dir>/prismaccountswitcher}, exactly as before. Only a Modrinth
+     * game on a PC with no Prism data folder keeps them beside its own app.db (<app>/prismaccountswitcher), so no
+     * PrismLauncher folder is invented.
+     */
+    public static Path sharedDir() {
+        return sharedDir(PrismAccountStore.prismRootDir(), current(), ModrinthAccountStore.appDb(gameDir()));
+    }
+
+    public static Path sharedDir(Path prismRoot, PrismAccount.Source launcher, Path appDb) {
+        Path root = launcher == PrismAccount.Source.MODRINTH && !Files.isDirectory(prismRoot) && appDb != null
+                && appDb.getParent() != null ? appDb.getParent() : prismRoot;
+        return root.resolve("prismaccountswitcher");
     }
 
     private static Path gameDir() {

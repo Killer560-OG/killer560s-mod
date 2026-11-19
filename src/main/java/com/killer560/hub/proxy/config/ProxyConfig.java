@@ -41,8 +41,7 @@ public final class ProxyConfig {
     private static Path universalPath() {
         String override = System.getProperty("prismaccountswitcher.universalProxyFile");
         if (override != null && !override.isBlank()) return java.nio.file.Paths.get(override);
-        return com.killer560.hub.accounts.core.PrismAccountStore.prismRootDir()
-                .resolve("prismaccountswitcher").resolve("universal-proxy.json");
+        return com.killer560.hub.accounts.core.LauncherAccounts.sharedDir().resolve("universal-proxy.json");
     }
     private static ProxyConfig universal;
     private static long universalMtime = Long.MIN_VALUE;

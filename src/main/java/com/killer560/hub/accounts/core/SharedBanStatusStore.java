@@ -22,7 +22,7 @@ public final class SharedBanStatusStore {
     }
 
     private static Path storeFile() {
-        return PrismAccountStore.prismRootDir().resolve("prismaccountswitcher").resolve("ban-status.json");
+        return LauncherAccounts.sharedDir().resolve("ban-status.json");
     }
 
     public static synchronized Map<String, StoredBanStatus> load() {
