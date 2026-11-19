@@ -379,7 +379,8 @@ public final class MainMenuTitleLayout {
                 }
             }
             // Mod Menu, when installed, owns the Mods button (killer560, 2026-11-05); ours only stands in without it.
-            if (!net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("modmenu")) {
+            if (!net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("modmenu")
+                    && com.killer560.hub.modlist.ModListConfig.getInstance().isEnabled()) {
                 if (modsList == null) {
                     modsList = new ModsButton(cx - COLUMN_WIDTH / 2, oldRowY, COLUMN_WIDTH, ROW_HEIGHT,
                             Component.literal("Mods"), btn -> McCompat.setScreen(Minecraft.getInstance(),
@@ -554,7 +555,7 @@ public final class MainMenuTitleLayout {
             Button sim = vanillaButton("Dungeon Sim", btn -> McCompat.setScreen(mc, com.killer560.hub.roomsim.SimMenuScreen.open(parent)));
             Button settings = vanillaButton("Mod Settings", btn -> McCompat.setScreen(mc, new com.killer560.hub.gui.ModScreen(parent)));
             Button news = vanillaButton("What's New", btn -> McCompat.setScreen(mc, new com.killer560.hub.whatsnew.WhatsNewScreen(parent)));
-            Button mods = modMenu ? null : vanillaButton("Mods", btn -> McCompat.setScreen(mc, new com.killer560.hub.modlist.ModsScreen(parent)));
+            Button mods = modMenu || !com.killer560.hub.modlist.ModListConfig.getInstance().isEnabled() ? null : vanillaButton("Mods", btn -> McCompat.setScreen(mc, new com.killer560.hub.modlist.ModsScreen(parent)));
             Button swap = vanillaButton(swapLabel(mc.font), btn -> McCompat.setScreen(mc,
                     new com.killer560.hub.accounts.gui.AccountSwitcherScreen(parent)));
             if (swap.getMessage().getString().equals("Swap Accounts")) {

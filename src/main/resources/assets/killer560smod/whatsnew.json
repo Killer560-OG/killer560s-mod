@@ -38,7 +38,8 @@
      "Terminal Timers: new Time Lost To Melody (Split Timers rows, its own HUD, a chat line per phase and an overall one, all default off): the time a Goldor section waited when its last terminal was a Melody, counted only when Melody is last, never carried over, 0 when unknown.",
      "Auto Terminals: new No First Click Delay In Melody switch (cheat build, off by default) clicks the first Melody row without waiting First Click Delay; other terminals keep the delay.",
      "Wither pick Goldor triggerbot work from the witherpick branch.",
-     "Auto Secret: while the Quiz countdown runs and no secret room fits it now clears an uncleared mob room meanwhile instead of going back and standing at the Quiz"
+     "Auto Secret: while the Quiz countdown runs and no secret room fits it now clears an uncleared mob room meanwhile instead of going back and standing at the Quiz",
+     "Mods Screen has an ON/OFF switch (default ON); while OFF the mod adds no Mods button to the main menu or pause menu"
     ]
    }
   ]
