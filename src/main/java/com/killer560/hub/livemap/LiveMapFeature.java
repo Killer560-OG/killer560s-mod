@@ -1386,11 +1386,16 @@ public final class LiveMapFeature {
             return -1;
         }
         int cell = gx + gz * GRID;
-        if (gx % 2 == 0 && gz % 2 == 0) {
-            return cell;
-        }
+        boolean tile = gx % 2 == 0 && gz % 2 == 0;
         int gid = groupIdAt(cell);
         if (gid < 0) {
+            // A drawn cell of a predicted room (tile or strip) with no scan under it acts as its scanned tile nearest
+            // to it, the way a strip of a scanned room does.
+            gid = predictedGroupId(gx, gz);
+            if (gid < 0) {
+                return cell;
+            }
+        } else if (tile) {
             return cell;
         }
         RoomGroup group = groupsView().get(gid);
@@ -1408,6 +1413,50 @@ public final class LiveMapFeature {
             }
         }
         return best;
+    }
+
+    /** The group of the scanned room a predicted room (Predictive Rooms, drawn on the map with no scan under it) belongs
+     *  to, for a drawn cell of that prediction (a tile, or the strip between its tiles); -1 when the cell is not part of
+     *  one or none of its tiles is scanned. The draw and the click read the same {@code certainTiles}. */
+    private static int predictedGroupId(int gx, int gz) {
+        if (!com.killer560.hub.livemap.predict.PredictiveRoomsConfig.getInstance().isEnabled()
+                || !PredictedRoomsPainter.shown()) {
+            return -1;
+        }
+        for (com.killer560.hub.livemap.predict.RoomPredictor.Prediction p
+                : com.killer560.hub.livemap.predict.RoomPredictor.predictionsView()) {
+            if (!certainCovers(p.certainTiles(), gx, gz)) {
+                continue;
+            }
+            for (int t : p.certainTiles()) {
+                int gid = groupIdAt(t);
+                if (gid >= 0) {
+                    return gid;
+                }
+            }
+        }
+        return -1;
+    }
+
+    private static boolean contains(int[] tiles, int t) {
+        for (int v : tiles) {
+            if (v == t) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** Whether the tile, or the strip cell, is drawn from these tiles: a strip needs the tile on each side of it. */
+    private static boolean certainCovers(int[] tiles, int gx, int gz) {
+        for (int x = gx - gx % 2; x <= gx + gx % 2; x += 2) {
+            for (int z = gz - gz % 2; z <= gz + gz % 2; z += 2) {
+                if (x < 0 || z < 0 || !contains(tiles, x + z * GRID)) {
+                    return false;
+                }
+            }
+        }
+        return true;
     }
 
     /** @return the room group id owning this cell, or -1. */

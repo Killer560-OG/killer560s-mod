@@ -1307,6 +1307,11 @@ public final class RoomPredictor {
         return new ArrayList<>(PREDICTIONS.values());
     }
 
+    /** The live predictions, not a copy: for the per-frame hover/click hit-test. Read on the client thread only. */
+    public static java.util.Collection<Prediction> predictionsView() {
+        return PREDICTIONS.values();
+    }
+
     public static int predictionsVersion() {
         return predictionsVersion;
     }
