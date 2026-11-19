@@ -33,7 +33,7 @@ public final class CommandFixer {
     /** Destinations after "/warp". */
     private static final Set<String> WARP_DESTINATIONS = Set.of(
             "hub", "park", "spider", "end", "gold", "deep", "dwarves", "basecamp", "crystals", "barn", "dungeon_hub",
-            "dhub", "isle", "jerry", "bayou", "moonglade", "lotus", "safari", "torrhus", "base", "desert", "castle",
+            "dhub", "dh", "isle", "jerry", "bayou", "moonglade", "lotus", "safari", "torrhus", "base", "desert", "castle",
             "crypt", "da", "museum", "wizard", "trapper", "forge", "nest", "void", "drag", "howl");
 
     private CommandFixer() {
@@ -132,12 +132,21 @@ public final class CommandFixer {
         return r.equals("VALID") ? lower : r.startsWith("FIXED:") ? r.substring(6) : null;
     }
 
-    /** {@code rest} is " dest" for exactly one word; anything else (extra words, no fix) stays as typed. */
+    /** {@code rest} is " dest"; several words are tried joined ("d h" -> "dh", "dungeon hub" -> "dungeon_hub"), and
+     *  anything that does not resolve stays as typed. */
     private static String fixWarpArgument(String rest) {
-        if (rest.length() < 2 || rest.charAt(0) != ' ' || rest.indexOf(' ', 1) >= 0) {
+        if (rest.length() < 2 || rest.charAt(0) != ' ') {
             return rest;
         }
-        String fix = resolve(rest.substring(1), WARP_DESTINATIONS);
+        String arg = rest.substring(1);
+        String[] words = arg.split(" ", -1);
+        if (words.length > 3 || arg.endsWith(" ") || arg.contains("  ")) {
+            return rest;
+        }
+        String fix = resolve(arg.replace(' ', '_'), WARP_DESTINATIONS);
+        if (fix == null && words.length > 1) {
+            fix = resolve(String.join("", words), WARP_DESTINATIONS);
+        }
         return fix == null ? rest : " " + fix;
     }
 
