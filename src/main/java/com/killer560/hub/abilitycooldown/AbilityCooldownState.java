@@ -195,7 +195,7 @@ public final class AbilityCooldownState {
     }
 
     /** Fed the raw (color-coded) action bar text. */
-    static void onActionBar(String raw) {
+    public static void onActionBar(String raw) {
         AbilityCooldownConfig cfg = AbilityCooldownConfig.getInstance();
         if (!cfg.isEnabled() || !cfg.isActionBarDetection() || raw == null) {
             return;

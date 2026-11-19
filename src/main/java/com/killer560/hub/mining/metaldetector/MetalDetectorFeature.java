@@ -7,7 +7,6 @@ import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
@@ -51,16 +50,7 @@ public final class MetalDetectorFeature {
         }
         registered = true;
         WorldRenderUtils.initThroughWalls();
-        ClientReceiveMessageEvents.MODIFY_GAME.register((message, overlay) -> {
-            if (overlay) {
-                try {
-                    onActionBar(ChatObserver.raw(message));
-                } catch (RuntimeException ignored) {
-                    // A parse bug must never eat the action bar or reach the packet path.
-                }
-            }
-            return message;
-        });
+        // The action bar reaches onActionBar from PlayerStatsFeature.onActionBar (packet path).
         ChatObserver.subscribe(MetalDetectorFeature::onChat);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("MetalDetectorFeature", MetalDetectorFeature::onTick));
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> client.execute(MetalDetectorFeature::resetAll));
@@ -101,7 +91,7 @@ public final class MetalDetectorFeature {
         }
     }
 
-    static void onActionBar(String raw) {
+    public static void onActionBar(String raw) {
         Minecraft client = Minecraft.getInstance();
         if (raw == null || client.player == null || !active()) {
             return;

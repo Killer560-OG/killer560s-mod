@@ -282,6 +282,11 @@ public final class PlayerStatsFeature {
      * both versions, at HEAD). Every action-bar path ends there, including the system-chat overlay path, so this sees
      * every line. Only reads; the line itself is not changed here (see {@link #actionBarReplacement}).
      */
+    private static final java.util.List<java.util.function.Consumer<String>> BAR_READERS = java.util.List.of(
+            com.killer560.hub.livemap.LiveMapFeature::onActionBar,
+            com.killer560.hub.abilitycooldown.AbilityCooldownState::onActionBar,
+            com.killer560.hub.mining.metaldetector.MetalDetectorFeature::onActionBar);
+
     public static void onActionBar(Component message) {
         if (message == null || message == lastRead) return;
         // Marked first, so the second sighting of the same line (ALLOW_GAME, then setOverlayMessage) is skipped with the HUD off too.
@@ -291,8 +296,17 @@ public final class PlayerStatsFeature {
         // The area on the action bar (mining-1103): the mining features' area check reads it with the HUD off too.
         com.killer560.hub.pathfinding.IslandDetector.noteActionBar(message.getString());
         // The dungeon map's per-room secret count is the server's own "x/y Secrets" (its GAME listener never saw the packet path).
+        // Same for every other feature that reads the bar (a plain GAME / MODIFY_GAME listener never sees it, or loses it to Hide actionbar).
+        String text = message.getString();
+        for (java.util.function.Consumer<String> reader : BAR_READERS) {
+            try {
+                reader.accept(text);
+            } catch (RuntimeException e) {
+                // Packet path: never throws.
+            }
+        }
         try {
-            com.killer560.hub.livemap.LiveMapFeature.onActionBar(message.getString());
+            com.killer560.hub.interop.SelfDerivation.onActionBar(message);
         } catch (RuntimeException e) {
             // Packet path: never throws.
         }

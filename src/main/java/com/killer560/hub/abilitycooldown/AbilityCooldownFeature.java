@@ -7,7 +7,6 @@ import com.killer560.hub.hud.HudText;
 import com.killer560.hub.hud.HudVisibility;
 import com.killer560.hub.util.ChatObserver;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
-import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
@@ -45,18 +44,7 @@ public final class AbilityCooldownFeature {
     }
 
     public static void register() {
-        // Action bar: MODIFY_GAME with overlay = true, the same path PlayerStatsFeature reads the real
-        // Hypixel action bar on. The message is always returned unchanged - this never rewrites the bar.
-        ClientReceiveMessageEvents.MODIFY_GAME.register((message, overlay) -> {
-            if (overlay) {
-                try {
-                    AbilityCooldownState.onActionBar(ChatObserver.raw(message));
-                } catch (RuntimeException ignored) {
-                    // Never let a regex bug eat the player's action bar.
-                }
-            }
-            return message;
-        });
+        // The action bar reaches AbilityCooldownState.onActionBar from PlayerStatsFeature.onActionBar (packet path).
 
         // Chat (Creeper Veil): ChatObserver, not Fabric's CHAT/GAME - other implementations can cancel
         // a server line via ALLOW_GAME and re-add their own copy straight to ChatComponent.

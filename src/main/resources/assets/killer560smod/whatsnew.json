@@ -40,7 +40,8 @@
      "Wither pick Goldor triggerbot work from the witherpick branch.",
      "Auto Secret: while the Quiz countdown runs and no secret room fits it now clears an uncleared mob room meanwhile instead of going back and standing at the Quiz",
      "Mods Screen has an ON/OFF switch (default ON); while OFF the mod adds no Mods button to the main menu or pause menu",
-     "Sound Effects: six new sounds (Water Drop, Coin Clink, Marimba, Deep Thud, Zap, Sparkle) and a Volume slider on every row, 0-200%"
+     "Sound Effects: six new sounds (Water Drop, Coin Clink, Marimba, Deep Thud, Zap, Sparkle) and a Volume slider on every row, 0-200%",
+     "Ability Cooldowns and Metal Detector now read the action bar line they depend on (before, nothing reached them, and Hide Actionbar blocked them too); the dungeon Self Derivation reads it the same way."
     ]
    }
   ]

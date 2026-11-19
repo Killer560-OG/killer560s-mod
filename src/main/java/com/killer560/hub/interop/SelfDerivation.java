@@ -4,7 +4,6 @@ import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
-import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.minecraft.network.chat.Component;
 
 import java.util.regex.Matcher;
@@ -57,29 +56,11 @@ public final class SelfDerivation {
 
     static void register() {
         ChatObserver.subscribe(message -> onChat(ChatObserver.strip(message)));
-        // ChatObserver deliberately drops overlay (action bar) lines, so the secrets counter needs its own
-        // subscription. Overlay lines arrive several times a second - onActionBar does nothing until the
-        // numbers actually change.
-        // This raw listener runs on the packet path, where a throw disconnects him from Hypixel ("Failed to handle
-        // packet"), so it catches everything, as ChatObserver does per listener. Logged once: the action bar
-        // arrives several times a second and a fault here would repeat on every line.
-        ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
-            if (!overlay) {
-                return;
-            }
-            try {
-                onActionBar(message);
-            } catch (RuntimeException t) {
-                if (!actionBarFailureLogged) {
-                    actionBarFailureLogged = true;
-                    LOGGER.error("[Interop] action bar read threw; ignoring that line (logged once)", t);
-                }
-            }
-        });
+        // ChatObserver drops overlay (action bar) lines; the secrets counter is fed by PlayerStatsFeature.onActionBar
+        // (packet path), which already catches everything. Lines arrive several times a second; onActionBar does
+        // nothing until the numbers change.
     }
 
-    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-interop");
-    private static boolean actionBarFailureLogged;
 
     static void onRunReset() {
         lastRoomReported = "";
@@ -113,7 +94,7 @@ public final class SelfDerivation {
         }
     }
 
-    private static void onActionBar(Component message) {
+    public static void onActionBar(Component message) {
         if (!active()) {
             return;
         }
