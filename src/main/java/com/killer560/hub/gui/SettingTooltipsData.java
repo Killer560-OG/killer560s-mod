@@ -2117,8 +2117,8 @@ final class SettingTooltipsData {
         d.put("auto close chest/close on any key", "While a dungeon secret chest is open, any key or mouse press closes it (the press is eaten, so it takes no item). On by default.");
         d.put("item quality", "Adds 'Item Quality: 47/50 (Floor 7)' to the tooltip of a dungeon drop.");
         d.put("item quality/item quality", "Adds 'Item Quality: 47/50 (Floor 7)' to the tooltip of a dungeon drop.");
-        d.put("iced mob boxes", "Boxes the mobs in front of you for 5 seconds after you use an Ice Spray Wand (an estimate: the server does not say which froze).");
-        d.put("iced mob boxes/iced mob boxes", "Boxes the mobs in front of you for 5 seconds after you use an Ice Spray Wand (an estimate: the server does not say which froze).");
+        d.put("iced mob boxes", "Outlines a mob only while it shows the Ice Spray freeze: the ice block on its head. Works for anyone's freeze; the box goes the moment the ice does.");
+        d.put("iced mob boxes/iced mob boxes", "Outlines a mob only while it shows the Ice Spray freeze: the ice block on its head. Works for anyone's freeze; the box goes the moment the ice does.");
         d.put("iced mob boxes/box color", "Color of the boxes around iced mobs.");
         d.put("current room name", "A movable HUD line with the name of the dungeon room you are standing in.");
         d.put("current room name/current room name", "A movable HUD line with the name of the dungeon room you are standing in.");
