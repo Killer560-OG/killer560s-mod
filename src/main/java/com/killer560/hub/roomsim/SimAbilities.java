@@ -408,6 +408,13 @@ public final class SimAbilities {
      * <p>The feet land at the top of the target's real collision box plus {@link #ETHERWARP_LANDING_OFFSET}, and
      * gravity does the rest, as on Hypixel.
      */
+    /**
+     * NaN, or the eye height the next etherwarps cast from (testkit 93-solve-icefill-1118-recovery): on Hypixel the same
+     * look from the same spot landed on two different blocks four seconds apart (killer560, 2026-11-18, Ice Fill), as
+     * if cast from 1.27 once and from 1.54 the next time.
+     */
+    public static volatile double etherwarpEyeForTest = Double.NaN;
+
     private static boolean etherwarp(ServerPlayer sp, ItemStack held) {
         ServerLevel level = (ServerLevel) sp.level();
         double range = ETHERWARP_RANGE + tuners(held);
@@ -419,8 +426,9 @@ public final class SimAbilities {
         // (2026-11-02): the overlay's prediction is right on Hypixel and the trouble was only on the sim. Planned aims
         // (EtherSearch.holds, +-0.01 degrees) hold under both, so the planner's hops land as before.
         Vec3 look = sp.getLookAngle();
-        Vec3 from = new Vec3(sp.getX(),
-                sp.getY() + com.killer560.hub.livemap.autoclear.TeleportUtils.eyeHeight(true), sp.getZ());
+        double eyeForTest = etherwarpEyeForTest;
+        Vec3 from = new Vec3(sp.getX(), sp.getY() + (Double.isNaN(eyeForTest)
+                ? com.killer560.hub.livemap.autoclear.TeleportUtils.eyeHeight(true) : eyeForTest), sp.getZ());
         Vec3 to = from.add(look.scale(range));
         var hit = com.killer560.hub.livemap.autoclear.TeleportUtils.traverseVoxels(level,
                 from.x, from.y, from.z, to.x, to.y, to.z, true);

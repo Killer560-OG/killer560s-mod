@@ -19,7 +19,8 @@ import com.killer560.hub.compat.McCompat;
  * Auto Ice Fill - port of 's {@code auto}. The reference automates it with Aspect of the
  * Void/End teleports: the solver path (the reference uses the "easy" patterns, so this only runs with the solver's Optimized
  * Path OFF) gets the {@code stupidStairs} midpoints and {@code fillGaps} 1-block interpolation; while holding an
- * AOTV/AOTE and standing exactly on a path point, after "Ice Fill Delay" ticks it right-clicks aimed from that point's
+ * AOTV/AOTE and standing on a path point (an etherwarp landing's hover counts), once the last hop has LANDED and "Ice
+ * Fill Delay" ticks have passed since, it right-clicks aimed from that point's
  * eye position at the next point, stepping one block at a time. Done when relative (15,71,26) becomes packed ice.
  * With "Etherwarp Reposition" on and the player outside y 69.5..72.5 it warps onto the first still-unfilled ice tile
  * like the reference. Safety addition: requires an AOTV/AOTE in hand (the reference also passed on non-Skyblock items) and positions are
@@ -90,6 +91,17 @@ final class AutoIceFill {
     private static boolean mapWalkOurs = false;
     /** The last path point he was really standing on, for the "fell below the section" test. -1 when none. */
     private static int lastStood = -1;
+    /** Ticks since the last hop went with no landing on its point yet, and util/ServerLag when it went. */
+    private static int landWait = 0;
+    private static long hopLag = 0L;
+    /** A hop with no landing in this long (plus any server stall since) was dropped: it goes again. */
+    private static final int LANDING_RESEND_TICKS = 20;
+    /** An etherwarp lands him 0.05 over the block and gravity sets him down a tick later: both count as on the point. */
+    private static final double HOVER = 0.06;
+    /** The eye heights Hypixel's etherwarp was seen casting from (1.27 modern sneak, 1.54 1.8 sneak, 1.62 standing). */
+    private static final double[] SERVER_EYES = {1.27, 1.54, 1.62};
+    /** The block the recovery warp under way was aimed onto (the section's first tile or the stair step before it). */
+    private static BlockPos warpTarget = null;
 
     /** Hypixel takes "two-ish seconds"; this is generous on purpose, and saying so in chat when it runs out. */
     private static final int REGEN_TIMEOUT_TICKS = 15 * 20;
@@ -276,8 +288,7 @@ final class AutoIceFill {
         }
         int index = -1;
         for (int i = 0; i < path.size(); i++) {
-            Vec3 p = path.get(i);
-            if (Math.abs(player.getX() - p.x) < EPS && Math.abs(player.getY() + 0.1 - p.y) < EPS && Math.abs(player.getZ() - p.z) < EPS) {
+            if (onPoint(player, path.get(i))) {
                 index = i;
                 break;
             }
@@ -296,7 +307,7 @@ final class AutoIceFill {
                     }
                 }
                 String expected = lastIndex >= 0 && lastIndex < path.size() ? String.valueOf(path.get(lastIndex)) : "none";
-                note("off" + lastIndex, "stopped: standing at ({}, {}, {}), which is no path point - "
+                note("off" + lastIndex, "waiting: standing at ({}, {}, {}), which is no path point - "
                                 + "expected point {} {}, nearest is point {} at {} block(s)",
                         String.format(java.util.Locale.ROOT, "%.3f", player.getX()),
                         String.format(java.util.Locale.ROOT, "%.3f", player.getY()),
@@ -315,6 +326,31 @@ final class AutoIceFill {
             ticks = 0;
         }
         if (lastIndex >= path.size() - 1) {
+            return;
+        }
+        // A HOP GOES ONLY FROM THE POINT HE IS STANDING ON (icefillbugs-1118). With Delay 1 and Adaptive off a hop went
+        // every tick whatever he stood on ("hop 2 -> 3 ... standing on point 0"), so on his 2026-11-18 Hypixel run two
+        // uses reached the server in one of its ticks, it saw him move two tiles at once ("Don't move diagonally! Bad!",
+        // pos ids 11 and 12 in one tick) and section 1, then 2, broke five times. So the next hop waits for the last
+        // one's landing, the stair step's too: two stair hops handled in one server tick are a two-block move from the
+        // exit tile to the next section's entry. A landing that never comes (a dropped use) is hopped again from where
+        // he stands.
+        if (index != lastIndex) {
+            if (++landWait >= LANDING_RESEND_TICKS + com.killer560.hub.util.ServerLag.ticksSince(hopLag)) {
+                note("relanding" + lastIndex, "no landing on point {} {} tick(s) after its hop - hopping again from"
+                        + " point {}, where he stands", lastIndex, landWait, index);
+                lastIndex = index;
+                ticks = 0;
+            } else {
+                note("landing" + lastIndex, "waiting: hop to point {} not landed yet (standing on point {})",
+                        lastIndex, index);
+            }
+            return;
+        }
+        if (player.isShiftKeyDown() || client.options.keyShift.isDown()) {
+            // A use while sneaking is an etherwarp, not the one-block hop (an etherwarp reposition lets go of its
+            // sneak in its landing tick; the server hears that a tick later).
+            note("sneak" + lastIndex, "waiting: sneak is held - a hop now would be an etherwarp");
             return;
         }
         // EACH SECTION'S FIRST TILE IS WAITED FOR, adaptive or not (killer560, 2026-10-15: "it needs to wait for the
@@ -346,10 +382,8 @@ final class AutoIceFill {
         if (ticks + 1 >= cfg.getIceFillDelayTicks()) {
             Vec3 current = path.get(lastIndex);
             Vec3 next = path.get(lastIndex + 1);
-            Vec3 from = new Vec3(current.x, current.y - 0.1 + player.getEyeHeight(), current.z);
-            float[] dir = AutoPuzzleUtil.direction(from, next);
-            CAMERA.engage(player); // before the aim turns him
-            if (!AutoPuzzleUtil.useItemRotated(client, player, dir[0], dir[1])) {
+            float[] dir = sendHop(client, player, current, next);
+            if (dir == null) {
                 note("gate" + lastIndex, "hop {} held back by the action gate this tick", lastIndex);
                 return; // gate held this tick back - nothing warped, so lastIndex / ticks must not move
             }
@@ -366,11 +400,10 @@ final class AutoIceFill {
                     player.getMainHandItem().getHoverName().getString(),
                     lastIndex < sectionOf.length ? sectionOf[lastIndex] + 1 : -1, cfg.getIceFillDelayTicks(),
                     cfg.isIceFillAdaptive() ? " (adaptive)" : "", hopsSent, sinceFirstHop());
-            // This warp is our own, so waive the gate's teleport stand-down for the next hop - otherwise the
-            // 6-tick teleport window would override the 2-tick Delay setting on every single step of the path.
-            com.killer560.hub.util.ActionGate.expectSelfTeleport(com.killer560.hub.util.ActionGate.Actor.PUZZLE_WORLD);
             lastIndex++;
             ticks = 0;
+            landWait = 0;
+            hopLag = com.killer560.hub.util.ServerLag.mark();
         } else {
             LOGGER.debug("[AutoIceFill] point {}: delay tick {} of {}", lastIndex, ticks + 1, cfg.getIceFillDelayTicks());
             ticks++;
@@ -464,9 +497,61 @@ final class AutoIceFill {
         return player.getY() < feet - FELL_BELOW ? sectionOf[lastStood] : -1;
     }
 
+    /**
+     * Standing on path point {@code p} (feet 0.1 under it), or hovering {@link #HOVER} over it the tick an etherwarp
+     * landed him there. Exact Y alone read the landing tick as "no path point", so on his 2026-11-18 run a recovery
+     * warp that had arrived (y 71.05) sent a second etherwarp straight down, and the first hop went before that one
+     * landed.
+     */
     private static boolean onPoint(LocalPlayer player, Vec3 p) {
-        return Math.abs(player.getX() - p.x) < EPS && Math.abs(player.getY() + 0.1 - p.y) < EPS
-                && Math.abs(player.getZ() - p.z) < EPS;
+        double over = player.getY() + 0.1 - p.y;
+        return Math.abs(player.getX() - p.x) < EPS && Math.abs(player.getZ() - p.z) < EPS && over > -EPS
+                && over < HOVER;
+    }
+
+    /**
+     * A look that etherwarps him onto {@code tile} from where he stands whichever eye height the server casts from, or
+     * null. His 2026-11-18 run: from (-22.5, 67.5, -27.5) the same look (yaw 90, pitch -35.0) landed on the section's
+     * first tile once and on its neighbor four seconds later, and from (-26.5, 66, -24.5) a look that met the tile's
+     * underside 0.04 block from the neighbor's (1.27 eye) landed on the neighbor, where a 1.54 or 1.62 eye puts it. A
+     * landing on another tile of the section spends that tile, and the walk then breaks on it ("Oops! You stepped on
+     * the wrong block!"). So every face point is tried and a look is taken only when it holds (TeleportUtils.holdsOn,
+     * the planner's margin) from all three eyes.
+     */
+    static float[] firmAim(LocalPlayer player, BlockPos tile) {
+        Vec3 feet = player.position();
+        Vec3 eye = feet.add(0, AutoPuzzleUtil.EYE_SNEAKING, 0);
+        double[] grid = {0.5, 0.3, 0.7, 0.15, 0.85};
+        for (net.minecraft.core.Direction face : net.minecraft.core.Direction.values()) {
+            for (double u : grid) {
+                for (double v : grid) {
+                    Vec3 point = facePoint(tile, face, u, v);
+                    var r = com.killer560.hub.livemap.autoclear.TeleportUtils.getDirection(eye, point);
+                    if (holdsFromEveryEye(feet, r.yaw(), r.pitch(), tile)) {
+                        return new float[]{r.yaw(), r.pitch()};
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    static boolean holdsFromEveryEye(Vec3 feet, float yaw, float pitch, BlockPos tile) {
+        for (double h : SERVER_EYES) {
+            if (!com.killer560.hub.livemap.autoclear.TeleportUtils.holdsOn(feet.add(0, h, 0), yaw, pitch, 57.0, tile)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static Vec3 facePoint(BlockPos b, net.minecraft.core.Direction face, double u, double v) {
+        double x = b.getX(), y = b.getY(), z = b.getZ();
+        return switch (face.getAxis()) {
+            case X -> new Vec3(x + (face.getStepX() > 0 ? 1 : 0), y + u, z + v);
+            case Y -> new Vec3(x + u, y + (face.getStepY() > 0 ? 1 : 0), z + v);
+            case Z -> new Vec3(x + u, y + v, z + (face.getStepZ() > 0 ? 1 : 0));
+        };
     }
 
     /** Stops every hop, warp and walk this auto has going, and starts waiting for section {@code s} to come back. */
@@ -527,17 +612,36 @@ final class AutoIceFill {
             return;
         }
         Vec3 start = path.get(sectionStart[s]);
-        if (onPoint(player, start)) {
-            LOGGER.info("[AutoIceFill] recovery: back on section {}'s start {} after {} tick(s) - continuing",
-                    s + 1, start, recoveryTicks);
+        Vec3 stair = sectionStart[s] > 0 && MIDPOINTS.contains(path.get(sectionStart[s] - 1))
+                ? path.get(sectionStart[s] - 1) : null;
+        if (onPoint(player, start) || stair != null && onPoint(player, stair)) {
+            LOGGER.info("[AutoIceFill] recovery: back on section {}'s {} ({}, {}, {}) after {} tick(s) - continuing",
+                    s + 1, onPoint(player, start) ? "start" : "stair step",
+                    String.format(java.util.Locale.ROOT, "%.2f", player.getX()),
+                    String.format(java.util.Locale.ROOT, "%.2f", player.getY()),
+                    String.format(java.util.Locale.ROOT, "%.2f", player.getZ()), recoveryTicks);
             recovering = -1;
             lastIndex = -1;
             ticks = 0;
             mapWalkOurs = false;
+            warpTarget = null;
             lastNote = "";
             return;
         }
         if (REPOSITION.isActive()) {
+            Vec3 used = REPOSITION.usePos();
+            if (REPOSITION.inFlight() && used != null && warpTarget != null
+                    && player.position().distanceToSqr(used) > 0.25 && !AutoPuzzleUtil.at(player, warpTarget)) {
+                // Landed, but not on the block it was aimed at: say so now, not after the 40-tick arrival timeout (his
+                // 2026-11-18 run waited 42 and 91 ticks on two such landings), and warp again from here.
+                LOGGER.info("[AutoIceFill] recovery: the warp onto {} landed at ({}, {}, {}) instead - warping again",
+                        AutoPuzzleUtil.fmt(warpTarget), String.format(java.util.Locale.ROOT, "%.2f", player.getX()),
+                        String.format(java.util.Locale.ROOT, "%.2f", player.getY()),
+                        String.format(java.util.Locale.ROOT, "%.2f", player.getZ()));
+                REPOSITION.cancel(client);
+                warpTarget = null;
+                return;
+            }
             REPOSITION.tick(client);
             note("retrepos" + s, "recovery: etherwarp back onto section {}'s start under way", s + 1);
             return;
@@ -569,8 +673,24 @@ final class AutoIceFill {
             note("retmoving" + s, "recovery: waiting for him to stop moving before warping back to {}", tile);
             return;
         }
-        if (REPOSITION.start(client, tile, false, true, true)) {
-            note("ret" + s, "recovery: etherwarping back onto section {}'s start {}", s + 1, tile);
+        // The section's first tile with a look that lands on it from every eye height; else the stair step before it
+        // (solid, no tile of any section, so a near miss spends nothing); else the usual aim onto the tile, as before.
+        BlockPos target = tile;
+        float[] aim = AutoPuzzleUtil.etherwarpAim(client.level, player, tile) == null ? null : firmAim(player, tile);
+        if (aim == null && stair != null) {
+            BlockPos step = BlockPos.containing(stair).below();
+            float[] stepAim = firmAim(player, step);
+            if (stepAim != null) {
+                target = step;
+                aim = stepAim;
+            }
+        }
+        if (REPOSITION.start(client, target, false, true, true, aim)) {
+            warpTarget = target;
+            note("ret" + s, "recovery: etherwarping back onto section {}'s {} {} ({})", s + 1,
+                    target == tile ? "start" : "stair step", target,
+                    aim == null ? "no look lands on it from every eye height - the usual aim" : "a look that lands from"
+                            + " every eye height");
             return;
         }
         if (AutoPuzzleUtil.pathIfMapOn(tile, null)) {
@@ -593,11 +713,37 @@ final class AutoIceFill {
         }
     }
 
+    /** One hop: a use aimed from {@code current}'s eye at {@code next}, under the free camera. Its look, or null when the
+     *  gate held it back this tick (nothing sent). */
+    private static float[] sendHop(Minecraft client, LocalPlayer player, Vec3 current, Vec3 next) {
+        float[] dir = AutoPuzzleUtil.direction(new Vec3(current.x, current.y - 0.1 + player.getEyeHeight(), current.z), next);
+        CAMERA.engage(player); // before the aim turns him
+        if (!AutoPuzzleUtil.useItemRotated(client, player, dir[0], dir[1])) {
+            return null;
+        }
+        // This warp is our own, so waive the gate's teleport stand-down for the next hop - otherwise the 6-tick teleport
+        // window would override the 2-tick Delay setting on every single step of the path.
+        com.killer560.hub.util.ActionGate.expectSelfTeleport(com.killer560.hub.util.ActionGate.Actor.PUZZLE_WORLD);
+        return dir;
+    }
+
+    /** Testkit 1118-grim-icefill (GrimAC has no Ice Fill room): one hop exactly as the auto sends it, true when sent. */
+    static boolean hopForTest(Minecraft client, Vec3 current, Vec3 next) {
+        return client.player != null && sendHop(client, client.player, current, next) != null;
+    }
+
+    /** Testkit 1118-grim-icefill: the run is over, the camera goes back. */
+    static void endHopsForTest(Minecraft client) {
+        CAMERA.release(client.player);
+    }
+
     private static void giveUp(Minecraft client, String why) {
         stopMoving(client);
         recovering = -1;
         awaitingRegen = false;
         gaveUp = true;
+        // A stopped auto holds nothing: the camera stayed held 16 s after the give-up on his 2026-11-18 run.
+        CAMERA.release(client.player);
         LOGGER.info("[AutoIceFill] recovery: gave up - {}", why);
         ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.bad("Auto Ice Fill stopped: "), ModChat.text(why
                 + ". Leave and re-enter the room to try again."));
@@ -685,6 +831,9 @@ final class AutoIceFill {
         recoveries = 0;
         gaveUp = false;
         lastStood = -1;
+        landWait = 0;
+        hopLag = 0L;
+        warpTarget = null;
         sectionOf = new int[0];
         sectionTiles = List.of();
         sectionStart = new int[0];

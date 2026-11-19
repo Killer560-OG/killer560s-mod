@@ -54,6 +54,9 @@ final class AutoReposition {
     /** Aim taken at {@link #start} in {@link #nextTick} mode, from {@link #aimFrom}: used for the use if he has not moved. */
     private float[] startAim;
     private net.minecraft.world.phys.Vec3 aimFrom;
+    /** A look the caller chose ({@link #start(Minecraft, BlockPos, boolean, boolean, boolean, float[])}), good from {@link #fixedFrom}. */
+    private float[] fixedAim;
+    private net.minecraft.world.phys.Vec3 fixedFrom;
     /** Client tick of the last landing any reposition saw (see {@link #landedThisTick}). */
     private static long landingTick = Long.MIN_VALUE;
     /** Client tick the use went out, and how many ticks the last warp took from the use to the client seeing him land. */
@@ -110,13 +113,29 @@ final class AutoReposition {
         return stage != Stage.IDLE;
     }
 
+    /** Where he stood when the use went out (null before it): a landing anywhere else moves him away from it. */
+    net.minecraft.world.phys.Vec3 usePos() {
+        return usePos;
+    }
+
     /** The reference {@code reposition(spot, bow, stand, awaitStand)}. No-op if already running / no direction.
      *  @return true if a reposition is now running (started now or already was) */
     boolean start(Minecraft client, BlockPos target, boolean bowAfter, boolean stand, boolean awaitStandStill) {
+        return start(client, target, bowAfter, stand, awaitStandStill, null);
+    }
+
+    /**
+     * The same with the look given by the caller ({@code aim} = {yaw, pitch}), used for the use as long as he has not
+     * moved since this call; null computes it as above. Auto Ice Fill passes a look that lands on its tile from every eye
+     * height Hypixel's etherwarp was seen casting from (icefillbugs-1118).
+     */
+    boolean start(Minecraft client, BlockPos target, boolean bowAfter, boolean stand, boolean awaitStandStill, float[] aim) {
         LocalPlayer player = client.player;
         if (isActive()) {
             return true;
         }
+        fixedAim = aim;
+        fixedFrom = aim == null || player == null ? null : player.position();
         if (player == null || client.level == null) {
             LOGGER.debug("[AutoPuzzles] {}: reposition not started - no player or world", tag);
             return false;
@@ -222,7 +241,8 @@ final class AutoReposition {
                 if (!swapOk) {
                     swapOk = AutoPuzzleUtil.swapTo(client, player, AutoPuzzleUtil::isAotv);
                 }
-                float[] dir = startAim != null && aimFrom != null && player.position().distanceToSqr(aimFrom) < 1.0e-6
+                float[] dir = fixedAim != null && player.position().distanceToSqr(fixedFrom) < 1.0e-6 ? fixedAim
+                        : startAim != null && aimFrom != null && player.position().distanceToSqr(aimFrom) < 1.0e-6
                         ? startAim : AutoPuzzleUtil.etherwarpAim(client.level, player, spot);
                 if (!swapOk || dir == null || !AutoPuzzleUtil.isAotv(player.getMainHandItem())) {
                     LOGGER.info("[AutoPuzzles] {}: reposition canceled (swapOk={} dir={} held={})", tag, swapOk,

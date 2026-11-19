@@ -213,3 +213,15 @@ The puzzle autos at run time (camera, timing, leaving, each puzzle). Part of the
   `TerminalSolverFeature.clickBudget` keeps the last 5 click times (550 ms window: 10 ticks plus one of jitter): paced, Stream
   Safe, Hover, Hold and Queue clicks wait for room and Burst Finish waits until its burst (up to 5) fits; Burst Mode and a
   Burst Size over 5 are the owner's and stay unpaced. Testkit 1119-boss-term-click-limit (`500-boss-session:,` prefix).
+- **Auto Ice Fill on Hypixel (icefillbugs-1118, his 2026-11-18 run, table killer560s-mod-logs/icefillbugs-1118.md).** Hypixel
+  judges where he stands ONCE PER SERVER TICK: two hops handled in one of its ticks are one two-tile move ("Don't move
+  diagonally! Bad!", pos ids 11 and 12 in one tick). With Delay 1 / Adaptive off the old auto hopped every tick whatever he
+  stood on, so any server stall bunched hops and broke the section; a hop now goes only from the point he stands on, after
+  the last one LANDED (the stair step too), and the delay counts from the landing. The sim judged every landing and passed
+  that run; it now judges once per server tick and fails a same-level diagonal (`SimIceFillPuzzle.judgeNow` is the
+  testkit's immediate judge). Hypixel's etherwarp eye varies: the same look from the same spot landed on the start tile
+  and, 4 s later, on its neighbor (fits 1.27 vs 1.54), so a recovery warp takes a look that lands on its block from 1.27,
+  1.54 and 1.62 (`AutoIceFill.firmAim`; else the stair step, else the old aim) and a landing on another block ends the warp
+  at once instead of after the 40-tick arrival wait. A point counts as stood on up to 0.06 over it (an etherwarp landing
+  is 0.05 over), or the recovery fired a second straight-down warp. A give-up releases the free camera. Testkit
+  93-solve-icefill-1118-bunched/-recovery/-sweep, 1118-same-icefill-* (Grim).

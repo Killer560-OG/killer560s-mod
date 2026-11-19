@@ -654,8 +654,9 @@ public final class SimIceFillPuzzle {
      * between two client ticks (a lagging machine: the client gametest showed it by holding the connection's
      * netty loop for 120 ms) the client goes from tile 9 to tile 11 without ever standing on 10. The old judge
      * then compared 11 with 9, two blocks apart, and broke the section for "teleporting off the ice" on a run of
-     * one-block hops - 2026-10-05, the one failed Auto Ice Fill in 93-solve (rp-2612.log 07:27:56). Hypixel's
-     * server made both teleports itself and saw every landing; so does this now, through {@link #onTeleport}.
+     * one-block hops - 2026-10-05, the one failed Auto Ice Fill in 93-solve (rp-2612.log 07:27:56). Judged here on the
+     * SERVER tick that cannot happen: two landings in one server tick are what Hypixel too reads as one two-tile move
+     * (icefillbugs-1118; {@link #onTeleport} only counts landings).
      */
     private static void serverTick(MinecraftServer server) {
         if (!SimState.canAct(Minecraft.getInstance())) return;
@@ -707,17 +708,24 @@ public final class SimIceFillPuzzle {
     }
 
     /**
-     * Every teleport the sim's abilities make, judged the moment it lands - called by {@code SimAbilities}
-     * right after it moves the server's player. Two use packets handled in one server tick are two landings,
-     * and the once-a-tick judge would only see the second.
+     * Every teleport the sim's abilities make, counted the moment it lands - called by {@code SimAbilities} right after
+     * it moves the server's player. It is NOT judged here: Hypixel judges where he stands once per server tick, so two
+     * uses handled in one of its ticks are one move of two tiles - "Don't move diagonally! Bad!" on his 2026-11-18 run
+     * (pos ids 11 and 12 in one tick, icefillbugs-1118). The sim used to judge each landing and passed that run.
      */
     public static void onTeleport(ServerPlayer sp) {
         if (!SimState.canAct(Minecraft.getInstance()) || TILE_SECTION.isEmpty()) return;
         landingCount++;
         lastLandingTile = sp.blockPosition().below();
+        trace(sp, "teleport landing");
         if (regenCountdown > 0 || complete) return;
         airborneTicks = 0;
-        judge(sp, sp.blockPosition().below(), "teleport");
+    }
+
+    /** The testkit's forced mistake (a plain server teleport, 93-solve-icefill -PicefillControl): judged at once. */
+    public static void judgeNow(ServerPlayer sp) {
+        if (!SimState.canAct(Minecraft.getInstance()) || TILE_SECTION.isEmpty() || regenCountdown > 0 || complete) return;
+        judge(sp, sp.blockPosition().below(), "forced");
     }
 
     /** One position, on the server thread. */
@@ -751,6 +759,13 @@ public final class SimIceFillPuzzle {
         // need: section 1's exit and section 2's entry are a block apart vertically.
         if (onActive && !touching(currentTile, tile)) {
             breakSection(sp, activeSection, "teleported off the ice");
+            return;
+        }
+        // Hypixel: "Don't move diagonally! Bad!" - a corner step on one level (his 2026-11-18 run, two hops round a
+        // corner handled in one server tick). A step up or down between sections still may be diagonal.
+        if (onActive && tile.getY() == currentTile.getY() && tile.getX() != currentTile.getX()
+                && tile.getZ() != currentTile.getZ()) {
+            breakSection(sp, activeSection, "moved diagonally");
             return;
         }
         currentTile = tile;
