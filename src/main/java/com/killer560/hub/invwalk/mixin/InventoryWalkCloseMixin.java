@@ -3,6 +3,7 @@ package com.killer560.hub.invwalk.mixin;
 import com.killer560.hub.invwalk.InventoryWalkFeature;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.network.protocol.game.ClientboundContainerClosePacket;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -17,9 +18,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class InventoryWalkCloseMixin {
 
     @Inject(method = "handleContainerClose", at = @At("HEAD"))
-    private void killer560smod$invWalkServerClose(CallbackInfo ci) {
+    private void killer560smod$invWalkServerClose(ClientboundContainerClosePacket packet, CallbackInfo ci) {
         if (Minecraft.getInstance().isSameThread()) {
             InventoryWalkFeature.onServerClose();
+            com.killer560.hub.util.StillHold.onServerClose(packet.getContainerId());
         }
     }
 }

@@ -49,6 +49,18 @@ public final class StillHold {
         }
     }
 
+    /**
+     * A server close of window N (render thread, HEAD of handleContainerClose) makes a held close for N stale, and Hypixel
+     * answers a close of a window it already shut with a close of its own that vanilla applies to whatever is open now
+     * (termclose-1118: Fast Leap's held close went out 2-5 s after the leap window had shut, as he stopped at a terminal or
+     * pressed /stats, and the echo shut the terminal; 97 of 99 held closes that day were for windows already closed).
+     */
+    public static void onServerClose(int containerId) {
+        if (!HELD.isEmpty() && Minecraft.getInstance().isSameThread()) {
+            HELD.removeIf(p -> ((ServerboundContainerClosePacket) p).getContainerId() == containerId);
+        }
+    }
+
     /** Client tick end: lets one held close go once the server has him still. */
     public static void tick(Minecraft mc) {
         if (HELD.isEmpty()) {

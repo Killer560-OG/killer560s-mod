@@ -91,6 +91,12 @@ The puzzle autos at run time (camera, timing, leaving, each puzzle). Part of the
   released his keys; Hypixel closes whatever window is open on any close, so the terminal shut. Five of the seven had his
   own Fast Leap 2-5 s before. `StillHold.onServerOpen()` (render thread, HEAD of handleOpenScreen via AutoCloseChestMixin)
   now drops every held close. Testkit 1115-termclose-stillhold (boss session) fails on 03e527b54.
+  That was not enough (termclose-1118, his 11-18 runs: 3 of 125 terminals and several /stats menus still shut): the held
+  close often left as he STOPPED, before the terminal's open packet was handled, and the server had already closed that
+  leap window itself after the teleport (97 of 99 StillHold releases that day). Hypixel answers a close for a window it
+  already shut with a close of its own, and vanilla `handleContainerClose` shuts whatever screen is open, whatever the id.
+  `StillHold.onServerClose(id)` (HEAD of handleContainerClose, InventoryWalkCloseMixin) drops a held close for the window
+  the server just closed. Testkit 1118-termclose-serverclosed (boss session) fails on dbceac2df.
 
 ## Per puzzle
 
