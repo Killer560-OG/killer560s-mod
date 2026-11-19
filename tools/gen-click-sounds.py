@@ -5,9 +5,10 @@ third-party license: they are original works of this project, released as CC0 (p
 
     python tools/gen-click-sounds.py
 
-needs: numpy, soundfile (libsndfile with Ogg Vorbis). Output: mono, 44.1 kHz, 60-220 ms, peak about -6 dBFS.
+needs: numpy, soundfile (libsndfile with Ogg Vorbis). Output: mono, 44.1 kHz, 40-260 ms, peak about -6 dBFS.
 """
 import os
+import sys
 import numpy as np
 import soundfile as sf
 
@@ -78,11 +79,28 @@ SOUNDS = {
     "chime": finish(mix(tone(1320, 220, 55, 0.6, [(2.0, 0.3), (3.0, 0.12)]), tone(1980, 160, 38, 0.6) * 0.35)),
     # a two-step electronic bleep
     "bleep": finish(np.concatenate([tone(880, 45, 40, 0.5, [(2, 0.1)]), tone(1320, 70, 30, 0.5, [(2, 0.1)])])),
+    # added 2026-11-18 (soundfx-1118): a water droplet, pitch rising
+    "drop": finish(mix(sweep(450, 1500, 90, 22), tone(2200, 25, 6, 0.3) * 0.12)),
+    # a metal coin clink: inharmonic partials ringing
+    "coin": finish(mix(tone(2350, 260, 70, 0.3), tone(3560, 200, 50, 0.3) * 0.6, tone(6480, 120, 25, 0.3) * 0.35,
+                       noise(6, 1.5, 5, 1) * 0.3)),
+    # a warm marimba note
+    "marimba": finish(mix(tone(523, 240, 65, 0.8, [(4.0, 0.35)]), tone(1046, 120, 25, 0.8) * 0.2)),
+    # a low rounded thud
+    "thud": finish(mix(sweep(150, 55, 140, 35), noise(30, 8, 6, 12) * 0.25)),
+    # a short electric zap: fast falling sweep with buzz
+    "zap": finish(mix(sweep(3400, 300, 95, 28) + 0.4 * sweep(1700, 150, 95, 28), noise(25, 6, 7, 1) * 0.2)),
+    # three quick rising glints
+    "sparkle": finish(mix(tone(1760, 60, 14, 0.4),
+                          np.concatenate([np.zeros(int(SR * 0.045)), tone(2349, 60, 14, 0.4)]),
+                          np.concatenate([np.zeros(int(SR * 0.09)), tone(3136, 110, 28, 0.4, [(2, 0.2)])]))),
 }
 
 if __name__ == "__main__":
     os.makedirs(OUT, exist_ok=True)
     for name, data in SOUNDS.items():
         path = os.path.join(OUT, "click_%s.ogg" % name)
+        if os.path.exists(path) and "--all" not in sys.argv:
+            continue   # the first six are kept as they are; --all rewrites every file
         sf.write(path, data, SR, format="OGG", subtype="VORBIS")
         print("%s: %d ms, %d bytes" % (name, int(len(data) * 1000 / SR), os.path.getsize(path)))

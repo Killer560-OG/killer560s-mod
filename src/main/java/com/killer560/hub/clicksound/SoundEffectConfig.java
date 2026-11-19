@@ -28,12 +28,16 @@ public final class SoundEffectConfig {
     /** Indexed by {@link SoundEffect#ordinal()}: the game's sounds are checked on every play, so no boxing or iterators. */
     private final boolean[] on = new boolean[SoundEffect.values().length];
     private final String[] choice = new String[on.length];
+    /** Per effect loudness, 0..{@link #MAX_VOLUME} (1.0 = the game sound's own volume); an old file has none = 1.0. */
+    private final float[] volume = new float[on.length];
+    public static final float MAX_VOLUME = 2.0f;
     /** True while at least one effect is on; kept up to date by {@link #setOn}. */
     private boolean anyOn;
 
     private SoundEffectConfig() {
         for (int i = 0; i < choice.length; i++) {
             choice[i] = ClickSounds.DEFAULT_ID;
+            volume[i] = 1.0f;
         }
     }
 
@@ -55,6 +59,7 @@ public final class SoundEffectConfig {
                         JsonObject row = obj.getAsJsonObject(e.key);
                         cfg.setOn(e, row.has("on") && row.get("on").getAsBoolean());
                         cfg.setChoice(e, row.has("choice") ? row.get("choice").getAsString() : null);
+                        cfg.setVolume(e, com.killer560.hub.util.ConfigJson.getFloat(row, "volume", 1.0f));
                     }
                 }
             } catch (Exception e) {
@@ -73,6 +78,7 @@ public final class SoundEffectConfig {
                 JsonObject row = new JsonObject();
                 row.addProperty("on", on[e.ordinal()]);
                 row.addProperty("choice", choice[e.ordinal()]);
+                row.addProperty("volume", volume[e.ordinal()]);
                 obj.add(e.key, row);
             }
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
@@ -110,5 +116,14 @@ public final class SoundEffectConfig {
 
     public void setChoice(SoundEffect e, String id) {
         choice[e.ordinal()] = clean(id);
+    }
+
+    /** The loudness of {@code e}'s chosen sound: 0 (silent) to {@link #MAX_VOLUME}, in steps of 0.05. */
+    public float getVolume(SoundEffect e) {
+        return volume[e.ordinal()];
+    }
+
+    public void setVolume(SoundEffect e, float v) {
+        volume[e.ordinal()] = Float.isNaN(v) ? 1.0f : Math.round(Math.max(0f, Math.min(MAX_VOLUME, v)) * 20) / 20f;
     }
 }

@@ -35,6 +35,7 @@ public final class SoundEffects {
     private static volatile int fallbacks;
     private static volatile String lastEffect = "";
     private static volatile String lastPlayedId = "";
+    private static volatile float lastVolume;
     private static final int[] REPLACED_BY_EFFECT = new int[SoundEffect.values().length];
     /** Effect + choice pairs already reported as missing, so the chat line is said once, not on every hit. */
     private static final Set<String> WARNED = ConcurrentHashMap.newKeySet();
@@ -88,10 +89,17 @@ public final class SoundEffects {
             } catch (RuntimeException ignored) {
                 // use the default volume; make() reads the pitch the same careful way
             }
-            SoundInstance made = ClickSounds.make(choice, volume, in);
-            if (made == null) {
+            // The row's volume scales the game's: the engine clamps one instance to 1.0, so above that the rest is
+            // layered copies (ClickSounds.playLayers), and 0% plays nothing at all.
+            float gain = volume * cfg.getVolume(effect);
+            SoundInstance made = gain <= 0f ? null : ClickSounds.make(choice, Math.min(gain, 1.0f), in);
+            if (made == null && gain > 0f) {
                 return missing(effect, choice, in);
             }
+            if (gain > 1.0f) {
+                ClickSounds.playLayers(choice, gain, in);
+            }
+            lastVolume = gain;
             lastMergeEffect = effect;
             lastMergeNanos = now;
             lastX = in.getX();
@@ -100,7 +108,7 @@ public final class SoundEffects {
             replaced++;
             REPLACED_BY_EFFECT[effect.ordinal()]++;
             lastEffect = effect.key;
-            lastPlayedId = String.valueOf(made.getIdentifier());
+            lastPlayedId = made == null ? ClickSounds.SILENT_ID : String.valueOf(made.getIdentifier());
             ClickSounds.recordPlayed(lastPlayedId);
             return made;
         } catch (RuntimeException e) {
@@ -155,6 +163,11 @@ public final class SoundEffects {
     /** The key of the last effect replaced, "" before any (testkit evidence). */
     public static String lastEffect() {
         return lastEffect;
+    }
+
+    /** The total gain (game volume x the row's volume) of the last replaced effect (testkit evidence). */
+    public static float lastVolume() {
+        return lastVolume;
     }
 
     /** The id of the sound the last replaced effect played, "" before any (testkit evidence). */

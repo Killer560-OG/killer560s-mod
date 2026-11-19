@@ -5,7 +5,7 @@ The mod's own sounds are original works made for it. None of them contains sampl
 | File | What | License |
 | --- | --- | --- |
 | `assets/killer560smod/sounds/correction_alarm.ogg` | Correction Alarm siren, synthesized with numpy | CC0 1.0 (public domain) |
-| `assets/killer560smod/sounds/click_soft.ogg`, `click_tick.ogg`, `click_pop.ogg`, `click_wood.ogg`, `click_chime.ogg`, `click_bleep.ogg` | The Click Sounds presets (Soft Tap, Tick, Pop, Wood Knock, Chime, Bleep), each a few sine and noise envelopes | CC0 1.0 (public domain) |
+| `assets/killer560smod/sounds/click_soft.ogg`, `click_tick.ogg`, `click_pop.ogg`, `click_wood.ogg`, `click_chime.ogg`, `click_bleep.ogg`, `click_drop.ogg`, `click_coin.ogg`, `click_marimba.ogg`, `click_thud.ogg`, `click_zap.ogg`, `click_sparkle.ogg` | The Click Sounds presets (Soft Tap, Tick, Pop, Wood Knock, Chime, Bleep, Water Drop, Coin Clink, Marimba, Deep Thud, Zap, Sparkle), each a few sine and noise envelopes | CC0 1.0 (public domain) |
 | `assets/killer560smod/sounds/music/theme_amber.ogg`, `theme_dark.ogg`, `theme_light.ogg`, `theme_ocean.ogg`, `theme_green.ogg` | The Theme Music loops (64 s each), original synthesized works by the owner, killer560 (numpy synthesis, no samples) | Owned by killer560, shipped at his request; see `music/readme.txt` beside them |
 
 The Edgerunners loop made with the theme music is not in the mod: it ships only when the owner says so.

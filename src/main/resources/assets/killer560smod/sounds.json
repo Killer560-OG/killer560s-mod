@@ -54,5 +54,53 @@
         "stream": false
       }
     ]
+  },
+  "click_drop": {
+    "sounds": [
+      {
+        "name": "killer560smod:click_drop",
+        "stream": false
+      }
+    ]
+  },
+  "click_coin": {
+    "sounds": [
+      {
+        "name": "killer560smod:click_coin",
+        "stream": false
+      }
+    ]
+  },
+  "click_marimba": {
+    "sounds": [
+      {
+        "name": "killer560smod:click_marimba",
+        "stream": false
+      }
+    ]
+  },
+  "click_thud": {
+    "sounds": [
+      {
+        "name": "killer560smod:click_thud",
+        "stream": false
+      }
+    ]
+  },
+  "click_zap": {
+    "sounds": [
+      {
+        "name": "killer560smod:click_zap",
+        "stream": false
+      }
+    ]
+  },
+  "click_sparkle": {
+    "sounds": [
+      {
+        "name": "killer560smod:click_sparkle",
+        "stream": false
+      }
+    ]
   }
 }

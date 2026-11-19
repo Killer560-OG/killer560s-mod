@@ -82,7 +82,13 @@ public final class ClickSounds {
             preset("pop", "Pop"),
             preset("wood", "Wood Knock"),
             preset("chime", "Chime"),
-            preset("bleep", "Bleep"));
+            preset("bleep", "Bleep"),
+            preset("drop", "Water Drop"),
+            preset("coin", "Coin Clink"),
+            preset("marimba", "Marimba"),
+            preset("thud", "Deep Thud"),
+            preset("zap", "Zap"),
+            preset("sparkle", "Sparkle"));
 
     /** Imported files by the key their Sound location carries (an Identifier cannot hold spaces or capitals). */
     private static final Map<String, Path> IMPORT_KEYS = new ConcurrentHashMap<>();
@@ -348,16 +354,23 @@ public final class ClickSounds {
     }
 
     private static void playLayers(String choice, float gain) {
+        playLayers(choice, gain, null);
+    }
+
+    /** {@code at}: the game sound the layers replace (heard from its place), or null for a UI sound. */
+    static void playLayers(String choice, float gain, SoundInstance at) {
         SoundManager sounds = Minecraft.getInstance().getSoundManager();
         layering = true;
         try {
             for (float v : extraLayers(gain)) {
-                SoundInstance layer = make(choice, v);
-                if (layer == null) {
+                SoundInstance layer = make(choice, v, at);
+                if (layer == null && at == null) {
                     layer = SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK.value(), 1.0f, v);
                 }
-                layersPlayed++;
-                sounds.play(layer);
+                if (layer != null) {
+                    layersPlayed++;
+                    sounds.play(layer);
+                }
             }
         } finally {
             layering = false;

@@ -5,6 +5,7 @@ import com.killer560.hub.clicksound.SoundEffect;
 import com.killer560.hub.clicksound.SoundEffectConfig;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
+import com.killer560.hub.gui.ThemedSliderButton;
 import com.killer560.hub.util.ExternalOpen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -68,9 +69,34 @@ public class SoundEffectsTab extends BaseTab {
                         c.setChoice(effect, ClickSounds.step(c.getChoice(effect), dir));
                         c.save();
                         btn.setMessage(choiceText(effect));
-                        ClickSounds.preview(c.getChoice(effect), 1.0f);
+                        ClickSounds.preview(c.getChoice(effect), c.getVolume(effect));
                     }).bounds(contentX + half + gap, y, rightW, 20).build());
             y += 24;
+            widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 18, volumeText(effect),
+                    SoundEffectConfig.getInstance().getVolume(effect) / SoundEffectConfig.MAX_VOLUME) {
+                @Override
+                protected void updateMessage() {
+                    setMessage(volumeText(effect));
+                }
+
+                @Override
+                protected void applyValue() {
+                    SoundEffectConfig c = SoundEffectConfig.getInstance();
+                    float before = c.getVolume(effect);
+                    c.setVolume(effect, (float) (this.value * SoundEffectConfig.MAX_VOLUME));
+                    if (c.getVolume(effect) != before) {
+                        saveOnRelease(c::save);   // a drag calls this every mouse move
+                    }
+                }
+
+                @Override
+                public void onRelease(net.minecraft.client.input.MouseButtonEvent event) {
+                    super.onRelease(event);
+                    SoundEffectConfig c = SoundEffectConfig.getInstance();
+                    ClickSounds.preview(c.getChoice(effect), c.getVolume(effect));
+                }
+            });
+            y += 22;
         }
         y += 4;
 
@@ -102,6 +128,10 @@ public class SoundEffectsTab extends BaseTab {
     private static Component switchText(SoundEffect effect) {
         boolean on = SoundEffectConfig.getInstance().isOn(effect);
         return Component.literal(effect.label + ": " + (on ? "§aON" : "§cOFF"));
+    }
+
+    private static Component volumeText(SoundEffect effect) {
+        return Component.literal(effect.label + " Volume: " + Math.round(SoundEffectConfig.getInstance().getVolume(effect) * 100) + "%");
     }
 
     private static Component choiceText(SoundEffect effect) {
