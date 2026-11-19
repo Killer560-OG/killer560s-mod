@@ -3,6 +3,7 @@ package com.killer560.hub.runstats;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.gui.ThemeAccent;
+import com.killer560.hub.dungeoninfo.DungeonInfoFeature;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
@@ -40,8 +41,13 @@ public final class RunStatsFeature {
     private static int pendingTicks = -1;
     private static int pollTick = 0;
     private static int secretTick = 0;
-    /** Ticks left to wait for the secret counts to catch up with the run after the summary printed, or -1. */
+    /** Ticks to the next end read of the finished run's secrets, or -1; the run is kept across the world change. */
     private static int lateTicks = -1;
+    private static int lateRounds = 0;
+    private static SecretRun lateRun;
+    /** One read per 30 s (the backend's 429 window) for up to 6 minutes: the API lags a run by minutes. */
+    private static final int LATE_EVERY = 600;
+    private static final int LATE_MAX = 12;
 
     private RunStatsFeature() {
     }
@@ -63,7 +69,7 @@ public final class RunStatsFeature {
         summarisedThisRun = true;
         // One last poll so a room cleared in the same tick as the boss dying still counts.
         RunStatsTracker.pollRooms(client);
-        RunStatsTracker.captureSecrets(client);
+        RunStatsTracker.endRun(client, DungeonInfoFeature.teamSecretsFound());
         if (cfg.isAutoShowExtraStats() && client.player != null) {
             client.player.connection.sendCommand("showextrastats");
         }
@@ -81,7 +87,6 @@ public final class RunStatsFeature {
             lastLevel = client.level;
             summarisedThisRun = false;
             pendingTicks = -1;
-            lateTicks = -1;
             secretTick = 0;
             RunStatsTracker.resetRun();
         }
@@ -99,12 +104,13 @@ public final class RunStatsFeature {
                 RunStatsTracker.pollRooms(client);
             }
         }
-        if (lateTicks >= 0 && --lateTicks % 300 == 0) {
-            if (lateTicks > 0 && RunStatsTracker.secretsPending()) {
-                RunStatsTracker.captureSecrets(client);
+        if (lateTicks >= 0 && --lateTicks <= 0) {
+            if (lateRun.pending() && ++lateRounds <= LATE_MAX) {
+                lateTicks = LATE_EVERY;
+                RunStatsTracker.captureSecrets(lateRun);
             } else {
                 lateTicks = -1;
-                printSecrets(client, RunStatsTracker.buildRows(client));
+                printSecrets(client, lateRun);
             }
         }
         if (pendingTicks < 0 || pendingTicks-- > 0) return;
@@ -121,12 +127,10 @@ public final class RunStatsFeature {
         for (PlayerRunStats row : rows) {
             client.player.sendSystemMessage(rowComponent(row, cfg));
         }
-        int team = RunStatsTracker.teamSecrets();
-        if (team >= 0) {
-            ModChat.send(FEATURE, ModChat.text("Team secrets: "), ModChat.value(String.valueOf(team)));
-        }
-        if (RunStatsTracker.secretsPending()) {
-            lateTicks = 1800;
+        lateRun = RunStatsTracker.secretRun();
+        if (lateRun.pending()) {
+            lateTicks = LATE_EVERY;
+            lateRounds = 0;
         }
         if (cfg.isAnnounceToParty()) {
             com.killer560.hub.util.OutgoingChat.command("pc " + partyLine(rows, cfg));
@@ -134,13 +138,10 @@ public final class RunStatsFeature {
     }
 
     /** The late per-player secrets line, once the counts caught up (or the wait ran out). */
-    private static void printSecrets(Minecraft client, List<PlayerRunStats> rows) {
-        StringBuilder sb = new StringBuilder();
-        for (PlayerRunStats row : rows) {
-            if (row.hasSecrets()) sb.append(sb.isEmpty() ? "" : " | ").append(row.name()).append(' ').append(row.secrets());
-        }
-        if (!sb.isEmpty() && client.player != null) {
-            ModChat.send(FEATURE, ModChat.text("Secrets: "), ModChat.value(sb.toString()));
+    private static void printSecrets(Minecraft client, SecretRun run) {
+        String line = run.line();
+        if (!line.isEmpty() && client.player != null) {
+            ModChat.send(FEATURE, ModChat.text("Secrets: "), ModChat.value(line));
         }
     }
 

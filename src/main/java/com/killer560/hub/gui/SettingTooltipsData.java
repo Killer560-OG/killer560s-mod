@@ -2369,7 +2369,7 @@ final class SettingTooltipsData {
         d.put("run stats/what to show", "Choose which columns appear in the end-of-run Run Stats chat summary.");
         d.put("run stats/rooms cleared", "Credits each cleared room to whoever was standing in it (an estimate).");
         d.put("run stats/deaths", "Adds each player's death count to the summary.");
-        d.put("run stats/secrets (hypixel api)", "Looks up each teammate's secrets found during the run and shows the difference.");
+        d.put("run stats/secrets (hypixel api)", "Looks up each teammate's secrets from Hypixel and shows them once they add up to the team total (yours is always exact).");
         d.put("run stats/timing", "When the Run Stats summary is printed after the run ends.");
         d.put("run stats/summary delay", "Seconds (0-15) to wait after the run ends before printing the summary.");
         d.put("run stats/sends to the server", "These options send commands or chat messages to Hypixel.");

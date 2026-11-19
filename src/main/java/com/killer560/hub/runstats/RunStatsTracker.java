@@ -36,11 +36,9 @@ import java.util.regex.Pattern;
  *     the summary prints a range like {@code 4-7}. This is the same mechanism the reference uses
  *     ({@code ClearInfoUpdater.checkSplits}); rooms cleared while the room is off the map's discovered set, or
  *     while the clearer has already walked out, are missed.
- * <li><b>Secrets</b> - the chat page has only the team total ("Secrets Found: N", {@link #teamSecrets()}). Per player
- *     it is the delta of the lifetime secret count in the selected SkyBlock profile ({@code dungeons.secrets}, the
- *     profiles feed Party Finder already reads; the SkyBlockPV backend's /player feed carries no achievements) between
- *     run start and run end. Off by default because it hits the network; the API lags the run, so the end count is
- *     asked again until the deltas add up to the team total.
+ * <li><b>Secrets</b> - the Stats block's "Secrets Found: N" is the viewer's OWN count (exact); everyone else is the
+ *     delta of the lifetime secret count in the selected SkyBlock profile between run start and run end, shown only once
+ *     it adds up to the tab list's team total (see {@link SecretRun}). Off by default because it hits the network.
  * <li><b>Deaths</b> - real per-player data, straight from the run's "{@code ☠}" chat lines.
  * </ul>
  */
@@ -57,18 +55,13 @@ public final class RunStatsTracker {
     private static final Map<String, Set<String>> STACKED_ROOMS = new LinkedHashMap<>();
     private static final Map<String, List<String>> DEATHS = new LinkedHashMap<>();
     private static final Map<String, String> DISPLAY_NAMES = new LinkedHashMap<>();
-    private static final Map<String, Long> SECRETS_BEFORE = new ConcurrentHashMap<>();
-    private static final Map<String, Long> SECRETS_AFTER = new ConcurrentHashMap<>();
-
-    /** Lookups asked per name (start of run / end of run), so a failed one is retried a few times and no more. */
-    private static final Map<String, Integer> BEFORE_TRIES = new ConcurrentHashMap<>();
-    private static final Set<String> IN_FLIGHT = ConcurrentHashMap.newKeySet();
-    private static final Pattern TEAM_SECRETS = Pattern.compile("^Secrets Found: (\\d{1,6})$");
+    /** Newest lifetime secret total seen per player this session (bounded); a stale start read is lifted to it. */
+    private static final Map<String, Long> KNOWN_TOTALS = new ConcurrentHashMap<>();
+    private static final Pattern OWN_SECRETS = Pattern.compile("^Secrets Found: (\\d{1,6})$");
 
     private static volatile List<PlayerRunStats> lastRun = List.of();
-    private static volatile int teamSecrets = -1;
-    /** Bumped by every {@link #resetRun}; a secrets lookup that finishes after a reset belongs to the old run. */
-    private static volatile int runGeneration = 0;
+    /** This run's secret counts; a lookup that finishes after a reset feeds the run it was asked for, never the new one. */
+    private static volatile SecretRun secretRun = new SecretRun(KNOWN_TOTALS);
 
     private RunStatsTracker() {
     }
@@ -80,49 +73,36 @@ public final class RunStatsTracker {
         STACKED_ROOMS.clear();
         DEATHS.clear();
         DISPLAY_NAMES.clear();
-        SECRETS_BEFORE.clear();
-        SECRETS_AFTER.clear();
-        BEFORE_TRIES.clear();
-        IN_FLIGHT.clear();
-        teamSecrets = -1;
-        runGeneration++;
+        if (KNOWN_TOTALS.size() > 200) KNOWN_TOTALS.clear();
+        secretRun = new SecretRun(KNOWN_TOTALS);
         RunStatsBridge.reset();
     }
 
-    /** The whole team's "Secrets Found" from the end-of-run block, or -1 before it was read. */
-    public static int teamSecrets() { return teamSecrets; }
+    /** This run's secret counts (see {@link SecretRun}). */
+    public static SecretRun secretRun() { return secretRun; }
 
-    /** Asks for the start-of-run count of everyone still without one (the party may fill in after entry). Call every few seconds. */
+    /** Asks for the start-of-run total of everyone without one (the party may fill in after entry), at most once per 30 s each. */
     public static void snapshotSecrets(Minecraft client) {
         if (!RunStatsConfig.getInstance().isFetchSecrets()) return;
+        SecretRun run = secretRun;
+        if (client.player != null) run.setSelf(client.player.getGameProfile().name());
+        long now = System.currentTimeMillis();
         for (String name : partyNames(client)) {
-            String key = key(name);
-            if (SECRETS_BEFORE.containsKey(key) || BEFORE_TRIES.merge(key, 1, Integer::sum) > 4) continue;
-            fetchSecrets(name, SECRETS_BEFORE);
+            if (run.wantStart(name, now)) fetchSecrets(run, name, true);
         }
     }
 
-    /** Asks for the end-of-run count of everyone with a start count (cache bypassed). */
-    public static void captureSecrets(Minecraft client) {
+    /** The run ended (the Stats block): freezes the start reads, takes the tab list's team total and reads the end totals. */
+    public static void endRun(Minecraft client, int teamTotal) {
+        secretRun.markEnded(teamTotal);
+        captureSecrets(secretRun);
+    }
+
+    /** Reads the end total of everyone whose number has not moved yet (cache bypassed). */
+    public static void captureSecrets(SecretRun run) {
         if (!RunStatsConfig.getInstance().isFetchSecrets()) return;
-        for (String name : partyNames(client)) {
-            if (SECRETS_BEFORE.containsKey(key(name))) fetchSecrets(name, SECRETS_AFTER);
-        }
+        for (String name : run.endTargets()) fetchSecrets(run, name, false);
     }
-
-    /** True while a lookup is out, or the deltas still fall short of the team total (the API lags the run). */
-    public static boolean secretsPending() {
-        if (!RunStatsConfig.getInstance().isFetchSecrets() || SECRETS_BEFORE.isEmpty()) return false;
-        if (!IN_FLIGHT.isEmpty()) return true;
-        long sum = 0;
-        for (Map.Entry<String, Long> e : SECRETS_BEFORE.entrySet()) {
-            Long after = SECRETS_AFTER.get(e.getKey());
-            if (after == null) return true;
-            sum += Math.max(0, after - e.getValue());
-        }
-        return teamSecrets >= 0 && sum < teamSecrets;
-    }
-
 
     /** Feeds the map-derived room clears in. Call every few ticks while in a dungeon. */
     public static synchronized void pollRooms(Minecraft client) {
@@ -142,9 +122,11 @@ public final class RunStatsTracker {
 
     /** Feeds one stripped chat line in; picks up the run's death messages. */
     public static synchronized void onChatLine(Minecraft client, String plain) {
-        Matcher ts = TEAM_SECRETS.matcher(plain);
-        if (ts.matches()) {
-            teamSecrets = Integer.parseInt(ts.group(1));
+        Matcher own = OWN_SECRETS.matcher(plain);
+        if (own.matches()) {
+            // The Stats block's "Secrets Found" is the VIEWER's own count, exact (the tab list holds the team's).
+            if (client.player != null) secretRun.setSelf(client.player.getGameProfile().name());
+            secretRun.setOwn(Integer.parseInt(own.group(1)));
             return;
         }
         Matcher m = DEATH.matcher(plain);
@@ -172,12 +154,7 @@ public final class RunStatsTracker {
             Set<String> stacked = STACKED_ROOMS.get(key);
             List<String> deaths = DEATHS.getOrDefault(key, List.of());
             DungeonClass cls = PartyTracker.classOf(name);
-            int secrets = -1;
-            Long before = SECRETS_BEFORE.get(key);
-            Long after = SECRETS_AFTER.get(key);
-            if (before != null && after != null && after >= before) {
-                secrets = (int) Math.min(Integer.MAX_VALUE, after - before);
-            }
+            int secrets = secretRun.secrets(name);
             out.add(new PlayerRunStats(displayName(name), cls,
                     rooms ? (solo == null ? 0 : solo.size()) : -1,
                     rooms ? (stacked == null ? 0 : stacked.size()) : -1,
@@ -229,23 +206,18 @@ public final class RunStatsTracker {
         return names;
     }
 
-    private static void fetchSecrets(String name, Map<String, Long> into) {
-        String key = key(name);
-        String flight = key + (into == SECRETS_BEFORE ? "<" : ">");
-        if (!IN_FLIGHT.add(flight)) return;
-        int generation = runGeneration;
+    private static void fetchSecrets(SecretRun run, String name, boolean start) {
         ProfileViewerApi.resolve(name)
                 .thenCompose(player -> ProfileViewerApi.fetchProfiles(player.uuid(), true))
                 .thenAccept(res -> {
                     SbProfile p = SbProfile.dungeonProfile(res.profiles());
-                    if (p != null && generation == runGeneration) {
-                        into.put(key, p.dungeons.secrets());
-                    }
+                    if (p == null) return;
+                    if (start) run.gotStart(name, p.dungeons.secrets());
+                    else run.gotEnd(name, p.dungeons.secrets());
                 })
                 .exceptionally(t -> {
                     LOGGER.info("[RunStats] No secret count for {}: {}", name, ProfileViewerApi.messageFor(t));
                     return null;
-                })
-                .whenComplete((v, t) -> IN_FLIGHT.remove(flight));
+                });
     }
 }

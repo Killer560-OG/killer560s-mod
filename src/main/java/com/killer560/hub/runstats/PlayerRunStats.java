@@ -16,9 +16,9 @@ import java.util.List;
  *     (see {@link com.killer560.hub.livemap.RunStatsBridge}). Hypixel publishes no per-player room count, so a
  *     room finished while two people stood in it counts as "stacked" for both and is shown as a range
  *     ({@code solo}-{@code solo+stacked}), exactly. {@code -1} means "not tracked".
- * <li>{@link #secrets} - lifetime-secret delta over the run from Hypixel's own player data (the
- *     {@code skyblock_treasure_hunter} achievement), not from the end-of-run chat page, which carries no
- *     per-player numbers at all. {@code -1} means "unknown" (API unavailable, or the option is off).
+ * <li>{@link #secrets} - the player's own count is exact (the Stats block); others are a lifetime-secret delta from
+ *     Hypixel's player data, shown only once the party adds up to the team total ({@link SecretRun}). {@code -1} means
+ *     "unknown" (API behind, option off, or not measurable).
  * <li>{@link #deaths} - death reasons from the run's "{@code ☠}" chat lines, which <i>are</i> per player.
  * </ul>
  */

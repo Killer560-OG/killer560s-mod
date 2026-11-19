@@ -266,6 +266,11 @@ public final class DungeonInfoFeature {
         return roomSecretsFound;
     }
 
+    /** The tab list's "Secrets Found: N" (the whole team's count) for this run, or -1 before it has been read. */
+    public static int teamSecretsFound() {
+        return lastSecretsCount;
+    }
+
     /** The tab list's "Secrets Found: N%" for this run (the whole team's), or -1 before it has been read. Auto Secret
      *  stops at 100. */
     public static double secretsFoundPercent() {
