@@ -45,6 +45,9 @@ public class CommandPrefixesTab extends BaseTab {
         if (!cfg.isAltOn() && !isSearchScan()) {
             return w;
         }
+        w.add(onOffButton("Prefix Key Opens Chat", cfg::isOpensChat, cfg::setOpensChat, cfg::save, null,
+                contentX, y, contentWidth, ROW));
+        y += GAP;
         w.add(SettingsButtonWidget.cycling(charText(cfg), (btn, dir) -> {
             String[] p = CommandPrefixConfig.PRESETS;
             int i = java.util.Arrays.asList(p).indexOf(cfg.altChar());

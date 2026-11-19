@@ -19,6 +19,7 @@ public final class CommandPrefixConfig {
 
     private final boolean[] names = {true, false, false, false};
     private boolean altOn;
+    private boolean opensChat = true;
     private String altChar = ".";
 
     private CommandPrefixConfig() {
@@ -36,7 +37,8 @@ public final class CommandPrefixConfig {
             .add("k", false, c -> c.names[1], (c, v) -> c.names[1] = v)
             .add("k5", false, c -> c.names[2], (c, v) -> c.names[2] = v)
             .add("k560", false, c -> c.names[3], (c, v) -> c.names[3] = v)
-            .add("altEnabled", false, c -> c.altOn, (c, v) -> c.altOn = v);
+            .add("altEnabled", false, c -> c.altOn, (c, v) -> c.altOn = v)
+            .add("altOpensChat", true, c -> c.opensChat, (c, v) -> c.opensChat = v);
 
     public static synchronized void load() {
         CommandPrefixConfig c = new CommandPrefixConfig();
@@ -78,6 +80,14 @@ public final class CommandPrefixConfig {
 
     public void setAltOn(boolean on) {
         altOn = on;
+    }
+
+    public boolean isOpensChat() {
+        return opensChat;
+    }
+
+    public void setOpensChat(boolean on) {
+        opensChat = on;
     }
 
     public String altChar() {

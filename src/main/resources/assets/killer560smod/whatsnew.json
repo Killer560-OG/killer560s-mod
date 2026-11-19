@@ -32,7 +32,8 @@
      "RNG Meter Overlay: new Highlight Best option (on by default while the overlay is on) marks the slot of the best reward on the open RNG Meter page, the most coins per meter point, the same number the ranking shows; rewards with no price are never picked.",
      "Auto Reclaim (Items): highlights every item the new /reclaim command would give something back for, /autoreclaim lists them in chat, and the cheat build can pull them out of storage and reclaim them; the Reclaim Menu now has Reclaim Inventory (what you carry) and Reclaim All (every storage page) buttons",
      "Interactive Map: the Open From HUD Click option is gone, and a path started from the map no longer draws green waypoint boxes and lines in the world.",
-     "Chat Channel Indicator: new Show setting, While Chat Is Open (as before) or Always, where it is its own movable Chat Channel HUD element."
+     "Chat Channel Indicator: new Show setting, While Chat Is Open (as before) or Always, where it is its own movable Chat Channel HUD element.",
+     "Command Prefixes: typing your Alternate Prefix character in game (for example .) now opens the chat with it already typed, like / does; new Prefix Key Opens Chat switch, on by default."
     ]
    }
   ]

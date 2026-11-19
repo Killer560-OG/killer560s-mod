@@ -3368,6 +3368,7 @@ final class SettingTooltipsData {
         d.put("disable item cooldowns", "Stops the cooldown overlay on items.");
         d.put("no eat animation", "Stops the eating animation.");
         d.put("etherwarp waypoints/clear this room", "Deletes every etherwarp waypoint in the room you are in.");
+        d.put("prefix key opens chat", "Typing the Alternate Prefix character in game opens the chat with it already typed, like / does. Not for a letter or digit, which would clash with its keybind.");
         d.put("etherwarp waypoints/color", "Marker color for etherwarp nodes.");
     }
 }

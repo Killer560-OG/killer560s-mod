@@ -12,6 +12,8 @@ import net.fabricmc.fabric.impl.command.client.ClientCommandInternals;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 import com.mojang.brigadier.tree.CommandNode;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.ChatScreen;
+import com.killer560.hub.compat.McCompat;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import org.slf4j.Logger;
@@ -60,6 +62,20 @@ public final class CommandPrefixFeature {
         if (!on(name)) {
             throw CommandSyntaxException.BUILT_IN_EXCEPTIONS.dispatcherUnknownCommand().create();
         }
+    }
+
+    /** A typed character while no screen is open (KeyboardHandler.charTyped, ahead of nothing: vanilla drops it then):
+     *  with the Alternate Prefix and its "Prefix Key Opens Chat" row on, a non-letter/digit prefix opens the chat with the
+     *  prefix typed, like "/" does. True when it opened the chat: the mixin then cancels
+     *  the event, or the new screen would type the character a second time. */
+    public static boolean onChar(Minecraft mc, int codePoint) {
+        CommandPrefixConfig cfg = CommandPrefixConfig.getInstance();
+        if (!cfg.isAltOn() || !cfg.isOpensChat() || cfg.altChar().codePointAt(0) != codePoint
+                || Character.isLetterOrDigit(codePoint) || mc.player == null || McCompat.hasScreen(mc)) {
+            return false;
+        }
+        McCompat.setScreen(mc, new ChatScreen(cfg.altChar(), false));
+        return true;
     }
 
     /** False when the line was run as a client command. A first word that is no client command root is plain chat. */
