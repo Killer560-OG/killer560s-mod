@@ -370,13 +370,15 @@ public final class ItemProtect {
     }
 
     /**
-     * Decision for the real drop key. Returns true to swallow the key press. Never forced through: a protected item, or
+     * Decision for the real drop key. Returns true to swallow the key press. Never forced through, except that in a dungeon the key is the class
+     * ability and ultimate and always goes out: a protected item, or
      * any hotbar item with Block Every Drop on, can not be dropped by the key (killer560, 2026-11-18, lockdrop-1118;
      * the old Confirm To Force let a repeated press drop it).
      */
     public static boolean shouldBlockHotbarDrop() {
         ItemProtectConfig cfg = ItemProtectConfig.getInstance();
-        if (!cfg.isEnabled()) {
+        // In a dungeon Hypixel reads the in-world drop key as the class ability / ultimate and does not drop the item.
+        if (!cfg.isEnabled() || com.killer560.hub.secrets.DungeonState.isInDungeon()) {
             return false;
         }
         Inventory inv = playerInventory();
