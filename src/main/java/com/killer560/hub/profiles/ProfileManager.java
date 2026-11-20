@@ -99,6 +99,8 @@ public final class ProfileManager {
             "killer560smod-storagesearch-timestamps.json",
             // The Bazaar screen's recently opened products, per SkyBlock profile - his history, not a setting.
             "killer560smod-bazaar-recent.json",
+            // Share To Website's personal bests for the website boards - a shared-store record, not a setting.
+            "killer560smod-board-bests.json",
             // The Auction House's downloaded listings (~3 MB) and its price history built from those scans - a
             // re-downloadable price cache, not a setting (profiles-all, 2026-10-13).
             "killer560smod-auction-cache.json",
