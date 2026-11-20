@@ -753,11 +753,13 @@ public final class BloodCampFeature {
         BloodCampStats.noteInRoom(inRoom);
         // killer560, 2026-11-01: "Have an option to only toggle as mage." With Mage Only on, the Trigger Bot and the
         // Aura act only while the dungeon tab list says he is the Mage (before it says anything: not the Mage).
-        boolean classOk = !cfg.isMageOnly()
-                || com.killer560.hub.leapmenu.PartyTracker.selfClass() == com.killer560.hub.dungeonclass.DungeonClass.MAGE;
+        com.killer560.hub.dungeonclass.DungeonClass played = cfg.isMageOnly() ? com.killer560.hub.leapmenu.PartyTracker.selfClass() : null;
+        boolean classOk = !cfg.isMageOnly() || played == com.killer560.hub.dungeonclass.DungeonClass.MAGE;
+        classHeld = !classOk;
+        heldClass = played;
         if (classOk != lastClassOkLogged && cfg.isMageOnly()) {
             LOGGER.info("[BloodCamp] Mage Only: {} (class {}) tick={}", classOk ? "Mage, acting" : "not the Mage, holding",
-                    com.killer560.hub.leapmenu.PartyTracker.selfClass(), now);
+                    played, now);
         }
         lastClassOkLogged = classOk;
         inRoom = (inRoom || cfg.isWorkOutside() && nearBloodRoom(client)) && classOk;
@@ -1407,7 +1409,9 @@ public final class BloodCampFeature {
             }
             return; // not aimed at anything of the Watcher's: nothing to explain
         }
-        if (!inRoom) {
+        if (classHeld) {
+            logRefusal(now, "class", "Mage Only and class is " + heldClass + " (" + target + ")");
+        } else if (!inRoom) {
             logRefusal(now, "room", "not in the Blood Room (" + target + ")");
         } else if (com.killer560.hub.util.ActionGate.containerScreenOpen(client)) {
             logRefusal(now, "screen", "a container screen is open (" + target + ")");
@@ -2088,6 +2092,9 @@ public final class BloodCampFeature {
         return Math.min(AURA_MAX_LEAD_TICKS, 6.0 + BloodCampAim.maxTurnTicks(dy, dp) + 1.0);
     }
     private static boolean lastClassOkLogged = true;
+    /** The class seen by Mage Only this tick (classHeld = it failed); names the hold reason in {@link #explainTriggerIdle}. */
+    private static com.killer560.hub.dungeonclass.DungeonClass heldClass;
+    private static boolean classHeld;
     private static boolean lastTriggerUsable;
 
     public static boolean lastTriggerUsable() {

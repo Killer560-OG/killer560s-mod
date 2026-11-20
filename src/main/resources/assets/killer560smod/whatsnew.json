@@ -8,7 +8,8 @@
     "blurb": "Changes in this update.",
     "items": [
      "Inventory Sorter now waits 0.25 s between sack fetches instead of 3 s; a fetch Hypixel refuses for cooldown is asked again after 1 s, up to 5 times.",
-     "Hide Players no longer hides Shadow Assassins, minibosses or NPCs (only real players), and has a new Only In Chosen Phases switch with a row for each Floor 7 / Master 7 boss phase."
+     "Hide Players no longer hides Shadow Assassins, minibosses or NPCs (only real players), and has a new Only In Chosen Phases switch with a row for each Floor 7 / Master 7 boss phase.",
+     "Blood Camp's Mage Only, the leap menu and class-only features now follow a class swap: the class the game shows wins over an old Leap Order pick on your own name."
     ]
    }
   ]

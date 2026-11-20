@@ -215,7 +215,7 @@ public final class PartyTracker {
             add(m.group(1));
             DungeonClass c = parseClass(m.group(2));
             if (c != null) {
-                CLASSES.put(m.group(1).toLowerCase(Locale.US), c);
+                detect(m.group(1), c);
             }
         } else if ((m = LEFT.matcher(plain)).matches() || (m = KICKED_OFFLINE.matcher(plain)).matches()) {
             if (m.group(1).equalsIgnoreCase(selfName())) {
@@ -290,10 +290,10 @@ public final class PartyTracker {
             }
             if (who != null && self != null && !plain.startsWith("Party Finder > ") && DungeonState.isInDungeon()) {
                 // The dungeon's broadcast: the tab list's class for you is out of date until its next refresh.
-                CLASSES.put(self.toLowerCase(Locale.US), cls);
+                detect(self, cls);
             }
         } else if (plain.startsWith("Party Finder > ") || DungeonState.isInDungeon()) {
-            CLASSES.put(who.toLowerCase(Locale.US), cls);
+            detect(who, cls);
         }
         return true;
     }
@@ -343,7 +343,7 @@ public final class PartyTracker {
             // "DEAD" / "EMPTY" keep whatever class was known before.
             DungeonClass c = parseClass(m.group(2));
             if (c != null) {
-                CLASSES.put(name.toLowerCase(Locale.US), c);
+                detect(name, c);
             }
         }
         if (!fromTab.isEmpty() && !new ArrayList<>(MEMBERS).equals(fromTab)) {
@@ -549,7 +549,7 @@ public final class PartyTracker {
         if (name == null) return null;
         DungeonClass tab = CLASSES.get(name.toLowerCase(Locale.US));
         if (tab == null && com.killer560.hub.roomsim.SimState.isActive()) tab = com.killer560.hub.roomsim.SimClasses.mateClass(name);
-        return ClassOverrides.classOf(name, tab);
+        return tab != null && name.equalsIgnoreCase(selfName()) ? tab : ClassOverrides.classOf(name, tab);
     }
 
     /** What the dungeon tab list / Party Finder said this teammate is, ignoring any manual override (null = nothing yet).
@@ -558,15 +558,24 @@ public final class PartyTracker {
         return name == null ? null : CLASSES.get(name.toLowerCase(Locale.US));
     }
 
-    /** Your own class: a class pick on your own name when you set one (killer560 11-13: "leaporder keeps ignoring my
-     *  custom class selection for myself"), else the dungeon tab list, else null. leaporder-1102 had let the tab list win
-     *  because the removed Class Selection Overlay left stale picks; picks now come only from the Leap Order editor. */
+    /** Your own class: what the tab list / Hypixel showed for you (a class swap switches everything at once; a Leap Order
+     *  pick on your own name no longer overrides it, 11-19: "everything should have swapped"), else your own pick, else null. */
     public static DungeonClass selfClass() {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) {
             return null;
         }
-        return classOf(client.player.getGameProfile().name());
+        String me = client.player.getGameProfile().name();
+        DungeonClass seen = detectedClassOf(me);
+        return seen != null ? seen : classOf(me);
+    }
+
+    /** Records a detected class; a stale Leap Order pick on your own name that disagrees is dropped so it never comes back. */
+    private static void detect(String name, DungeonClass cls) {
+        CLASSES.put(name.toLowerCase(Locale.US), cls);
+        if (name.equalsIgnoreCase(selfName()) && ClassOverrides.has(name) && LeapMenuConfig.getInstance().pickOf(name) != cls) {
+            ClassOverrides.clear(name);
+        }
     }
 
     /** The class you play next as Hypixel last announced it (its class menu, a Party Finder group, the dungeon's
