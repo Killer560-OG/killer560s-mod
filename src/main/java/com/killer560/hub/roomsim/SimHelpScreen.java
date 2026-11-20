@@ -35,6 +35,8 @@ public final class SimHelpScreen extends Screen implements MenuThemedScreen {
     private static final int LINE = 10;
     private static final int PAD = 8;
     private static final int GAP = 6;
+    /** A bullet's text indent (marker, then a hanging indent on wrapped lines). */
+    private static final int BUL = 8;
     private static final int MIN_PIC_H = 90;
     private static final int STACK_H = 40;
     private static final String ASSETS = "/assets/killer560smod/textures/gui/simhelp/";
@@ -150,16 +152,17 @@ public final class SimHelpScreen extends Screen implements MenuThemedScreen {
         contentRight = 0;
         for (SimHelp.Line l : p.lines()) {
             boolean cmd = l.kind() == 'c';
-            List<FormattedCharSequence> seqs = new ArrayList<>(font.split(Component.literal(l.text()), cmd ? tw - 8 : tw));
+            boolean bullet = l.kind() == 't';
+            List<FormattedCharSequence> seqs = new ArrayList<>(font.split(Component.literal(l.text()), cmd ? tw - 8 : bullet ? tw - BUL : tw));
             int cmdLines = seqs.size();
             int h;
             if (cmd) {
                 seqs.addAll(font.split(Component.literal(l.desc()), tw - 8));
                 h = seqs.size() * LINE + 6;
             } else {
-                h = seqs.size() * LINE + (l.kind() == 'h' ? 4 : 3);
+                h = seqs.size() * LINE + 4;
             }
-            for (FormattedCharSequence q : seqs) contentRight = Math.max(contentRight, (cmd ? tx + 4 : tx) + font.width(q));
+            for (FormattedCharSequence q : seqs) contentRight = Math.max(contentRight, (cmd ? tx + 4 : bullet ? tx + BUL : tx) + font.width(q));
             out.add(new Row(y, h, l, seqs, cmdLines));
             y += h + (cmd ? 2 : 0);
         }
@@ -295,6 +298,12 @@ public final class SimHelpScreen extends Screen implements MenuThemedScreen {
             if (r.line().kind() == 'h') {
                 ScreenChrome.section(g, r.line().text(), tx, y + 1, tx + tw, false);
                 continue;
+            }
+            if (r.line().kind() == 't') {
+                x = tx + BUL;
+                GuiRects gr = GuiRects.begin(g);
+                gr.fill(tx + 2, y + 4, tx + 5, y + 7, MenuStyle.OR);
+                gr.submit();
             }
             for (int j = 0; j < r.seqs().size(); j++) {
                 int color = cmd ? (j < r.cmdLines() ? (hov ? MenuStyle.OR_HOVER : MenuStyle.OR) : MenuStyle.TXT_SOFT) : MenuStyle.TXT;
