@@ -138,6 +138,9 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   same snow block was dug twice more after the server had broken it - GrimAC AirLiquidBreak x2 (1102-breaker-aura-
   multibreak-off, 26.2). A re-dig now waits for the server's ack of the first dig's prediction sequence
   (`ChestWindows.acked`, from ClientboundBlockChangedAckPacket) or 1.5 s; 10/10 clean on both versions after.
+  Auto Routes' breaker node had the same bug (`RouteExecutor.redigStanding`, a round-trip guess only): Burst re-dug
+  four snow blocks the busy server had already broken, AirLiquidBreak x3 on DEFAULT Grim (62-argrim-1118-breakstyle-
+  burst-same-swap, 2026-11-19). It now also waits for the dig's ack (`breakerSentSeq`) or 30 ticks.
 - **A turned dig that rides the next movement packet's look misses GrimAC's 15 ms lend on a loaded server, and one miss
   poisons the session (rbcause-1102).** Grim lends a dig the next movement packet's look only when it PROCESSES that packet
   within 15 ms of the dig (`handleQueuedBreaks`, server currentTimeMillis); after one miss its buffer judges every later dig

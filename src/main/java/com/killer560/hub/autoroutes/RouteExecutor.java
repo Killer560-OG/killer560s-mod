@@ -2171,6 +2171,7 @@ public final class RouteExecutor {
         breakerQueue = new ArrayList<>();
         breakerSent.clear();
         breakerSentAt.clear();
+        breakerSentSeq.clear();
         boomRetried = false;
         breakerObsidian.clear();
         obsidianDigPos = null;
@@ -5751,12 +5752,12 @@ public final class RouteExecutor {
             // in both modes (the pace, BreakerNode.kt / BreakNode.java); OFF, legit mode waits its
             // Interact Delay between blocks as before.
             boolean legitMode = AutoRoutesConfig.getInstance().isLegitMode();
-            boolean multi = com.killer560.hub.dungeonextras.DungeonExtrasConfig.getInstance().isBreakerAuraAnyMultiBreak();
+            boolean multi = AutoRoutesConfig.getInstance().breakMulti();
             int delay = legitMode && !multi ? Math.max(1, AutoRoutesConfig.getInstance().getInteractDelayTicks()) : 1;
             if (stepTicks % delay != 0) {
                 return;
             }
-            if (com.killer560.hub.dungeonextras.DungeonExtrasConfig.getInstance().isBreakerAuraBurstMultiBreak()) {
+            if (AutoRoutesConfig.getInstance().breakBurst()) {
                 burstBreak(client, player, node, legitMode);
                 return;
             }
@@ -5986,6 +5987,11 @@ public final class RouteExecutor {
 
     /** When each block of the breaker node was last dug ({@link #execTicks}), for {@link #redigStanding}. */
     private static final Map<BlockPos, Long> breakerSentAt = new HashMap<>();
+    /** The block-prediction sequence of each breaker block's last dig: it is dug again only once the server has acked
+     *  it (a block still standing then was really refused), as Breaker Aura does (multibreak-1102). */
+    private static final Map<BlockPos, Integer> breakerSentSeq = new HashMap<>();
+    /** A re-dig with no ack (a server that never sends one) still goes this many ticks after the dig. */
+    private static final int REDIG_NO_ACK_TICKS = 30;
     /** Digs sent again because the block still stood a round trip on - read by the testkit. */
     private static int breakerRedigs;
 
@@ -6008,7 +6014,11 @@ public final class RouteExecutor {
         List<BlockPos> again = new ArrayList<>();
         for (BlockPos pos : breakerSent) {
             Long at = breakerSentAt.get(pos);
+            Integer seq = breakerSentSeq.get(pos);
+            // Never before the server has answered the dig (arbreakstyle-rm-1119-fx): on a busy server its block update
+            // came after the round-trip guess, and the re-dig hit air - GrimAC AirLiquidBreak (burst same-swap case).
             if (at == null || execTicks - at <= wait || !client.level.isLoaded(pos)
+                    || (seq != null && !com.killer560.hub.util.ChestWindows.acked(seq) && execTicks - at <= REDIG_NO_ACK_TICKS)
                     || client.level.getBlockState(pos).isAir()
                     || com.killer560.hub.dungeonbreaker.BreakerGuard.protects(client.level, pos)
                     || com.killer560.hub.dungeonbreaker.ObsidianDig.isObsidian(client.level.getBlockState(pos))
@@ -6029,13 +6039,20 @@ public final class RouteExecutor {
         }
         select(client, player, slot);
         int sent = 0;
-        boolean burst = com.killer560.hub.dungeonextras.DungeonExtrasConfig.getInstance().isBreakerAuraBurstMultiBreak();
+        boolean burst = AutoRoutesConfig.getInstance().breakBurst();
+        BlockPos burstTurn = null;
         for (BlockPos pos : again) {
             // One dig a tick (GrimAC MultiBreak), aimed by the look the server already has (util/DigAim, RotationBreak);
-            // Burst Multi Break (owner exception): all of them now, as many as there are charges.
+            // Burst Multi Break (owner exception, MultiBreak only): every one the heard look strikes, as many as there
+            // are charges; the rest after a turn (an unaimed burst re-dig drew RotationBreak, arbreakstyle-rm-1119-fx).
             if (burst) {
                 if (sent >= charges[0]) {
                     break;
+                }
+                if (!AutoRoutesConfig.getInstance().isLegitMode()
+                        && !com.killer560.hub.util.DigAim.heardLookStrikes(player, pos)) {
+                    burstTurn = burstTurn == null ? pos : burstTurn;
+                    continue;
                 }
                 sendBreak(client, player, pos);
                 breakerSentAt.put(pos, execTicks);
@@ -6066,6 +6083,9 @@ public final class RouteExecutor {
         }
         if (burst && sent > 0) {
             com.killer560.hub.compat.McCompat.swingAttack(player);
+        } else if (burstTurn != null) {
+            turnBodyToward(player, Vec3.atCenterOf(burstTurn));
+            return true;
         }
         noteSecretGap("re-dug " + sent + " breaker block(s) the server had not broken");
         return true;
@@ -6258,7 +6278,7 @@ public final class RouteExecutor {
         // One dig a tick at most (GrimAC MultiBreak, util/DigWindow): back to back with Multi Break on or in obvious mode,
         // one per Interact Delay in legit mode with Multi Break off.
         boolean legitMode = AutoRoutesConfig.getInstance().isLegitMode();
-        boolean multi = com.killer560.hub.dungeonextras.DungeonExtrasConfig.getInstance().isBreakerAuraAnyMultiBreak();
+        boolean multi = AutoRoutesConfig.getInstance().breakMulti();
         int delay = legitMode && !multi ? Math.max(1, AutoRoutesConfig.getInstance().getInteractDelayTicks()) : 1;
         if (lingerTicks % delay != 0) {
             return;
@@ -6291,12 +6311,18 @@ public final class RouteExecutor {
         select(client, player, slot);
         int sentNow = 0;
         boolean lingerQueued = false;
-        boolean burst = com.killer560.hub.dungeonextras.DungeonExtrasConfig.getInstance().isBreakerAuraBurstMultiBreak();
+        boolean burst = AutoRoutesConfig.getInstance().breakBurst();
+        BlockPos lingerTurn = null;
         for (BlockPos pos : inReach) {
             if (burst && !com.killer560.hub.dungeonbreaker.ObsidianDig.isObsidian(client.level.getBlockState(pos))) {
-                // Burst Multi Break (owner exception): every block in reach this tick, charges the only limit.
+                // Burst Multi Break (owner exception, MultiBreak only): every block in reach the heard look strikes this
+                // tick, charges the only limit (RotationBreak, util/DigAim); with none struck, turn to the first.
                 if (sentNow >= charges[0]) {
                     break;
+                }
+                if (!legitMode && !com.killer560.hub.util.DigAim.heardLookStrikes(player, pos)) {
+                    lingerTurn = lingerTurn == null ? pos : lingerTurn;
+                    continue;
                 }
                 sendBreak(client, player, pos);
                 lingerSentAt.put(pos, lingerTicks);
@@ -6359,6 +6385,10 @@ public final class RouteExecutor {
                     turnBodyToward(player, Vec3.atCenterOf(next));
                 }
             }
+        }
+        if (sentNow == 0 && lingerTurn != null) {
+            turnBodyToward(player, Vec3.atCenterOf(lingerTurn));
+            return;
         }
         if (!lingerQueued) {
             com.killer560.hub.compat.McCompat.swingAttack(player);
@@ -6503,8 +6533,11 @@ public final class RouteExecutor {
                 pos.toShortString(), client.level.getBlockState(pos).getBlock().getName().getString(), face, execTicks,
                 breakerChargesLeft);
         if (client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
-            invoker.killer560smod$invokeStartPrediction(client.level, sequence -> new ServerboundPlayerActionPacket(
-                    ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, face, sequence));
+            invoker.killer560smod$invokeStartPrediction(client.level, sequence -> {
+                breakerSentSeq.put(pos.immutable(), sequence);
+                return new ServerboundPlayerActionPacket(ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, face,
+                        sequence);
+            });
         } else {
             player.connection.send(new ServerboundPlayerActionPacket(
                     ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, pos, face));

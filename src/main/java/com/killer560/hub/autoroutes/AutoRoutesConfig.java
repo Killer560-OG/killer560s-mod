@@ -64,6 +64,18 @@ public final class AutoRoutesConfig {
 
     /** killer560, 2026-10-05: "a crypt node where in the setting again you select hype or spirit sceptre". What a
      *  CRYPT node attacks with. */
+    /** arbreakstyle-1118: how a route breaks blocks. BREAKER_AURA follows the Breaker Aura card (the behavior before this
+     *  setting); the others override it for routes only, never touching the card's saved settings. */
+    public enum BreakStyle {
+        BREAKER_AURA("Breaker Aura"), LEGIT_MULTI("Legit Multi Break"), BURST("Burst Multi Break (flags Grim)");
+
+        public final String label;
+
+        BreakStyle(String label) {
+            this.label = label;
+        }
+    }
+
     public enum CryptWeapon {
         HYPERION, SPIRIT_SCEPTRE;
 
@@ -125,6 +137,7 @@ public final class AutoRoutesConfig {
     /** What a BAT node uses, and how long it keeps using it without a bat kill (killer560, 2026-10-13: a bat node "just
      *  like crypts"). Same choices and range as the crypt node's. */
     private CryptWeapon batWeapon = CryptWeapon.HYPERION;
+    private BreakStyle breakStyle = BreakStyle.BREAKER_AURA;
     private int batAttackTicks = 100;
     /** Kill Mimic with the Spirit Sceptre: how long it keeps using before giving up (killer560, 2026-10-16: "kill mimic
      *  also needs a timeout slider"). Was a fixed 5 s. */
@@ -245,6 +258,7 @@ public final class AutoRoutesConfig {
                 cfg.cryptWeapon = ConfigJson.getEnum(o, "cryptWeapon", CryptWeapon.class, cfg.cryptWeapon);
                 cfg.setCryptAttackTicks(ConfigJson.getInt(o, "cryptAttackTicks", cfg.cryptAttackTicks));
                 cfg.batWeapon = ConfigJson.getEnum(o, "batWeapon", CryptWeapon.class, cfg.batWeapon);
+                cfg.breakStyle = ConfigJson.getEnum(o, "breakStyle", BreakStyle.class, cfg.breakStyle);
                 cfg.setBatAttackTicks(ConfigJson.getInt(o, "batAttackTicks", cfg.batAttackTicks));
                 cfg.setMimicTimeoutTicks(ConfigJson.getInt(o, "mimicTimeoutTicks", cfg.mimicTimeoutTicks));
                 cfg.setEtherwarpsPerSecond(ConfigJson.getInt(o, "etherwarpsPerSecond", cfg.etherwarpsPerSecond));
@@ -303,6 +317,7 @@ public final class AutoRoutesConfig {
         o.addProperty("cryptWeapon", cryptWeapon.name());
         o.addProperty("cryptAttackTicks", cryptAttackTicks);
         o.addProperty("batWeapon", batWeapon.name());
+        o.addProperty("breakStyle", breakStyle.name());
         o.addProperty("batAttackTicks", batAttackTicks);
         o.addProperty("mimicTimeoutTicks", mimicTimeoutTicks);
         o.addProperty("etherwarpsPerSecond", etherwarpsPerSecond);
@@ -442,6 +457,18 @@ public final class AutoRoutesConfig {
     public int getCryptAttackTicks() { return cryptAttackTicks; }
     public void setCryptAttackTicks(int v) {
         cryptAttackTicks = Math.max(MIN_CRYPT_ATTACK_TICKS, Math.min(MAX_CRYPT_ATTACK_TICKS, v));
+    }
+    public BreakStyle getBreakStyle() { return breakStyle; }
+    public void setBreakStyle(BreakStyle v) { breakStyle = v == null ? BreakStyle.BREAKER_AURA : v; }
+    /** The routes' break style: Burst (all blocks in reach at once). Cheat build only, as the card's own switch is. */
+    public boolean breakBurst() {
+        return breakStyle == BreakStyle.BREAKER_AURA ? com.killer560.hub.dungeonextras.DungeonExtrasConfig.getInstance().isBreakerAuraBurstMultiBreak()
+                : breakStyle == BreakStyle.BURST && com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED;
+    }
+    /** Back to back digs (Legit Multi Break: one aimed dig a tick, or Burst); false only when the card says single. */
+    public boolean breakMulti() {
+        return breakStyle == BreakStyle.BREAKER_AURA ? com.killer560.hub.dungeonextras.DungeonExtrasConfig.getInstance().isBreakerAuraAnyMultiBreak()
+                : true;
     }
     public CryptWeapon getBatWeapon() { return batWeapon; }
     public void setBatWeapon(CryptWeapon v) { batWeapon = v == null ? CryptWeapon.HYPERION : v; }

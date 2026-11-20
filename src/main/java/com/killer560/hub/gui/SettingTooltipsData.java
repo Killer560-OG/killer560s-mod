@@ -2944,6 +2944,7 @@ final class SettingTooltipsData {
         d.put("ribbon trail/head color", "The ribbon's color right behind you.");
         d.put("ribbon trail/middle color", "The ribbon's color halfway along.");
         d.put("ribbon trail/tail color", "The ribbon's color at its far end, where it fades out.");
+        d.put("auto routes/breaker style", "How a route breaks the blocks of its breaker nodes, linger and re-digs, apart from the Breaker Aura card. Breaker Aura: whatever that card is set to. Legit Multi Break: one aimed dig every tick, clean on both GrimAC configs. Burst Multi Break: every block in reach in one tick, up to your charges; newest GrimAC flags it (MultiBreak, RotationBreak), by design.");
         d.put("auto routes/progress hud", "A movable HUD with the current room's route progress, or the plan of a running Auto Clear, Auto Secret or Autopilot; move it in the HUD editor.");
         d.put("auto routes/progress rooms", "How many upcoming rooms the Progress HUD lists after the one under way. Any more show as a +N more line.");
         d.put("ribbon trail/on teleport", "What the ribbon does when you teleport: Break leaves a gap, Connect draws a straight band between the two spots, Arc a rising curve.");

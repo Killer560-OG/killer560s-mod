@@ -213,6 +213,9 @@ public class AutoRoutesTab extends BaseTab implements KeyCaptureTab {
                 (cfg.getEtherwarpsPerSecond() - AutoRoutesConfig.MIN_WARPS_PER_SECOND) / (double) warpSpan,
                 v -> cfg.setEtherwarpsPerSecond((int) Math.round(AutoRoutesConfig.MIN_WARPS_PER_SECOND + v * warpSpan)));
         y[0] += 24;
+        w.add(SettingsButtonWidget.cycleEnum(() -> Component.literal("Breaker Style: §e" + cfg.getBreakStyle().label),
+                cfg::getBreakStyle, cfg::setBreakStyle, cfg::save).bounds(contentX, y[0], contentWidth, 20).build());
+        y[0] += 24;
         // killer560, 2026-10-15: a HUD of how far the room's route got, and of the rooms Auto Clear, Auto Secret and Autopilot
         // plan to do next.
         toggleCell(w, contentX, y[0], half, "Progress HUD", cfg::isProgressHud, cfg::setProgressHud, requestRebuild);
