@@ -80,6 +80,7 @@ public abstract class AbstractContainerScreenMixin extends Screen {
             // No log here: getTooltipFromContainerItem is called every frame the item is hovered, so this
             // logged once per frame (2026-09-20, FPS pass). The appended line is visible in the tooltip anyway.
             List<Component> newLines = new ArrayList<>(lines);
+            newLines.add(Component.literal(RngMeterOverlay.buildValueLine(name, requiredScore)));
             newLines.add(Component.literal(line));
             cir.setReturnValue(newLines);
         } catch (Exception e) {

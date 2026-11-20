@@ -270,30 +270,38 @@ public final class RngMeterOverlay {
         bestScreen = screen;
     }
 
-    /** Pulse cycle of the best-slot highlight in ms; strength eases between 45% and 100% (full at 300 ms into the cycle). */
-    private static final long PULSE_MS = 1200L;
+    /** Pulse cycle of the best-slot highlight in ms; strength eases smoothly between 0 and 1 (1 s period). */
+    private static final long PULSE_MS = 1000L;
     /** Test hook: when 0 or more, the pulse reads this time instead of the wall clock. */
     public static volatile long pulseClockForTest = -1L;
 
-    /** Strength 0.45..1.0 of the highlight at {@code ms}. */
+    /** Strength 0..1 of the highlight at {@code ms}. */
     public static double pulse(long ms) {
-        return 0.725 + 0.275 * Math.sin(2 * Math.PI * (ms % PULSE_MS) / PULSE_MS);
+        return 0.5 + 0.5 * Math.sin(2 * Math.PI * (ms % PULSE_MS) / PULSE_MS);
     }
 
-    /** Called from extractSlot (slot-local pose): a theme-colored fill and border on the best slot, pulsing gently. */
+    /** Called from extractSlot (slot-local pose): a theme-colored fill pulsing 25-70% plus a 2 px border pulsing between the color and white. */
     public static void drawBestSlot(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen, Slot slot) {
         if (slot.index != bestSlot || screen != bestScreen || !RngMeterConfig.getInstance().isHighlightBest()
                 || !RngMeterConfig.getInstance().isEnabled()) return;
         long t = pulseClockForTest >= 0 ? pulseClockForTest : System.currentTimeMillis();
         double f = pulse(t);
-        int c = com.killer560.hub.gui.ThemeAccent.light(0xFFFFAA00) & 0xFFFFFF;
-        int fill = ((int) (0x66 * f) << 24) | c;
-        int edge = ((int) (0xFF * f) << 24) | c;
-        graphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, fill);
-        graphics.fill(slot.x, slot.y, slot.x + 16, slot.y + 1, edge);
-        graphics.fill(slot.x, slot.y + 15, slot.x + 16, slot.y + 16, edge);
-        graphics.fill(slot.x, slot.y + 1, slot.x + 1, slot.y + 15, edge);
-        graphics.fill(slot.x + 15, slot.y + 1, slot.x + 16, slot.y + 15, edge);
+        int c = com.killer560.hub.gui.ThemeAccent.light(0xFFFFAA00);
+        int fill = ((int) (255 * (0.25 + 0.45 * f)) << 24) | (c & 0xFFFFFF);
+        int edge = 0xFF000000 | lerpToWhite(c, f);
+        int x = slot.x, y = slot.y;
+        graphics.fill(x, y, x + 16, y + 16, fill);
+        graphics.fill(x - 1, y - 1, x + 17, y + 1, edge);
+        graphics.fill(x - 1, y + 15, x + 17, y + 17, edge);
+        graphics.fill(x - 1, y + 1, x + 1, y + 15, edge);
+        graphics.fill(x + 15, y + 1, x + 17, y + 15, edge);
+    }
+
+    private static int lerpToWhite(int c, double f) {
+        int r = (int) (((c >> 16) & 0xFF) + (255 - ((c >> 16) & 0xFF)) * f);
+        int g = (int) (((c >> 8) & 0xFF) + (255 - ((c >> 8) & 0xFF)) * f);
+        int b = (int) ((c & 0xFF) + (255 - (c & 0xFF)) * f);
+        return r << 16 | g << 8 | b;
     }
 
     private static long lastErrorLogMs = 0L;
@@ -721,6 +729,14 @@ public final class RngMeterOverlay {
         if (price == null) return "§c§lKiller560's Mod: §cNo price found";
         double cpp = price / (double) requiredScore;
         return String.format(Locale.US, "§b§lKiller560's Mod: §b%,.1f coins/pt", cpp);
+    }
+
+    /** The "Value" tooltip line: the same price the ranking uses (no new lookup), "Value: unknown" when none. */
+    public static String buildValueLine(String name, long requiredScore) {
+        String id = resolveId(name);
+        Long price = id == null ? null : RngMeterEngine.PRICES.getPrice(new RngItem("", name, id, RngSource.BAZAAR, requiredScore, false));
+        return "§b§lKiller560's Mod: §" + (price == null ? "7Value: unknown"
+                : "bValue: " + com.killer560.hub.pricetooltip.PriceTooltipFeature.coins(price) + " coins");
     }
 
     /** One line of the ranking panel: text, color, and its offset below the panel's top. */

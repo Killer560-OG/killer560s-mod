@@ -47,7 +47,8 @@
      "Dungeon sim: terminals now send each slot as its own update, so Auto Terminals clicks are no longer blocked when another mod's terminal solver is also on (Click in Order never getting a click); every sim terminal type is tested against such solvers.",
      "Profile Viewer: new /pv Command switch (default ON); while OFF the mod leaves /pv alone so the server's or another mod's /pv runs.",
      "Chat translation now handles messages typed in Latin letters for languages like Bulgarian and Russian, and never shows the original text as a translation.",
-     "Auto Accept Invites' Only From Guild Members now reads your guild from the mod's relay (Hypixel API) instead of sending /guild list; the chat command is only the fallback when the relay cannot be reached."
+     "Auto Accept Invites' Only From Guild Members now reads your guild from the mod's relay (Hypixel API) instead of sending /guild list; the chat command is only the fallback when the relay cannot be reached.",
+     "RNG Meter: the best pick's slot now pulses with a bright fill and border so it is easy to spot; hovering an item in the RNG Meter menu now also shows its value."
     ]
    }
   ]
