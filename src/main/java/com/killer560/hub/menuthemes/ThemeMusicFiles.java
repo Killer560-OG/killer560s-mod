@@ -187,12 +187,12 @@ public final class ThemeMusicFiles {
         Path work = Files.createTempFile("killer560smod-thememusic-", ".ogg");
         Path log = Files.createTempFile("killer560smod-thememusic-", ".log");
         try {
-            Process p = ThemeImporter.runFfmpeg(List.of("ffmpeg", "-y", "-hide_banner", "-v", "error",
+            int ffmpegExit = ThemeImporter.runFfmpeg(List.of("ffmpeg", "-y", "-hide_banner", "-v", "error",
                     "-i", source.toAbsolutePath().toString(), "-vn", "-t", String.valueOf(MAX_SECONDS),
                     "-ac", "2", "-ar", "44100", "-c:a", "libvorbis", "-q:a", "4", work.toAbsolutePath().toString()), log, name,
                     " needs ffmpeg to import (only .ogg files import without it). ffmpeg was not"
                             + " found: install it, then restart Minecraft.");
-            if (p.exitValue() != 0 || !Files.isRegularFile(work) || Files.size(work) == 0 || !readableOgg(work)) {
+            if (ffmpegExit != 0 || !Files.isRegularFile(work) || Files.size(work) == 0 || !readableOgg(work)) {
                 String errors = Files.readString(log, StandardCharsets.UTF_8);
                 if (errors.contains("matches no streams") || errors.contains("does not contain any stream")) {
                     throw new IOException(name + " has no audio track, so there is no music to import.");

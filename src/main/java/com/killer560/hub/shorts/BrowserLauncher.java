@@ -1,5 +1,6 @@
 package com.killer560.hub.shorts;
 
+import com.killer560.hub.util.HiddenProcess;
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
@@ -7,14 +8,12 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import org.slf4j.Logger;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
+import java.util.Map;
 
 /**
  * Finds Microsoft Edge (preferred) or Google Chrome, prepares the dedicated Shorts profile, and builds the
@@ -69,19 +68,15 @@ final class BrowserLauncher {
         for (String hive : new String[]{"HKLM", "HKCU"}) {
             String key = hive + "\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\App Paths\\" + exe;
             try {
-                Process p = new ProcessBuilder("reg.exe", "query", key, "/ve").redirectErrorStream(true).start();
-                StringBuilder out = new StringBuilder();
-                try (BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
-                    String line;
-                    while ((line = r.readLine()) != null) {
-                        out.append(line).append('\n');
-                    }
+                Path regLog = Files.createTempFile("killer560smod-reg-", ".log");
+                String out;
+                try {
+                    if (HiddenProcess.run(List.of("reg.exe", "query", key, "/ve"), Map.of(), regLog, 3_000L) < 0) continue;
+                    out = Files.readString(regLog, StandardCharsets.UTF_8);
+                } finally {
+                    Files.deleteIfExists(regLog);
                 }
-                if (!p.waitFor(3, TimeUnit.SECONDS)) {
-                    p.destroyForcibly();
-                    continue;
-                }
-                for (String line : out.toString().split("\n")) {
+                for (String line : out.split("\n")) {
                     int idx = line.indexOf("REG_SZ");
                     if (idx >= 0) {
                         String value = line.substring(idx + "REG_SZ".length()).trim().replace("\"", "");

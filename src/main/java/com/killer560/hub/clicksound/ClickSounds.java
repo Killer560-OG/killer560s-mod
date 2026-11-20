@@ -535,30 +535,25 @@ public final class ClickSounds {
         Path work = Files.createTempFile("killer560smod-clicksound-", ".ogg");
         Path log = Files.createTempFile("killer560smod-clicksound-", ".log");
         try {
-            Process p;
+            int exit;
             try {
-                p = new ProcessBuilder("ffmpeg", "-y", "-hide_banner", "-v", "error",
+                exit = com.killer560.hub.util.HiddenProcess.run(List.of("ffmpeg", "-y", "-hide_banner", "-v", "error",
                         "-i", source.toAbsolutePath().toString(), "-vn", "-t", String.valueOf(CONVERT_SECONDS),
                         "-ac", "2", "-ar", "44100", "-c:a", "libvorbis", "-q:a", "4",
-                        work.toAbsolutePath().toString())
-                        .redirectErrorStream(true).redirectOutput(log.toFile()).start();
+                        work.toAbsolutePath().toString()), java.util.Map.of(), log, 30_000L);
             } catch (IOException e) {
                 throw new IOException(name + " needs ffmpeg to import (a video, another type, or a sound over "
                         + MAX_SECONDS + " seconds or 1 MB). ffmpeg was not found: install it, then restart Minecraft. "
                         + ".ogg, .wav, .mp3, .aiff and .au under " + MAX_SECONDS + " seconds import without it.");
-            }
-            try {
-                if (!p.waitFor(30, TimeUnit.SECONDS)) {
-                    p.destroyForcibly();
-                    throw new IOException("ffmpeg took too long on " + name + ".");
-                }
             } catch (InterruptedException e) {
-                p.destroyForcibly();
                 Thread.currentThread().interrupt();
                 throw new IOException("Interrupted.");
             }
+            if (exit == -2) {
+                throw new IOException("ffmpeg took too long on " + name + ".");
+            }
             String errors = new String(Files.readAllBytes(log), java.nio.charset.StandardCharsets.UTF_8);
-            if (p.exitValue() != 0 || !Files.isRegularFile(work) || Files.size(work) == 0) {
+            if (exit != 0 || !Files.isRegularFile(work) || Files.size(work) == 0) {
                 if (errors.contains("matches no streams") || errors.contains("does not contain any stream")) {
                     throw new IOException(name + " has no audio track, so there is no sound to import.");
                 }

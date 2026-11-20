@@ -1,5 +1,6 @@
 package com.killer560.hub.screenshotcopy;
 
+import com.killer560.hub.util.HiddenProcess;
 import com.killer560.hub.util.ModChat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
@@ -12,8 +13,9 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 
 /** When enabled, copies whatever screenshot vanilla's own screenshot key just took to the system
@@ -61,25 +63,21 @@ public final class ScreenshotCopyFeature {
             return;
         }
 
+        Path log = null;
         try {
-            ProcessBuilder builder = new ProcessBuilder(
-                    "powershell.exe", "-NoProfile", "-NonInteractive", "-WindowStyle", "Hidden", "-Command",
+            log = Files.createTempFile("killer560smod-screenshot-", ".log");
+            int exit = HiddenProcess.run(List.of(
+                    "powershell.exe", "-NoProfile", "-NonInteractive", "-Command",
                     "Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; "
                             + "$img = [System.Drawing.Image]::FromFile($env:KILLER560SMOD_SCREENSHOT_PATH); "
-                            + "[System.Windows.Forms.Clipboard]::SetImage($img); $img.Dispose()");
-            builder.environment().put("KILLER560SMOD_SCREENSHOT_PATH", newest.get().toAbsolutePath().toString());
-            builder.redirectErrorStream(true);
-            Process process = builder.start();
-            // waitFor first: reading the pipe to its end first made the 10 s timeout below unreachable
-            boolean finished = process.waitFor(10, TimeUnit.SECONDS);
-            if (!finished) {
-                process.destroyForcibly();
+                            + "[System.Windows.Forms.Clipboard]::SetImage($img); $img.Dispose()"),
+                    Map.of("KILLER560SMOD_SCREENSHOT_PATH", newest.get().toAbsolutePath().toString()), log, 10_000L);
+            if (exit == -2) {
                 LOGGER.warn("Screenshot copy: PowerShell timed out");
                 return;
             }
-            if (process.exitValue() != 0) {
-                String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-                LOGGER.warn("Screenshot copy: PowerShell exited {} - {}", process.exitValue(), output);
+            if (exit != 0) {
+                LOGGER.warn("Screenshot copy: PowerShell exited {} - {}", exit, Files.readString(log, StandardCharsets.UTF_8));
                 return;
             }
             notifySuccess();
@@ -88,6 +86,14 @@ public final class ScreenshotCopyFeature {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             LOGGER.warn("Screenshot copy interrupted for {}", newest.get(), e);
+        } finally {
+            if (log != null) {
+                try {
+                    Files.deleteIfExists(log);
+                } catch (IOException ignored) {
+                    // a temp file the OS will clear anyway
+                }
+            }
         }
     }
 

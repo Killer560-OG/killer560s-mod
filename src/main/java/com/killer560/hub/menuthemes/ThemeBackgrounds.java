@@ -218,7 +218,7 @@ public final class ThemeBackgrounds {
 
     private static String convertVideo(Path source, String name, Path dir, String folderName, Path work) throws IOException {
         Path log = work.resolve("ffmpeg.log");
-        Process p = ThemeImporter.runFfmpeg(List.of("ffmpeg", "-y", "-hide_banner", "-v", "error", "-i", source.toAbsolutePath().toString(),
+        int ffmpegExit = ThemeImporter.runFfmpeg(List.of("ffmpeg", "-y", "-hide_banner", "-v", "error", "-i", source.toAbsolutePath().toString(),
                 "-t", String.valueOf(MAX_SECONDS), "-an",
                 // Scaled DOWN to fit MAX_W x MAX_H, never up: a smaller video keeps its own size (less to read and upload).
                 "-vf", "fps=" + FPS + ",scale=w='min(" + MAX_W + ",iw)':h='min(" + MAX_H + ",ih)'"
@@ -230,7 +230,7 @@ public final class ThemeBackgrounds {
         try (Stream<Path> s = Files.list(work)) {
             frames = s.filter(f -> f.getFileName().toString().endsWith(".jpg")).sorted().toList();
         }
-        if (p.exitValue() != 0 || frames.isEmpty()) {
+        if (ffmpegExit != 0 || frames.isEmpty()) {
             String errors = Files.isRegularFile(log) ? Files.readString(log, StandardCharsets.UTF_8) : "";
             if (errors.contains("matches no streams") || errors.contains("does not contain any stream")) {
                 throw new IOException(name + " has no picture to import.");

@@ -5,7 +5,12 @@ import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
+import com.killer560.hub.util.HiddenProcess;
 import java.util.Locale;
 
 /**
@@ -103,6 +108,12 @@ public final class SpotifyMediaSession {
     public void onChange(Runnable r) { onChange = r; }
     private volatile Cover cover;
     private volatile Process process;
+    /** Piped mode (the helper under a hidden console host, see {@link HiddenProcess}): the control pipe once connected, and
+     *  what {@link #send} was given before that. Plain mode (no conhost): the process's own stdin and stdout. */
+    private volatile OutputStream cmdOut;
+    private final List<String> early = new ArrayList<>();
+    private boolean piped;
+    private int starts;
     private long nextStartMs;
     private int failures;
     private boolean hookAdded;
@@ -131,8 +142,14 @@ public final class SpotifyMediaSession {
         failures++;
         try {
             String encoded = Base64.getEncoder().encodeToString(SCRIPT.getBytes(StandardCharsets.UTF_16LE));
-            ProcessBuilder pb = new ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive",
-                    "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-EncodedCommand", encoded);
+            piped = HiddenProcess.available();
+            String pipe = "killer560smod-spotify-" + ProcessHandle.current().pid() + "-" + (++starts);
+            ProcessBuilder pb = new ProcessBuilder(HiddenProcess.headless(List.of("powershell.exe", "-NoProfile", "-NonInteractive",
+                    "-ExecutionPolicy", "Bypass", "-WindowStyle", "Hidden", "-EncodedCommand", encoded)));
+            if (piped) {
+                pb.environment().put("K560_SPOTIFY_PIPE", pipe);
+                pb.redirectOutput(ProcessBuilder.Redirect.DISCARD);   // the headless host's own stream, not the script's
+            }
             pb.environment().put("K560_SPOTIFY_PARENT", Long.toString(ProcessHandle.current().pid()));
             pb.environment().put("K560_SPOTIFY_COVER", coverFile.toString());
             pb.environment().put("K560_SPOTIFY_SOURCE", Integer.toString(sourceMode));
@@ -140,13 +157,15 @@ public final class SpotifyMediaSession {
                     Base64.getEncoder().encodeToString(AUDIO_SOURCE.getBytes(StandardCharsets.UTF_8)));
             pb.redirectError(ProcessBuilder.Redirect.DISCARD);
             Process p = pb.start();
-            // stdin stays open: it carries the controls ({@link #send}); the script exits when it closes.
+            // The control channel stays open: it carries the controls ({@link #send}); the script exits when it closes.
             process = p;
+            cmdOut = null;
+            early.clear();
             if (!hookAdded) {
                 hookAdded = true;
                 Runtime.getRuntime().addShutdownHook(new Thread(this::stop, "killer560smod-spotify-session-stop"));
             }
-            Thread reader = new Thread(() -> read(p), "killer560smod-spotify-session");
+            Thread reader = new Thread(() -> read(p, piped ? pipe : null), "killer560smod-spotify-session");
             reader.setDaemon(true);
             reader.start();
         } catch (Throwable t) {
@@ -161,7 +180,18 @@ public final class SpotifyMediaSession {
             return;   // already stopped: this runs every poll while both switches are off
         }
         process = null;
+        OutputStream co = cmdOut;
+        cmdOut = null;
+        early.clear();
+        if (co != null) {
+            try {
+                co.close();   // end of input: the script exits by itself
+            } catch (java.io.IOException ignored) {
+                // the pipe is already gone
+            }
+        }
         if (p != null) {
+            p.descendants().forEach(ProcessHandle::destroy);
             p.destroy();
         }
         latest = null;
@@ -268,7 +298,11 @@ public final class SpotifyMediaSession {
         Process p = process;
         if (p == null || !p.isAlive()) return false;
         try {
-            java.io.OutputStream out = p.getOutputStream();
+            OutputStream out = piped ? cmdOut : p.getOutputStream();
+            if (out == null) {
+                if (early.size() < 64) early.add(command);   // the reader thread hands these over once the pipe connects
+                return true;
+            }
             out.write((command + "\n").getBytes(StandardCharsets.UTF_8));
             out.flush();
             return true;
@@ -298,10 +332,46 @@ public final class SpotifyMediaSession {
 
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-spotify");
 
-    private void read(Process p) {
+    /** Opens the script's two named pipes (it creates them, then waits for us), retrying while it starts up; null if it dies. */
+    private InputStream connect(Process p, String pipe) throws InterruptedException {
+        OutputStream out = null;
+        InputStream in = null;
+        for (int i = 0; i < 400 && process == p && p.isAlive(); i++) {
+            try {
+                if (out == null) out = new java.io.FileOutputStream("\\\\.\\pipe\\" + pipe + "i");
+                in = new java.io.FileInputStream("\\\\.\\pipe\\" + pipe + "o");
+                break;
+            } catch (java.io.IOException e) {
+                Thread.sleep(100);   // the script has not made (or opened) the pipe yet
+            }
+        }
+        if (in == null || out == null) {
+            try {
+                if (out != null) out.close();
+            } catch (java.io.IOException ignored) {
+                // nothing to close
+            }
+            return null;
+        }
+        synchronized (this) {
+            if (process != p) return null;
+            try {
+                for (String c : early) out.write((c + "\n").getBytes(StandardCharsets.UTF_8));
+                out.flush();
+            } catch (java.io.IOException ignored) {
+                // the script ended already; the reader sees it
+            }
+            early.clear();
+            cmdOut = out;
+        }
+        return in;
+    }
+
+    private void read(Process p, String pipe) {
         int coverSeq = 0;
         boolean sawReading = false;
-        try (BufferedReader in = new BufferedReader(new InputStreamReader(p.getInputStream(), StandardCharsets.UTF_8))) {
+        try (InputStream raw = pipe == null ? p.getInputStream() : connect(p, pipe);
+                BufferedReader in = new BufferedReader(new InputStreamReader(raw, StandardCharsets.UTF_8))) {
             String line;
             while ((line = in.readLine()) != null) {
                 if (process != p) {
@@ -437,7 +507,24 @@ public final class SpotifyMediaSession {
             $volHow = ''
             $audioReady = $false
             $fast = 0
-            $stdin = [System.IO.StreamReader]::new([Console]::OpenStandardInput())
+            # Under a hidden console host the game talks over two named pipes this script creates (the host drops stdout and
+            # stdin); without one (K560_SPOTIFY_PIPE unset) it is plain stdin and stdout.
+            if ($env:K560_SPOTIFY_PIPE) {
+              $pIn = [System.IO.Pipes.NamedPipeServerStream]::new($env:K560_SPOTIFY_PIPE + 'i', [System.IO.Pipes.PipeDirection]::In, 1, [System.IO.Pipes.PipeTransmissionMode]::Byte, [System.IO.Pipes.PipeOptions]::Asynchronous)
+              $pOut = [System.IO.Pipes.NamedPipeServerStream]::new($env:K560_SPOTIFY_PIPE + 'o', [System.IO.Pipes.PipeDirection]::Out, 1, [System.IO.Pipes.PipeTransmissionMode]::Byte, [System.IO.Pipes.PipeOptions]::Asynchronous)
+              foreach ($ps in @($pIn, $pOut)) {
+                $ar = $ps.BeginWaitForConnection($null, $null)
+                while (-not $ar.AsyncWaitHandle.WaitOne(500)) {
+                  if (-not (Get-Process -Id $parentPid -ErrorAction SilentlyContinue)) { exit 0 }
+                }
+                $ps.EndWaitForConnection($ar)
+              }
+              $stdin = [System.IO.StreamReader]::new($pIn)
+              $outW = [System.IO.StreamWriter]::new($pOut, [System.Text.UTF8Encoding]::new($false))
+            } else {
+              $stdin = [System.IO.StreamReader]::new([Console]::OpenStandardInput())
+              $outW = [Console]::Out
+            }
             $pending = $stdin.ReadLineAsync()
             function IsBrowser([string]$id) { return $id -match '(?i)chrome|msedge|firefox|opera|brave|vivaldi|^arc' }
             # Which player to follow (2026-11-01). Mode 0: the Spotify app only. Mode 1: also other players, and a browser
@@ -526,8 +613,8 @@ public final class SpotifyMediaSession {
                   $line = $line + "`t" + $vol + "`t" + $flags + "`t" + (Clean $props.AlbumTitle) + "`t" + (Clean $s.SourceAppUserModelId)
                 }
               } catch { $line = 'E' }
-              [Console]::Out.WriteLine($line)
-              [Console]::Out.Flush()
+              $outW.WriteLine($line)
+              $outW.Flush()
               # Waits for the next reading, answering commands from the game at once (and reading again soon after, so a
               # seek or a skip reaches the lyric clock within a quarter second). End of input means the game is gone.
               # Every command already waiting is taken in one go, and of several volume settings only the LAST is applied:
@@ -562,12 +649,12 @@ public final class SpotifyMediaSession {
                   for ($k = 0; $k -lt $cmds.Count; $k++) { if ($cmds[$k].StartsWith('vol ')) { $lastVol = $k } }
                   for ($k = 0; $k -lt $cmds.Count; $k++) {
                     $cmd = $cmds[$k]
-                    if ($cmd.StartsWith('vol ') -and $k -ne $lastVol) { [Console]::Out.WriteLine("K`t" + $cmd); continue }
+                    if ($cmd.StartsWith('vol ') -and $k -ne $lastVol) { $outW.WriteLine("K`t" + $cmd); continue }
                     $res = "C`t" + $cmd + "`tFalse"
                     try { $res = RunCmd $cmd } catch { }
-                    [Console]::Out.WriteLine($res)
+                    $outW.WriteLine($res)
                   }
-                  [Console]::Out.Flush()
+                  $outW.Flush()
                   if ($eof) { exit 0 }
                   $fast = 3
                   break

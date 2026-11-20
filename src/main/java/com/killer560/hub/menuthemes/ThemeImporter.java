@@ -83,24 +83,18 @@ final class ThemeImporter {
         });
     }
 
-    /** Starts ffmpeg with its output in {@code log} and waits up to ten minutes; the caller reads the exit value. */
-    static Process runFfmpeg(List<String> command, Path log, String name, String notFoundTail) throws IOException {
-        Process p;
+    /** Runs ffmpeg with its output in {@code log}, waits up to ten minutes and returns its exit code. */
+    static int runFfmpeg(List<String> command, Path log, String name, String notFoundTail) throws IOException {
+        int code;
         try {
-            p = new ProcessBuilder(command).redirectErrorStream(true).redirectOutput(log.toFile()).start();
+            code = com.killer560.hub.util.HiddenProcess.run(command, java.util.Map.of(), log, 600_000L);
         } catch (IOException e) {
             throw new IOException(name + notFoundTail);
-        }
-        try {
-            if (!p.waitFor(10, TimeUnit.MINUTES)) {
-                p.destroyForcibly();
-                throw new IOException("ffmpeg took too long on " + name + ".");
-            }
         } catch (InterruptedException e) {
-            p.destroyForcibly();
             Thread.currentThread().interrupt();
             throw new IOException("Interrupted.");
         }
-        return p;
+        if (code == -2) throw new IOException("ffmpeg took too long on " + name + ".");
+        return code;
     }
 }

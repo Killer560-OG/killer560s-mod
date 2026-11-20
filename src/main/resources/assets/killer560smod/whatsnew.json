@@ -21,7 +21,8 @@
      "Test-only fix: two menu test cases that never ran in the ship lanes are now listed so they run.",
      "Time Lost To Melody: new Send To Party Chat switch posts the run's total and each section's share to party chat after Goldor's last section; a Melody you finished earlier is no longer blamed on a later terminal. Core Entry Times: new Only Slowest switch shows just the slowest player.",
      "Auto Terminals: Burst Size and Max Clicks Per Burst now top out at 5 and Burst Mode sends at most 5 terminal clicks in 550 ms, the most Hypixel takes in 10 ticks; the bug report now states the exact build (commit, variant, release or dev, testing, jar).",
-     "No Rotate was removed because Hypixel no longer turns you on a leap."
+     "No Rotate was removed because Hypixel no longer turns you on a leap.",
+     "The mod no longer flashes a command prompt window when Spotify, Copy Screenshot, an ffmpeg import or a browser lookup starts a helper program."
     ]
    }
   ]
