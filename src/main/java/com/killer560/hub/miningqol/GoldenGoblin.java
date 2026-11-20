@@ -76,7 +76,7 @@ public final class GoldenGoblin {
                 continue;
             }
             LivingEntity mob = e instanceof ArmorStand stand ? mobUnder(client, stand) : e instanceof LivingEntity l ? l : null;
-            if (mob == null || !mob.isAlive() || mob.isRemoved() || mob == client.player || isRealPlayer(mob)) {
+            if (mob == null || !mob.isAlive() || mob.isRemoved() || mob == client.player || com.killer560.hub.util.PlayerKind.isRealPlayer(mob)) {
                 continue;
             }
             if (KNOWN.size() < MAX_KNOWN || KNOWN.containsKey(mob.getId())) {
@@ -103,10 +103,6 @@ public final class GoldenGoblin {
         }
         throughWalls = walls;
         targets = ids;
-    }
-
-    private static boolean isRealPlayer(LivingEntity e) {
-        return e instanceof Player p && p.getUUID().version() != 2;
     }
 
     /** The mob a name-tag stand rides above: the entity with the id before it, else the nearest living one under it. */

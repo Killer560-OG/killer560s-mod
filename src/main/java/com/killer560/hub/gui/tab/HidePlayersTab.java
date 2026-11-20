@@ -41,7 +41,7 @@ public class HidePlayersTab extends BaseTab {
                     }).bounds(contentX + 12, y[0], contentWidth - 12, 20).build());
             y[0] += 24;
         }
-        if (cfg.getHidePlayersRaw()) {
+        if (cfg.getHidePlayersRaw() || isSearchScan()) {
             widgets.add(new ThemedSliderButton(contentX + 12, y[0], contentWidth - 12, 18,
                     distanceText(cfg),
                     (cfg.getHidePlayersDistance() - MIN_DISTANCE) / (double) (MAX_DISTANCE - MIN_DISTANCE)) {
@@ -62,6 +62,15 @@ public class HidePlayersTab extends BaseTab {
                     "Dungeon Only", cfg::isHidePlayersDungeonOnly, cfg::setHidePlayersDungeonOnly);
             ObjectHiderTab.toggle(widgets, contentX + 12, contentWidth - 12, y, cfg, requestRebuild,
                     "Boss Only", cfg::isHidePlayersBossOnly, cfg::setHidePlayersBossOnly);
+            ObjectHiderTab.toggle(widgets, contentX + 12, contentWidth - 12, y, cfg, requestRebuild,
+                    "Only In Chosen Phases", cfg::isHidePlayersPhases, cfg::setHidePlayersPhases);
+            if (cfg.isHidePlayersPhases() || isSearchScan()) {
+                for (int phase = 1; phase <= 5; phase++) {
+                    int p = phase;
+                    ObjectHiderTab.toggle(widgets, contentX + 24, contentWidth - 24, y, cfg, requestRebuild,
+                            "Phase " + p, () -> cfg.isHidePlayersPhase(p), v -> cfg.setHidePlayersPhase(p, v));
+                }
+            }
         }
 
         return widgets;

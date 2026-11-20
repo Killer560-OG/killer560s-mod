@@ -1,7 +1,9 @@
 package com.killer560.hub.objecthider;
 
 import com.killer560.hub.compat.McPackets;
+import com.killer560.hub.fastleap.Floor7Tracker;
 import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.util.PlayerKind;
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.objecthider.mixin.AbstractArrowInGroundAccessor;
 import com.killer560.hub.objecthider.mixin.ImageButtonSpritesAccessor;
@@ -408,8 +410,9 @@ public final class ObjectHiderFeature {
         // The reference 1.1.1 HidePlayers.class - other players' models, optionally scoped to dungeon/boss and a
         // max distance. "Click Through" is deliberately not ported: that changes which entity your clicks
         // hit, i.e. interaction/raycasting, not rendering - out of scope for a client-side render hider.
-        if (entity instanceof RemotePlayer && cfg.isHidePlayers()
+        if (entity instanceof RemotePlayer && PlayerKind.isRealPlayer(entity) && cfg.isHidePlayers()
                 && (!cfg.isHidePlayersDungeonOnly() || inDungeon)
+                && (!cfg.isHidePlayersPhases() || inChosenPhase(cfg, client))
                 && (!cfg.isHidePlayersBossOnly() || LiveMapFeature.isInBoss())
                 && withinHidePlayersDistance(entity, cfg, client)) {
             return true;
@@ -504,6 +507,20 @@ public final class ObjectHiderFeature {
             }
         }
         return false;
+    }
+
+    private static long phaseTick = Long.MIN_VALUE;
+    private static boolean phaseHides;
+
+    /** The F7/M7 boss is in a phase the player chose; decided once per game tick, not per entity. */
+    private static boolean inChosenPhase(ObjectHiderConfig cfg, Minecraft client) {
+        long now = client.level == null ? 0 : client.level.getGameTime();
+        if (now != phaseTick) {
+            phaseTick = now;
+            int p = Floor7Tracker.getPhase().ordinal(); // UNKNOWN 0, P1..P5 1..5
+            phaseHides = p > 0 && cfg.isHidePlayersPhase(p);
+        }
+        return phaseHides;
     }
 
     /** The reference 1.1.1 {@code HidePlayers.class} "Distance" - 0 means no cap (hide regardless of range). */

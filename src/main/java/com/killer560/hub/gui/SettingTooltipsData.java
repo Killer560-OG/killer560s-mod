@@ -3392,6 +3392,12 @@ final class SettingTooltipsData {
         d.put("hide players/distance", "Only hides players within this many blocks of you. 0 means no limit.");
         d.put("hide players/dungeon only", "Only hides players while you are in a dungeon.");
         d.put("hide players/boss only", "Only hides players during a boss fight.");
+        d.put("hide players/only in chosen phases", "Only hides players during the boss phases you pick below (Floor 7 and Master 7). With none picked, nothing is hidden.");
+        d.put("hide players/phase 1", "Hides players during Phase 1 (Maxor).");
+        d.put("hide players/phase 2", "Hides players during Phase 2 (Storm).");
+        d.put("hide players/phase 3", "Hides players during Phase 3 (Goldor).");
+        d.put("hide players/phase 4", "Hides players during Phase 4 (Necron).");
+        d.put("hide players/phase 5", "Hides players during Phase 5 (the Wither King (Master 7)).");
         d.put("explosions (wither impact)", "Hides the explosion effect of Wither Impact.");
         d.put("disable text shadow", "Turns off the shadow behind text.");
         d.put("disable fog", "Turns off the fog.");

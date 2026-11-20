@@ -23,7 +23,7 @@ final class FeatureDescriptions {
         BY_TAB.put("WitherDoorsTab", "Highlights the wither, blood and fairy doors your dungeon map shows, green once you hold a key.");
         BY_TAB.put("SimSettingsTab", "Dungeon Sim settings: Dungeon Breaker charges each secret gives back, Spawn Starred Mobs, and the Next Room and Previous Room keys for route practice.");
         BY_TAB.put("AutoSimonSaysTab", "Trigger Bot, Auto Start and Auto Solve for the Simon Says device.");
-        BY_TAB.put("HidePlayersTab", "Stops other players rendering: past a distance, in a dungeon or in the boss room.");
+        BY_TAB.put("HidePlayersTab", "Stops other players rendering: past a distance, in a dungeon, in the boss room or in chosen boss phases.");
         BY_TAB.put("DvdTab", "Bouncing DVD-screensaver boxes of text or a GIF on your screen; several at once.");
         BY_TAB.put("CosmeticsTab", "Your custom name, player size and held-item look, and the global cosmetics switch.");
         BY_TAB.put("WindowLayoutTab", "Tiles several Minecraft windows side by side on one monitor.");

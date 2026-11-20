@@ -109,6 +109,9 @@ public final class ObjectHiderConfig {
     private int hidePlayersDistance = 0;
     private boolean hidePlayersDungeonOnly = false;
     private boolean hidePlayersBossOnly = false;
+    private boolean hidePlayersPhases = false;
+    /** Chosen boss phases P1..P5 (index 0..4) for {@link #hidePlayersPhases}. */
+    private final boolean[] hidePlayersPhase = new boolean[5];
 
     private ObjectHiderConfig() {
     }
@@ -178,7 +181,13 @@ public final class ObjectHiderConfig {
             .add("noShortbowSwing", false, c -> c.noShortbowSwing, (c, v) -> c.noShortbowSwing = v)
             .add("hidePlayers", false, c -> c.hidePlayers, (c, v) -> c.hidePlayers = v)
             .add("hidePlayersDungeonOnly", false, c -> c.hidePlayersDungeonOnly, (c, v) -> c.hidePlayersDungeonOnly = v)
-            .add("hidePlayersBossOnly", false, c -> c.hidePlayersBossOnly, (c, v) -> c.hidePlayersBossOnly = v);
+            .add("hidePlayersBossOnly", false, c -> c.hidePlayersBossOnly, (c, v) -> c.hidePlayersBossOnly = v)
+            .add("hidePlayersPhases", false, c -> c.hidePlayersPhases, (c, v) -> c.hidePlayersPhases = v)
+            .add("hidePlayersP1", false, c -> c.hidePlayersPhase[0], (c, v) -> c.hidePlayersPhase[0] = v)
+            .add("hidePlayersP2", false, c -> c.hidePlayersPhase[1], (c, v) -> c.hidePlayersPhase[1] = v)
+            .add("hidePlayersP3", false, c -> c.hidePlayersPhase[2], (c, v) -> c.hidePlayersPhase[2] = v)
+            .add("hidePlayersP4", false, c -> c.hidePlayersPhase[3], (c, v) -> c.hidePlayersPhase[3] = v)
+            .add("hidePlayersP5", false, c -> c.hidePlayersPhase[4], (c, v) -> c.hidePlayersPhase[4] = v);
 
     public static void load() {
         ObjectHiderConfig cfg = new ObjectHiderConfig();
@@ -501,4 +510,14 @@ public final class ObjectHiderConfig {
     public boolean isHidePlayersBossOnly() { return hidePlayersBossOnly; }
 
     public void setHidePlayersBossOnly(boolean v) { hidePlayersBossOnly = v; }
+
+    /** "Only In Chosen Phases": hide players only while the F7/M7 boss is in one of the chosen phases. */
+    public boolean isHidePlayersPhases() { return hidePlayersPhases; }
+
+    public void setHidePlayersPhases(boolean v) { hidePlayersPhases = v; }
+
+    /** @param phase 1..5 */
+    public boolean isHidePlayersPhase(int phase) { return hidePlayersPhase[phase - 1]; }
+
+    public void setHidePlayersPhase(int phase, boolean v) { hidePlayersPhase[phase - 1] = v; }
 }

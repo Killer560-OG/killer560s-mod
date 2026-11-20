@@ -158,7 +158,7 @@ public final class CommissionMobs {
             java.util.regex.Matcher m = pattern.matcher(plain);
             if (!m.find()) continue;
             LivingEntity mob = e instanceof ArmorStand stand ? mobUnder(client, stand) : e instanceof LivingEntity l ? l : null;
-            if (mob == null || !mob.isAlive() || mob.isRemoved() || mob == client.player || isRealPlayer(mob)) continue;
+            if (mob == null || !mob.isAlive() || mob.isRemoved() || mob == client.player || com.killer560.hub.util.PlayerKind.isRealPlayer(mob)) continue;
             String name = matchedName(plain, mobs);
             if (KNOWN.size() < MAX_KNOWN || KNOWN.containsKey(mob.getId())) {
                 KNOWN.put(mob.getId(), name);
@@ -217,8 +217,6 @@ public final class CommissionMobs {
 
     /** Glow mixin hook (cheatutils WitherGlowEntityMixin): the ARGB outline color, or null when not glowing. */
     public static Integer glowColor(Entity entity) { return shouldGlow(entity) ? glowArgb : null; }
-
-    private static boolean isRealPlayer(LivingEntity e) { return e instanceof Player p && p.getUUID().version() != 2; }
 
     /** The mob a name-tag stand rides above: the entity with the id before it, else the nearest living one under it. */
     private static LivingEntity mobUnder(Minecraft client, ArmorStand stand) {
