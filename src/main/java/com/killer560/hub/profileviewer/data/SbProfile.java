@@ -6,7 +6,9 @@ import com.google.gson.JsonObject;
 import com.killer560.hub.profileviewer.api.ProfileViewerApi;
 import com.killer560.hub.profileviewer.item.LegacyItems;
 import com.killer560.hub.profileviewer.item.PetIcons;
+import com.killer560.hub.util.ModLog;
 import net.minecraft.world.item.ItemStack;
+import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -83,6 +85,8 @@ public final class SbProfile {
         /** The API's pet object (Est. Item Value prices a pet from it, as from an item's petInfo). */
         public final JsonObject info;
         public final LevelTables.Level level;
+        /** The level Total XP would give with no cap (0 when none is above the real one), shown as "100 (102)". */
+        public final int uncappedLevel;
         private ItemStack icon;
 
         Pet(JsonObject o) {
@@ -95,6 +99,7 @@ public final class SbProfile {
             candyUsed = (int) num(o, "candyUsed");
             info = o;
             level = LevelTables.petLevel(type, tier, exp);
+            uncappedLevel = LevelTables.petUncappedLevel(type, tier, exp);
         }
 
         public String displayName() { return titleCase(type); }
@@ -119,6 +124,8 @@ public final class SbProfile {
                               List<List<ItemStack>> accessories, List<ItemStack> personalVault,
                               List<ItemStack> quiver, List<ItemStack> fishingBag, List<ItemStack> potionBag) {
     }
+
+    private static final Logger LOGGER = ModLog.get("killer560smod-profileviewer");
 
     private SbProfile(JsonObject profile, JsonObject memberObj, UUID member) {
         this.member = member;
@@ -343,6 +350,18 @@ public final class SbProfile {
     private boolean riftBagSent;
 
     private Inventories decodeInventories() {
+        LegacyItems.beginFallbackCount();
+        try {
+            return decodeInventoriesCounted();
+        } finally {
+            java.util.Map<String, Integer> fell = LegacyItems.endFallbackCount();
+            if (!fell.isEmpty()) {
+                LOGGER.info("[ProfileViewer] {} item id(s) still draw as stand-ins: {}", fell.size(), fell);
+            }
+        }
+    }
+
+    private Inventories decodeInventoriesCounted() {
         riftAccessories();
         JsonObject inv = inventoryJson == null ? new JsonObject() : inventoryJson;
         JsonObject bags = asObj(inv.get("bag_contents"));
@@ -387,6 +406,9 @@ public final class SbProfile {
             wardrobeEquipped = (int) num(inv.get("wardrobe_equipped_slot"));
         }
 
+        // The worn set is not in the wardrobe data (its pieces are on the player): fill its column from the armor.
+        wardrobe = fillWornSet(wardrobe, wardrobeEquipped, armor);
+
         Map<Integer, ItemStack> icons = new TreeMap<>();
         JsonObject iconObj = asObj(inv.get("backpack_icons"));
         if (iconObj != null) {
@@ -418,6 +440,27 @@ public final class SbProfile {
 
         return new Inventories(inventory, armor, equipment, ender, backpacks, wardrobe, wardrobeEquipped,
                 accessories, vault, quiver, fishing, potion);
+    }
+
+    /** The equipped wardrobe set's column (1-based {@code equipped}) from {@code armor} (boots first, as the API stores it),
+     *  only when that whole column is empty; returns {@code wardrobe} itself otherwise. */
+    static List<List<ItemStack>> fillWornSet(List<List<ItemStack>> wardrobe, int equipped, List<ItemStack> armor) {
+        if (equipped <= 0 || armor.size() != 4 || armor.stream().allMatch(ItemStack::isEmpty)) return wardrobe;
+        int page = (equipped - 1) / 9, col = (equipped - 1) % 9;
+        List<List<ItemStack>> out = new ArrayList<>(wardrobe);
+        while (out.size() <= page) {
+            out.add(new ArrayList<>(Collections.nCopies(36, ItemStack.EMPTY)));
+        }
+        List<ItemStack> pg = new ArrayList<>(out.get(page));
+        while (pg.size() < 36) pg.add(ItemStack.EMPTY);
+        for (int row = 0; row < 4; row++) {
+            if (!pg.get(row * 9 + col).isEmpty()) return wardrobe;
+        }
+        for (int row = 0; row < 4; row++) {
+            pg.set(row * 9 + col, armor.get(3 - row));
+        }
+        out.set(page, pg);
+        return out;
     }
 
     private static <T> List<List<T>> chunk(List<T> list, int size) {

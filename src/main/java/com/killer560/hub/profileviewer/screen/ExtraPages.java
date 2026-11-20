@@ -27,6 +27,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
@@ -133,7 +134,7 @@ final class ExtraPages {
 
     private Font f() { return s.font(); }
 
-    private void title(GuiGraphicsExtractor g, String str, int x, int y) { tx(g, str, x, y, ACCENT); }
+    private void title(GuiGraphicsExtractor g, String str, int x, int y) { s.heading(g, str, x, y); }
 
     private void rightText(GuiGraphicsExtractor g, String str, int right, int y, int color) {
         tx(g, str, right - f().width(str), y, color);
@@ -294,6 +295,8 @@ final class ExtraPages {
     private ProfileExtras collStatsEx;
     private List<ExtraTables.CollectionCategory> collStatsCats;
     private String[] collNames = new String[0];
+    /** The right-hand text of each collection row the Default page drew last frame ("9/9  1.2M"); read by the testkit. */
+    final List<String> collRowTexts = new ArrayList<>();
     private int[] collMaxedPerCat = new int[0];
     private int collTotalMaxed;
     private int collTotalCount;
@@ -344,7 +347,7 @@ final class ExtraPages {
             g.blitSprite(RenderPipelines.GUI_TEXTURED, on ? PvStyleChrome.NEU_INV_TAB_ON : PvStyleChrome.NEU_INV_TAB, px + 7, y, 20, 20);
             ExtraTables.CollectionCategory c = cats.get(i);
             if (!c.items().isEmpty()) {
-                g.item(ItemIcons.forId(c.items().get(0).id()), px + (on ? 10 : 9), y + (on ? 3 : 2));
+                g.item(ItemIcons.collectionIcon(c.items().get(0).id()), px + (on ? 10 : 9), y + (on ? 3 : 2));
             }
             if (hover(mx, my, px + 7, y, 20, 20)) {
                 tip(List.of(line(c.name(), VALUE)));
@@ -377,7 +380,7 @@ final class ExtraPages {
                 g.blitSprite(RenderPipelines.GUI_TEXTURED, PvStyleChrome.NEU_PET_SEL, x, y, 20, 20);
                 g.disableScissor();
             }
-            g.item(ItemIcons.forId(it.id()), x + 2, y + 2);
+            g.item(ItemIcons.collectionIcon(it.id()), x + 2, y + 2);
             String roman = tier > 0 && tier <= 20 ? ROMAN[tier] : String.valueOf(tier);
             s.centeredIn(g, roman, x - 40, 100, y - 9, done >= 1 ? 0xFFFFD700 : 0xFF808080);
             s.centeredIn(g, shorten(amount), x - 40, 100, y + 22, 0xFF808080);
@@ -401,7 +404,7 @@ final class ExtraPages {
             ExtraTables.CollectionCategory c = cats.get(i);
             int tx = s.panelX + s.panelW - 9, ty = s.panelY + 20 + 22 * i, k = SBPV_COL_IDS.indexOf(c.id());
             PvStyleChrome.sideTab(g, s.pvStyle(), tx, ty, i == s.subView);
-            g.item(k >= 0 ? SBPV_COL_ICONS[k] : c.items().isEmpty() ? ItemStack.EMPTY : ItemIcons.forId(c.items().get(0).id()), tx + 10, ty + 2);
+            g.item(k >= 0 ? SBPV_COL_ICONS[k] : c.items().isEmpty() ? ItemStack.EMPTY : ItemIcons.collectionIcon(c.items().get(0).id()), tx + 10, ty + 2);
             if (hover(mx, my, tx, ty, 31, 20)) {
                 tip(List.of(line(c.name(), VALUE)));
             }
@@ -424,7 +427,7 @@ final class ExtraPages {
             boolean maxed = tier >= tiers.length;
             long prev = tier == 0 ? 0 : tiers[tier - 1];
             float next = maxed ? 1f : (float) (amount - prev) / Math.max(1, tiers[tier] - prev);
-            g.item(ItemIcons.forId(it.id()), x, y + 1);
+            g.item(ItemIcons.collectionIcon(it.id()), x, y + 1);
             g.text(s.font(), it.name() + ": " + shorten(amount), x + 21, y, text, false);
             PvStyleChrome.bar(g, x + 21, y + 12, next);
             g.text(s.font(), maxed ? "Maxed" : Math.round(next * 100) + "% to " + (tier + 1), x + 115, y + 10, maxed ? 0xFF00AA00 : text, false);
@@ -492,6 +495,7 @@ final class ExtraPages {
         int rows = (cat.items().size() + 1) / 2;
         int scroll = clampScroll(rows, visible);
         int colW = (rw - 20) / 2;
+        collRowTexts.clear();
         for (int i = scroll * 2; i < cat.items().size(); i++) {
             int row = i / 2 - scroll;
             if (row >= visible) break;
@@ -507,12 +511,14 @@ final class ExtraPages {
             long next = isMaxed || tiers.length == 0 ? prev : tiers[tier];
             double progress = isMaxed ? 1 : next <= prev ? 0 : (double) (amount - prev) / (next - prev);
 
-            g.item(ItemIcons.forId(it.id()), x, y + 1);
-            String tierText = tier + "/" + max;
+            g.item(ItemIcons.collectionIcon(it.id()), x, y + 1);
+            // The total collected sits on the row (the usual short number), after the tier; the name takes what is left.
+            String tierText = tier + "/" + max + "  " + shorten(amount);
             int tx = x + 19;
             int tw = colW - 19;
-            tx(g, f().plainSubstrByWidth(it.name(), tw - f().width(tierText) - 4), tx, y, amount > 0 ? TEXT : DIM);
+            tx(g, f().plainSubstrByWidth(it.name(), tw - f().width(tierText) - 6), tx, y, amount > 0 ? TEXT : DIM);
             rightText(g, tierText, tx + tw, y, isMaxed ? MAXED : VALUE);
+            collRowTexts.add(tierText);
             progressBar(g, tx, y + 11, tw, progress, isMaxed);
             if (hover(mx, my, x, y, colW, rowH - 2)) {
                 List<Component> t = new ArrayList<>();
@@ -1083,10 +1089,11 @@ final class ExtraPages {
         String[] names = {"Mage", "Barbarian"};
         int[] colors = {0xFFAA00AA, 0xFFFF5555};
         for (int i = 0; i < 2; i++) {
+            // the rank sits on the same row as its number: name left, "number  rank" right
+            String rank = ExtraTables.threshold(tables.get("faction_reputation"), "name", reps[i]);
             tx(g, names[i], x, y, colors[i]);
-            rightText(g, commas(reps[i]), x + w, y, VALUE);
-            y += 10;
-            rightText(g, ExtraTables.threshold(tables.get("faction_reputation"), "name", reps[i]), x + w, y, DIM);
+            rightText(g, rank, x + w, y, DIM);
+            rightText(g, commas(reps[i]), x + w - s.font().width(rank) - 6, y, VALUE);
             y += 11;
         }
         int best = Math.max(reps[0], reps[1]);
@@ -2202,21 +2209,26 @@ final class ExtraPages {
         ProfileExtras.Misc m = ex.misc;
         int navW = 84;
         s.box(g, s.contentX, s.contentY, navW, s.contentH);
-        int view = nav(g, new String[]{"General", "Kills", "Deaths", "Sacks"}, s.contentX + 4, s.contentY + 4, navW - 8, mx, my);
+        int view = nav(g, new String[]{"General", "Kills", "Deaths"}, s.contentX + 4, s.contentY + 4, navW - 8, mx, my);
         int rx = s.contentX + navW + 6;
         int rw = s.contentW - navW - 6;
         s.box(g, rx, s.contentY, rw, s.contentH);
         switch (view) {
             case 0 -> drawGeneral(g, p, m, ex.bag, rx, rw, mx, my);
-            case 1 -> drawCounts(g, "Kills", m.kills(), rx, rw, false, mx, my);
-            case 2 -> drawCounts(g, "Deaths", m.deaths(), rx, rw, false, mx, my);
-            default -> {
-                if (!m.sacksApi()) {
-                    center(g, "Inventory API is disabled.", rx, rw, DIM);
-                } else {
-                    drawCounts(g, "Sacks", m.sacks(), rx, rw, true, mx, my);
-                }
-            }
+            case 1 -> drawCounts(g, "Kills", m.kills(), rx, rw, false, mx, my, null);
+            default -> drawCounts(g, "Deaths", m.deaths(), rx, rw, false, mx, my, null);
+        }
+    }
+
+    /** The Sacks view of the Inventories tab (it used to be a Misc view): the sack list with icons, matches first and
+     *  the rest dimmed while the Inventories search has a query. */
+    void drawSacks(GuiGraphicsExtractor g, SbProfile p, int rx, int rw, int mx, int my, PvSearch find) {
+        ProfileExtras ex = extras(g, p);
+        if (ex == null) return;
+        if (!ex.misc.sacksApi()) {
+            center(g, "Inventory API is disabled.", rx, rw, DIM);
+        } else {
+            drawCounts(g, "Sacks", ex.misc.sacks(), rx, rw, true, mx, my, find);
         }
     }
 
@@ -2314,12 +2326,17 @@ final class ExtraPages {
         }
     }
 
-    private void drawCounts(GuiGraphicsExtractor g, String label, Map<String, Long> counts, int rx, int rw, boolean icons, int mx, int my) {
+    private void drawCounts(GuiGraphicsExtractor g, String label, Map<String, Long> counts, int rx, int rw, boolean icons, int mx, int my,
+                            PvSearch find) {
+        boolean finding = find != null && find.active();
         List<Map.Entry<String, Long>> list = new ArrayList<>();
         for (Map.Entry<String, Long> e : counts.entrySet()) {
             if (!e.getKey().equals("total") && e.getValue() > 0) {
                 list.add(e);
             }
+        }
+        if (finding) { // matches first, order kept inside each group
+            list.sort(Comparator.comparingInt(e -> find.matchesSack(e.getKey()) ? 0 : 1));
         }
         title(g, label, rx + 6, s.contentY + 5);
         Long total = counts.get("total");
@@ -2350,6 +2367,9 @@ final class ExtraPages {
             String name = SbProfile.titleCase(e.getKey());
             tx(g, f().plainSubstrByWidth(name, x + colW - tx - f().width(val) - 6), tx, y, TEXT);
             rightText(g, val, x + colW, y, VALUE);
+            if (finding && !find.matchesSack(e.getKey())) {
+                g.fill(x, top + row * rowH, x + colW, top + (row + 1) * rowH, 0xA0000000);
+            }
             if (hover(mx, my, x, top + row * rowH, colW, rowH)) {
                 tip(List.of(line(name, VALUE), line(commas(e.getValue()), TEXT)));
             }

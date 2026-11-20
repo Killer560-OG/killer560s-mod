@@ -56,6 +56,23 @@ public final class ItemIcons {
     private ItemIcons() {
     }
 
+    private static final Map<String, ItemStack> COLLECTION_CACHE = new ConcurrentHashMap<>();
+
+    /** A collection's icon: what Hypixel's own Collections menu draws, from the pre-pack look table (skull skins and
+     *  vanilla items, the one table Pack Disabler and the Bazaar read), else the look-alike of {@link #forId}. */
+    public static ItemStack collectionIcon(String id) {
+        if (COLLECTION_CACHE.size() > 256) {
+            COLLECTION_CACHE.clear();
+        }
+        return COLLECTION_CACHE.computeIfAbsent(id, k -> {
+            com.killer560.hub.packdisabler.ItemLooks.Look look = com.killer560.hub.packdisabler.ItemLooks.get(k);
+            if (look == null) return forId(k);
+            Item vanilla = com.killer560.hub.packdisabler.ItemLooks.vanillaItem(look);
+            ItemStack stack = new ItemStack(vanilla != null ? vanilla : look.skinHash() != null ? Items.PLAYER_HEAD : Items.PAPER);
+            return com.killer560.hub.packdisabler.ItemLooks.applyLook(stack, k) || vanilla != null ? stack : forId(k);
+        });
+    }
+
     public static ItemStack forId(String id) {
         if (id == null || id.isEmpty()) return new ItemStack(Items.PAPER);
         if (CACHE.size() > 2048) {

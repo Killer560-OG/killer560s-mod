@@ -6,6 +6,7 @@ import com.killer560.hub.profileviewer.ProfileViewerFeature;
 import com.killer560.hub.profileviewer.api.ProfileViewerApi;
 import com.killer560.hub.profileviewer.data.AccessoryBagView;
 import com.killer560.hub.profileviewer.data.LevelTables;
+import com.killer560.hub.profileviewer.data.ProfileExtras;
 import com.killer560.hub.profileviewer.data.SbProfile;
 import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.MenuThemedScreen;
@@ -123,12 +124,14 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     /** Appended last so a remembered page index from an older config still points at the same page. */
     static final int PAGE_WEIGHT = 13;
 
-    private static final String[] INV_VIEWS = {"Inventory", "Ender Chest", "Backpacks", "Wardrobe", "Accessories", "Vault", "Bags"};
+    private static final String[] INV_VIEWS = {"Inventory", "Ender Chest", "Backpacks", "Wardrobe", "Accessories", "Vault", "Quiver",
+            "Fishing Bag", "Potion Bag", "Sacks"};
     /** NEU Classic's selector icons for the views above (InventoriesPage's vanilla stand-ins), and their numbers. */
     private static final ItemStack[] INV_ICONS = {new ItemStack(Items.CHEST), new ItemStack(Items.ENDER_CHEST),
             new ItemStack(Items.BUNDLE), new ItemStack(Items.LEATHER_CHESTPLATE), new ItemStack(Items.GOLDEN_APPLE),
-            new ItemStack(Items.IRON_DOOR), new ItemStack(Items.COD)};
-    private static final String[] INV_NUMBERS = {"1", "2", "3", "4", "5", "6", "7"};
+            new ItemStack(Items.IRON_DOOR), new ItemStack(Items.ARROW), new ItemStack(Items.FISHING_ROD),
+            new ItemStack(Items.POTION), new ItemStack(Items.BARREL)};
+    private static final String[] INV_NUMBERS = {"1", "2", "3", "4", "5", "6", "7", "8", "9", "10"};
     static final net.minecraft.resources.Identifier CHEST_TEXTURE =
             net.minecraft.resources.Identifier.withDefaultNamespace("textures/gui/container/generic_54.png");
 
@@ -181,6 +184,59 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     private int petScroll = 0;
     private SbProfile.Pet pinnedPet;
     boolean dropdownOpen = false;
+    /** Show Status: fetched only on the click, answered into these fields off the render thread. */
+    boolean statusOpen = false;
+    private final int[] statusButton = {-1, -1, 0, 0};
+    private volatile boolean statusPending;
+    private volatile String statusFail;
+    private UUID statusFor;
+
+    /** The lines the Status popup shows now (the testkit reads them). */
+    List<String> statusLines() {
+        ProfileViewerApi.StatusResult r = uuid == null ? null : ProfileViewerApi.getCachedStatus(uuid);
+        if (r == null) {
+            return List.of(statusPending ? "Checking" + dots() : statusFail != null ? statusFail : "Checking" + dots());
+        }
+        return switch (r.state()) {
+            case ONLINE -> List.of("Online - " + r.where());
+            case HIDDEN -> List.of("Hidden (API off)");
+            case UNAVAILABLE -> List.of("Status unavailable");
+            case OFFLINE -> r.lastSeenMs() > 0
+                    ? List.of("Offline", "Last seen: " + DateTimeFormatter.ofPattern("MMM d, yyyy", Locale.ROOT)
+                            .format(Instant.ofEpochMilli(r.lastSeenMs()).atZone(ZoneId.systemDefault())))
+                    : List.of("Offline");
+        };
+    }
+
+    private void toggleStatus() {
+        statusOpen = !statusOpen;
+        if (!statusOpen || uuid == null || ProfileViewerApi.getCachedStatus(uuid) != null || statusPending) return;
+        statusPending = true;
+        statusFail = null;
+        statusFor = uuid;
+        ProfileViewerApi.fetchStatus(uuid).whenComplete((r, t) -> {
+            statusPending = false;
+            if (t != null) {
+                String m = String.valueOf(t.getMessage());
+                statusFail = m.contains("404") ? "Status unavailable" : "Couldn't check status";
+            }
+        });
+    }
+
+    private void drawStatus(GuiGraphicsExtractor g) {
+        List<String> lines = statusLines();
+        int w = 60;
+        for (String s : lines) w = Math.max(w, this.font.width(s) + 12);
+        int h = lines.size() * 12 + 6;
+        int x = Math.max(4, Math.min(statusButton[0], this.width - 4 - w));
+        int y = statusButton[1] + statusButton[3] + 1;
+        if (y + h > this.height) y = Math.max(0, statusButton[1] - 1 - h);
+        popup(g, x, y, w, h);
+        for (int i = 0; i < lines.size(); i++) {
+            tx(g, lines.get(i), x + 6, y + 4 + i * 12, i == 0 ? VALUE : DIM);
+        }
+    }
+
     private int profileButtonX = -1;
     private int profileButtonY = -1;
     private int profileButtonH = 16;
@@ -209,6 +265,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     /** Kept outside the widget so a background rebuild (e.g. the skin fetch finishing) can't wipe out
      *  what's mid-typing when {@link #init()} recreates the widget. */
     private String switchBoxText = "";
+    /** The Inventories tab's search across every container (one matcher, the Storage Search's), its box and text. */
+    private final PvSearch invFind = new PvSearch();
+    private EditBox invSearch;
+    private String invSearchText = "";
     /** Tab-completion for the name box: names from the tab list, the recent views and every name looked up
      *  this session that start with what is typed. Tab cycles them, a click picks one. */
     private List<String> suggestions = List.of();
@@ -393,6 +453,15 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         int gap = SIDEBAR_GAP + (pvStyle == ProfileViewerConfig.Style.DEFAULT || pvStyle == ProfileViewerConfig.Style.NEU ? 0 : 24); // SkyBlockPV's right tabs
         sidebarVisible = margin >= gap + SIDEBAR_W;
         switchBox = null;
+        invSearch = new ThemedEditBox(this.font, 0, 0, 90, 14, Component.literal("Search items")).hint("Search items...");
+        invSearch.setMaxLength(40);
+        invSearch.setValue(invSearchText);
+        invSearch.setResponder(text -> {
+            invSearchText = text;
+            invFind.setQuery(text);
+        });
+        invSearch.visible = false;
+        addRenderableWidget(invSearch);
         if (sidebarVisible) {
             sidebarX = panelX + panelW + gap;
             sidebarY = panelY;
@@ -564,6 +633,13 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                 dropdownOpen = false;
                 return true;
             }
+            if (statusOpen) { // a click outside the Status button closes the popup (the button itself toggles it)
+                boolean onButton = inside(event.x(), event.y(), statusButton[0], statusButton[1], statusButton[2], statusButton[3]);
+                if (!onButton) {
+                    statusOpen = false;
+                    return true;
+                }
+            }
             for (int i = hotspots.size() - 1; i >= 0; i--) {
                 Hotspot h = hotspots.get(i);
                 if (h.contains(event.x(), event.y())) {
@@ -599,6 +675,8 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             // through the rest; every other sub-view still pages one item at a time.
             if (invView == 1 || invView == 2) {
                 invScroll = Math.max(0, invScroll - (int) Math.signum(scrollY));
+            } else if (invView == PvSearch.SACKS) {
+                pageScroll = Math.max(0, pageScroll - (int) Math.signum(scrollY));
             } else {
                 invPage += scrollY < 0 ? 1 : -1;
             }
@@ -613,6 +691,16 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
+        if (page == PAGE_INVENTORIES && state == State.READY && invSearch.visible) {
+            if (event.key() == InputConstants.KEY_F && event.hasControlDown()) {
+                setFocused(invSearch);
+                invSearch.setFocused(true);
+                return true;
+            }
+            if (invSearch.isFocused()) { // typed digits and arrows belong to the box, not the page keys
+                return super.keyPressed(event);
+            }
+        }
         if (switchBox != null && switchBox.isFocused()) {
             // Enter submits the typed name; otherwise let the box handle its own text/cursor keys
             // (in particular Left/Right, which would otherwise page instead of moving the cursor).
@@ -741,6 +829,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             }
         }
 
+        invSearch.visible = false; // drawInventories shows it
+        if (page != PAGE_INVENTORIES) {
+            invSearch.setFocused(false);
+        }
         drawingHeader = true;
         drawHeader(g, mouseX, mouseY);
         drawingHeader = false;
@@ -787,6 +879,9 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         if (dropdownOpen) {
             drawDropdown(g, mouseX, mouseY);
         }
+        if (statusOpen && statusButton[0] >= 0) {
+            drawStatus(g);
+        }
 
         if (!pendingItemTooltip.isEmpty()) {
             com.killer560.hub.pricetooltip.PriceTooltipFeature.drawItemTooltip(g, this.font, pendingItemTooltip, mouseX, mouseY);
@@ -821,20 +916,26 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         String profileLabel = p == null ? null : "Profile: " + p.cuteName + gameModeTag(p) + " ▾";
         String styleLabel = "Style: " + pvStyle.label;
         String refresh = "⟳ Refresh";
-        int bh, rx, ry, rw, px, py, pw, sx, sy, sw;
+        int bh, rx, ry, rw, px, py, pw, sx, sy, sw, stx, sty;
+        String statusLabel = "Status ▾";
+        int stw = this.font.width(statusLabel) + 10;
+        // The profile button is as wide as its longest label ("Profile: Pomegranate ▾"), never a fixed 100.
+        int profW = Math.max(100, profileLabel == null ? 0 : this.font.width(profileLabel) + 10);
         if (pvStyle == ProfileViewerConfig.Style.NEU) {
-            // 100 x 20 dropdowns 3 px under the panel, 106 apart (GuiProfileViewer.java:331-357).
+            // 20 tall dropdowns 3 px under the panel (GuiProfileViewer.java:331-357); wider than 100 only for a long name.
             bh = 20;
-            px = panelX; py = panelY + panelH + 3; pw = 100;
+            px = panelX; py = panelY + panelH + 3; pw = profW;
             sx = 5; sy = 5; sw = this.font.width(styleLabel) + 10; // the Style button is top left in every style (killer560, 2026-11-09)
-            rx = panelX + 106; ry = py; rw = 100;
+            rx = px + pw + 6; ry = py; rw = 100;
+            stx = rx + rw + 6; sty = py;
         } else if (iconTabs) {
             // SkyBlockPV: the profile dropdown under the panel's left corner (:505), its icon buttons at the screen's
             // top left, 20 tall (:198-237).
             bh = 20;
-            px = panelX; py = panelY + panelH; pw = 100;
+            px = panelX; py = panelY + panelH; pw = profW;
             sx = 5; sy = 5; sw = this.font.width(styleLabel) + 10;
             rx = sx + sw + 2; ry = 5; rw = this.font.width(refresh) + 10;
+            stx = rx + rw + 2; sty = 5;
         } else {
             bh = 16;
             int right = panelX + panelW - 6;
@@ -846,7 +947,13 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             px = right; py = ry;
             sw = this.font.width(styleLabel) + 10;
             sx = 5; sy = 5;
+            stx = px - stw - 4; sty = ry;
         }
+        statusButton[0] = stx;
+        statusButton[1] = sty;
+        statusButton[2] = stw;
+        statusButton[3] = bh;
+        button(g, stx, sty, stw, bh, statusLabel, mx, my, statusOpen, this::toggleStatus);
         button(g, rx, ry, rw, bh, refresh, mx, my, false, () -> load(true));
         if (result != null && state == State.READY && inside(mx, my, rx, ry, rw, bh) && !dropdownOpen) {
             long age = (System.currentTimeMillis() - result.fetchedAt()) / 1000;
@@ -1305,6 +1412,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             drawSbpvBasic(g, p, mx, my);
             return;
         }
+        minRowScale = 1f;
         int leftW = 118;
         box(g, contentX, contentY, leftW, contentH);
         // NEU Classic puts the stats in pv_basic's middle box and the skills in its right one (the skin is in its frame).
@@ -1443,8 +1551,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         int tx = x + 18;
         int bw = w - 18;
         String levelText = levelSuffix == null ? String.valueOf(lvl.level()) : lvl.level() + levelSuffix;
-        tx(g, this.font.plainSubstrByWidth(name, bw - this.font.width(levelText) - 4), tx, y, TEXT);
-        tx(g, levelText, tx + bw - this.font.width(levelText), y, lvl.maxed() ? MAXED : VALUE);
+        fitRow(g, tx, y, bw, name, TEXT, levelText, lvl.maxed() ? MAXED : VALUE, 0, 0);
         int barY = y + 11;
         ScreenChrome.progress(g, tx, barY, bw, 4, lvl.maxed() ? 1 : lvl.progress(), lvl.maxed() ? MAXED : ACCENT);
         if (inside(mx, my, x, y, w, 17)) {
@@ -1631,10 +1738,63 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         return y + rowH;
     }
 
+    /** The ONE row helper of the text-block pages (Crimson Isle, Misc, Rift, Farming, Dungeons...): a section header
+     *  ({@link #heading}) puts a thin theme-colored divider above its first row, and the rows under it alternate a faint
+     *  shade. Theme colors only. */
+    private boolean dividerPending;
+    private int rowAlt;
+
+    void heading(GuiGraphicsExtractor g, String text, int x, int y) {
+        tx(g, text, x, y, ACCENT);
+        dividerPending = true;
+        rowAlt = 0;
+    }
+
     int stat2(GuiGraphicsExtractor g, int x, int y, int w, String label, String value) {
-        tx(g, label, x, y, DIM);
-        tx(g, value, x + w - this.font.width(value), y, VALUE);
+        if (dividerPending) {
+            dividerPending = false;
+            g.fill(x, y - 2, x + w, y - 1, (ACCENT & 0xFFFFFF) | 0x66000000);
+        }
+        if ((rowAlt++ & 1) == 1) {
+            g.fill(x - 2, y - 1, x + w + 2, y + 10, STRIPE);
+        }
+        fitRow(g, x, y, w, label, DIM, value, VALUE, 0, 0);
         return y + 11;
+    }
+
+    /** The smallest scale any fitRow of the current frame used (the testkit reads it; reset by drawBasic). */
+    float minRowScale = 1f;
+
+    /** Smallest gap between a label and its value, in pixels. */
+    static final int ROW_GAP = 6;
+
+    /** A label at the left and a value at the right of a w-wide row with at least {@link #ROW_GAP} between them, from
+     *  measured widths: when both do not fit the whole row is scaled down uniformly (never under 0.7), and only a label
+     *  that still does not fit is cut (with ".."), never overlapped. {@code leftPad} / {@code gapExtra} leave room for an
+     *  icon the caller drew (leftPad) or a wider gap (gapExtra). Returns the scale used (the testkit reads it). */
+    float fitRow(GuiGraphicsExtractor g, int x, int y, int w, String label, int labelColor, String value, int valueColor,
+                 int leftPad, int gapExtra) {
+        int need = leftPad + this.font.width(label) + ROW_GAP + gapExtra + this.font.width(value);
+        float s = need <= w ? 1f : Math.max(0.7f, (float) w / need);
+        float lw = w / s; // the row's width in scaled units
+        String shown = label;
+        int room = (int) lw - leftPad - ROW_GAP - gapExtra - this.font.width(value);
+        if (this.font.width(shown) > room) {
+            shown = this.font.plainSubstrByWidth(label, Math.max(0, room - this.font.width("..")), false).stripTrailing() + "..";
+        }
+        if (s == 1f) {
+            tx(g, shown, x + leftPad, y, labelColor);
+            tx(g, value, x + w - this.font.width(value), y, valueColor);
+        } else {
+            g.pose().pushMatrix();
+            g.pose().translate(x, y + (1 - s) * 4);
+            g.pose().scale(s, s);
+            tx(g, shown, leftPad, 0, labelColor);
+            tx(g, value, (int) lw - this.font.width(value), 0, valueColor);
+            g.pose().popMatrix();
+        }
+        minRowScale = Math.min(minRowScale, s);
+        return s;
     }
 
     static ItemStack classIcon(String c) {
@@ -1656,41 +1816,71 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
 
     private void drawInventories(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
-        int navW = 84;
+        int navW = 84, n = INV_VIEWS.length;
         boolean neu = neuPage(), sbpv = pvStyle != ProfileViewerConfig.Style.DEFAULT && !neu;
         if (!sbpv) {
             box(g, contentX, contentY, navW, contentH);
         }
+        CompletableFuture<SbProfile.Inventories> future = p.inventories();
+        SbProfile.Inventories inv = future.isDone() && !future.isCompletedExceptionally() ? future.getNow(null) : null;
+        // The sack names join the search index only once someone searches or opens Sacks (the extras parse starts then).
+        Map<String, Long> sackCounts = null;
+        if (invView == PvSearch.SACKS || invFind.active()) {
+            CompletableFuture<ProfileExtras> ef = p.extras();
+            ProfileExtras ex = ef.isDone() && !ef.isCompletedExceptionally() ? ef.getNow(null) : null;
+            sackCounts = ex == null ? null : ex.misc.sacks();
+        }
+        invFind.index(inv, sackCounts);
+        int step = Math.min(19, Math.max(13, (contentH - 28) / n));
         int ny = contentY + 4;
-        for (int i = 0; i < INV_VIEWS.length; i++) {
+        for (int i = 0; i < n; i++) {
             final int idx = i;
             Runnable pick = () -> {
                 invView = idx;
                 invPage = 0;
                 invScroll = 0;
+                pageScroll = 0;
             };
+            int hits = invFind.active() ? invFind.count(i) : 0;
+            String hitText = String.valueOf(hits);
+            List<Component> tip = List.of(Component.literal(INV_VIEWS[i] + (invFind.active() ? "  (" + hits + (hits == 1 ? " match)" : " matches)") : "")));
             if (neu) { // The selector: pv_elements cells, 3 a row, the item numbered (InventoriesPage)
                 int ix = panelX + 19 + 34 * (i % 3), iy = panelY + 26 + 34 * (i / 3), o = i == invView ? 1 : 0;
                 g.blitSprite(RenderPipelines.GUI_TEXTURED, o == 1 ? PvStyleChrome.NEU_INV_TAB_ON : PvStyleChrome.NEU_INV_TAB, ix - 2, iy - 2, 20, 20);
                 g.item(INV_ICONS[i], ix + o, iy + o);
-                g.itemDecorations(this.font, INV_ICONS[i], ix + o, iy + o, INV_NUMBERS[i]);
+                g.itemDecorations(this.font, INV_ICONS[i], ix + o, iy + o, hits > 0 ? hitText : INV_NUMBERS[i]);
+                if (hits > 0) {
+                    g.outline(ix - 2, iy - 2, 20, 20, ACCENT);
+                }
                 hotspots.add(new Hotspot(ix - 2, iy - 2, 20, 20, pick));
                 if (inside(mx, my, ix - 2, iy - 2, 20, 20)) {
-                    pendingTooltip = List.of(Component.literal(INV_VIEWS[i]));
+                    pendingTooltip = tip;
                 }
             } else if (sbpv) { // SkyBlockPV's categories: tabs/right on the window's right edge, 22 apart from y + 20
-                int tx = panelX + panelW - 9, ty = panelY + 20 + 22 * i;
+                int tstep = Math.min(22, (panelH - 24) / n);
+                int tx = panelX + panelW - 9, ty = panelY + 20 + tstep * i;
                 PvStyleChrome.sideTab(g, pvStyle, tx, ty, i == invView);
                 g.item(INV_ICONS[i], tx + 10, ty + 2);
-                hotspots.add(new Hotspot(tx, ty, 31, 20, pick));
-                if (inside(mx, my, tx, ty, 31, 20)) {
-                    pendingTooltip = List.of(Component.literal(INV_VIEWS[i]));
+                if (hits > 0) {
+                    tx(g, hitText, tx + 28 - this.font.width(hitText), ty + 11, ACCENT);
+                }
+                hotspots.add(new Hotspot(tx, ty, 31, Math.min(20, tstep), pick));
+                if (inside(mx, my, tx, ty, 31, Math.min(20, tstep))) {
+                    pendingTooltip = tip;
                 }
             } else {
-                button(g, contentX + 4, ny, navW - 8, 16, INV_VIEWS[i], mx, my, i == invView, pick);
-                ny += 19;
+                button(g, contentX + 4, ny, navW - 8, step - 3, INV_VIEWS[i], mx, my, i == invView, pick);
+                if (hits > 0) {
+                    tx(g, hitText, contentX + navW - 8 - 4 - this.font.width(hitText), ny + (step - 3 - 8) / 2 + 1, ACCENT);
+                }
+                ny += step;
             }
         }
+        // The search box: under the buttons (Default), under the selector (NEU), along the bottom (SkyBlockPV).
+        invSearch.visible = true;
+        invSearch.setX(neu ? panelX + 17 : contentX + 4);
+        invSearch.setY(neu ? panelY + 26 + 34 * 4 + 2 : contentY + contentH - (sbpv ? 16 : 18));
+        invSearch.setWidth(neu ? 100 : sbpv ? Math.min(160, contentW / 2) : navW - 8);
 
         // Everything right of pv_invs' second line (x 221) is the selected inventory's.
         // SkyBlockPV: the views float on the window, no boxes.
@@ -1704,22 +1894,20 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             centeredIn(g, "Inventory API is disabled for this profile.", rx, rw, contentY + contentH / 2 - 4, DIM);
             return;
         }
-        CompletableFuture<SbProfile.Inventories> future = p.inventories();
         if (!future.isDone()) {
             centeredIn(g, "Decoding items" + dots(), rx, rw, contentY + contentH / 2 - 4, VALUE);
             return;
         }
         // getNow rethrows (CompletionException) for a failed decode - never let that escape into render.
-        SbProfile.Inventories inv = future.isCompletedExceptionally() ? null : future.getNow(null);
         if (inv == null) {
             centeredIn(g, "Couldn't decode this profile's items.", rx, rw, contentY + contentH / 2 - 4, BAD);
             return;
         }
 
-        int gridX = rx + (rw - 9 * 18) / 2;
         int top = contentY + 22;
+        int bottom = contentY + contentH - (sbpv ? 20 : 4);
         switch (invView) {
-            case 0 -> {
+            case PvSearch.INVENTORY -> {
                 if (neu) {
                     drawNeuInventory(g, inv, mx, my);
                     return;
@@ -1728,42 +1916,35 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                     drawSbpvInventory(g, inv, mx, my);
                     return;
                 }
-                tx(g, "Inventory", rx + 6, contentY + 6, ACCENT);
-                // Armor (helmet first) + equipment beside the main grid.
-                int sideX = rx + 8;
-                List<ItemStack> armor = inv.armor();
-                for (int i = 0; i < 4; i++) {
-                    ItemStack s = armor.size() == 4 ? armor.get(3 - i) : ItemStack.EMPTY;
-                    slot(g, sideX, top + i * 18, s, mx, my, false);
-                    slot(g, sideX + 20, top + i * 18, i < inv.equipment().size() ? inv.equipment().get(i) : ItemStack.EMPTY, mx, my, false);
-                }
-                int mainX = Math.max(sideX + 46, gridX);
-                List<ItemStack> items = inv.inventory();
-                for (int i = 9; i < 36; i++) {
-                    slot(g, mainX + ((i - 9) % 9) * 18, top + ((i - 9) / 9) * 18, get(items, i), mx, my, false);
-                }
-                int hotbarY = top + 3 * 18 + 6;
-                for (int i = 0; i < 9; i++) {
-                    slot(g, mainX + i * 18, hotbarY, get(items, i), mx, my, false);
-                }
-                int bagY = hotbarY + 26;
-                // The quiver's own count only: the fishing bag is drawn in the bags view, and gating on it here
-                // showed "Arrows in quiver: 0" for a profile with fish but no arrows.
-                int arrows = countItems(inv.quiver());
-                if (arrows > 0) {
-                    tx(g, "Arrows in quiver: " + arrows, mainX, bagY, DIM);
-                }
+                tx(g, "Inventory" + found(PvSearch.INVENTORY), rx + 6, contentY + 6, ACCENT);
+                // Armor (helmet first) + equipment beside the main grid, the hotbar under it: 208 x 78 laid out once,
+                // then sized to the panel like every other grid.
+                scaled(g, rx, rw, top, bottom, 208, 78, mx, my, (lx, ly) -> {
+                    List<ItemStack> armor = inv.armor();
+                    for (int i = 0; i < 4; i++) {
+                        ItemStack s = armor.size() == 4 ? armor.get(3 - i) : ItemStack.EMPTY;
+                        slot(g, 0, i * 18, s, lx, ly, false);
+                        slot(g, 20, i * 18, get(inv.equipment(), i), lx, ly, false);
+                    }
+                    List<ItemStack> items = inv.inventory();
+                    for (int i = 9; i < 36; i++) {
+                        slot(g, 46 + ((i - 9) % 9) * 18, ((i - 9) / 9) * 18, get(items, i), lx, ly, false);
+                    }
+                    for (int i = 0; i < 9; i++) {
+                        slot(g, 46 + i * 18, 3 * 18 + 6, get(items, i), lx, ly, false);
+                    }
+                });
             }
             // killer560: "for the enderchest and backpacks, make that fit a similar style to our custom
             // gui overlay, so I can see more at once" - tile every page/backpack in a scrollable grid of
             // panels (like the storage overlay does) instead of one page with "< 1/5 >" arrows.
-            case 1 -> {
-                tx(g, "Ender Chest", rx + 6, contentY + 6, ACCENT);
-                multiPanelGrid(g, rx, rw, top, numbered("Page", inv.enderChest().size()), inv.enderChest(), mx, my);
+            case PvSearch.ENDER -> {
+                tx(g, "Ender Chest" + found(PvSearch.ENDER), rx + 6, contentY + 6, ACCENT);
+                multiPanelGrid(g, rx, rw, top, bottom, marked(PvSearch.ENDER, numbered("Page", inv.enderChest().size())), inv.enderChest(), mx, my);
             }
-            case 2 -> {
+            case PvSearch.BACKPACKS -> {
                 List<SbProfile.Backpack> bps = inv.backpacks();
-                tx(g, "Backpacks", rx + 6, contentY + 6, ACCENT);
+                tx(g, "Backpacks" + found(PvSearch.BACKPACKS), rx + 6, contentY + 6, ACCENT);
                 if (bps.isEmpty()) {
                     centeredIn(g, "No backpacks.", rx, rw, contentY + contentH / 2 - 4, DIM);
                     return;
@@ -1775,43 +1956,98 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                     labels.add("Backpack " + (bp.slot() + 1));
                     itemLists.add(bp.items());
                 }
-                multiPanelGrid(g, rx, rw, top, labels, itemLists, mx, my);
+                multiPanelGrid(g, rx, rw, top, bottom, marked(PvSearch.BACKPACKS, labels), itemLists, mx, my);
             }
-            case 3 -> pagedGrid(g, "Wardrobe", inv.wardrobe(), rx, rw, gridX, top, mx, my, inv.wardrobeEquipped());
-            case 4 -> drawAccessoryBag(g, p, inv, rx, rw, gridX, top, mx, my);
-            case 5 -> {
-                tx(g, "Personal Vault", rx + 6, contentY + 6, ACCENT);
-                if (inv.personalVault().isEmpty()) {
-                    centeredIn(g, "Empty or not shared.", rx, rw, contentY + contentH / 2 - 4, DIM);
-                } else {
-                    grid(g, inv.personalVault(), gridX, top, mx, my, -1);
+            case PvSearch.WARDROBE -> pagedGrid(g, "Wardrobe", inv.wardrobe(), rx, rw, top, bottom, mx, my, inv.wardrobeEquipped());
+            case PvSearch.ACCESSORIES -> accessoryGrid(g, accOwned(inv.accessories()), false, rx, rw, 0, top, mx, my);
+            case PvSearch.VAULT -> drawBag(g, "Personal Vault", PvSearch.VAULT, inv.personalVault(), "Empty or not shared.", rx, rw, top, bottom, mx, my);
+            case PvSearch.QUIVER -> {
+                drawBag(g, "Quiver", PvSearch.QUIVER, inv.quiver(), "Empty.", rx, rw, top, bottom, mx, my);
+                int arrows = countItems(inv.quiver());
+                if (arrows > 0) {
+                    String total = commasText(arrows) + " arrows";
+                    tx(g, total, rx + rw - 8 - this.font.width(total), contentY + 6, VALUE);
                 }
             }
-            default -> {
-                List<List<ItemStack>> bags = new ArrayList<>();
-                List<String> names = new ArrayList<>();
-                if (!inv.quiver().isEmpty()) {
-                    bags.add(inv.quiver());
-                    names.add("Quiver");
-                }
-                if (!inv.fishingBag().isEmpty()) {
-                    bags.add(inv.fishingBag());
-                    names.add("Fishing Bag");
-                }
-                if (!inv.potionBag().isEmpty()) {
-                    bags.add(inv.potionBag());
-                    names.add("Potion Bag");
-                }
-                if (bags.isEmpty()) {
-                    centeredIn(g, "No bags.", rx, rw, contentY + contentH / 2 - 4, DIM);
-                    return;
-                }
-                invPage = Math.floorMod(invPage, bags.size());
-                pager(g, names.get(invPage), rx, rw, invPage, bags.size(), mx, my);
-                grid(g, bags.get(invPage), gridX, top, mx, my, -1);
-            }
+            case PvSearch.FISHING -> drawBag(g, "Fishing Bag", PvSearch.FISHING, inv.fishingBag(), "Empty.", rx, rw, top, bottom, mx, my);
+            case PvSearch.POTION -> drawBag(g, "Potion Bag", PvSearch.POTION, inv.potionBag(), "Empty.", rx, rw, top, bottom, mx, my);
+            default -> extraPages.drawSacks(g, p, rx, rw, mx, my, invFind);
         }
     }
+
+    private static String commasText(long v) { return String.format(Locale.ROOT, "%,d", v); }
+
+    /** One container shown alone (vault, quiver, fishing bag, potion bag): its title with the match count, then its grid. */
+    private void drawBag(GuiGraphicsExtractor g, String title, int view, List<ItemStack> items, String empty, int rx, int rw,
+                         int top, int bottom, int mx, int my) {
+        tx(g, title + found(view), rx + 6, contentY + 6, ACCENT);
+        if (items.isEmpty()) {
+            centeredIn(g, empty, rx, rw, contentY + contentH / 2 - 4, DIM);
+            return;
+        }
+        scaled(g, rx, rw, top, bottom, 9 * 18, rowsOf(items) * 18, mx, my, (lx, ly) -> grid(g, items, 0, 0, lx, ly, -1));
+    }
+
+    private static int rowsOf(List<ItemStack> items) { return Math.max(1, (items.size() + 8) / 9); }
+
+    /** "  (3)" after a view's title while the search is on: how many of its items match ("no matches" for none). */
+    private String found(int view) {
+        if (!invFind.active()) return "";
+        int n = invFind.count(view);
+        return n == 0 ? "  (no matches)" : "  (" + n + ")";
+    }
+
+    /** The panel labels with their own match counts, so each page or backpack shows what it holds. */
+    private List<String> marked(int view, List<String> labels) {
+        if (!invFind.active()) return labels;
+        List<String> out = new ArrayList<>(labels.size());
+        for (int i = 0; i < labels.size(); i++) {
+            int n = invFind.count(view, i);
+            out.add(n > 0 ? labels.get(i) + " (" + n + ")" : labels.get(i));
+        }
+        return out;
+    }
+
+    @FunctionalInterface
+    private interface GridDraw { void draw(int mx, int my); }
+
+    /** THE sizing rule for every single grid: the layout is drawn once at 1x from (0, 0) and scaled by the largest
+     *  quarter step (1 to 3) that fits both the width and the height of the area, centered in it. The mouse is mapped
+     *  into the layout so hovers, tooltips and counts stay aligned. Returns the screen y of the block's bottom. */
+    private int scaled(GuiGraphicsExtractor g, int rx, int rw, int top, int bottom, int gw, int gh, int mx, int my, GridDraw d) {
+        float sc = Math.min((rw - 12f) / gw, (bottom - top) / (float) gh);
+        sc = Math.max(1f, Math.min(3f, (float) Math.floor(sc * 4f) / 4f));
+        int ox = rx + Math.round((rw - gw * sc) / 2f);
+        int oy = top + Math.max(0, Math.round(((bottom - top) - gh * sc) / 2f));
+        g.pose().pushMatrix();
+        g.pose().translate(ox, oy);
+        g.pose().scale(sc, sc);
+        try {
+            d.draw((int) Math.floor((mx - ox) / sc), (int) Math.floor((my - oy) / sc));
+        } finally {
+            g.pose().popMatrix();
+        }
+        return oy + Math.round(gh * sc);
+    }
+
+    /** Search marks on an inventory slot (Inventories page only): a match gets the accent edge, the rest dim. */
+    private void findMark(GuiGraphicsExtractor g, ItemStack stack, int x, int y) {
+        if (page != PAGE_INVENTORIES || !invFind.active() || stack.isEmpty()) return;
+        if (invFind.matches(stack)) {
+            g.outline(x, y, 18, 18, ACCENT);
+        } else {
+            g.fill(x + 1, y + 1, x + 17, y + 17, 0xA0000000);
+        }
+    }
+
+    /** Matches the search holds in one view (all pages), for the testkit and the buttons. */
+    public int findCount(int view) { return invFind.count(view); }
+
+    public void setFind(String text) {
+        invSearch.setValue(text);
+    }
+
+    public boolean findFocused() { return invSearch.isFocused(); }
 
     /** The Inventory view on pv_invs: armor and equipment in its 2 x 4 box (InventoriesPage: armor at 173, 67 - 18i,
      *  equipment at 192, 13 + 18i; its weapon, rod and tool boxes stay empty, we have no "best item" pick), and the
@@ -1852,36 +2088,38 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         slotItem(g, x + 1, y + 1, stack, mx, my);
     }
 
-    private void pagedGrid(GuiGraphicsExtractor g, String title, List<List<ItemStack>> pages, int rx, int rw, int gridX,
-                           int top, int mx, int my, int wardrobeEquipped) {
+    private void pagedGrid(GuiGraphicsExtractor g, String title, List<List<ItemStack>> pages, int rx, int rw, int top,
+                           int bottom, int mx, int my, int wardrobeEquipped) {
         if (pages.isEmpty()) {
             tx(g, title, rx + 6, contentY + 6, ACCENT);
             centeredIn(g, "Empty.", rx, rw, contentY + contentH / 2 - 4, DIM);
             return;
         }
         invPage = Math.floorMod(invPage, pages.size());
-        pager(g, title, rx, rw, invPage, pages.size(), mx, my);
+        pager(g, title + pageFound(PvSearch.WARDROBE), rx, rw, invPage, pages.size(), mx, my);
         int equippedCol = -1;
         if (wardrobeEquipped > 0 && (wardrobeEquipped - 1) / 9 == invPage) {
             equippedCol = (wardrobeEquipped - 1) % 9;
         }
-        grid(g, pages.get(invPage), gridX, top, mx, my, equippedCol);
+        List<ItemStack> items = pages.get(invPage);
+        final int ec = equippedCol;
+        scaled(g, rx, rw, top, bottom, 9 * 18, rowsOf(items) * 18, mx, my, (lx, ly) -> grid(g, items, 0, 0, lx, ly, ec));
     }
 
-    /** The Accessories view as SkyBlock's own bag menu lays it out (0.27.3): every accessory its own slot, missing ones
-     *  grayed, toggled-off ones marked with a red corner (the Rift Accessory Bag is on the Rift page). */
-    private void drawAccessoryBag(GuiGraphicsExtractor g, SbProfile p, SbProfile.Inventories inv, int rx, int rw, int gridX,
-                                  int top, int mx, int my) {
-        accessoryGrid(g, accOwned(inv.accessories()), false, rx, rw, gridX, top, mx, my);
+    /** "  (2 here, 5 in all)" for a paged view while the search is on. */
+    private String pageFound(int view) {
+        if (!invFind.active()) return "";
+        int all = invFind.count(view);
+        return all == 0 ? "  (no matches)" : "  (" + invFind.count(view, invPage) + " here, " + all + " in all)";
     }
 
     /** The bag grid with its sort button and pager, for the main bag here and the Rift Accessory Bag on the Rift page. A
-     *  null {@code owned} is a bag the API does not send. */
-    void accessoryGrid(GuiGraphicsExtractor g, List<ItemStack> owned, boolean accRift, int rx, int rw, int gridX, int top,
+     *  null {@code owned} is a bag the API does not send. Every accessory is its own slot of the 9 x 5 page (SkyBlock's own
+     *  bag menu, 0.27.3): missing ones grayed, toggled-off ones marked with a red corner. */
+    void accessoryGrid(GuiGraphicsExtractor g, List<ItemStack> owned, boolean accRift, int rx, int rw, int unused, int top,
                        int mx, int my) {
-        int bx = rx + 6;
         int by = contentY + 3;
-        button(g, bx, by, 110, 14, "Sort: " + AccessoryBagView.SORT_LABELS[accSort], mx, my, false,
+        button(g, rx + 6, by, 110, 14, "Sort: " + AccessoryBagView.SORT_LABELS[accSort], mx, my, false,
                 () -> { accSort = (accSort + 1) % AccessoryBagView.SORT_LABELS.length; invPage = 0; });
         if (owned == null) {
             centeredIn(g, "The API does not send the Rift Accessory Bag yet.", rx, rw, contentY + contentH / 2 - 4, DIM);
@@ -1897,39 +2135,44 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             tx(g, label, right - 22 - this.font.width(label), by + 4, VALUE);
             button(g, right - 42 - this.font.width(label), by, 16, 14, "<", mx, my, false, () -> invPage--);
         }
-        int y0 = top + 2;
-        int from = invPage * AccessoryBagView.PAGE;
-        for (int i = 0; i < AccessoryBagView.PAGE; i++) {
-            int x = gridX + (i % 9) * 18;
-            int y = y0 + (i / 9) * 18;
-            AccessoryBagView.Slot s = from + i < slots.size() ? slots.get(from + i) : null;
-            if (s == null) {
-                slotBox(g, x, y, 18, 0);
-                continue;
-            }
-            if (s.state() == AccessoryBagView.State.MISSING) {
-                slotBox(g, x, y, 18, 0);
-                g.item(s.stack(), x + 1, y + 1);
-                g.fill(x + 1, y + 1, x + 17, y + 17, ACC_MISSING_SHADE);
-                if (inside(mx, my, x, y, 18, 18) && !dropdownOpen) {
-                    pendingTooltip = List.of(
-                            Component.literal(s.name()).withStyle(style(0xFF000000 | LevelTables.rarityColor(s.tier()))),
-                            Component.literal("Missing").withStyle(style(DIM)));
-                }
-                continue;
-            }
-            slot(g, x, y, s.stack(), mx, my, false);
-            if (s.state() == AccessoryBagView.State.DISABLED) {
-                g.fill(x + 1, y + 1, x + 17, y + 17, ACC_MISSING_SHADE);
-                g.fill(x + 12, y + 1, x + 17, y + 6, BAD);
-            }
+        if (!accRift && invFind.active()) {
+            String f = found(PvSearch.ACCESSORIES);
+            tx(g, "Accessories" + f, rx + 124, by + 4, ACCENT);
         }
+        int from = invPage * AccessoryBagView.PAGE;
+        int rows = (AccessoryBagView.PAGE + 8) / 9;
+        int below = scaled(g, rx, rw, top + 2, contentY + contentH - 4 - 24, 9 * 18, rows * 18, mx, my, (lx, ly) -> {
+            for (int i = 0; i < AccessoryBagView.PAGE; i++) {
+                int x = (i % 9) * 18;
+                int y = (i / 9) * 18;
+                AccessoryBagView.Slot s = from + i < slots.size() ? slots.get(from + i) : null;
+                if (s == null) {
+                    slotBox(g, x, y, 18, 0);
+                    continue;
+                }
+                if (s.state() == AccessoryBagView.State.MISSING) {
+                    slotBox(g, x, y, 18, 0);
+                    g.item(s.stack(), x + 1, y + 1);
+                    g.fill(x + 1, y + 1, x + 17, y + 17, ACC_MISSING_SHADE);
+                    if (inside(lx, ly, x, y, 18, 18) && !dropdownOpen) {
+                        pendingTooltip = List.of(
+                                Component.literal(s.name()).withStyle(style(0xFF000000 | LevelTables.rarityColor(s.tier()))),
+                                Component.literal("Missing").withStyle(style(DIM)));
+                    }
+                    continue;
+                }
+                slot(g, x, y, s.stack(), lx, ly, false);
+                if (s.state() == AccessoryBagView.State.DISABLED) {
+                    g.fill(x + 1, y + 1, x + 17, y + 17, ACC_MISSING_SHADE);
+                    g.fill(x + 12, y + 1, x + 17, y + 6, BAD);
+                }
+            }
+        });
         int[] c = AccessoryBagView.counts(slots);
-        int ly = y0 + 5 * 18 + 6;
-        tx(g, c[0] + " owned", gridX, ly, VALUE);
-        int lx = gridX + this.font.width(c[0] + " owned") + 10;
-        tx(g, c[1] + " toggled off (still in Networth)", lx, ly, BAD);
-        tx(g, c[2] + " missing", gridX, ly + 11, DIM);
+        int gx = rx + 8, ly = below + 4;
+        tx(g, c[0] + " owned", gx, ly, VALUE);
+        tx(g, c[1] + " toggled off", gx + this.font.width(c[0] + " owned") + 10, ly, BAD);
+        tx(g, c[2] + " missing", gx, ly + 11, DIM);
     }
 
     /** The main bag's pages flattened once per decoded inventory (the pages list is fixed after decode). */
@@ -1951,11 +2194,11 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         return out;
     }
 
-    /** Tiles every page/backpack as its own panel, several per row (as many as fit), and scrolls vertically through
-     *  the rest. Each panel is drawn exactly like the Storage Overlay's (its theme's panel, label and slot cells -
-     *  killer560, 2026-10-08: "just have our custom backpack overlay no matter what"), and nothing is drawn below
-     *  the content box: a panel row that does not fit is clipped at the box's bottom edge, never run off it. */
-    private void multiPanelGrid(GuiGraphicsExtractor g, int rx, int rw, int top, List<String> labels,
+    /** Tiles every page/backpack as its own panel and scrolls vertically through the rest. Each panel is drawn exactly
+     *  like the Storage Overlay's (its theme's panel, label and slot cells - killer560, 2026-10-08: "just have our
+     *  custom backpack overlay no matter what"), the whole block sized by the largest scale (up to 3x) at which one
+     *  panel still fits the area, and nothing is drawn below it: a panel row that does not fit is clipped there. */
+    private void multiPanelGrid(GuiGraphicsExtractor g, int rx, int rw, int top, int bottom, List<String> labels,
                                 List<List<ItemStack>> pages, int mx, int my) {
         if (pages.isEmpty()) {
             centeredIn(g, "Empty.", rx, rw, contentY + contentH / 2 - 4, DIM);
@@ -1963,8 +2206,22 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         }
         int panelW = OVERLAY_PANEL_W;
         int gap = 6;
-        int cols = Math.max(1, (rw - 8 + gap) / (panelW + gap));
-        int startX = rx + Math.max(0, (rw - (cols * (panelW + gap) - gap)) / 2);
+        int visibleH = Math.max(0, bottom - top);
+        int maxRows = 1;
+        for (List<ItemStack> pg : pages) {
+            maxRows = Math.max(maxRows, rowsOf(pg));
+        }
+        float f = 1f;
+        for (float c : new float[]{3f, 2.5f, 2f, 1.75f, 1.5f, 1.25f}) {
+            if (panelW * c <= rw - 8 && overlayPanelHeight(maxRows) * c <= visibleH) {
+                f = c;
+                break;
+            }
+        }
+        float lw = rw / f;
+        int lh = (int) (visibleH / f);
+        int cols = Math.max(1, (int) ((lw - 8 + gap) / (panelW + gap)));
+        int startX = Math.max(0, (int) ((lw - (cols * (panelW + gap) - gap)) / 2));
 
         int panelRows = (pages.size() + cols - 1) / cols;
         int[] rowH = new int[panelRows];
@@ -1973,7 +2230,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             for (int c = 0; c < cols; c++) {
                 int idx = r * cols + c;
                 if (idx < pages.size()) {
-                    maxItemRows = Math.max(maxItemRows, Math.max(1, (pages.get(idx).size() + 8) / 9));
+                    maxItemRows = Math.max(maxItemRows, rowsOf(pages.get(idx)));
                 }
             }
             rowH[r] = overlayPanelHeight(maxItemRows) + gap;
@@ -1981,30 +2238,33 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
         // The max scroll always leaves at least the last row on screen, even if that one row alone is
         // taller than the viewport - never scrolls one row past the end into blank space.
-        int bottom = contentY + contentH - 2;
-        int visibleH = Math.max(0, bottom - top);
         int maxScrollRow = panelRows - 1;
         int used = 0;
         for (int r = panelRows - 1; r >= 0; r--) {
-            if (used + rowH[r] - gap > visibleH) break;
+            if (used + rowH[r] - gap > lh) break;
             used += rowH[r];
             maxScrollRow = r;
         }
         invScroll = Math.max(0, Math.min(invScroll, maxScrollRow));
 
-        g.enableScissor(rx + 1, top, rx + rw - 1, bottom);
+        int lmx = (int) Math.floor((mx - rx) / f), lmy = (int) Math.floor((my - top) / f);
+        g.enableScissor(rx + 1, top, rx + rw - 1, bottom); // set before the pose, in screen coordinates
+        g.pose().pushMatrix();
+        g.pose().translate(rx, top);
+        g.pose().scale(f, f);
         try {
-            int y = top;
-            for (int r = invScroll; r < panelRows && y < bottom; r++) {
+            int y = 0;
+            for (int r = invScroll; r < panelRows && y < lh; r++) {
                 for (int c = 0; c < cols; c++) {
                     int idx = r * cols + c;
                     if (idx < pages.size()) {
-                        overlayPanel(g, startX + c * (panelW + gap), y, labels.get(idx), pages.get(idx), mx, my, top, bottom);
+                        overlayPanel(g, startX + c * (panelW + gap), y, labels.get(idx), pages.get(idx), lmx, lmy, 0, lh);
                     }
                 }
                 y += rowH[r];
             }
         } finally {
+            g.pose().popMatrix();
             g.disableScissor();
         }
 
@@ -2050,6 +2310,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             rarity(g, stack, sx, sy);
             g.item(stack, sx, sy);
             g.itemDecorations(this.font, stack, sx, sy);
+            findMark(g, stack, sx - 1, sy - 1);
             if (inside(mx, my, sx, sy, 16, 16) && my >= clipTop && my < clipBottom && !dropdownOpen) {
                 g.fill(sx, sy, sx + 16, sy + 16, MenuStyle.alpha(MenuStyle.TXT, 0x40));
                 pendingItemTooltip = stack;
@@ -2086,6 +2347,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             rarity(g, stack, x + 1, y + 1);
             g.item(stack, x + 1, y + 1);
             g.itemDecorations(this.font, stack, x + 1, y + 1);
+            findMark(g, stack, x, y);
             if (inside(mx, my, x, y, 18, 18) && !dropdownOpen) {
                 g.fill(x + 1, y + 1, x + 17, y + 17, MenuStyle.alpha(MenuStyle.TXT, 0x40));
                 pendingItemTooltip = stack;
@@ -2161,13 +2423,12 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                 hovered = pet;
                 g.fill(x + 2, y + 2, x + cell - 2, y + cell - 2, MenuStyle.alpha(MenuStyle.TXT, 0x40));
                 List<Component> tip = new ArrayList<>();
-                tip.add(Component.literal("[Lvl " + pet.level.level() + "] ").withStyle(style(DIM))
+                tip.add(Component.literal("[Lvl " + petLevel(pet) + "] ").withStyle(style(DIM))
                         .append(Component.literal(pet.displayName()).withStyle(style(rarity))));
                 tip.add(Component.literal(SbProfile.titleCase(pet.tier)).withStyle(style(rarity)));
                 if (pet.active) {
                     tip.add(Component.literal("Active pet").withStyle(style(ACCENT)));
                 }
-                tip.add(Component.literal("Click to pin").withStyle(style(DIM)));
                 pendingTooltip = tip;
             }
             hotspots.add(new Hotspot(x, y, cell, cell, () -> pinnedPet = pinnedPet == pet ? null : pet));
@@ -2215,7 +2476,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             g.item(pet.icon(), x + 2, y + 2);
             if (inside(mx, my, x, y, 20, 20) && !dropdownOpen) {
                 hovered = pet;
-                pendingTooltip = List.of(Component.literal("[Lvl " + pet.level.level() + "] " + pet.displayName())
+                pendingTooltip = List.of(Component.literal("[Lvl " + petLevel(pet) + "] " + pet.displayName())
                         .withStyle(style(0xFF000000 | LevelTables.rarityColor(pet.tier))));
             }
             hotspots.add(new Hotspot(x, y, 20, 20, () -> pinnedPet = pinnedPet == pet ? null : pet));
@@ -2264,7 +2525,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         if (sel == null) {
             return;
         }
-        y = sbpvLine(g, "Level: " + sel.level.level(), ix + 10, y, right - 20, text);
+        y = sbpvLine(g, "Level: " + petLevel(sel), ix + 10, y, right - 20, text);
         y = sbpvLine(g, "Exp: " + shorten(sel.exp), ix + 10, y, right - 20, text);
         y = sbpvLine(g, sel.level.maxed() ? "Progress Max: Maxed" : "Progress Next: " + Math.round(sel.level.progress() * 100) + "%",
                 ix + 10, y, right - 20, text);
@@ -2285,7 +2546,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     /** The pet's level, XP, held item, candy and skin lines from x, y, w wide. */
     private void petInfo(GuiGraphicsExtractor g, SbProfile.Pet show, int x, int y, int w) {
         LevelTables.Level lvl = show.level;
-        y = stat2(g, x, y, w, "Level", String.valueOf(lvl.level()));
+        y = stat2(g, x, y, w, "Level", petLevel(show));
         ScreenChrome.progress(g, x, y, w, 4, lvl.maxed() ? 1 : lvl.progress(), lvl.maxed() ? MAXED : ACCENT);
         y += 8;
         if (!lvl.maxed()) {
@@ -2306,6 +2567,11 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             y += 10;
             tx(g, this.font.plainSubstrByWidth(SbProfile.titleCase(show.skin), w), x, y, VALUE);
         }
+    }
+
+    /** "100", or "100 (102)" when its XP is past the cap (the skills' format). */
+    static String petLevel(SbProfile.Pet pet) {
+        return pet.level.level() + (pet.uncappedLevel > 0 ? " (" + pet.uncappedLevel + ")" : "");
     }
 
     private static SbProfile.Pet activePet(SbProfile p) {

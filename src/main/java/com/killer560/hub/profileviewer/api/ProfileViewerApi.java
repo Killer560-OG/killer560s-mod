@@ -446,6 +446,119 @@ public final class ProfileViewerApi {
         return promise;
     }
 
+    /** A player's live status (Hypixel's /v2/status through the user's key or the relay): {@code state} is ONLINE, OFFLINE,
+     *  HIDDEN (the player's status API is off: Hypixel sends no session) or UNAVAILABLE (the source has no status route);
+     *  {@code where} is "SkyBlock: Dungeon Hub" for an online player; {@code lastSeenMs} the last logout when offline and the
+     *  player record has one (0 otherwise). */
+    public enum StatusState { ONLINE, OFFLINE, HIDDEN, UNAVAILABLE }
+
+    public record StatusResult(StatusState state, String where, long lastSeenMs, long fetchedAt) {
+    }
+
+    /** Asked for only on a click; one answer per player is kept {@link #STATUS_CACHE_MS}. */
+    public static final long STATUS_CACHE_MS = 30_000L;
+    private static final Map<UUID, StatusResult> STATUS_CACHE = new ConcurrentHashMap<>();
+    private static final Map<UUID, CompletableFuture<StatusResult>> STATUS_IN_FLIGHT = new ConcurrentHashMap<>();
+    /** The testkit's stand-in for the network: the raw status JSON for a uuid (null = no route). */
+    private static volatile java.util.function.Function<UUID, CompletableFuture<JsonObject>> statusSourceForTest;
+    private static final java.util.concurrent.atomic.AtomicInteger STATUS_REQUESTS = new java.util.concurrent.atomic.AtomicInteger();
+
+    public static void setStatusSourceForTest(java.util.function.Function<UUID, CompletableFuture<JsonObject>> source) {
+        statusSourceForTest = source;
+        STATUS_CACHE.clear();
+    }
+
+    /** How many status requests have gone out since start (the testkit's "no request before the click"). */
+    public static int statusRequests() { return STATUS_REQUESTS.get(); }
+
+    public static StatusResult getCachedStatus(UUID uuid) {
+        StatusResult r = STATUS_CACHE.get(uuid);
+        if (r == null) return null;
+        if (System.currentTimeMillis() - r.fetchedAt() < STATUS_CACHE_MS) return r;
+        STATUS_CACHE.remove(uuid, r);
+        return null;
+    }
+
+    public static CompletableFuture<StatusResult> fetchStatus(UUID uuid) {
+        StatusResult cached = getCachedStatus(uuid);
+        if (cached != null) return CompletableFuture.completedFuture(cached);
+        CompletableFuture<StatusResult> promise = new CompletableFuture<>();
+        CompletableFuture<StatusResult> existing = STATUS_IN_FLIGHT.putIfAbsent(uuid, promise);
+        if (existing != null) return existing;
+        STATUS_REQUESTS.incrementAndGet();
+        CompletableFuture<JsonObject> raw;
+        try {
+            var fake = statusSourceForTest;
+            if (fake != null) {
+                raw = fake.apply(uuid);
+            } else {
+                List<Attempt> order = attemptOrder(true);
+                order.remove(Attempt.BACKEND); // the SkyBlockPV backend has no status route
+                String id = dashless(uuid);
+                raw = runAttempts(order, 0, new ArrayList<>(), attempt -> switch (attempt) {
+                    case USER_KEY -> hypixelGet(ModNet.url("hypixel", HYPIXEL_V2 + "status?uuid=") + id,
+                            ProfileViewerConfig.getInstance().getApiKey(), "Hypixel API (your key)", true);
+                    default -> relayGet("status?uuid=" + id, true);
+                }).thenApply(Raw::json);
+            }
+        } catch (Throwable t) {
+            raw = CompletableFuture.failedFuture(t);
+        }
+        raw.thenCompose(json -> {
+            StatusResult base = parseStatus(json);
+            if (base.state() != StatusState.OFFLINE) return CompletableFuture.completedFuture(base);
+            // Offline: the last logout, when the player record has one (a failed look is just no last-seen line).
+            return fetchAux(AuxKind.PLAYER, uuid.toString(), false, true).thenApply(aux -> {
+                JsonElement out = aux.data() == null ? null : aux.data().get("lastLogout");
+                long at = out != null && out.isJsonPrimitive() ? out.getAsLong() : 0;
+                return new StatusResult(StatusState.OFFLINE, "", at, base.fetchedAt());
+            }).exceptionally(t -> base);
+        }).whenComplete((r, t) -> {
+            STATUS_IN_FLIGHT.remove(uuid, promise);
+            if (t != null) {
+                promise.completeExceptionally(unwrap(t));
+            } else {
+                synchronized (STATUS_CACHE) {
+                    if (STATUS_CACHE.size() >= 32) STATUS_CACHE.clear();
+                    STATUS_CACHE.put(uuid, r);
+                }
+                promise.complete(r);
+            }
+        });
+        return promise;
+    }
+
+    /** Hypixel's SkyBlock modes by the id its status sends; any other is shown title-cased. */
+    private static final Map<String, String> SB_MODES = Map.ofEntries(
+            Map.entry("dynamic", "Private Island"), Map.entry("hub", "Hub"), Map.entry("farming_1", "The Barn"),
+            Map.entry("combat_1", "Spider's Den"), Map.entry("combat_2", "Blazing Fortress"), Map.entry("combat_3", "The End"),
+            Map.entry("foraging_1", "The Park"), Map.entry("mining_1", "Gold Mine"), Map.entry("mining_2", "Deep Caverns"),
+            Map.entry("mining_3", "Dwarven Mines"), Map.entry("crystal_hollows", "Crystal Hollows"), Map.entry("dungeon", "Dungeon"),
+            Map.entry("dungeon_hub", "Dungeon Hub"), Map.entry("winter", "Jerry's Workshop"), Map.entry("crimson_isle", "Crimson Isle"),
+            Map.entry("rift", "The Rift"), Map.entry("garden", "Garden"), Map.entry("kuudra", "Kuudra's Hollow"),
+            Map.entry("dark_auction", "Dark Auction"), Map.entry("farming_2", "Farming Islands"));
+
+    static StatusResult parseStatus(JsonObject json) {
+        long now = System.currentTimeMillis();
+        if (json == null) return new StatusResult(StatusState.UNAVAILABLE, "", 0, now);
+        JsonObject session = json.has("session") && json.get("session").isJsonObject() ? json.getAsJsonObject("session") : null;
+        if (session == null) return new StatusResult(StatusState.HIDDEN, "", 0, now);
+        boolean online = session.has("online") && session.get("online").isJsonPrimitive() && session.get("online").getAsBoolean();
+        if (!online) return new StatusResult(StatusState.OFFLINE, "", 0, now);
+        String game = SbProfile.titleCase(jsonStr(session, "gameType", "Unknown").toLowerCase(java.util.Locale.ROOT));
+        String mode = jsonStr(session, "mode", "");
+        String map = jsonStr(session, "map", "");
+        String where = "SkyBlock".equalsIgnoreCase(game.replace(" ", "")) || "SKYBLOCK".equals(jsonStr(session, "gameType", ""))
+                ? "SkyBlock: " + (!map.isEmpty() ? map : SB_MODES.getOrDefault(mode, mode.isEmpty() ? "Unknown" : SbProfile.titleCase(mode)))
+                : game + (mode.isEmpty() ? "" : ": " + SbProfile.titleCase(mode));
+        return new StatusResult(StatusState.ONLINE, where, 0, now);
+    }
+
+    private static String jsonStr(JsonObject o, String key, String def) {
+        JsonElement el = o.get(key);
+        return el != null && el.isJsonPrimitive() ? el.getAsString() : def;
+    }
+
     private static List<Attempt> attemptOrder(boolean quiet) {
         ProfileViewerConfig cfg = ProfileViewerConfig.getInstance();
         String userKey = cfg.getApiKey();

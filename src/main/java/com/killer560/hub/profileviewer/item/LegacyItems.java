@@ -129,10 +129,73 @@ public final class LegacyItems {
             ItemStack stack = new ItemStack(item, count);
             CompoundTag extra = tag.getCompoundOrEmpty("tag");
             applyTag(stack, extra);
-            return stack;
+            return rescue(stack);
         } catch (Exception e) {
             return new ItemStack(Items.BARRIER);
         }
+    }
+
+    /** Items whose id the decoder could not turn into a look (paper / a skinless head / barrier), by SkyBlock id, for the
+     *  decode now running on this thread; {@code null} when nobody is counting. */
+    private static final ThreadLocal<Map<String, Integer>> FALLBACKS = new ThreadLocal<>();
+
+    /** Starts counting the items that still fall back on this thread; {@link #endFallbackCount} returns the tally. */
+    public static void beginFallbackCount() {
+        FALLBACKS.set(new java.util.TreeMap<>());
+    }
+
+    public static Map<String, Integer> endFallbackCount() {
+        Map<String, Integer> out = FALLBACKS.get();
+        FALLBACKS.remove();
+        return out == null ? Map.of() : out;
+    }
+
+    private static boolean unresolved(ItemStack stack) {
+        Item item = stack.getItem();
+        if (item == Items.BARRIER) return true;
+        return (item == Items.PAPER || (item == Items.PLAYER_HEAD && stack.get(DataComponents.PROFILE) == null))
+                && java.util.Objects.equals(stack.get(DataComponents.ITEM_MODEL), item.components().get(DataComponents.ITEM_MODEL));
+    }
+
+    /** A stack that decoded to a stand-in (paper: Hypixel's newer items keep a paper base and a pack model) gets the same look
+     *  everything else in the mod gives that SkyBlock id: the pre-pack look table, else the item catalog on disk, else the
+     *  look-alike of {@link ItemIcons#forId}. What none of them knows stays as it is and is counted. */
+    private static ItemStack rescue(ItemStack stack) {
+        if (!unresolved(stack)) return stack;
+        String id = skyblockId(stack);
+        if (!id.isEmpty()) {
+            if (ItemLooks.applyLook(stack, id)) return stack;
+            ItemStack look = null;
+            try {
+                var entry = com.killer560.hub.itembrowser.SkyblockItemRepository.findOnDisk(id);
+                look = entry == null ? null : com.killer560.hub.itembrowser.SkyblockItemStackFactory.build(entry);
+            } catch (Exception ignored) {
+                // no catalog: the look-alike below
+            }
+            if (look == null || look.getItem() == Items.PAPER && look.get(DataComponents.ITEM_MODEL) == null) {
+                ItemStack alike = ItemIcons.forId(id);
+                look = alike.getItem() == Items.PAPER ? null : alike;
+            }
+            if (look != null) {
+                ItemStack out = look.copy();
+                out.setCount(stack.getCount());
+                for (DataComponentType<?> type : List.of(DataComponents.CUSTOM_NAME, DataComponents.LORE, DataComponents.CUSTOM_DATA,
+                        DataComponents.TOOLTIP_DISPLAY, DataComponents.ENCHANTMENT_GLINT_OVERRIDE)) {
+                    carry(stack, out, type);
+                }
+                return out;
+            }
+        }
+        Map<String, Integer> tally = FALLBACKS.get();
+        if (tally != null) {
+            tally.merge(id.isEmpty() ? BuiltInRegistries.ITEM.getKey(stack.getItem()).toString() : id, 1, Integer::sum);
+        }
+        return stack;
+    }
+
+    private static <T> void carry(ItemStack from, ItemStack to, DataComponentType<T> type) {
+        T value = from.get(type);
+        if (value != null) to.set(type, value);
     }
 
     private static Item resolveItem(CompoundTag tag) {

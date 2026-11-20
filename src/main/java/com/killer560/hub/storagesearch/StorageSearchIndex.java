@@ -200,13 +200,22 @@ public final class StorageSearchIndex {
         for (Entry e : entries) {
             if (!includeInventory && e.type() == SourceType.INVENTORY) continue;
             if (!matchesSource(e.type(), source)) continue;
-            if (q.isEmpty() || e.nameLower().contains(q) || e.idLower().contains(q)
-                    || (searchLore && e.loreLower().contains(q))) {
+            if (q.isEmpty() || matches(e, q, searchLore)) {
                 out.add(e);
             }
         }
         sort(out, cfg.getSortMode());
         return out;
+    }
+
+    /** The one text matcher: {@code q} already trimmed and lower case (the Profile Viewer's search uses it too). */
+    public static boolean matches(Entry e, String q, boolean searchLore) {
+        return e.nameLower().contains(q) || e.idLower().contains(q) || (searchLore && e.loreLower().contains(q));
+    }
+
+    /** A searchable entry for a bare stack (no storage), for a viewer that indexes its own items. */
+    public static Entry entryFor(ItemStack stack) {
+        return makeEntry(stack, SourceType.INVENTORY, "", 0, 0, -1, "", 0, false, null);
     }
 
     private static boolean matchesSource(SourceType type, StorageSearchConfig.SourceFilter filter) {

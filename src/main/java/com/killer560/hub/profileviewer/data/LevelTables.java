@@ -52,6 +52,7 @@ public final class LevelTables {
     private static long[] catacombsXp = new long[0];
     private static long catacombsOverflow = 200_000_000L;
     private static Map<String, Slayer> slayers = Map.of();
+    private static final int PET_HARD_CAP = 200;
     private static int[] petRarityOffsets = {0, 6, 11, 16, 20, 20};
     private static int[] petXpCurve = new int[0];
     private static Map<String, PetOverwrite> petOverwrites = Map.of();
@@ -342,6 +343,21 @@ public final class LevelTables {
     /** Total pet XP to reach each level: {@code [0]} is level 1 (0 XP), the last entry the pet's max level (100, or
      *  200 for the dragons whose overwrite caps there). */
     public static long[] petCumulativeXp(String type, String tier) {
+        return petCumulativeXp(type, tier, false);
+    }
+
+    /** The level this pet would be at if its cap did not stop it (Total XP continued along the same rarity curve, which the
+     *  200-level dragons use to the end), or 0 when its XP is at or under the cap's. */
+    public static int petUncappedLevel(String type, String tier, double exp) {
+        long[] cum = petCumulativeXp(type, tier, true);
+        int level = 0;
+        for (int i = 0; i < cum.length; i++) {
+            if (cum[i] <= (long) exp) level = i + 1;
+        }
+        return level > petLevel(type, tier, exp).level() ? level : 0;
+    }
+
+    private static long[] petCumulativeXp(String type, String tier, boolean past) {
         ensureLoaded();
         PetOverwrite ow = petOverwrites.get(type == null ? "" : type.toUpperCase(Locale.ROOT));
         int[] curve = ow != null && ow.xpCurve() != null ? ow.xpCurve() : petXpCurve;
@@ -349,10 +365,12 @@ public final class LevelTables {
         int cap = ow != null ? ow.levelCap() : 100;
         int rarity = Math.min(rarityIndex(tier), Math.max(0, offsets.length - 1));
         int offset = offsets.length == 0 ? 0 : offsets[rarity];
-        int len = Math.max(0, Math.min(cap - 1, curve.length - offset));
+        int have = Math.max(0, curve.length - offset);
+        // Past the table (an estimate: Hypixel's 200-level dragons repeat their last step) every level costs the last step.
+        int len = past ? Math.max(have, PET_HARD_CAP - 1) : Math.max(0, Math.min(cap - 1, have));
         long[] cum = new long[len + 1];
         for (int i = 0; i < len; i++) {
-            cum[i + 1] = cum[i] + curve[offset + i];
+            cum[i + 1] = cum[i] + (have == 0 ? 0 : curve[offset + Math.min(i, have - 1)]);
         }
         return cum;
     }
