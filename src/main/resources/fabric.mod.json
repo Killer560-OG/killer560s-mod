@@ -55,6 +55,7 @@
     "killer560smod-chathistory.mixins.json",
     "killer560smod-chattabs.mixins.json",
     "killer560smod-chatchannel.mixins.json",
+    "killer560smod-itemalerts.mixins.json",
     "killer560smod-window.mixins.json",
     "killer560smod-simonsays.mixins.json",
     "killer560smod-autoclosechest.mixins.json",

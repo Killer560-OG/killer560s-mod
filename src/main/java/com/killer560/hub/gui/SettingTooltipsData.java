@@ -94,6 +94,14 @@ final class SettingTooltipsData {
         d.put("chat tabs", "Shows tabs above the chat input (All, Party, Guild, Officer, Co-op, Messages): click one to see only that channel's messages.");
         d.put("switch channel", "Clicking a tab also puts you in that chat (/chat party and so on); with Messages, a line you type goes as /r.");
         d.put("filter closed chat", "Keeps showing only the selected tab's messages after you close the chat.");
+        d.put("bottle full alert", "A HUD line when a Thunder, Storm or Hurricane Bottle in your inventory reaches its full charge. Only bottles that fill after you join or turn this on alert.");
+        d.put("bottle sound", "Plays a pling when a bottle fills.");
+        d.put("bottle display", "Persistent keeps the line until that bottle leaves your inventory; Timed hides it after the seconds below.");
+        d.put("bottle show time", "How long a Timed bottle alert stays on screen.");
+        d.put("runebook sound", "Plays a pling when the Runebook goes up a rarity.");
+        d.put("runebook display", "Persistent keeps the line until the Runebook leaves your inventory; Timed hides it after the seconds below.");
+        d.put("runebook show time", "How long a Timed Runebook alert stays on screen.");
+        d.put("runebook rarity alert", "A HUD line when the Runebook in your inventory goes up a rarity.");
         d.put("show", "While Chat Is Open draws the channel line above the chat input; Always draws it as its own HUD element you can move and scale in the HUD editor.");
         d.put("chat channel indicator", "Draws a line above the chat input naming the channel your next message goes to (All, Party, Guild, Officer, Co-op or a private conversation), with the party size in Party.");
         d.put("show member count", "Adds the number of members to the line while you are in Party chat.");

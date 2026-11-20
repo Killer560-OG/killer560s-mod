@@ -209,6 +209,7 @@ public final class ModPaths {
         // Auto Sprint (killer560smod-autosprint.json, 2026-11-01).
         t.put("autosprint", "skyblock/autosprint");
         t.put("itemprotect", "skyblock/itemprotect");
+        t.put("itemalerts", "skyblock/itemalerts");
         t.put("petwheel", "skyblock/petwheel");
         t.put("storage", "skyblock/storage");
         t.put("invsort", "skyblock/invsort");

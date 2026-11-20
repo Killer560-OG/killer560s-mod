@@ -438,6 +438,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.gyrooverlay.GyroOverlayFeature.register();
         com.killer560.hub.chattabs.ChatTabsFeature.register();
         com.killer560.hub.chatchannel.ChatChannelFeature.register();
+        com.killer560.hub.itemalerts.ItemAlertsFeature.register();
         HudElementRegistry.register(com.killer560.hub.instaclearwarning.InstaClearWarningFeature.HUD);
         com.killer560.hub.motionblur.MotionBlurFeature.register();
         com.killer560.hub.discordrpc.DiscordRpcFeature.register();

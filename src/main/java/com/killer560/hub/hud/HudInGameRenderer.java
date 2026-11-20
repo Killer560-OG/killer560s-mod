@@ -35,6 +35,8 @@ public final class HudInGameRenderer {
             "carnival_tracker", "carnival_catch_a_fish", "carnival_zombie_shootout", "carnival_fruit_digging",
             // Blink's "Blink 12/22 ticks" line (2026-10-25) - missing at first, so it never drew in game (the demo video).
             "blink",
+            // Item Alerts (bottlealert-1118).
+            "bottle_full_alert", "runebook_rarity_alert",
             // Boss Health (2026-10-25).
             "boss_health",
             // P3 Status (2026-10-25).
