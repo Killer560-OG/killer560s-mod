@@ -76,8 +76,8 @@ public final class SackCommands {
         return true;
     }
 
-    /** Hypixel's own cooldown between two /gfs; an automatic sender that sends several in a row waits this long. */
-    public static final long MIN_GAP_MS = 3000;
+    /** The Inventory Sorter's gap between two /gfs (0.25 s, owner 2026-11-19); a cooldown refusal is asked again by the sender. */
+    public static final long MIN_GAP_MS = 250;
 
     /** Hypixel's refusal of a /gfs sent too soon: nothing was moved and nothing was looked up. */
     private static final Pattern COOLDOWN = Pattern.compile("^Command Failed: This command is on cooldown!.*$");

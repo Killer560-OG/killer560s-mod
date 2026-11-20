@@ -31,7 +31,7 @@ final class InvSortSacks {
     /** Only plain item ids go to /gfs: a rune or attribute id never names a sack item. */
     private static final Pattern PLAIN_ID = Pattern.compile("[A-Z0-9_]+");
 
-    private static final int MAX_TRIES = 3;
+    private static final int MAX_TRIES = 5;
 
     private static InvSortSacks active;
 
@@ -45,6 +45,7 @@ final class InvSortSacks {
     private boolean noneNow;
     private boolean cooldownNow;
     private int tries;
+    private long retryAtMs;
     private boolean fullNow;
     private boolean full;
     private int fetched;
@@ -140,7 +141,8 @@ final class InvSortSacks {
             }
             if (cooldownNow && movedNow < 0 && !noneNow && !fullNow && tries < MAX_TRIES) {
                 // Hypixel refused it ("on cooldown"): nothing was looked up, so ask the same thing again after the gap.
-                LOGGER.info("[InvSort] /gfs {} {} refused (cooldown), asking again (try {})", sent.id(), sent.amount(), ++tries);
+                LOGGER.info("[InvSort] /gfs {} {} refused (cooldown), asking again in 1 s (try {})", sent.id(), sent.amount(), ++tries);
+                retryAtMs = System.currentTimeMillis() + 1000;
                 todo.addFirst(sent);
                 sent = null;
                 cooldownNow = false;
@@ -169,6 +171,9 @@ final class InvSortSacks {
             return true;
         }
         if (!mayAct) {
+            return false;
+        }
+        if (System.currentTimeMillis() < retryAtMs) {
             return false;
         }
         Ask next = todo.peek();

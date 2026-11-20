@@ -1,5 +1,18 @@
 [
  {
+  "date": "2026-11-20",
+  "summary": "Inventory Sorter now waits 0.25 s between sack fetches inste",
+  "sections": [
+   {
+    "title": "More",
+    "blurb": "Changes in this update.",
+    "items": [
+     "Inventory Sorter now waits 0.25 s between sack fetches instead of 3 s; a fetch Hypixel refuses for cooldown is asked again after 1 s, up to 5 times."
+    ]
+   }
+  ]
+ },
+ {
   "date": "2026-11-19",
   "summary": "Low Health Alert: new Alert For Yourself switch (on by defau",
   "sections": [
