@@ -139,20 +139,28 @@ public final class BazaarFlipNpcLimit {
         }
     }
 
+    /** The merge with the shared file (an OS lock, up to 10 s) runs on the shared writer, never on the chat/tick thread. */
     private static void save() {
-        try {
-            JsonObject o = new JsonObject();
-            o.addProperty("day", day);
-            o.addProperty("account", account);
-            o.addProperty("soldCoins", soldToday);
-            JsonObject merged = SharedRecords.save(SharedRecords.file(RecordCatalog.NPC_SOLD), o);
-            // Another instance's sales today count here too.
-            if (day.equals(str(merged, "day")) && account.equals(str(merged, "account")) && merged.has("soldCoins")) {
-                soldToday = Math.max(soldToday, merged.get("soldCoins").getAsDouble());
+        String d = day;
+        String acc = account;
+        double sold = soldToday;
+        com.killer560.hub.shared.SharedWriter.submit(() -> {
+            try {
+                JsonObject o = new JsonObject();
+                o.addProperty("day", d);
+                o.addProperty("account", acc);
+                o.addProperty("soldCoins", sold);
+                JsonObject merged = SharedRecords.save(SharedRecords.file(RecordCatalog.NPC_SOLD), o);
+                // Another instance's sales today count here too.
+                synchronized (BazaarFlipNpcLimit.class) {
+                    if (d.equals(day) && acc.equals(account) && d.equals(str(merged, "day")) && acc.equals(str(merged, "account")) && merged.has("soldCoins")) {
+                        soldToday = Math.max(soldToday, merged.get("soldCoins").getAsDouble());
+                    }
+                }
+            } catch (Exception e) {
+                LOGGER.warn("[BazaarFlip] Couldn't save the NPC sale count", e);
             }
-        } catch (Exception e) {
-            LOGGER.warn("[BazaarFlip] Couldn't save the NPC sale count", e);
-        }
+        });
     }
 
     private static String str(JsonObject o, String k) {

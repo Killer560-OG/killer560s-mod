@@ -312,8 +312,7 @@ public final class ArmorHudFeature {
                 per.add(String.valueOf(e.getKey()), a);
             }
             o.add("loadouts", per);
-            Files.createDirectories(CACHE_PATH.getParent());
-            Files.writeString(CACHE_PATH, o.toString(), StandardCharsets.UTF_8);
+            com.killer560.hub.shared.SharedWriter.writeFile(CACHE_PATH, o.toString());
         } catch (Exception e) {
             LOGGER.warn("[ArmorHud] equipment cache not saved: {}", e.toString());
         }
@@ -398,6 +397,7 @@ public final class ArmorHudFeature {
 
     /** Forgets the in-memory cache and reads the file again (a restart, for the testkit). */
     public static void reloadCacheForTest() {
+        com.killer560.hub.shared.SharedWriter.drain(2000);
         for (int i = 0; i < 4; i++) {
             equipment[i] = null;
         }

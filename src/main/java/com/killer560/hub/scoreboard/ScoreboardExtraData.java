@@ -835,7 +835,6 @@ public final class ScoreboardExtraData {
         dirty = false;
         lastSaveMs = System.currentTimeMillis();
         try {
-            Files.createDirectories(DATA_PATH.getParent());
             JsonObject obj = new JsonObject();
             obj.addProperty("cookieExpiresAtMs", cookieExpiresAtMs);
             if (maxwellPower != null) {
@@ -873,7 +872,7 @@ public final class ScoreboardExtraData {
                 obj.addProperty("electionJson", election);
                 obj.addProperty("electionFetchedAtMs", electionFetchedAtMs);
             }
-            Files.writeString(DATA_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
+            com.killer560.hub.shared.SharedWriter.writeFile(DATA_PATH, GSON.toJson(obj));
         } catch (Exception e) {
             LOGGER.debug("[CustomScoreboard] Couldn't save {}: {}", DATA_PATH.getFileName(), e.toString());
         }

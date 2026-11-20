@@ -231,8 +231,7 @@ public final class NucleusRunProfitTracker {
             root.addProperty("activeMs", activeMs);
             root.addProperty("runsCompleted", runsCompleted);
             root.addProperty("totalValueCoins", totalValueCoins);
-            Files.createDirectories(DATA_PATH.getParent());
-            Files.writeString(DATA_PATH, GSON.toJson(root), StandardCharsets.UTF_8);
+            com.killer560.hub.shared.SharedWriter.writeFile(DATA_PATH, GSON.toJson(root));
         } catch (Exception e) {
             LOGGER.warn("Couldn't save {}", DATA_PATH, e);
         }

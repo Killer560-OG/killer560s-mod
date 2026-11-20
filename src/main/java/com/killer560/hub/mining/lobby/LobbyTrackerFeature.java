@@ -174,8 +174,7 @@ public final class LobbyTrackerFeature {
                 o.addProperty("visits", e.getValue().visits());
                 root.add(e.getKey(), o);
             }
-            Files.createDirectories(DATA_PATH.getParent());
-            Files.writeString(DATA_PATH, GSON.toJson(root), StandardCharsets.UTF_8);
+            com.killer560.hub.shared.SharedWriter.writeFile(DATA_PATH, GSON.toJson(root));
         } catch (Exception e) {
             LOGGER.warn("[LobbyTracker] Couldn't save {}: {}", DATA_PATH.getFileName(), e.toString());
         }

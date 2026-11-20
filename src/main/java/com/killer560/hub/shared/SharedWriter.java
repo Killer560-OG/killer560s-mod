@@ -33,6 +33,22 @@ public final class SharedWriter {
         }
     }
 
+    /**
+     * Writes a small text file off the calling thread: the caller builds the string (a consistent snapshot) and the
+     * folder creation and write run here, in submit order, so a later snapshot is never overwritten by an earlier one.
+     * A tick or event handler must never touch the disk itself: one stalled write froze the game for 22 s (freezefix-1120).
+     */
+    public static void writeFile(java.nio.file.Path file, String text) {
+        submit(() -> {
+            try {
+                java.nio.file.Files.createDirectories(file.getParent());
+                java.nio.file.Files.writeString(file, text, java.nio.charset.StandardCharsets.UTF_8);
+            } catch (Exception e) {
+                com.killer560.hub.util.ModLog.get("killer560smod-shared").warn("[SharedWriter] Couldn't write {}: {}", file.getFileName(), e.toString());
+            }
+        });
+    }
+
     /** Waits (at most the given milliseconds) until every save queued so far has been written. */
     public static void drain(long ms) {
         try {

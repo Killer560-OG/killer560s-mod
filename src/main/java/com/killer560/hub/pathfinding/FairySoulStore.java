@@ -119,7 +119,6 @@ public final class FairySoulStore {
     public static synchronized void save() {
         version++;
         try {
-            Files.createDirectories(FILE.getParent());
             JsonObject root = new JsonObject();
             root.addProperty("version", 1);
             JsonObject profiles = new JsonObject();
@@ -144,7 +143,7 @@ public final class FairySoulStore {
                 profiles.add(e.getKey(), profile);
             }
             root.add("profiles", profiles);
-            Files.writeString(FILE, GSON.toJson(root), StandardCharsets.UTF_8);
+            com.killer560.hub.shared.SharedWriter.writeFile(FILE, GSON.toJson(root));
         } catch (Exception e) {
             LOGGER.warn("[Pathfinding] Could not save the fairy soul log: {}", e.toString());
         }

@@ -317,22 +317,27 @@ public final class FiestaFlask {
 
     private static void save(long now) {
         savedMs = now;
-        try {
-            JsonObject o = new JsonObject();
-            if (Files.exists(STATE)) {
-                o = com.google.gson.JsonParser.parseString(Files.readString(STATE)).getAsJsonObject();
+        long left = remainingMs;
+        String id = uuid;
+        com.killer560.hub.shared.SharedWriter.submit(() -> {
+            try {
+                JsonObject o = new JsonObject();
+                if (Files.exists(STATE)) {
+                    o = com.google.gson.JsonParser.parseString(Files.readString(STATE)).getAsJsonObject();
+                }
+                JsonObject mine = new JsonObject();
+                mine.addProperty("remainingMs", left);
+                o.add(id, mine);
+                ConfigJson.write(STATE, o);
+            } catch (Exception e) {
+                LOG.warn("[FiestaFlask] state not saved: {}", e.toString());
             }
-            JsonObject mine = new JsonObject();
-            mine.addProperty("remainingMs", remainingMs);
-            o.add(uuid, mine);
-            ConfigJson.write(STATE, o);
-        } catch (Exception e) {
-            LOG.warn("[FiestaFlask] state not saved: {}", e.toString());
-        }
+        });
     }
 
     /** Testkit: forgets everything in memory (the state file is left) and re-reads it. */
     public static void reloadForTest() {
+        com.killer560.hub.shared.SharedWriter.drain(2000);
         remainingMs = -1;
         uuid = "";
         text = null;
@@ -340,6 +345,7 @@ public final class FiestaFlask {
     }
 
     public static void resetForTest() {
+        com.killer560.hub.shared.SharedWriter.drain(2000);
         remainingMs = -1;
         tabSeen = false;
         tabMisses = 0;

@@ -275,6 +275,7 @@ public final class ProfileManager {
         try {
             // A queued Waypoint Routes save must reach the disk first (its store's reload used to do this before it left the list).
             com.killer560.hub.routes.AsyncFileWriter.flush();
+            com.killer560.hub.shared.SharedWriter.drain(2000);
             Path dir = PROFILES_DIR.resolve(name);
             Files.createDirectories(dir);
             int count = 0;
@@ -1366,6 +1367,7 @@ public final class ProfileManager {
     public static synchronized void syncActiveProfile() {
         // Waypoint Routes writes its files off the render thread: let a queued save reach the disk before copying.
         com.killer560.hub.routes.AsyncFileWriter.flush();
+        com.killer560.hub.shared.SharedWriter.drain(2000);
         String active = getActiveProfile();
         Path dir = active == null ? null : PROFILES_DIR.resolve(sanitize(active));
         if (dir == null || !Files.isDirectory(dir)) {
