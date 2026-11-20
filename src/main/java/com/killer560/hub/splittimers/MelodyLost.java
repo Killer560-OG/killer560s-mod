@@ -9,6 +9,7 @@ import com.killer560.hub.secrets.DungeonRun;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.util.ModChat;
+import com.killer560.hub.util.OutgoingChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -90,11 +91,14 @@ public final class MelodyLost {
         prevStage = stage;
         prevN = n;
         prevAt = now;
+        // Every terminal line uses up that player's Melody evidence, so one finished earlier is never blamed on a later terminal.
+        String source = kind.equals("terminal") ? MelodyIntel.hadSource(name, stage) : null;
+        if (kind.equals("terminal")) {
+            MelodyIntel.forgetHad(name);
+        }
         if (n != total || decided[stage] != null) {
             return;
         }
-        String source = MelodyIntel.hadSource(name, stage);
-        MelodyIntel.forgetHad(name);
         if (!kind.equals("terminal")) {
             decided[stage] = "last was a " + kind;
         } else if (!havePrev) {
@@ -119,6 +123,13 @@ public final class MelodyLost {
             }
             ModChat.send("Melody Lost", ModChat.text("Total time lost to Melody: "), ModChat.value(secs(total())),
                     parts, ModChat.dim(")"));
+        }
+        if (stage == 4 && cfg.isMelodyLostParty() && total() > 0L) {
+            StringBuilder pc = new StringBuilder("pc Time lost to Melody: ").append(secs(total())).append(" (");
+            for (int s = 1; s <= 4; s++) {
+                pc.append(s == 1 ? "" : " | ").append("S").append(s).append(" ").append(secs(lost[s]));
+            }
+            OutgoingChat.command(pc.append(")").toString());
         }
     }
 

@@ -203,6 +203,10 @@ final class CoreEntryTimes {
     /** HUD/chat rows: everyone expected, in party order; a dash for anyone not in yet, "Did not enter" once timing ended. */
     static List<String> lines() {
         if (openedMs == 0L || EXPECTED.isEmpty() || !SplitTimersConfig.getInstance().isCoreEntryActive()) return List.of();
+        if (SplitTimersConfig.getInstance().isCoreEntryOnlySlowest()) {
+            String only = slowestHudLine();
+            return only == null ? List.of() : List.of(only);
+        }
         List<String> out = new ArrayList<>(EXPECTED.size());
         for (String name : EXPECTED) {
             Long ms = getIgnoreCase(ENTRIES, name);   // the tab list's name and the entity's may differ in case

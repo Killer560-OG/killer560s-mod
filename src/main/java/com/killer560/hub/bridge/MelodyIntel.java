@@ -113,19 +113,23 @@ public final class MelodyIntel {
 
     /** {@code player} finished their Melody: 100% until the section ends or {@link #STALE_MS} passes. */
     public static void markDone(String player) {
+        markDone(player, true);
+    }
+
+    private static void markDone(String player, boolean note) {
         String key = player.toLowerCase(Locale.ROOT);
         Progress held = BY_PLAYER.get(key);
         long now = System.currentTimeMillis();
         put(key, held == null
                 ? new Progress(player, -1, -1, -1, now, true, 100, 0L)
-                : new Progress(held.player(), held.clayRow(), held.target(), held.current(), now, true, 100, 0L));
+                : new Progress(held.player(), held.clayRow(), held.target(), held.current(), now, true, 100, 0L), note);
     }
 
     /** "{@code player} activated a terminal!": if they have a live Melody entry, that terminal was the Melody. */
     public static void onTerminalCompleted(String player) {
         Progress held = get(player);
         if (held != null && !held.done() && System.currentTimeMillis() - held.atMs() <= STALE_MS) {
-            markDone(held.player());
+            markDone(held.player(), false); // the terminal line already used this Melody up: no new evidence
         }
     }
 
@@ -174,7 +178,11 @@ public final class MelodyIntel {
     }
 
     private static void put(String key, Progress p) {
-        if (!isSelf(p.player())) {
+        put(key, p, true);
+    }
+
+    private static void put(String key, Progress p, boolean note) {
+        if (note && !isSelf(p.player())) {
             noteHad(p.player(), p.hasBoard() || p.done() || p.chatPercent() < 0 ? SRC_SHARE : SRC_CHAT);
         }
         BY_PLAYER.put(key, p);

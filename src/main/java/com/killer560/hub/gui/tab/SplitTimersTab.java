@@ -104,6 +104,9 @@ public class SplitTimersTab extends BaseTab {
             widgets.add(onOffButton("Slowest To Party", cfg::isCoreEntrySlowestParty, cfg::setCoreEntrySlowestParty,
                     cfg::save, null, contentX + 168, y, 160, 18));
             y += 22;
+            widgets.add(onOffButton("Only Slowest", cfg::isCoreEntryOnlySlowest, cfg::setCoreEntryOnlySlowest,
+                    cfg::save, null, contentX, y, 220, 18));
+            y += 22;
             // killer560, 2026-09-20: "at the very bottom of the split timers show the slowest person into
             // core and their time" - separate from the chat/party lines above, which stay chat-only.
             widgets.add(onOffButton("Slowest In HUD", cfg::isCoreEntrySlowestHud, cfg::setCoreEntrySlowestHud,

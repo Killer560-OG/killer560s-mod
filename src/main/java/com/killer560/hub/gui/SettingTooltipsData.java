@@ -1060,6 +1060,7 @@ final class SettingTooltipsData {
         d.put("melody lost hud", "A movable HUD with S1 to S4 and the total time lost to Melody. A section counts only when its last objective was a Melody terminal; a Melody finished earlier, or a device or lever last, adds nothing.");
         d.put("melody lost per phase", "After a P3 section ends with a Melody terminal as its last objective, one chat line (client side only) says how long that Melody held the section up and who had it.");
         d.put("melody lost overall", "When Goldor's last section (S4) ends, one chat line (client side only) with the total time lost to Melody and each section's share.");
+        d.put("melody lost party chat", "When Goldor's last section (S4) ends and some time was lost to Melody, sends one party chat line (/pc) with the total and each section's share. Off by default.");
         d.put("terminal breakdown", "At the end of P3 (when the core opens), one chat line per player: how many terminals, devices and levers each did. Works with Terminal Timers on.");
         d.put("simon says time", "Shows how long the Simon Says device took after you solve it.");
         d.put("item rarity backgrounds", "Draws a rarity-colored square, circle or outline behind Skyblock items.");
@@ -2126,6 +2127,7 @@ final class SettingTooltipsData {
         d.put("watcher move", "Adds a row for how long after the blood door opens the Watcher starts moving.");
         d.put("core entry times", "Times how long each player takes to step inside the core after \"The Core entrance is opening!\".");
         d.put("split timers/show with splits off", "Keeps Core Entry Times and their HUD rows going with Split Timers turned off.");
+        d.put("only slowest", "Core Entry Times shows only the slowest player into the core (the Split Timers list and the run summary in chat) instead of everyone. Slowest To Chat and Slowest To Party already send only the slowest.");
         d.put("slowest to chat", "Prints the slowest player into the core in your own chat once per run.");
         d.put("slowest to party", "Sends the slowest core entry line to party chat once per run.");
         d.put("ability cooldowns/display", "How the cooldown list is drawn and how many lines it may use.");

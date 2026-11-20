@@ -32,6 +32,7 @@ public final class TerminalTimersConfig {
     private boolean melodyLostHud = false;
     private boolean melodyLostPhase = false;
     private boolean melodyLostTotal = false;
+    private boolean melodyLostParty = false;
 
     private TerminalTimersConfig() {
     }
@@ -60,6 +61,7 @@ public final class TerminalTimersConfig {
             cfg.melodyLostHud = ConfigJson.getBool(obj, "melodyLostHud", false);
             cfg.melodyLostPhase = ConfigJson.getBool(obj, "melodyLostPhase", false);
             cfg.melodyLostTotal = ConfigJson.getBool(obj, "melodyLostTotal", false);
+            cfg.melodyLostParty = ConfigJson.getBool(obj, "melodyLostParty", false);
             instance = cfg;
         } catch (Exception e) {
             instance = new TerminalTimersConfig();
@@ -77,6 +79,7 @@ public final class TerminalTimersConfig {
         obj.addProperty("melodyLostHud", melodyLostHud);
         obj.addProperty("melodyLostPhase", melodyLostPhase);
         obj.addProperty("melodyLostTotal", melodyLostTotal);
+        obj.addProperty("melodyLostParty", melodyLostParty);
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
@@ -123,6 +126,12 @@ public final class TerminalTimersConfig {
 
     public void setMelodyLostTotal(boolean v) { melodyLostTotal = v; }
 
+    public boolean getMelodyLostPartyRaw() { return melodyLostParty; }
+
+    public void setMelodyLostParty(boolean v) { melodyLostParty = v; }
+
+    public boolean isMelodyLostParty() { return isEnabled() && melodyLostParty; }
+
     public boolean isMelodyLostSplits() { return isEnabled() && melodyLostSplits; }
 
     public boolean isMelodyLostHud() { return isEnabled() && melodyLostHud; }
@@ -132,5 +141,5 @@ public final class TerminalTimersConfig {
     public boolean isMelodyLostTotal() { return isEnabled() && melodyLostTotal; }
 
     /** Any Time Lost To Melody output is on, so the tracker runs. */
-    public boolean isMelodyLostActive() { return isEnabled() && (melodyLostSplits || melodyLostHud || melodyLostPhase || melodyLostTotal); }
+    public boolean isMelodyLostActive() { return isEnabled() && (melodyLostSplits || melodyLostHud || melodyLostPhase || melodyLostTotal || melodyLostParty); }
 }

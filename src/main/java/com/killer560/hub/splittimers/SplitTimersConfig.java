@@ -47,6 +47,7 @@ public final class SplitTimersConfig {
      *  chat/party announce toggles above - killer560, 2026-09-20: "at the very bottom of the split timers show
      *  the slowest person into core and their time." Default OFF like every new HUD line here. */
     private boolean coreEntrySlowestHud = false;
+    private boolean coreEntryOnlySlowest = false;
     /** killer560, 2026-11-01: "split timers should have an option to show recore stuff even if split timers are off" -
      *  Core Entry times (and their HUD rows) run with the Split Timers switch off. Default OFF. */
     private boolean coreEntryWithoutSplits = false;
@@ -82,6 +83,7 @@ public final class SplitTimersConfig {
             .add("coreEntrySlowestChat", false, c -> c.coreEntrySlowestChat, (c, v) -> c.coreEntrySlowestChat = v)
             .add("coreEntrySlowestParty", false, c -> c.coreEntrySlowestParty, (c, v) -> c.coreEntrySlowestParty = v)
             .add("coreEntrySlowestHud", false, c -> c.coreEntrySlowestHud, (c, v) -> c.coreEntrySlowestHud = v)
+            .add("coreEntryOnlySlowest", false, c -> c.coreEntryOnlySlowest, (c, v) -> c.coreEntryOnlySlowest = v)
             .add("coreEntryWithoutSplits", false, c -> c.coreEntryWithoutSplits, (c, v) -> c.coreEntryWithoutSplits = v)
             .add("laglessTimes", true, c -> c.laglessTimes, (c, v) -> c.laglessTimes = v)
             .add("tickCounting", false, c -> c.tickCounting, (c, v) -> c.tickCounting = v);
@@ -161,6 +163,10 @@ public final class SplitTimersConfig {
     public boolean isCoreEntrySlowestParty() { return coreEntrySlowestParty; }
 
     public void setCoreEntrySlowestParty(boolean coreEntrySlowestParty) { this.coreEntrySlowestParty = coreEntrySlowestParty; }
+
+    public boolean isCoreEntryOnlySlowest() { return coreEntryOnlySlowest; }
+
+    public void setCoreEntryOnlySlowest(boolean v) { coreEntryOnlySlowest = v; }
 
     public boolean isCoreEntrySlowestHud() { return coreEntrySlowestHud; }
 

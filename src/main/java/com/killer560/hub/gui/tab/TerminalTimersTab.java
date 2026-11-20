@@ -56,6 +56,10 @@ public class TerminalTimersTab extends BaseTab {
 
         widgets.add(onOffButton("Melody Lost Overall", cfg::getMelodyLostTotalRaw, cfg::setMelodyLostTotal, cfg::save,
                 null, contentX, y, contentWidth, 18));
+        y += 20;
+
+        widgets.add(onOffButton("Melody Lost Party Chat", cfg::getMelodyLostPartyRaw, cfg::setMelodyLostParty, cfg::save,
+                null, contentX, y, contentWidth, 18));
 
         return widgets;
     }
