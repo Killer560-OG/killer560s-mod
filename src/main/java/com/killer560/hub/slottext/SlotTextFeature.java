@@ -377,7 +377,7 @@ public final class SlotTextFeature {
         if (on.test(SlotTextType.PERK_LEVEL) && title.endsWith(" Essence Shop")) {
             Matcher m = ESSENCE_PERK.matcher(name);
             int level = m.matches() ? roman(m.group(1)) : 0;
-            if (level > 0 && stack.getCount() != level) {
+            if (level > 0 && (stack.getCount() != level || level == 1)) { // count 1 shows no number in vanilla, so level I needs its own
                 // A count other than the level is moved clear of the level by clearOfCount at draw time.
                 out.add(new Entry(SlotTextType.PERK_LEVEL, Pos.BOTTOM_RIGHT, String.valueOf(level), CREAM));
             }
