@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-/** {@link StillHold}: a chat, command or container-close packet leaves only while he stands still. Same method as LeapRotationSendMixin. */
+/** {@link StillHold}: a chat, command or container-close packet leaves only while he stands still. */
 @Mixin(Connection.class)
 public abstract class StillHoldMixin {
 

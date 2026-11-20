@@ -391,7 +391,6 @@ public final class LeapManager {
     static void onChat(String unformatted) {
         java.util.regex.Matcher own = OWN_LEAP_LINE.matcher(unformatted);
         if (own.matches()) {
-            LeapRotation.onOwnLeap(own.group(1));
             leapCdTicks = Math.max(leapCdTicks, LEAP_COOLDOWN_TICKS * Teammates.mageCooldownMultiplier());
             return;
         }

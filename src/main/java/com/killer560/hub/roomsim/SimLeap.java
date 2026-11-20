@@ -41,7 +41,7 @@ import java.util.UUID;
  * Leap is used up per teleport (5 s cooldown), the InfiniLeap never (2 s cooldown); used on cooldown it opens no menu and
  * says "This ability is on cooldown for Ns."; one second of immunity after the teleport, ended by dealing damage. The look
  * the teleport carries is the target's, ABSOLUTE, unless another teleport came within about a second, when it is relative
- * 0/0 (fastleap/LeapRotation, from his log). Head slots, filler, colors and when the cooldown starts are estimates
+ * 0/0 (from his 11-04 log; Hypixel sent every leap absolute by 11-16). Head slots, filler, colors and when the cooldown starts are estimates
  * (docs/SIM.md "Spirit Leap and InfiniLeap").
  */
 public final class SimLeap {

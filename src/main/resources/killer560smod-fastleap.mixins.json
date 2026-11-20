@@ -7,9 +7,8 @@
 		"FastLeapKeyboardHandlerMixin",
 		"FastLeapMouseHandlerMixin",
 		"FastLeapHideMenuMixin",
-		"LeapRotationPacketMixin",
-		"LeapRotationSendMixin",
-		"QueueLeapStartUseMixin"
+		"QueueLeapStartUseMixin",
+		"QueueLeapTeleportMixin"
 	],
 	"injectors": {
 		"defaultRequire": 0

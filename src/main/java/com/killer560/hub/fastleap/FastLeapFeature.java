@@ -114,8 +114,6 @@ public final class FastLeapFeature {
         }
         Teammates.tick(client);
         Floor7Tracker.tick();
-        // before anything here can send a use: a use in the turn tick must carry the turned look (leapsame-1105)
-        LeapRotation.tick(client);
         try {
             LeapManager.onStartTick(client);
         } catch (RuntimeException e) {
@@ -201,7 +199,6 @@ public final class FastLeapFeature {
         Teammates.clear();
         LeapManager.onWorldChange();
         I4LeapFeature.onWorldChange();
-        LeapRotation.clear();
     }
 
     private static void onChat(Component message) {

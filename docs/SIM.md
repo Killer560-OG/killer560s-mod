@@ -85,7 +85,7 @@ its own skin, EPIC; api.hypixel.net 2026-11-16) on the sim's server, so a co-op 
 the wiki's ability text, cooldowns (5 s / 2 s), "one leap used up per teleport" and "1 second of immunity after teleporting,
 cancelled upon dealing damage"; from his 26.3 logs the menu title "Spirit Leap" (297 opens with the InfiniLeap), the line
 "You have teleported to Name!" (739 times), Hypixel's generic "This ability is on cooldown for Ns." and clicked slots 11-15;
-from fastleap/LeapRotation the teleport's look (the target's, absolute; relative 0/0 within about 1 s of another teleport).
+from his logs the teleport's look (the target's, absolute; relative 0/0 within about 1 s of another teleport on 11-04, absolute every time by 11-16: 297 of 297 leaps, norotate-rm-1118).
 "Teleport to Player" is the ghost menu, not the InfiniLeap's. Trap rooms refuse leaps (the wiki says so).
 
 **Sim Teammates** (Sim Settings, 0-4, default none; `SimTeammates`): standing FakePlayers named by their class (Healer, Tank, Archer, Berserk, Mage: the four he does not play; picking another Sim Class re-places them under the new names, simleapnames-1118), placed round
