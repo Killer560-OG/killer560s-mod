@@ -2,6 +2,7 @@ package com.killer560.hub.partyinvites;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import com.killer560.hub.players.PlayerNames;
 import com.killer560.hub.shared.RecordCatalog;
 import com.killer560.hub.shared.SharedFile;
 import com.killer560.hub.shared.SharedRecords;
@@ -11,6 +12,7 @@ import com.killer560.hub.util.ConfigJson;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -37,6 +39,8 @@ public final class GuildMembers {
 
     /** lower-case name -> guild rank ("" when unknown). Guarded by itself. */
     private static final Map<String, String> MEMBERS = new LinkedHashMap<>();
+    /** uuid -> guild rank from the relay's guild read (the API names no one); names fill {@link #MEMBERS} as they resolve. */
+    private static final Map<UUID, String> BY_UUID = new LinkedHashMap<>();
     private static boolean loaded;
     private static boolean notInGuild;
     private static volatile boolean haveList;
@@ -91,6 +95,57 @@ public final class GuildMembers {
                 remove(m.group(1));
             }
         }
+    }
+
+    /**
+     * The relay's trimmed guild answer ({@code guild: null | {members: [{uuid, rank}]}}), the primary source (guildapi-1119).
+     * Known names go in at once; the rest resolve in the background through PlayerNames (cached a day, throttled), and a
+     * name the mod can map to a uuid later still matches through {@link #BY_UUID}. Returns false for an unreadable answer.
+     */
+    static boolean applyApi(JsonObject body) {
+        if (body == null || !body.has("guild")) {
+            return false;
+        }
+        Map<String, String> named = new LinkedHashMap<>();
+        Map<UUID, String> ids = new LinkedHashMap<>();
+        if (body.get("guild").isJsonObject()) {
+            JsonArray a = ConfigJson.getArray(body.getAsJsonObject("guild"), "members");
+            for (int i = 0; a != null && i < a.size() && ids.size() < MAX; i++) {
+                try {
+                    JsonObject o = a.get(i).getAsJsonObject();
+                    UUID id = parseUuid(o.get("uuid").getAsString());
+                    String rank = o.has("rank") ? o.get("rank").getAsString() : "";
+                    ids.put(id, rank);
+                    String name = PlayerNames.nameFor(id);
+                    if (name != null) {
+                        named.put(name.toLowerCase(Locale.ROOT), rank);
+                    }
+                } catch (RuntimeException e) {
+                    // one malformed member is skipped
+                }
+            }
+        }
+        boolean none = !body.get("guild").isJsonObject();
+        synchronized (BY_UUID) {
+            BY_UUID.clear();
+            BY_UUID.putAll(ids);
+        }
+        replaceAll(named, none);
+        ids.forEach((id, rank) -> {
+            if (PlayerNames.nameFor(id) == null) {
+                PlayerNames.resolveAsync(id, n -> {
+                    if (n != null) {
+                        add(n, rank);
+                    }
+                });
+            }
+        });
+        return true;
+    }
+
+    private static UUID parseUuid(String s) {
+        String d = s.replace("-", "");
+        return UUID.fromString(d.substring(0, 8) + "-" + d.substring(8, 12) + "-" + d.substring(12, 16) + "-" + d.substring(16, 20) + "-" + d.substring(20));
     }
 
     /** True for a line that belongs to a {@code /guild list} reply (the display hide while the mod asked for it). */
@@ -182,7 +237,13 @@ public final class GuildMembers {
         }
         ensureLoaded();
         synchronized (MEMBERS) {
-            return MEMBERS.containsKey(name.toLowerCase(Locale.ROOT));
+            if (MEMBERS.containsKey(name.toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        UUID id = PlayerNames.uuidFor(name);
+        synchronized (BY_UUID) {
+            return id != null && BY_UUID.containsKey(id);
         }
     }
 
@@ -207,6 +268,9 @@ public final class GuildMembers {
     public static void reload() {
         synchronized (MEMBERS) {
             MEMBERS.clear();
+        }
+        synchronized (BY_UUID) {
+            BY_UUID.clear();
         }
         loaded = false;
         haveList = false;

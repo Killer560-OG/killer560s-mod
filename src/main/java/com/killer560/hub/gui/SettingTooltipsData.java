@@ -3197,7 +3197,7 @@ final class SettingTooltipsData {
         d.put("auto accept invites", "Accepts a party invite for you while you are not in a party.");
         d.put("auto accept invites/auto accept invites", "Accepts a party invite for you while you are not in a party.");
         d.put("auto accept invites/only from friends", "Accepts only invites from people on your Hypixel friends list (as last synced by Friends List). With more than one Only From switch on, a match in any of them is enough; with none on, everyone is accepted.");
-        d.put("auto accept invites/only from guild members", "Accepts only invites from guild members. Reads your guild list once each session (sends /guild list and hides the reply), and keeps it current from guild chat and join, leave and kick lines.");
+        d.put("auto accept invites/only from guild members", "Accepts only invites from guild members. Reads your guild list once each session (from the mod relay, else by sending /guild list and hiding the reply), and keeps it current from guild chat and join, leave and kick lines.");
         d.put("auto accept invites/only from best friends", "Accepts only invites from players in your Best Friends list (people you have partied with).");
         d.put("auto accept invites/mode", "All Invites accepts any invite; Reinvites Only accepts one from someone in the party you left in the last 2 minutes.");
     }

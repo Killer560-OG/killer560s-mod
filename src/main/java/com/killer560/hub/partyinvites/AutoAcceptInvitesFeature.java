@@ -60,6 +60,7 @@ public final class AutoAcceptInvitesFeature {
         }));
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> GuildListRequest.onJoin());
         SharedRecords.onAccountChange(GuildMembers::reload);
+        SharedRecords.onAccountChange(GuildListRequest::resetSession);
     }
 
     private static void onChat(Component message) {

@@ -46,7 +46,8 @@
      "Command Auto Correct now fixes a warp destination typed with a stray space, such as /warp d h.",
      "Dungeon sim: terminals now send each slot as its own update, so Auto Terminals clicks are no longer blocked when another mod's terminal solver is also on (Click in Order never getting a click); every sim terminal type is tested against such solvers.",
      "Profile Viewer: new /pv Command switch (default ON); while OFF the mod leaves /pv alone so the server's or another mod's /pv runs.",
-     "Chat translation now handles messages typed in Latin letters for languages like Bulgarian and Russian, and never shows the original text as a translation."
+     "Chat translation now handles messages typed in Latin letters for languages like Bulgarian and Russian, and never shows the original text as a translation.",
+     "Auto Accept Invites' Only From Guild Members now reads your guild from the mod's relay (Hypixel API) instead of sending /guild list; the chat command is only the fallback when the relay cannot be reached."
     ]
    }
   ]
