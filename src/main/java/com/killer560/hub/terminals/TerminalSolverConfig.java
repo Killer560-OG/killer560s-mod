@@ -52,8 +52,8 @@ public final class TerminalSolverConfig {
      *  slot is already in view while the hand is moving, so a practiced player's pause between clicks is shorter. */
     public static final int MIN_FIRST_CLICK_DELAY_MS = 0;
     public static final int MAX_FIRST_CLICK_DELAY_MS = 300;
-    /** The most terminal clicks Burst Finish sends in one tick. */
-    public static final int MAX_BURST_SIZE = 21;
+    /** The most terminal clicks any burst sends in one tick: Hypixel takes 5 in 10 ticks. */
+    public static final int MAX_BURST_SIZE = 5;
     public static final int DEFAULT_BURST_SIZE = 5;
     /** Delay Between Bursts tops out where the Min/Max Delay does. */
     public static final int MAX_BURST_DELAY_MS = MAX_AUTO_CLICK_DELAY_MS;
@@ -384,6 +384,8 @@ public final class TerminalSolverConfig {
                 cfg.overlayColors.put(c, c.sanitize(ConfigJson.getInt(obj, c.key(), c.defaultArgb())));
             }
             instance = cfg;
+            // A size saved when the cap was 21 loads as 5 and is written back now.
+            if (ConfigJson.getInt(obj, "burstSize", 0) > MAX_BURST_SIZE || ConfigJson.getInt(obj, "burstClicks", 0) > MAX_BURST_SIZE) cfg.save();
         } catch (Exception e) {
             instance = new TerminalSolverConfig();
         }

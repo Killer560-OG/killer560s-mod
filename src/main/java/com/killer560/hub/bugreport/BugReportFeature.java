@@ -194,7 +194,7 @@ public final class BugReportFeature {
         sb.append("Mod version: ").append(modVersion()).append('\n');
         sb.append("Minecraft version: ").append(FabricLoader.getInstance().getRawGameVersion()).append('\n');
         sb.append("Fabric Loader version: ").append(loaderVersion()).append('\n');
-        sb.append("Build variant: ").append(BuildVariant.CHEAT_FEATURES_ENABLED ? "cheat" : "legit").append('\n');
+        sb.append(com.killer560.hub.autoupdate.BuildInfo.reportLines());
         sb.append("OS: ").append(System.getProperty("os.name")).append(' ')
                 .append(System.getProperty("os.version")).append('\n');
         sb.append("Java version: ").append(System.getProperty("java.version")).append('\n');

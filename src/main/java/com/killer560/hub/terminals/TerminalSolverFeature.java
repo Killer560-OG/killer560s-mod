@@ -245,8 +245,8 @@ public final class TerminalSolverFeature {
     // ---- Hypixel's click limit (friendterms-1119): a terminal takes at most 5 clicks in 10 server ticks and drops the rest
     // with no answer (measured on Hypixel; the boss sim does the same). A Min Delay under 100 ms, or Burst Finish right after
     // paced clicks, sent a 6th click inside the window on every board, and each lost one cost a retry timeout. Every send is
-    // noted here; a paced click waits for room, and Burst Finish waits until its burst (up to 5) fits. Burst Mode and a Burst
-    // Size over 5 are left as the owner set them. The window carries one tick of margin for the server's tick jitter. ----
+    // noted here; a paced click waits for room, and Burst Finish waits until its burst (up to 5) fits. Burst Mode obeys it too (its size is at most 5).
+    // The window carries one tick of margin for the server's tick jitter. ----
     static final int CLICK_LIMIT = 5;
     static final long CLICK_LIMIT_WINDOW_MS = 550;
     private static final long[] recentClickAtMs = new long[CLICK_LIMIT];
@@ -1006,6 +1006,8 @@ public final class TerminalSolverFeature {
     private static void tickBurstMode(ContainerScreen screen, TerminalType type, List<ItemStack> items, TerminalSolverConfig cfg) {
         long now = System.currentTimeMillis();
         if (now < nextAutoClickAllowedAtMs) return;
+        int budget = clickBudget(now);
+        if (budget == 0) return;
         long retryTimeout = retryTimeoutMs(cfg);
         if (type == TerminalType.NUMBERS) {
             for (PendingClick p : pendingClicks.values()) {
@@ -1022,8 +1024,9 @@ public final class TerminalSolverFeature {
             }
             if (!any) return;
         }
+        // never past Hypixel's limit: a burst takes only the room left in the window
         if (clickedThisWireTick() || !ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
-        sendBurst(screen, type, items, now, cfg.getBurstClicks(), retryTimeout);
+        sendBurst(screen, type, items, now, Math.min(cfg.getBurstClicks(), budget), retryTimeout);
         // At least 75 ms (1.5 server ticks) even at delay 0: a lagging client runs catch-up ticks under 50 ms apart, and a server tick that ran late took two bursts 50 ms apart, and the server then took
         // two bursts in one of its ticks (Panes at 5 arrived as 9 in one server tick, testkit 1116-term-bmode-panes-5).
         nextAutoClickAllowedAtMs = now + Math.max(cfg.getBurstDelayMs(), MIN_BURST_GAP_MS);
