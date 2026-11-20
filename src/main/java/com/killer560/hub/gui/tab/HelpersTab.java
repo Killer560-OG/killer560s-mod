@@ -16,8 +16,6 @@ public class HelpersTab extends FolderTab {
     private static List<BaseTab> buildTabs() {
         List<BaseTab> tabs = new ArrayList<>(List.of(
                 new ExperimentsTab(),
-                // The Carnival minigames' helpers (carnival-1110): their own Misc section (carnival-sections-1114).
-                new CarnivalGroup(),
                 // How Lucky Are You (doc-rng-1101): drops against the odds, beside the other trackers' settings.
                 new LuckTab(),
                 // Etherwarp Overlay moved out of New 2026-09-16, then on to General 2026-10-04 (killer560).
@@ -44,8 +42,6 @@ public class HelpersTab extends FolderTab {
             tabs.add(new AutoFairySoulsTab());
             tabs.add(new AutoChocolateFactoryTab());
             tabs.add(new InventoryWalkTab());
-            tabs.addAll(List.of(new ZombieTriggerbotTab(), new AutoZombieShootoutTab(), new AutoShovelSwapTab(),
-                    new AutoFruitDiggingTab(), new FruitDiggingTriggerbotTab(), new AutoCatchAFishTab()));
         }
         return tabs;
     }

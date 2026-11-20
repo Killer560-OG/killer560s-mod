@@ -195,11 +195,6 @@ public final class ActionGate {
         /** Auto M5 (cheat build, stormm5-1111): the Ragnarock cast with its swaps, and the hits on the real Livid. */
         M5_HOTBAR(Kind.HOTBAR, "m5"),
         M5_WORLD(Kind.WORLD, "m5"),
-        /** The Carnival cheat block (carnival-1110): the Shootout's shots, Fruit Digging's digs and mode taps, Catch a
-         *  Fish's cast and reel (WORLD), and Auto Shovel Swap's hotbar change (HOTBAR). One flow: the swap and the dig
-         *  after it are one sequence. Sent only from {@code carnival.CarnivalInput}. */
-        CARNIVAL_HOTBAR(Kind.HOTBAR, "carnival"),
-        CARNIVAL_WORLD(Kind.WORLD, "carnival"),
         /** Relic Triggerbot (M7 P5): picking up the aimed relic and placing it on the aimed cauldron. Wired in
          *  {@code witherdragons.RelicHelpersFeature}, its only caller. */
         RELIC(Kind.WORLD),
