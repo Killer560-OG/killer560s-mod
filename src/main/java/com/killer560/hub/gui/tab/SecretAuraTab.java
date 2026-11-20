@@ -101,6 +101,8 @@ public class SecretAuraTab extends BaseTab {
             toggle(w, contentX, y, "S2 Section Levers Early", lever::isSectionLeversEarlyRaw, lever::setSectionLeversEarly, null, saveLever);
         }
 
+        toggle(w, contentX, y, "No-Look Lever Click (flags Grim)", lever::isNoLookClick, lever::setNoLookClick, null, saveLever);
+
         header(w, contentX, y, contentWidth, "Timing & Range");
         slider(w, contentX, y[0], BTN_W, () -> String.format(Locale.US, "Boss Lever Range: %.1f", lever.getRange()),
                 (lever.getRange() - LeverAuraConfig.MIN_RANGE) / (LeverAuraConfig.MAX_RANGE - LeverAuraConfig.MIN_RANGE),

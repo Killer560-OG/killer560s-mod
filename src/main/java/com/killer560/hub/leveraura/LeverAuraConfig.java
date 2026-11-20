@@ -40,6 +40,8 @@ public final class LeverAuraConfig {
     private boolean sectionLevers = false;
     /** ...and also before S2 is open. */
     private boolean sectionLeversEarly = false;
+    /** Owner exception (flags Grim): click on the heard look when no packet can carry a look; draws RotationPlace. Default OFF. */
+    private boolean noLookClick = false;
     private double range = MAX_RANGE;
     private int cooldownMs = DEFAULT_COOLDOWN_MS;
     private boolean swingHand = true;
@@ -69,6 +71,7 @@ public final class LeverAuraConfig {
             }
             cfg.sectionLevers = ConfigJson.getBool(o, "sectionLevers", cfg.sectionLevers);
             cfg.sectionLeversEarly = ConfigJson.getBool(o, "sectionLeversEarly", cfg.sectionLeversEarly);
+            cfg.noLookClick = ConfigJson.getBool(o, "noLookClick", cfg.noLookClick);
             cfg.setRange(ConfigJson.getDouble(o, "range", cfg.range));
             if (o.has("cooldownMs")) {
                 cfg.setCooldownMs(ConfigJson.getInt(o, "cooldownMs", DEFAULT_COOLDOWN_MS));
@@ -102,6 +105,7 @@ public final class LeverAuraConfig {
         JsonObject o = new JsonObject();
         o.addProperty("sectionLevers", sectionLevers);
         o.addProperty("sectionLeversEarly", sectionLeversEarly);
+        o.addProperty("noLookClick", noLookClick);
         o.addProperty("range", range);
         o.addProperty("cooldownMs", cooldownMs);
         o.addProperty("swingHand", swingHand);
@@ -125,6 +129,8 @@ public final class LeverAuraConfig {
     public boolean isSectionLeversEarly() { return isSectionLevers() && sectionLeversEarly; }
     public boolean isSectionLeversEarlyRaw() { return sectionLeversEarly; }
     public void setSectionLeversEarly(boolean v) { sectionLeversEarly = v; }
+    public boolean isNoLookClick() { return noLookClick; }
+    public void setNoLookClick(boolean v) { noLookClick = v; }
 
     public double getRange() { return range; }
     public void setRange(double v) { range = Math.max(MIN_RANGE, Math.min(MAX_RANGE, Math.round(v * 10.0) / 10.0)); }

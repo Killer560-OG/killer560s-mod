@@ -265,6 +265,7 @@ that flags is capped below or the setting removed (Arrow Align Frames Per Tick w
 (killer560, 2026-11-02): Breaker Aura's "Burst Multi Break (flags newest Grim)" switch (default OFF, only with Multi Break on)
 brings back the pre-d2da5856 burst that GrimAC's experimental MultiBreak flags; its label says it flags, and tests accept
 MultiBreak* only while it is on.
+EE3 route lever no-look clicks (23,132,138 and 27,124,127): the lever clicks on the heard look when no packet can carry a look (a one-tick reach window), and the RotationPlace flag that draws (one per such click) is an accepted owner exception (killer560, 2026-11-17 "Accept the flag", 2026-11-18 "whatever you think is best" for the low lever); testkit 1109-boss-ee3route-* accept RotationPlace up to the number of no-look clicks and nothing else. RotationPlace shows on default Grim too, not only experimental.
 
 AURAS NEVER AFFECT MOVEMENT (killer560, 2026-11-16: "My auras can never affect my movement. If I am running and something
 is in range it auras without changing anything."): in a route or by hand, an aura never changes his keys, sprint, jump,

@@ -247,12 +247,18 @@ public final class LeverAuraFeature {
      * A lever in reach only from next tick's eye: turn the body now (aimed from that eye) so the flick can go in its first
      * tick in reach. Never clicks. Always true (nothing went out; the flick is scheduled from this tick).
      */
+    /** The lever and tick of the last one-packet look asked for in preTurn. */
+    private static long askedPos = Long.MIN_VALUE;
+    private static long askedTick = Long.MIN_VALUE;
+
     private static boolean preTurn(Minecraft client, BlockPos pos, Vec3 eyeNext) {
         BlockHitResult hit = bestHit(client, pos, eyeNext);
         if (hit != null && (com.killer560.hub.ap3.Ap3Executor.isRunning()
                 || com.killer560.hub.util.PacketLook.keysHeld(client.player))) {
             // The walk owns the body: no turn, but the look rides this tick's packet so the flick can go next tick.
             TURN.preLook(client.player, pos, hit.getLocation(), eyeNext, eyeNext.distanceTo(hit.getLocation()) + 1.0);
+            askedPos = pos.asLong();
+            askedTick = ActionGate.currentTick();
             return true;
         }
         // Already turned (a slow approach): keep that hold; asking again would read "hits" and give the body back early.
@@ -285,14 +291,29 @@ public final class LeverAuraFeature {
         // the camera held: Secret Aura's identical click drew GrimAC RotationPlace from behind (testkit 419).
         double reach = eye.distanceTo(hit.getLocation()) + 1.0;
         if (!TURN.readyBlock(client.player, client.level, pos, hit.getLocation(), reach)) {
-            if (com.killer560.hub.ap3.Ap3Executor.isRunning() || com.killer560.hub.util.PacketLook.keysHeld(client.player)) {
-                // No turn while AP3 runs or he walks: the aim rides one movement packet (util/PacketLook).
-                logHeld("packetLook", "lever " + pos.toShortString() + " waits for a one-packet look (body untouched)");
-            } else {
-                LOGGER.info("[LeverAura] turning body to lever {} first (reported look does not reach it) tick={}",
-                        pos.toShortString(), ActionGate.currentTick());
+            boolean packetLook = com.killer560.hub.ap3.Ap3Executor.isRunning() || com.killer560.hub.util.PacketLook.keysHeld(client.player);
+            // No turn while AP3 runs or he walks: the aim rides one movement packet (util/PacketLook). A lever out of
+            // reach next tick, or a tick that carries his use (a look in it is BadPacketsJ), has no packet to ride: it is clicked now on the heard look (owner exception, 2026-11-17
+            // "Accept the flag": the one RotationPlace that may draw), else it was missed (his use or dig in the
+            // approach tick kept the look from moving, 1109-boss-ee3route-same-use).
+            Vec3 v = client.player.getDeltaMovement();
+            Vec3 eyeNext = new Vec3(eye.x + v.x, eye.y + (client.player.onGround() ? 0.0 : v.y), eye.z + v.z);
+            double r = cfg.getRange();
+            // A look asked for last tick that did not land (his use or dig took that packet) is not asked again: the
+            // lever may be in reach this one tick only.
+            boolean asked = askedPos == pos.asLong() && askedTick == ActionGate.currentTick() - 1;
+            if (!packetLook || !cfg.isNoLookClick() || (!(asked || ActionGate.hisUseGoesThisTick(client))
+                    && com.killer560.hub.util.BlockHits.boxDistanceSq(eyeNext, pos) <= r * r)) {
+                if (packetLook) {
+                    logHeld("packetLook", "lever " + pos.toShortString() + " waits for a one-packet look (body untouched)");
+                } else {
+                    LOGGER.info("[LeverAura] turning body to lever {} first (reported look does not reach it) tick={}",
+                            pos.toShortString(), ActionGate.currentTick());
+                }
+                return false;
             }
-            return false;
+            LOGGER.info("[LeverAura] no packet can carry a look to lever {}: clicked on the heard look tick={}",
+                    pos.toShortString(), ActionGate.currentTick());
         }
         // The click is the outline hit along the look the server was told about (the body's), the way a real click is
         // picked; the aimed point is only the fallback when the turn left the look a rounding short of it.
