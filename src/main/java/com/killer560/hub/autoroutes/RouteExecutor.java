@@ -3490,20 +3490,42 @@ public final class RouteExecutor {
      * no tick packet (it checks nothing there, testkit UseRotationWatch) and a 1.8 server takes as his look - so the hop goes
      * on the landing tick and its use, its look and the tick's movement packet all agree. Only for this hop's own landing
      * (within {@link #LANDING_TOLERANCE} of the planned feet), obvious mode, a next hop to fly.
+     * <p>The same for an etherwarp NODE whose landing fires a bare etherwarp node (arwrong-1118: 11 of 32 such chains in
+     * his 2026-11-18 routes waited that tick after a Secret Aura click - Altar #2-#5, Layers #10-#14): the next node's
+     * look as its PREP and {@link #reaimIfMoved} will work it out from this landing.
      */
     public static void beforeTeleportAnswer(LocalPlayer player, Vec3 target) {
         RouteNode node = activeNode;
-        if (!running || node == null || node.type != RouteNode.Type.PATH || step != Step.CONFIRM || player == null
-                || target == null || warpLanding == null || node.pathHops == null || hopIndex < 0
-                || hopIndex + 1 >= hops(node).size() || AutoRoutesConfig.getInstance().isLegitMode()
-                || !com.killer560.hub.util.RightClick.unpaired() || target.distanceTo(warpLanding) > LANDING_TOLERANCE) {
+        if (!running || node == null || step != Step.CONFIRM || player == null || target == null || warpLanding == null
+                || AutoRoutesConfig.getInstance().isLegitMode() || !com.killer560.hub.util.RightClick.unpaired()
+                || target.distanceTo(warpLanding) > LANDING_TOLERANCE) {
             return;
         }
-        RouteNode.PathHop h = hops(node).get(hopIndex + 1);
-        float yaw = RouteCoords.toRealYaw(frame, h.yaw());
-        float pitch = h.pitch();
-        Vec3 origin = RouteCoords.toReal(frame, h.ox(), h.oy(), h.oz());
-        BlockPos hopTarget = RouteCoords.toRealBlock(frame, h.target());
+        float yaw;
+        float pitch;
+        Vec3 origin;
+        BlockPos hopTarget;
+        String what;
+        if (node.type == RouteNode.Type.PATH && node.pathHops != null && hopIndex >= 0 && hopIndex + 1 < hops(node).size()) {
+            RouteNode.PathHop h = hops(node).get(hopIndex + 1);
+            yaw = RouteCoords.toRealYaw(frame, h.yaw());
+            pitch = h.pitch();
+            origin = RouteCoords.toReal(frame, h.ox(), h.oy(), h.oz());
+            hopTarget = RouteCoords.toRealBlock(frame, h.target());
+            what = "path hop " + (hopIndex + 1) + " landing: body turned to hop " + (hopIndex + 2);
+        } else {
+            RouteNode next = node.type == RouteNode.Type.ETHERWARP && hopIndex < 0 && zpFeet == null && inFlight.isEmpty()
+                    ? bareEtherwarpNext(node) : null;
+            if (next == null || !next.hasLanding || !next.contains(frame, RouteCoords.toReal(frame, next.relativePos()),
+                    AutoRoutesConfig.getInstance().getHeight(), player.getBoundingBox().move(target.subtract(player.position())))) {
+                return;
+            }
+            yaw = RouteCoords.toRealYaw(frame, next.yaw);
+            pitch = next.pitch;
+            origin = RouteCoords.toReal(frame, next.relativePos());
+            hopTarget = landingBlock(RouteCoords.toReal(frame, next.landingX, next.landingY, next.landingZ));
+            what = "node #" + (route.indexOf(node) + 1) + " landing: body turned to node #" + (route.indexOf(next) + 1);
+        }
         Vec3 eye = new Vec3(target.x, target.y + TeleportUtils.eyeHeight(true), target.z);
         double range = com.killer560.hub.livemap.autoclear.ClearExecutor.hopRange() + 1.0;
         // reaimIfMoved's own choice, from the spot the landing puts him on.
@@ -3523,10 +3545,9 @@ public final class RouteExecutor {
         }
         turnBody(player, player.getYRot() + Mth.wrapDegrees(yaw - player.getYRot()), Mth.clamp(pitch, -90f, 90f));
         answerTurns++;
-        LOGGER.info("[AutoRoutes] path hop {} landing: body turned to hop {}'s look ({} / {}) inside the teleport answer - "
-                        + "a block click is unpaired, so the server hears that look before hop {}'s use", hopIndex + 1,
-                hopIndex + 2, String.format(Locale.US, "%.2f", Mth.wrapDegrees(yaw)), String.format(Locale.US, "%.2f", pitch),
-                hopIndex + 2);
+        LOGGER.info("[AutoRoutes] {}'s look ({} / {}) inside the teleport answer - a block click is unpaired, so the "
+                        + "server hears that look before its use", what, String.format(Locale.US, "%.2f", Mth.wrapDegrees(yaw)),
+                String.format(Locale.US, "%.2f", pitch));
     }
 
     /** {@link #reaimIfMoved}: the look is right from where he stands (unchanged). */
@@ -4057,15 +4078,15 @@ public final class RouteExecutor {
     }
 
     /**
-     * Ticks between a block click made with the item a warp uses and that warp's use: at least this many (2 = the click at
-     * tick N, the use at N+2). Measured on Hypixel (Mod Only Test and Untested Cheat, 2026-10-19, every warp with an unpaired
-     * AOTV click before it): one tick after the click 45 of 69 warps got no teleport at all, two ticks after 1 of 7, three or
-     * more 0 of about 250; after a click made with a different item (Dungeon Breaker, Superboom) 3 of 3 landed one tick on.
-     * Each refusal then cost the refused-warp wait (7-10 ticks with this jar, up to 22 before). The reference holds every node 2 ticks
-     * after a secret click ({@code AutoRoutes.kt:148-151, 217}) and the reference resumes at N+2 ({@code AutoRoutes.java:183, 393,
-     * 472}). So the second tick is the first one Hypixel reliably takes: "the first physically possible tick".
+     * Ticks between a block click made with the item a warp uses and that warp's use: at least this many (3 = the click at
+     * tick N, the use at N+3). Measured on Hypixel (2026-10-19, every warp with an unpaired AOTV click before it): one tick
+     * after the click 45 of 69 warps got no teleport at all. Two ticks looked safe then (1 of 7) but is not: his 2026-11-18
+     * routes (arwrong-1118) had 15 of 74 refused two ticks after a Secret Aura click with the same AOTV, and every November log
+     * together 25 of 143, while three or more ticks after landed 30 of 30 that day (9 of 9 in the older logs, 0 of about 250
+     * on 10-19). A refusal costs the refused-warp wait (8-12 ticks) and the resend, so the third tick is cheaper on average.
+     * After a click made with a different item (Dungeon Breaker, Superboom) 3 of 3 landed one tick on.
      */
-    static final long CLICK_TO_WARP_TICKS = 2;
+    static final long CLICK_TO_WARP_TICKS = 3;
     /** Warps held for {@link #CLICK_TO_WARP_TICKS} since launch, and the ticks they spent - read by the testkit. */
     private static int clickGapHolds;
     private static int clickGapHeldTicks;
@@ -4075,7 +4096,7 @@ public final class RouteExecutor {
 
     /**
      * For the other etherwarp runner, the Interactive Map and Auto Clear path ({@code ClearExecutor}): true while a block
-     * click made with the item in hand is still inside the click-to-warp gap, so its warp waits the same two ticks. The
+     * click made with the item in hand is still inside the click-to-warp gap, so its warp waits the same ticks. The
      * map's first warp went one tick after its own click, Hypixel dropped it, and the path failed (2026-10-19 log).
      */
     public static boolean clickGapPending(LocalPlayer player) {
@@ -4113,8 +4134,8 @@ public final class RouteExecutor {
             clickGapSaid = true;
             clickGapHolds++;
             LOGGER.info("[AutoRoutes] Etherwarp ({}): held {} tick(s) - a block click with {} went {} tick(s) ago, and on "
-                            + "Hypixel a warp one tick after a click with the same item gets no teleport (45 of 69 on "
-                            + "2026-10-19); the use goes {} ticks after the click (click-gap hold)", what,
+                            + "Hypixel a warp one or two ticks after a click with the same item often gets no teleport (45 "
+                            + "of 69 and 25 of 143); the use goes {} ticks after the click (click-gap hold)", what,
                     CLICK_TO_WARP_TICKS - since, held, since, CLICK_TO_WARP_TICKS);
         }
         noteSecretGap("click-gap hold: " + since + " tick(s) since a click with " + held);

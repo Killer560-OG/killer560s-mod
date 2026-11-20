@@ -52,7 +52,8 @@
      "Reparty: typing !reinv in party chat now makes you leave (if you are not the leader) and rejoin, a leader kicks and re-invites whoever types it after a Reinv Delay you set (1-15 s), and Rejoin After Kick accepts your party's invite back after a kick, not only after a disband.",
      "Dungeon Sim Help now lists each page as short bullet points instead of sentences, and its pictures are twice as sharp.",
      "Profile Viewer: Spider, Wolf, Enderman and Blaze slayer levels now use the right XP thresholds.",
-     "Profile Viewer fits every style at GUI scales 2/3/4: centered sidebar heads, readable Basic info, Show Status button, bigger inventory grids with a search bar, own Quiver/Potion Bag/Fishing Bag buttons, Sacks under Inventories, uncapped pet level, collection totals, divided text pages."
+     "Profile Viewer fits every style at GUI scales 2/3/4: centered sidebar heads, readable Basic info, Show Status button, bigger inventory grids with a search bar, own Quiver/Potion Bag/Fishing Bag buttons, Sacks under Inventories, uncapped pet level, collection totals, divided text pages.",
+     "Auto Routes: a warp now waits 3 ticks instead of 2 after a chest or lever click made with the same Aspect of the Void (Hypixel refused about one in five at 2), and two etherwarp nodes in a row after a Secret Aura click no longer wait a tick between them"
     ]
    }
   ]
