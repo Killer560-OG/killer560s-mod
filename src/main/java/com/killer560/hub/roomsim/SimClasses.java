@@ -137,6 +137,14 @@ public final class SimClasses {
                 .append(Component.literal(" Dungeon Class!").withStyle(ChatFormatting.GREEN));
     }
 
+    /** Client thread: selects {@code c} as his class (the Sim Class setting, saved) and says the class line. */
+    public static void pick(DungeonClass c) {
+        SimMenuPrefs prefs = SimMenuPrefs.load();
+        prefs.simClass = c;
+        prefs.save();
+        selfChanged(true);
+    }
+
     /**
      * Client thread: the Sim Class or its level changed in Sim Settings. A guest tells its host; the host's own server
      * says the class line in a live sim, as Hypixel does when a class is picked.

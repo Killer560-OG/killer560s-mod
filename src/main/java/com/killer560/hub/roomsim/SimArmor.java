@@ -118,5 +118,6 @@ public enum SimArmor {
             if (set != NONE) sp.setItemSlot(SLOTS[i], set.piece(i));
             else if (ours) sp.setItemSlot(SLOTS[i], ItemStack.EMPTY);
         }
+        sp.inventoryMenu.sendAllDataToRemote(); // an open chest menu does not sync the armor slots (Loadouts and Wardrobe stay open)
     }
 }

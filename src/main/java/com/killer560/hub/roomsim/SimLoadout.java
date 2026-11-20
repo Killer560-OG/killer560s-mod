@@ -52,6 +52,9 @@ public final class SimLoadout {
     private static String[] slots = new String[SLOTS];
     private static boolean applyOnLoad = true;
     private static SimArmor armor = SimArmor.NONE;
+    /** Hypixel loadout spot (1-12) each armor set is saved in, by ordinal (NONE unused): Terror 1, Thermodynamic 2. */
+    private static final int[] DEFAULT_SPOTS = {0, 1, 2};
+    private static final int[] spots = DEFAULT_SPOTS.clone();
     private static boolean loaded;
 
     private SimLoadout() {
@@ -205,6 +208,29 @@ public final class SimLoadout {
         applyArmor(Minecraft.getInstance());
     }
 
+    /** The /loadouts spot (1-12) {@code set} is saved in, 0 for NONE. */
+    public static synchronized int spot(SimArmor set) {
+        load();
+        return spots[set.ordinal()];
+    }
+
+    /** The set saved in spot {@code n}, or NONE for an empty spot. */
+    public static synchronized SimArmor setAt(int n) {
+        load();
+        for (SimArmor a : SimArmor.values()) if (a != SimArmor.NONE && spots[a.ordinal()] == n) return a;
+        return SimArmor.NONE;
+    }
+
+    /** Saves {@code set} in spot {@code n} (1-12); a set already there takes this set's old spot, so two never share one. */
+    public static synchronized void setSpot(SimArmor set, int n) {
+        load();
+        if (set == SimArmor.NONE || n < 1 || n > 12) return;
+        SimArmor other = setAt(n);
+        if (other != SimArmor.NONE && other != set) spots[other.ordinal()] = spots[set.ordinal()];
+        spots[set.ordinal()] = n;
+        persist();
+    }
+
     /** Puts the selected set on the sim player; a no-op outside a sim. */
     static void applyArmor(Minecraft client) {
         if (client.player == null || !SimState.canAct(client)) return;
@@ -224,6 +250,7 @@ public final class SimLoadout {
         slots = new String[SLOTS];
         applyOnLoad = true;
         armor = SimArmor.NONE;
+        System.arraycopy(DEFAULT_SPOTS, 0, spots, 0, spots.length);
         load();
     }
 
@@ -242,6 +269,13 @@ public final class SimLoadout {
                     armor = SimArmor.NONE;
                 }
             }
+            if (o.has("spots")) {
+                JsonObject sp = o.getAsJsonObject("spots");
+                for (SimArmor a : SimArmor.values()) {
+                    if (a != SimArmor.NONE && sp.has(a.name())) spots[a.ordinal()] = Math.max(1, Math.min(12, sp.get(a.name()).getAsInt()));
+                }
+                if (spots[1] == spots[2]) System.arraycopy(DEFAULT_SPOTS, 0, spots, 0, spots.length);
+            }
             JsonArray arr = o.getAsJsonArray("slots");
             for (int i = 0; arr != null && i < arr.size() && i < SLOTS; i++) {
                 slots[i] = arr.get(i).isJsonNull() ? null : arr.get(i).getAsString();
@@ -257,6 +291,9 @@ public final class SimLoadout {
             JsonObject o = new JsonObject();
             o.addProperty("applyOnLoad", applyOnLoad);
             o.addProperty("armor", armor.name());
+            JsonObject sp = new JsonObject();
+            for (SimArmor a : SimArmor.values()) if (a != SimArmor.NONE) sp.addProperty(a.name(), spots[a.ordinal()]);
+            o.add("spots", sp);
             JsonArray arr = new JsonArray();
             for (String s : slots) {
                 if (s == null) {

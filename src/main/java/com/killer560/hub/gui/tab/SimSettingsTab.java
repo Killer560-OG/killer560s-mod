@@ -112,6 +112,16 @@ public class SimSettingsTab extends BaseTab implements KeyCaptureTab {
                 com.killer560.hub.roomsim.SimLoadout::armor, com.killer560.hub.roomsim.SimLoadout::setArmor, () -> { })
                 .bounds(contentX, y, contentWidth, 18).build());
         y += 22;
+        // Where each set sits in /loadouts (simmenus-1118): two sets never share a spot, picking a taken one swaps them.
+        for (com.killer560.hub.roomsim.SimArmor set : new com.killer560.hub.roomsim.SimArmor[]{
+                com.killer560.hub.roomsim.SimArmor.TERROR, com.killer560.hub.roomsim.SimArmor.THERMODYNAMIC}) {
+            w.add(SettingsButtonWidget.cycling(spotText(set), (btn, dir) -> {
+                com.killer560.hub.roomsim.SimLoadout.setSpot(set, 1 + SettingsButtonWidget.step(
+                        com.killer560.hub.roomsim.SimLoadout.spot(set) - 1, dir, 12));
+                btn.setMessage(spotText(set));
+            }).bounds(contentX, y, contentWidth, 18).build());
+            y += 22;
+        }
         // Sim Teammates (siminfleap-1116): standing teammates to leap to and to fill the tab's party, 0-4.
         w.add(SettingsButtonWidget.cycling(teammatesText(), (btn, dir) -> {
             com.killer560.hub.roomsim.SimMenuPrefs prefs = com.killer560.hub.roomsim.SimMenuPrefs.load();
@@ -122,11 +132,9 @@ public class SimSettingsTab extends BaseTab implements KeyCaptureTab {
         y += 22;
         // Sim Class and level (simclasses-1116): the class Drop / Drop Stack use, shown in the tab and sidebar.
         w.add(SettingsButtonWidget.cycling(classText(), (btn, dir) -> {
-            com.killer560.hub.roomsim.SimMenuPrefs prefs = com.killer560.hub.roomsim.SimMenuPrefs.load();
             com.killer560.hub.dungeonclass.DungeonClass[] all = com.killer560.hub.dungeonclass.DungeonClass.values();
-            prefs.simClass = all[SettingsButtonWidget.step(prefs.simClass.ordinal(), dir, all.length)];
-            prefs.save();
-            com.killer560.hub.roomsim.SimClasses.selfChanged(true);
+            com.killer560.hub.roomsim.SimClasses.pick(all[SettingsButtonWidget.step(
+                    com.killer560.hub.roomsim.SimMenuPrefs.load().simClass.ordinal(), dir, all.length)]);
             btn.setMessage(classText());
         }).bounds(contentX, y, contentWidth, 18).build());
         y += 22;
@@ -182,6 +190,10 @@ public class SimSettingsTab extends BaseTab implements KeyCaptureTab {
         }
         String name = code == KeyUtil.NONE ? "§7Not Set" : "§e" + KeyUtil.bindDisplayName(code);
         return Component.literal(label + " Key: " + name + " §8" + command);
+    }
+
+    private static Component spotText(com.killer560.hub.roomsim.SimArmor set) {
+        return Component.literal(set.label + " Loadout Spot: " + com.killer560.hub.roomsim.SimLoadout.spot(set));
     }
 
     private static Component classText() {

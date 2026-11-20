@@ -20,7 +20,7 @@ import java.util.Set;
 public final class SimCommandRoots {
 
     /** Every root a sim feature registers behind {@code requires(SimState.canAct)}; keep in step with their register() calls. */
-    private static final Set<String> ROOTS = Set.of("wardrobe", "wd", "equipment", "stats", "eq", "simitem", "item", "items",
+    private static final Set<String> ROOTS = Set.of("wardrobe", "wd", "equipment", "stats", "eq", "loadouts", "class", "simitem", "item", "items",
             "goto", "tpto", "warp", "c");
 
     private SimCommandRoots() {

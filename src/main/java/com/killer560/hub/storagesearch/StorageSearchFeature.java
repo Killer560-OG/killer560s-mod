@@ -67,7 +67,7 @@ public final class StorageSearchFeature {
      *  suffix is optional so a single-page menu still matches. */
     private static final Pattern WARDROBE_TITLE = Pattern.compile("^Wardrobe(?: ✦)?(?: \\((\\d+)/(\\d+)\\))?$");
     private static final Pattern PETS_TITLE = Pattern.compile("^Pets(?: ✦)?(?: \\((\\d+)/(\\d+)\\))?$");
-    private static final Pattern EQUIPMENT_TITLE = Pattern.compile("^(?:Your Equipment and Stats|Equipment)$");
+    private static final Pattern EQUIPMENT_TITLE = Pattern.compile("^(?:Your Equipment and Stats|Stats & Equipment|Equipment)$");
     /** The Equipment Wardrobe (/equipment, /eq; Hypixel 2026-07-08) - killer560, 2026-10-11: "Storage search needs to
      *  search through my equipment wardrobe as well". Title from hypixelskyblock.minecraft.wiki's
      *  Equipment_Wardrobe/UI: "Equipment Sets (1/2)". */
