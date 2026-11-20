@@ -706,6 +706,7 @@ final class SettingTooltipsData {
         d.put("corner hit message", "Text shown on screen when the box hits a corner; {name} becomes the GIF or DVD name.");
         d.put("done", "Finishes setting up this DVD box and returns to the list.");
         d.put("custom leap menu", "Replaces Hypixel's Spirit Leap menu with 4 big teammate boxes; click one or press 1-4 to leap.");
+        d.put("queue leap", "Right-clicking a Spirit Leap or Infinileap opens the leap menu at once; your pick is clicked the moment Hypixel's menu arrives. You can't walk until the leap lands (cheat build only).");
         d.put("show leap order reset", "Shows the \"Leap Order reset\" title and chat line when a party change resets your pins and picks. Off hides both.");
         d.put("use class colors", "Colors each leap menu box by that teammate's class; off draws every box in orange.");
         d.put("show player heads", "Draws each teammate's face (their real skin) at the left of their leap menu box.");

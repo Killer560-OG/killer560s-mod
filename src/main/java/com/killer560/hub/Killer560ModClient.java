@@ -411,6 +411,9 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.interop.SharingDefaults.applyOnce();
         // Auto Leap Out replaced by the reference AutoLeap port (fast leap + auto leaps) and the separate i4 leap.
         com.killer560.hub.fastleap.FastLeapFeature.register();
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("QueueLeap.onEndTick", com.killer560.hub.fastleap.QueueLeap::onEndTick));
+        }
         com.killer560.hub.bloodcamp.BloodCampFeature.register();
         com.killer560.hub.bloodcamp.BloodCampFeature.hudElements().forEach(HudElementRegistry::register);
         com.killer560.hub.puzzlesolvers.BoulderSolverFeature.register();

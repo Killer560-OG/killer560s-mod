@@ -48,7 +48,7 @@ public class LeapMenuTab extends BaseTab {
     /** The card is ON while any of its features is, OFF only when all are (killer560, 2026-10-14): the Custom Leap Menu and the Leap Message are separate features. */
     @Override
     public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
-        return switchRows(built, "Custom Leap Menu", "Leap Message Enabled");
+        return switchRows(built, "Custom Leap Menu", "Leap Message Enabled", "Queue Leap");
     }
 
     @Override
@@ -61,6 +61,17 @@ public class LeapMenuTab extends BaseTab {
         // The Class Selection section (the Class Selection Overlay switch and Edit Classes) and the overlay itself were removed (killer560,
         // 2026-11-01: "Remove the class selection settings ... and the edit classes button along with it").
         com.killer560.hub.gui.ScreenThemes.append(widgets, LeapOrderScreen.THEME_ID, contentX, contentWidth, y);
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            // cheat-only rows at the very bottom, under the red Cheat header (queueleap-1119)
+            int cy = y;
+            for (AbstractWidget w : widgets) {
+                cy = Math.max(cy, w.getY() + w.getHeight() + SECTION_GAP);
+            }
+            widgets.add(sectionHeader(contentX, cy, contentWidth, "Cheat", true));
+            SpiritLeapOverlayConfig cfg = SpiritLeapOverlayConfig.getInstance();
+            widgets.add(onOffButton("Queue Leap", cfg::isQueueLeapSetting, cfg::setQueueLeap, cfg::save,
+                    null, contentX, cy + HEADER_H, Math.max(1, contentWidth), ROW));
+        }
 
         return widgets;
     }

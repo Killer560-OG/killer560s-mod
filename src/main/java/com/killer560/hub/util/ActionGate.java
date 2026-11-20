@@ -87,6 +87,11 @@ public final class ActionGate {
     public static final int CROSS_CLASS_TICKS = 4;
     /** Ticks nothing may act for after a screen opens or closes. */
     public static final int SCREEN_SETTLE_TICKS = 3;
+
+    /** A purely client-side screen whose opening and closing the server never sees and that never stands in for a
+     *  server menu: it starts no screen settle (Queue Leap's menu, whose pick must click the real one at once). */
+    public interface NoSettleScreen {
+    }
     /** Ticks nothing may act for after the level object is replaced (world/dimension swap, respawn). */
     public static final int WORLD_SETTLE_TICKS = 20;
     /** Ticks nothing may act for after the player is moved a long way in one tick (leap, teleport, setback). */
@@ -471,9 +476,10 @@ public final class ActionGate {
         if (screen != prevScreen.get()) {
             // The tick a terminal opens and the tick it closes are the two moments a world aura must not fire in:
             // the client still has the old screen state, the server already has the new one.
+            Screen prev = prevScreen.get();
             prevScreen = new WeakReference<>(screen);
             long until = tick + SCREEN_SETTLE_TICKS;
-            if (until > screenSettleUntilTick) {
+            if (until > screenSettleUntilTick && !(screen instanceof NoSettleScreen) && !(prev instanceof NoSettleScreen)) {
                 screenSettleUntilTick = until;
             }
         }

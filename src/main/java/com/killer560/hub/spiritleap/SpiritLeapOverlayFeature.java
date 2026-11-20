@@ -212,7 +212,7 @@ public final class SpiritLeapOverlayFeature {
                         names[i] = spots[i] == null ? "" : spots[i].name();
                     }
                     lastDrawnSpots = List.of(names);
-                    render(graphics, s.width, s.height, spots, mouseX, mouseY);
+                    render(graphics, s.width, s.height, names, mouseX, mouseY);
                     if (state.targets.isEmpty() && (System.nanoTime() - openedAtNanos) / 1_000_000L >= EMPTY_NOTICE_MS) {
                         renderEmptyNotice(graphics, s.width, s.height);
                     }
@@ -468,6 +468,21 @@ public final class SpiritLeapOverlayFeature {
         return out;
     }
 
+    /** Queue Leap's client-side menu: {@code names} in the four spots the Leap Order gives them (null = empty spot). */
+    public static String[] layoutNames(List<String> names) {
+        return LeapMenuFeature.layout(names, LeapMenuFeature.playingClass());
+    }
+
+    /** Queue Leap's client-side menu: the same boxes the custom leap menu draws, for names laid out by {@link #layoutNames}. */
+    public static void drawBoxes(GuiGraphicsExtractor graphics, int width, int height, String[] spots, int mouseX, int mouseY) {
+        render(graphics, width, height, spots, mouseX, mouseY);
+    }
+
+    /** The spot (0-3) a click at x/y picks: the screen's quarter, as in the custom leap menu. */
+    public static int spotAt(double mouseX, double mouseY, int width, int height) {
+        return spotFor(mouseX, mouseY, width, height);
+    }
+
     /** The whole screen counts as 4 quarters for clicking (the behavior) - the boxes are a visual guide. */
     private static int spotFor(double mouseX, double mouseY, int width, int height) {
         int row = mouseY >= height / 2.0 ? 1 : 0;
@@ -475,7 +490,7 @@ public final class SpiritLeapOverlayFeature {
         return row * 2 + col;
     }
 
-    private static void render(GuiGraphicsExtractor graphics, int width, int height, LeapTarget[] spots, int mouseX, int mouseY) {
+    private static void render(GuiGraphicsExtractor graphics, int width, int height, String[] spots, int mouseX, int mouseY) {
         float scale = SpiritLeapOverlayConfig.getInstance().getScale();
         // Up to 400% (SpiritLeapOverlayConfig.MAX_SCALE): whatever the setting, the 2x2 grid (boxes + gaps) is shrunk to
         // fit inside the window with a 10px margin, so it never runs off-screen on small windows / big GUI scales.
@@ -490,17 +505,17 @@ public final class SpiritLeapOverlayFeature {
         var font = Minecraft.getInstance().font;
 
         for (int spot = 0; spot < 4; spot++) {
-            LeapTarget target = spots[spot];
-            if (target == null) continue;
+            String name = spots[spot];
+            if (name == null || name.isEmpty()) continue;
             int x0 = spot % 2 == 0 ? centerX - gap - boxW : centerX + gap;
             int y0 = spot < 2 ? centerY - gap - boxH : centerY + gap;
-            DungeonClass cls = LeapMenuConfig.getInstance().getAssignedClass(target.name());
+            DungeonClass cls = LeapMenuConfig.getInstance().getAssignedClass(name);
             com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.LEAP_MENU);
             int color = SpiritLeapOverlayConfig.getInstance().isUseClassColors() && cls != null ? cls.color()
                     : (menu == null ? ThemeAccent.accent(0xFFCC6600) : menu.accent());
 
             // Dead teammates (tab list "(DEAD)") get a red-tinted box - no extra text, and the click still goes through.
-            boolean dead = PartyTracker.isDead(target.name());
+            boolean dead = PartyTracker.isDead(name);
             int fill = dead ? (spot == hovered ? 0xE0501414 : 0xCC350A0A) : (menu == null ? (spot == hovered ? 0xE0262626 : 0xCC0D0D0D)
                     : (spot == hovered ? com.killer560.hub.gui.OverlayPalette.alpha(menu.cardHover(), 0xE0)
                     : com.killer560.hub.gui.OverlayPalette.alpha(menu.panel(), 0xCC)));
@@ -513,18 +528,18 @@ public final class SpiritLeapOverlayFeature {
                 int fx = x0 + (boxH - face) / 2;
                 int fy = y0 + (boxH - face) / 2;
                 graphics.fill(fx - 1, fy - 1, fx + face + 1, fy + face + 1, 0xFF000000);
-                com.killer560.hub.livemap.LeapMapView.drawFace(graphics, target.name(), fx, fy, face);
+                com.killer560.hub.livemap.LeapMapView.drawFace(graphics, name, fx, fy, face);
                 textLeft = fx + face;
             }
             int textW = x0 + boxW - textLeft;
             // name grows with the box but never spills out of it (long IGNs at high scale / shrunk boxes)
-            float maxText = Math.min((textW - 8) / (float) Math.max(1, font.width(target.name())), (boxH - 4) / 9.0f);
+            float maxText = Math.min((textW - 8) / (float) Math.max(1, font.width(name)), (boxH - 4) / 9.0f);
             float textScale = Math.max(0.5f, Math.min(Math.max(1.0f, scale * 1.5f), maxText));
             graphics.pose().pushMatrix();
             try {
                 graphics.pose().translate(textLeft + textW / 2.0f, y0 + boxH / 2.0f);
                 graphics.pose().scale(textScale, textScale);
-                graphics.centeredText(font, target.name(), 0, -4, color);
+                graphics.centeredText(font, name, 0, -4, color);
             } finally {
                 graphics.pose().popMatrix();
             }

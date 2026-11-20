@@ -78,14 +78,25 @@ public final class LeapManager {
         final boolean blockInput;
         final boolean fastMode;
         final boolean swapBack;
+        /** Queue Leap: his own right click already used the item; the target comes from his pick on {@link QueueLeapScreen}. */
+        final boolean queued;
         final long createdAtMs = System.currentTimeMillis();
 
         Request(Target target, Target fallback, boolean blockInput, boolean fastMode, boolean swapBack) {
+            this(target, fallback, blockInput, fastMode, swapBack, false);
+        }
+
+        Request(Target target, Target fallback, boolean blockInput, boolean fastMode, boolean swapBack, boolean queued) {
             this.target = target;
             this.fallback = fallback;
             this.blockInput = blockInput;
             this.fastMode = fastMode;
             this.swapBack = swapBack;
+            this.queued = queued;
+        }
+
+        String label() {
+            return queued ? "Queue Leap" : "Fast Leap";
         }
     }
 
@@ -116,6 +127,13 @@ public final class LeapManager {
         boolean fastBlockFinished;
         /** The menu was swallowed by {@link #interceptLeapScreen} - it has no screen, so it must be closed by hand. */
         boolean hidden;
+        /** The screen the open-screen packet built for a hidden menu, shown if a Queue Leap pick is not in it. */
+        Screen hiddenScreen;
+        /** False while a Queue Leap waits for his pick (the target is still the placeholder). */
+        boolean picked = true;
+        /** Queue Leap: why the click waited past the menu's first tick, logged once (testkit 1119-queueleap-*). */
+        boolean waitLogged;
+        long pickedAtMs;
         /** When this leap started, for the {@link #watchdogMs()} safety net. */
         final long startedAtMs = System.currentTimeMillis();
 
@@ -139,6 +157,10 @@ public final class LeapManager {
     private static int returnTo = -1;
     private static int returnFrom = -1;
     private static int returnWaitTicks = 0;
+    /** Queue Leap: movement stays held after the click until the server's teleport, at most until this time. */
+    private static long holdMoveUntilMs = 0L;
+    /** Queue Leap canceled before its menu came: that menu is closed unseen if it arrives before this time. */
+    private static long closeArrivingUntilMs = 0L;
     /** The last leap's steps, "tick step" (ActionGate ticks), for the testkit. */
     private static final List<String> STEP_LOG = new java.util.ArrayList<>();
 
@@ -204,6 +226,63 @@ public final class LeapManager {
         return incoming != null || pending != null || active != null || returnTo >= 0;
     }
 
+    /** Queue Leap: his own right click has just sent the leap item's use. Waits for its menu (hidden when it comes) with
+     *  the target still to be picked; nothing is sent here. False when a leap is already running or on cooldown. */
+    static boolean beginQueued(Minecraft client) {
+        if (isBusy() || leapCdTicks > 0 || client.player == null) {
+            return false;
+        }
+        Active a = new Active(new Request(new Target("", "your pick"), null, false, false, false, true), false);
+        a.usedItem = true;
+        a.picked = false;
+        STEP_LOG.clear();
+        suppressUseInput(client);
+        active = a;
+        logStep("queued use");
+        return true;
+    }
+
+    /** Queue Leap: his pick. The click goes out from {@link #poll} at the start of the first tick its head is in the menu. */
+    static void pickQueued(String name) {
+        Active a = active;
+        if (a != null && a.request.queued && !a.picked && name != null && !name.isBlank()) {
+            a.current = new Target(name, name);
+            a.picked = true;
+            a.pickedAtMs = System.currentTimeMillis();
+            logStep("pick " + name);
+        }
+    }
+
+    /** Queue Leap: Escape before a pick. A menu already in is closed now, one still on its way as it arrives. */
+    static void cancelQueued() {
+        Active a = active;
+        if (a == null || !a.request.queued || a.picked) {
+            return;
+        }
+        if (a.menu == null) {
+            closeArrivingUntilMs = System.currentTimeMillis() + queueMenuCapTicks() * 50L + 250L;
+        }
+        logStep("canceled");
+        finish(a, Result.CANCELLED, null);
+    }
+
+    /** True while a Queue Leap waits for his pick. */
+    static boolean awaitingPick() {
+        Active a = active;
+        return a != null && a.request.queued && !a.picked;
+    }
+
+    /** A server teleport was applied: a Queue Leap's movement hold after its click ends here. */
+    public static void onServerTeleport() {
+        if (holdMoveUntilMs != 0L) {
+            holdMoveUntilMs = 0L;
+            logStep("teleport");
+            if (active == null) {
+                restoreMovement();
+            }
+        }
+    }
+
     /** Whether a leap still holds the use key or the movement keys down (the {@link FastLeapStuckLog} line). */
     static boolean holdsKeys() {
         return useInputSuppressed || movementSuppressed;
@@ -263,7 +342,9 @@ public final class LeapManager {
     }
 
     private static boolean overdue(Active a) {
-        return System.currentTimeMillis() - a.startedAtMs > watchdogMs();
+        // a Queue Leap whose menu is in waits for his pick as long as he looks at it (Escape ends it)
+        return (a.picked || a.menu == null)
+                && System.currentTimeMillis() - Math.max(a.startedAtMs, a.pickedAtMs) > watchdogMs();
     }
 
     // Driving
@@ -301,6 +382,12 @@ public final class LeapManager {
         return Math.max(1, Math.min(timeout, Math.max(8, cap)));
     }
 
+    /** Queue Leap's wait for the real menu: the round trip plus 500 ms (at least 10 ticks), never more than the Leap Timeout. */
+    static int queueMenuCapTicks() {
+        int ping = Math.max(0, com.killer560.hub.util.PingTracker.automationMs());
+        return Math.max(1, Math.min(FastLeapConfig.getInstance().getTimeoutTicks(), (int) Math.ceil((2.0 * ping + 500) / 50.0)));
+    }
+
     static void onChat(String unformatted) {
         java.util.regex.Matcher own = OWN_LEAP_LINE.matcher(unformatted);
         if (own.matches()) {
@@ -332,6 +419,8 @@ public final class LeapManager {
         incoming = null;
         pending = null;
         returnTo = -1;
+        holdMoveUntilMs = 0L;
+        closeArrivingUntilMs = 0L;
         if (active != null) {
             Active a = active;
             active = null;
@@ -348,6 +437,7 @@ public final class LeapManager {
         incoming = null;
         pending = null;
         returnTo = -1;
+        holdMoveUntilMs = 0L;
         Active a = active;
         active = null;
         if (a != null) {
@@ -372,13 +462,19 @@ public final class LeapManager {
             return false;
         }
         Active a = active;
+        if (a == null) {
+            return closeCanceledQueueMenu(client, screen);
+        }
         // only a leap WE started by using the item (not an already-open / manually opened menu), still waiting for
         // its menu (or re-adopting a menu Hypixel re-sent while we were already hiding)
-        if (a == null || a.preOpened || !a.usedItem || (a.menu != null && !a.hidden)) {
+        if (a.preOpened || !a.usedItem || (a.menu != null && !a.hidden)) {
             return false;
         }
-        // nothing else on screen: replacing e.g. chat/pause would close it, so let vanilla show the menu there
-        if (McCompat.screen(client) != null || !(screen instanceof AbstractContainerScreen<?> container)) {
+        // nothing else on screen (Queue Leap's own menu aside): replacing e.g. chat/pause would close it, so let vanilla
+        // show the menu there
+        Screen shown = McCompat.screen(client);
+        if ((shown != null && !(a.request.queued && shown instanceof QueueLeapScreen))
+                || !(screen instanceof AbstractContainerScreen<?> container)) {
             return false;
         }
         LocalPlayer player = client.player;
@@ -390,7 +486,26 @@ public final class LeapManager {
         }
         a.menu = container.getMenu();
         a.hidden = true;
+        a.hiddenScreen = container;
         beginFastBlock(a);
+        if (a.request.queued) {
+            logStep("menu " + a.menu.containerId);
+        }
+        return true;
+    }
+
+    /** A Queue Leap canceled (Escape) before its menu came: that menu is closed the moment it arrives, never shown. */
+    private static boolean closeCanceledQueueMenu(Minecraft client, Screen screen) {
+        LocalPlayer player = client.player;
+        if (closeArrivingUntilMs == 0L || System.currentTimeMillis() > closeArrivingUntilMs || player == null
+                || !(screen instanceof AbstractContainerScreen<?> container) || leapMenuScreen(container) == null
+                || player.containerMenu != container.getMenu()) {
+            return false;
+        }
+        closeArrivingUntilMs = 0L;
+        player.connection.send(new ServerboundContainerClosePacket(container.getMenu().containerId));
+        player.containerMenu = player.inventoryMenu;
+        logStep("closed canceled menu " + container.getMenu().containerId);
         return true;
     }
 
@@ -420,7 +535,15 @@ public final class LeapManager {
         }
         Active a = active;
         // ContainerManager: stop movement while the task runs (Fast mode: only while the fast block is active)
-        if (a != null && (!a.request.fastMode || a.fastBlockActive)) {
+        // Queue Leap also after its click, until the teleport (onServerTeleport) or the menu wait cap
+        boolean queueHold = holdMoveUntilMs != 0L && System.currentTimeMillis() < holdMoveUntilMs;
+        if (!queueHold && holdMoveUntilMs != 0L) {
+            holdMoveUntilMs = 0L;
+            if (a == null) {
+                restoreMovement();
+            }
+        }
+        if ((a != null && (!a.request.fastMode || a.fastBlockActive)) || queueHold) {
             client.options.keyUp.setDown(false);
             client.options.keyDown.setDown(false);
             client.options.keyLeft.setDown(false);
@@ -628,7 +751,7 @@ public final class LeapManager {
                 finish(a, Result.FAILURE, "Wrong container name. Got " + other.getTitle().getString() + ", needed Spirit Leap");
                 return;
             } else {
-                if (++a.waitTicks > menuWaitCapTicks()) {
+                if (++a.waitTicks > (a.request.queued ? queueMenuCapTicks() : menuWaitCapTicks())) {
                     finish(a, Result.FAILURE, "the leap menu did not open");
                 }
                 return;
@@ -636,6 +759,14 @@ public final class LeapManager {
         }
         if (player.containerMenu != a.menu) {
             finish(a, Result.FAILURE, "Container changed before click");
+            return;
+        }
+        if (!a.picked) {
+            // Queue Leap before his pick: the hidden menu waits behind his screen; a menu that came up visible instead
+            // (another screen was open) is his to click by hand
+            if (!a.hidden) {
+                finish(a, Result.CANCELLED, null);
+            }
             return;
         }
         List<Slot> slots = a.menu.slots;
@@ -667,6 +798,15 @@ public final class LeapManager {
         if (loaded && !slotOrder.isEmpty()) {
             com.killer560.hub.leapmenu.PartyTracker.noteTeammates(slotOrder);
         }
+        if (match == null && loaded && a.request.queued) {
+            // his pick is not among the heads (or no head came at all): show him the real menu to pick from
+            boolean gone = !slotOrder.isEmpty() ? ++a.loadedNoMatchTicks >= FALLBACK_AFTER_LOADED_TICKS
+                    : ++a.itemWaitTicks > FastLeapConfig.getInstance().getTimeoutTicks();
+            if (gone) {
+                revealQueuedMenu(client, a);
+            }
+            return;
+        }
         if (match == null && loaded && a.request.fallback != null && a.current == a.request.target) {
             if (++a.loadedNoMatchTicks >= FALLBACK_AFTER_LOADED_TICKS) {
                 FastLeapFeature.LOGGER.info("[FastLeap] {} not in leap menu - using backup {}", a.current.name(), a.request.fallback.name());
@@ -676,6 +816,10 @@ public final class LeapManager {
             return;
         }
         if (match == null) {
+            if (a.request.queued && !a.waitLogged) {
+                a.waitLogged = true;
+                logStep("wait heads");
+            }
             if (++a.itemWaitTicks > FastLeapConfig.getInstance().getTimeoutTicks()) {
                 finish(a, Result.FAILURE, "not in the leap menu");
             }
@@ -685,6 +829,10 @@ public final class LeapManager {
         boolean mayClick = a.hidden ? ActionGate.tryActHeadless(ActionGate.Actor.LEAP_MENU, a.menu)
                 : ActionGate.tryAct(ActionGate.Actor.LEAP_MENU, leapMenuScreen(shown) != null ? shown : null);
         if (!mayClick) {
+            if (a.request.queued && !a.waitLogged) {
+                a.waitLogged = true;
+                logStep("wait gate");
+            }
             if (++a.gateWaitTicks > GATE_TIMEOUT_TICKS) {
                 finish(a, Result.FAILURE, "no free tick to click the leap menu");
             }
@@ -696,6 +844,18 @@ public final class LeapManager {
         a.fastBlockActive = false;
         a.fastBlockFinished = true;
         finish(a, Result.SUCCESS, null);
+    }
+
+    /** Queue Leap: his pick is not in the real menu - say so and show that menu (the screen its packet built). */
+    private static void revealQueuedMenu(Minecraft client, Active a) {
+        ModChat.send("Queue Leap", ModChat.value(a.current.name()), ModChat.bad(" is not in the leap menu"));
+        Screen screen = a.hiddenScreen;
+        AbstractContainerMenu menu = a.menu;
+        a.menu = null; // finish must leave it open
+        finish(a, Result.CANCELLED, "not in the leap menu");
+        if (screen != null && client.player != null && client.player.containerMenu == menu) {
+            McCompat.setScreen(client, screen);
+        }
     }
 
     private static void beginFastBlock(Active a) {
@@ -718,13 +878,20 @@ public final class LeapManager {
                 player.closeContainer();
             }
         }
+        String label = a.request.label();
         switch (result) {
             case SUCCESS -> {
                 lastLeapMs = System.currentTimeMillis();
                 leapCdTicks = LEAP_COOLDOWN_TICKS * Teammates.mageCooldownMultiplier();
-                ModChat.send("Fast Leap", ModChat.good("Leaping to "), ModChat.value(a.current.display()));
+                if (a.request.queued) {
+                    // progress only (the automation chat rule); movement stays held until the teleport
+                    ModChat.log(label, ModChat.good("Leaping to "), ModChat.value(a.current.display()));
+                    holdMoveUntilMs = lastLeapMs + menuWaitCapTicks() * 50L;
+                } else {
+                    ModChat.send(label, ModChat.good("Leaping to "), ModChat.value(a.current.display()));
+                }
             }
-            case FAILURE -> ModChat.send("Fast Leap", ModChat.bad("Failed to leap to "), ModChat.value(a.current.display()),
+            case FAILURE -> ModChat.send(label, ModChat.bad("Failed to leap to "), ModChat.value(a.current.display()),
                     ModChat.bad(": " + failure));
             case CANCELLED -> {
             }
@@ -737,8 +904,13 @@ public final class LeapManager {
             returnWaitTicks = 0;
         }
         active = null;
+        if (a.request.queued && McCompat.screen(client) instanceof QueueLeapScreen) {
+            McCompat.setScreen(client, null); // the leap ended before his pick (no menu, cooldown, menu closed)
+        }
         restoreUseInput();
-        restoreMovement();
+        if (holdMoveUntilMs == 0L) {
+            restoreMovement();
+        }
     }
 
     // Helpers
@@ -767,7 +939,7 @@ public final class LeapManager {
     }
 
     /** A leap item by id, or (p3sim.net, no Hypixel id) by name - the same test {@link #findLeapSlot} makes. */
-    private static boolean isLeapStack(ItemStack stack) {
+    static boolean isLeapStack(ItemStack stack) {
         return isLeapItem(stack) || (skyblockId(stack) == null && !stack.isEmpty()
                 && ChatObserver.strip(stack.getHoverName().getString()).contains("Spirit Leap"));
     }

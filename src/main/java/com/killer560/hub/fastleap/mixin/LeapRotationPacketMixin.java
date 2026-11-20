@@ -1,5 +1,6 @@
 package com.killer560.hub.fastleap.mixin;
 
+import com.killer560.hub.fastleap.LeapManager;
 import com.killer560.hub.fastleap.LeapRotation;
 import com.killer560.hub.util.ModLog;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -36,6 +37,9 @@ public abstract class LeapRotationPacketMixin {
     private void killer560smod$leapRotAfter(ClientboundPlayerPositionPacket packet, CallbackInfo ci) {
         try {
             LeapRotation.afterTeleport(packet);
+            if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+                LeapManager.onServerTeleport(); // Queue Leap: movement back the moment the leap lands
+            }
         } catch (RuntimeException e) {
             killer560smod$leapRot$threw(e);
         }

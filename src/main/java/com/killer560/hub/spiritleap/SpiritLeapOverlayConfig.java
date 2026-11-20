@@ -32,6 +32,8 @@ public final class SpiritLeapOverlayConfig {
     private boolean showHeads = true;
     /** Boxes everywhere, or the dungeon map with clickable heads during the clear (boxes again in boss). */
     private LeapStyle style = LeapStyle.BOXES;
+    /** Queue Leap (cheat build, queueleap-1119): a right click with the leap opens the leap menu at once, client-side. */
+    private boolean queueLeap = false;
 
     /** How the custom leap menu lays out its targets. */
     public enum LeapStyle {
@@ -79,6 +81,7 @@ public final class SpiritLeapOverlayConfig {
         cfg.setScale(ConfigJson.getFloat(obj, "scale", 1.0f));
         cfg.showHeads = ConfigJson.getBool(obj, "showHeads", true);
         cfg.style = ConfigJson.getEnum(obj, "style", LeapStyle.class, cfg.style);
+        cfg.queueLeap = ConfigJson.getBool(obj, "queueLeap", false);
         instance = cfg;
     }
 
@@ -89,6 +92,7 @@ public final class SpiritLeapOverlayConfig {
         obj.addProperty("scale", scale);
         obj.addProperty("showHeads", showHeads);
         obj.addProperty("style", style.name());
+        obj.addProperty("queueLeap", queueLeap);
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
@@ -105,6 +109,15 @@ public final class SpiritLeapOverlayConfig {
     public void setShowHeads(boolean showHeads) { this.showHeads = showHeads; }
 
     public LeapStyle getStyle() { return style; }
+
+    /** Queue Leap's saved switch (shown and used only in a cheat build). */
+    public boolean isQueueLeapSetting() { return queueLeap; }
+
+    public boolean isQueueLeap() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && queueLeap && com.killer560.hub.util.SkyblockGate.allows();
+    }
+
+    public void setQueueLeap(boolean queueLeap) { this.queueLeap = queueLeap; }
 
     public void setStyle(LeapStyle style) { this.style = style == null ? LeapStyle.BOXES : style; }
 
