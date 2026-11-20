@@ -406,10 +406,9 @@ public final class ActionGate {
     /** The client tick count, advanced at the start of every client tick ({@link #onClientTick}). */
     public static long currentTick() { return tick; }
 
-    /** His own press of {@code key} waiting for this tick's handleKeybinds, after every START_CLIENT_TICK actor (cheat build). */
+    /** His own press of {@code key} waiting for this tick's handleKeybinds, after every START_CLIENT_TICK actor. */
     public static boolean hisClickQueued(net.minecraft.client.KeyMapping key) {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED
-                && key instanceof com.killer560.hub.zpew.mixin.ZpewKeyMappingAccessor k && k.killer560smod$getClickCount() > 0;
+        return key instanceof com.killer560.hub.zpew.mixin.ZpewKeyMappingAccessor k && k.killer560smod$getClickCount() > 0;
     }
 
     /** His attack or a hotbar key goes out in this tick's handleKeybinds, after us: vanilla sends neither after a use or
@@ -432,8 +431,7 @@ public final class ActionGate {
      * PacketOrderJ (use after attack in one tick, grimgapB-1105).
      */
     public static boolean hisUseGoesThisTick(Minecraft client) {
-        return hisClickQueued(client.options.keyUse) || (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED
-                && client.options.keyUse.isDown() && client.player != null && !client.player.isUsingItem()
+        return hisClickQueued(client.options.keyUse) || (client.options.keyUse.isDown() && client.player != null && !client.player.isUsingItem()
                 && client instanceof com.killer560.hub.zpew.mixin.ZpewMinecraftAccessor m
                 && m.killer560smod$getRightClickDelay() <= 1);
     }

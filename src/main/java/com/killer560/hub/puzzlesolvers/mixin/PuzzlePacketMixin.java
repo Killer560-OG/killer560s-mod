@@ -32,6 +32,7 @@ public abstract class PuzzlePacketMixin {
         try {
             TeleportMazeSolverFeature.onPlayerPosition(packet);
             com.killer560.hub.autopuzzles.AutoBoulder.onServerPosition();
+            com.killer560.hub.autopuzzles.AutoPuzzleUtil.onServerPosition();
         } catch (RuntimeException e) {
             killer560smod$puzzles$hookThrew("movePlayer", e);
         }

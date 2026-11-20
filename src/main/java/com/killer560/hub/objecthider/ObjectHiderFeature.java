@@ -180,9 +180,9 @@ public final class ObjectHiderFeature {
     // The regex source; see ObjectHiderTab's "Needs his answer" note for the 3 the reference entries this pack
     // does NOT attempt (Cleaner Dungeons / Cleaner PF / Hide Even More Useless Messages) because their exact
     // scope isn't pinned down anywhere in the research pass. ---
-    /** "Hide useless messages" - Hypixel's own dungeon pathing spam and the debug profile-id line. */
-    private static final Pattern USELESS_MESSAGE = Pattern.compile(
-            "^\\s*(?:There are blocks in the way!|Profile ID:.*)\\s*$");
+    /** "Hide useless messages" - the debug profile-id line. "There are blocks in the way!" is hidden at display time
+     *  ({@code ChatTidy.shouldHide}), because Auto Creeper Beams reads it. */
+    private static final Pattern USELESS_MESSAGE = Pattern.compile("^\\s*Profile ID:.*\\s*$");
     // "Hide discord warnings" (Hypixel's standing Discord-impersonation broadcast) and "Hide microsoft warnings" (the
     // Microsoft-account-phishing one) were `(?i).*discord.*staff.*|...` matches() patterns: the same answer as the
     // functions below (one line, both words, "password" after "microsoft account") but quadratic on a long line

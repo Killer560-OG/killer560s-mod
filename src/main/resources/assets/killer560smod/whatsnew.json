@@ -12,7 +12,8 @@
      "Blood Camp's Mage Only, the leap menu and class-only features now follow a class swap: the class the game shows wins over an old Leap Order pick on your own name.",
      "Lever Aura: the click on the heard look when no packet can carry a look is now behind a new switch, No-Look Lever Click (flags Grim), default OFF; with it off both levers no longer draw anticheat flags.",
      "New Item Alerts card (Items): Bottle Full Alert for Thunder, Storm and Hurricane in a Bottle and Runebook Rarity Alert, as movable HUDs with sound and Persistent or Timed display (26.3 cheat green; legit and 26.2 compile only)",
-     "Auto Routes: new Breaker Style setting picks the break style routes use (Breaker Aura card, Legit Multi Break or Burst Multi Break) without changing the Breaker Aura card; a breaker block is dug again only after the server has answered its first dig, and Burst digs only blocks the current look strikes."
+     "Auto Routes: new Breaker Style setting picks the break style routes use (Breaker Aura card, Legit Multi Break or Burst Multi Break) without changing the Breaker Aura card; a breaker block is dug again only after the server has answered its first dig, and Burst digs only blocks the current look strikes.",
+     "Auto Creeper Beams melee: the cut-short teleport landing is taken when it is in reach, the click is sent again only after a fall, the Blocks in the way line is hidden, and no hit goes out in the tick of your own use, now in the legit build too."
     ]
    }
   ]

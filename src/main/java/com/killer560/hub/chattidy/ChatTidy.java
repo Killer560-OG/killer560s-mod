@@ -150,10 +150,17 @@ public final class ChatTidy {
         boolean sacks = cfg.isHideSackMessages();
         boolean looted = cfg.isHideAlreadyLooted();
         boolean uncovered = com.killer560.hub.powdermining.PowderMiningConfig.getInstance().isHideTreasureUncovered();
-        if (!damage && !dungeon && !mining && !sacks && !uncovered && !looted) {
+        boolean useless = cfg.isHideUselessMessages();
+        if (!damage && !dungeon && !mining && !sacks && !uncovered && !looted && !useless) {
             return false;
         }
         String plain = ChatObserver.strip(message);
+        if (useless && BLOCKS_IN_THE_WAY.equals(plain.trim())) {
+            // Hidden here, not in ObjectHiderFeature's ALLOW_GAME: Auto Creeper Beams reads it (an Instant Transmission
+            // refused or cut short), and dropping it there starved that reader (his run 2026-11-18, every line unseen).
+            hidden++;
+            return true;
+        }
         if ((mining || sacks || uncovered || looted) && isMiningNoise(plain, mining, sacks, uncovered, looted)) {
             hidden++;
             return true;
@@ -174,6 +181,7 @@ public final class ChatTidy {
         return false;
     }
 
+    static final String BLOCKS_IN_THE_WAY = "There are blocks in the way!";
     static final Pattern BREAKING_POWER = Pattern.compile(
             "^You need a tool with a Breaking Power of \\d{1,3} to mine [A-Za-z' ]{1,48}!(?: Speak to Fragilis by the "
                     + "entrance to the Crystal Hollows to learn more!)?$");

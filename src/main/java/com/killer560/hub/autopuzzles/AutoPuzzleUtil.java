@@ -88,6 +88,17 @@ public final class AutoPuzzleUtil {
     public static final float EYE_SNEAKING = 1.27f;
 
     private static long lastSwapTick = Long.MIN_VALUE;
+    /** Server position packets (teleports) handled so far: a warp or Instant Transmission landed (anywhere) or was
+     *  corrected once this moves past the count taken at its use. Fed by {@code PuzzlePacketMixin}. */
+    private static long serverPositions;
+
+    public static void onServerPosition() {
+        serverPositions++;
+    }
+
+    static long serverPositions() {
+        return serverPositions;
+    }
 
     private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-autopuzzles");
 

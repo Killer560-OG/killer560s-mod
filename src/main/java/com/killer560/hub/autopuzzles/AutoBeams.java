@@ -369,8 +369,12 @@ public final class AutoBeams {
     private static final int MELEE_CONFIRM_TICKS = 12;
     /** The same for a shot: the arrow's flight comes on top of the round trip. */
     private static final int SHOT_CONFIRM_TICKS = 20;
-    /** Ticks an Aspect of the Void teleport may take to land him where it was planned to before the plan is dropped. */
-    private static final int AOTV_LAND_TIMEOUT = 20;
+    /** Ticks an Aspect of the Void teleport may take to land before it counts as dropped: twice the measured landing time
+     *  plus four (at least 8; 20 before 2026-11-18, waited out by every silent refusal), and any server stall since. */
+    private static long dashTimeout() {
+        int travel = REPOSITION.lastTravelTicks();
+        return Math.max(8, 2 * (travel < 0 ? 4 : travel) + 4) + com.killer560.hub.util.ServerLag.ticksSince(dashLag);
+    }
     /** Unanswered hits on one lantern before its pair is set aside for another. */
     private static final int MELEE_MAX_TRIES = 4;
     /** Teleports back into reach of one lantern after unanswered hits (or a teleport that missed it), per room visit: a
@@ -433,12 +437,16 @@ public final class AutoBeams {
      * Teleport looks Hypixel refused with "There are blocks in the way!", as "feet block|yaw|pitch" (one decimal), so
      * {@link #planFrom} never hands the same look back. killer560's Mod Only Test log, 2026-10-19 15:49:30-35: the AOTV
      * teleport from (-132.5, 74, -54.5) at yaw -45.0 pitch -41.2 was refused six times in a row, each time waited out for
-     * the full {@link #AOTV_LAND_TIMEOUT} and then planned again identically from where he stood ("dropped ... from where
+     * the full 20-tick timeout and then planned again identically from where he stood ("dropped ... from where
      * he stood - 5 left" dropped nothing, because the from-here plan is not in the list) - the "stuck" he saw.
      */
     private static final java.util.Set<String> REFUSED_LOOKS = new java.util.HashSet<>();
     /** Set by {@link #onChat} when Hypixel refused the teleport in flight; read by {@link #meleeTick} the same tick. */
     private static boolean dashRefused = false;
+    /** The tick that line came, the server position count and the lag mark at the teleport's use. */
+    private static long dashRefusedTick = -1L;
+    private static long dashPositions;
+    private static long dashLag;
     private static final java.util.regex.Pattern BLOCKS_IN_THE_WAY =
             java.util.regex.Pattern.compile("^There are blocks in the way!$");
 
@@ -468,6 +476,7 @@ public final class AutoBeams {
             }
             if (dashTick >= 0 && dashPlan != null) {
                 dashRefused = true;
+                dashRefusedTick = com.killer560.hub.util.ActionGate.currentTick();
                 logInTheWay(client, player, dashPlan.yaw(), dashPlan.pitch(), "the AOTV teleport toward "
                         + AutoPuzzleUtil.fmt(dashLantern));
             } else {
@@ -540,41 +549,55 @@ public final class AutoBeams {
         long now = com.killer560.hub.util.ActionGate.currentTick();
         if (dashTick >= 0) {
             AotvPlan plan = dashPlan;
-            if (player.position().distanceToSqr(plan.land()) < 1.0) {
-                // Landed where it was planned. Our own landing: the gate's teleport settle must not hold the hit for 6 ticks.
+            if (AutoPuzzleUtil.serverPositions() != dashPositions || player.position().distanceToSqr(plan.land()) < 1.0) {
+                // Landed - wherever the server put him. His Hypixel run 2026-11-18 17:24:57 and 17:25:03: both teleports
+                // came up short of the plan ("There are blocks in the way!", 2 and 1 blocks off) yet in reach (3.80 and
+                // 0.63 eye to box), and the old "landed where planned" check let him fall 20 ticks, dropped the look and
+                // tried again: 110 and 24 ticks lost. Our own landing: the gate's teleport settle must not hold the hit.
                 com.killer560.hub.util.ActionGate.expectSelfTeleport(com.killer560.hub.util.ActionGate.Actor.PUZZLE_WORLD,
                         com.killer560.hub.util.ActionGate.TELEPORT_SETTLE_TICKS);
-                LOGGER.info("[AutoPuzzles] Beams (melee): AOTV teleport landed at {} ({} tick(s) after the use), {} eye to "
-                                + "box", fmt(player.position()), now - dashTick, String.format(java.util.Locale.ROOT, "%.2f",
-                        Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(player.getEyePosition(), dashLantern))));
+                Vec3 eye = player.getEyePosition();
+                boolean reach = com.killer560.hub.util.BlockHits.boxDistanceSq(eye, dashLantern) <= AutoPuzzleUtil.BLOCK_REACH_SQ
+                        && visiblePoint(client, eye, dashLantern) != null;
+                LOGGER.info("[AutoPuzzles] Beams (melee): AOTV teleport landed at {} ({} tick(s) after the use, planned {}), {}"
+                                + " eye to box, {}", fmt(player.position()), now - dashTick, fmt(plan.land()),
+                        String.format(java.util.Locale.ROOT, "%.2f",
+                                Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(eye, dashLantern))),
+                        reach ? "in reach" : "out of reach");
                 dashTick = -1L;
+                dashRefused = false;
+                if (!reach) {
+                    dropPlan(dashLantern, plan);
+                    requestBack(dashLantern);
+                    return;
+                }
                 airPlan = plan;
                 // The landing tick turns the body onto the lantern; the hit goes the tick after, before he has fallen.
-                aimAtVisible(client, player, dashLantern, player.getEyePosition());
+                aimAtVisible(client, player, dashLantern, eye);
                 return;
             }
-            if (dashRefused || now - dashTick > AOTV_LAND_TIMEOUT) {
-                // Refused: Hypixel's "There are blocks in the way!" came (onChat) - handled the tick it arrives instead of
-                // waiting out the timeout, and the look is never planned again from that block.
-                if (dashFeet != null) {
-                    REFUSED_LOOKS.add(lookKey(dashFeet, plan.yaw(), plan.pitch()));
-                    LOGGER.info("[AutoPuzzles] Beams (melee): look {} / {} from block {} marked refused ({} refused look(s))",
-                            String.format(java.util.Locale.ROOT, "%.1f", plan.yaw()),
-                            String.format(java.util.Locale.ROOT, "%.1f", plan.pitch()),
-                            AutoPuzzleUtil.fmt(BlockPos.containing(dashFeet)), REFUSED_LOOKS.size());
-                }
-                LOGGER.info("[AutoPuzzles] Beams (melee): the AOTV teleport for {} {} (planned landing {}, he is at {}) - "
-                                + "dropping that teleport and its look", AutoPuzzleUtil.fmt(dashLantern),
-                        dashRefused ? "was refused (\"There are blocks in the way!\") " + (now - dashTick) + " tick(s) "
-                                + "after the use" : "never landed", fmt(plan.land()), fmt(player.position()));
-                dashRefused = false;
-                dropPlan(dashLantern, plan);
-                requestBack(dashLantern);
-                dashTick = -1L;
-            } else {
-                LOGGER.debug("[AutoPuzzles] Beams (melee): AOTV teleport in flight, {} tick(s), {} from the landing", now - dashTick,
-                        Math.sqrt(player.position().distanceToSqr(plan.land())));
+            // Refused: Hypixel's "There are blocks in the way!" came (onChat) with no position by the tick after it (a
+            // shortened teleport sends the line AND a position, the line first), or nothing came in twice a landing's time.
+            boolean refused = dashRefused && dashRefusedTick < now;
+            if (!refused && now - dashTick <= dashTimeout()) {
+                return; // in flight
             }
+            if (dashFeet != null) {
+                // Never planned again from that block.
+                REFUSED_LOOKS.add(lookKey(dashFeet, plan.yaw(), plan.pitch()));
+                LOGGER.info("[AutoPuzzles] Beams (melee): look {} / {} from block {} marked refused ({} refused look(s))",
+                        String.format(java.util.Locale.ROOT, "%.1f", plan.yaw()),
+                        String.format(java.util.Locale.ROOT, "%.1f", plan.pitch()),
+                        AutoPuzzleUtil.fmt(BlockPos.containing(dashFeet)), REFUSED_LOOKS.size());
+            }
+            LOGGER.info("[AutoPuzzles] Beams (melee): the AOTV teleport for {} {} (planned landing {}, he is at {}) - "
+                            + "dropping that teleport and its look", AutoPuzzleUtil.fmt(dashLantern),
+                    refused ? "was refused (\"There are blocks in the way!\") " + (now - dashTick) + " tick(s) "
+                            + "after the use" : "never landed", fmt(plan.land()), fmt(player.position()));
+            dashRefused = false;
+            dropPlan(dashLantern, plan);
+            requestBack(dashLantern);
+            dashTick = -1L;
             return;
         }
         if (meleeClickTick >= 0) {
@@ -833,6 +856,8 @@ public final class AutoBeams {
         com.killer560.hub.util.ActionGate.expectSelfTeleport(com.killer560.hub.util.ActionGate.Actor.PUZZLE_WORLD);
         dashTick = now;
         dashRefused = false;
+        dashPositions = AutoPuzzleUtil.serverPositions();
+        dashLag = com.killer560.hub.util.ServerLag.mark();
         dashFeet = player.position();
         dashPlan = new AotvPlan(plan.from(), plan.yaw(), plan.pitch(), land);
         dashLantern = lantern;
@@ -1142,6 +1167,12 @@ public final class AutoBeams {
         Vec3 eye = player.getEyePosition();
         if (com.killer560.hub.util.BlockHits.boxDistanceSq(eye, lantern) > AutoPuzzleUtil.BLOCK_REACH_SQ) {
             say("melee: " + AutoPuzzleUtil.fmt(lantern) + " is out of reach from here - no hit sent");
+            return false;
+        }
+        if (com.killer560.hub.util.ActionGate.hisUseGoesThisTick(client)) {
+            // His right click goes after us in this tick's handleKeybinds: a dig before a use_item in one tick is GrimAC
+            // PacketOrderI (type=place/use, digging=true, experimental; 1018-beams-melee-grim round 7). Hit next tick.
+            say("melee: his right click goes this tick - the hit on " + AutoPuzzleUtil.fmt(lantern) + " waits a tick");
             return false;
         }
         if (!AutoPuzzleUtil.gateWorldClick(client, lantern)) {

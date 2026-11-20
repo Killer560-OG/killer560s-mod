@@ -66,6 +66,19 @@ final class AutoReposition {
     private net.minecraft.world.phys.Vec3 usePos;
     private boolean resent;
     private static int resends;
+    /** {@link AutoPuzzleUtil#serverPositions()} when the use went out. */
+    private long usePositions;
+
+    /**
+     * No landing can have come yet: the server has sent no position since the use, and he is where he used it or straight
+     * below it (falling). His Hypixel run 2026-11-18 17:25:05 (Creeper Beams melee): a warp used in the air after a hit got
+     * no landing, and the old "has not moved at all" rule never resent it while he fell, so it waited the 40-tick timeout.
+     */
+    private boolean onlyFell(LocalPlayer player) {
+        net.minecraft.world.phys.Vec3 p = player.position();
+        return AutoPuzzleUtil.serverPositions() == usePositions && Math.abs(p.x - usePos.x) < 1.0e-6
+                && Math.abs(p.z - usePos.z) < 1.0e-6 && p.y <= usePos.y + 1.0e-6;
+    }
 
     /** Ticks after a use with no landing before it is sent again: twice the last measured landing time and two, or
      *  {@code RightClick.eatenRetryTicks} (the round trip and half again, plus 2) when that is longer. */
@@ -265,6 +278,7 @@ final class AutoReposition {
                 }
                 useTick = com.killer560.hub.util.ActionGate.currentTick();
                 usePos = player.position();
+                usePositions = AutoPuzzleUtil.serverPositions();
                 warpLag = com.killer560.hub.util.ServerLag.mark();
                 stage = Stage.AWAIT_ARRIVE;
             }
@@ -296,7 +310,7 @@ final class AutoReposition {
                         releaseSneak(client);
                     }
                     tick(client);
-                } else if (nextTick && !resent && usePos != null && player.position().distanceToSqr(usePos) < 1.0e-6
+                } else if (nextTick && !resent && usePos != null && onlyFell(player)
                         && com.killer560.hub.util.ActionGate.currentTick() - useTick
                         >= resendTicks() + com.killer560.hub.util.ServerLag.ticksSince(warpLag)) {
                     // No landing by the time one is due (the measured round trip, doubled, and any server stall since):
@@ -304,8 +318,8 @@ final class AutoReposition {
                     // His Hypixel run 2026-10-18 19:25:14 and 19:25:17: two warps a tick after a lever click got no
                     // landing, each was resent 42 ticks later with the same look and landed 2 ticks after, and the levers
                     // they were for went 22 and 43 ticks late - the water's timing was gone. Once only per warp; still
-                    // nothing after that and the full timeout applies. He has not moved, so a late landing of the first
-                    // use cannot have happened yet (it would have moved him) and the second goes from the same spot.
+                    // nothing after that and the full timeout applies. No server position came (onlyFell), so a late
+                    // landing of the first use cannot have happened yet; the second is aimed from where he is now.
                     resent = true;
                     resends++;
                     LOGGER.info("[AutoPuzzles] {}: no landing on {} {} tick(s) after the use (landings take {}) - sending "

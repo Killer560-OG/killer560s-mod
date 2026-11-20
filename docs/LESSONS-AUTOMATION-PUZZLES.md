@@ -73,6 +73,19 @@ The puzzle autos at run time (camera, timing, leaving, each puzzle). Part of the
   on-foot pairs and handed the room to Shoot mode, whose first step is an etherwarp onto the center platform; from deep in
   the room there was no line onto it, AutoReposition refused once, and the auto sat there (1018-beams-melee-after). Melee
   reaches each lantern itself (spot, AOTV, shot).
+- **A teleport has landed when the server sends a position, wherever it put him** (Creeper Beams Melee, creeperbeams-1118).
+  Hypixel cuts an AOTV short with "There are blocks in the way!" (the line first, then the position, then tp_accept) at
+  spots our dash model does not predict; the auto took only a landing within 1 block of the plan, so it let him fall and
+  waited 20 ticks each time (134 of his 296 ticks on 11-18). Count server positions (`AutoPuzzleUtil.serverPositions`, fed
+  by PuzzlePacketMixin) and judge reach from where he actually is. Hide Useless Messages had also dropped that line in
+  ALLOW_GAME, so the refusal reader never ran: it is hidden in `ChatTidy.shouldHide` now. A dropped etherwarp used while
+  falling is resent too (same x/z, no rise, no server position since the use). Testkit 1118-beams-melee-replay replays his
+  room with `SimAbilities.setTestDashShort`.
+- **A puzzle auto's dig waits a tick when his right click goes in that tick** (Creeper Beams Melee, creeperbeams-1118): a
+  dig before his use_item in one tick is experimental GrimAC PacketOrderI (`type=place/use, digging=true`); `meleeClick`
+  checks `ActionGate.hisUseGoesThisTick` like Breaker Aura. A same-tick test must press his key BEFORE calling the auto in
+  START_CLIENT_TICK (his input lands between frames); pressing it after hid this flag from the guard and the test alike.
+  Testkit 1018-beams-melee-grim rounds 7-10 (use, attack, swap, move) check the wire.
 
 ## Chests
 

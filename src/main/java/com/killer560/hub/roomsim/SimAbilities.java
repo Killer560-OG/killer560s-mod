@@ -378,7 +378,10 @@ public final class SimAbilities {
                     c.denied(), true));
         }
         boolean fired;
-        if (ETHERWARP_ITEMS.contains(id)) {
+        if (ETHERWARP_ITEMS.contains(id) && sneaking && !sp.onGround() && dropAirWarps > 0) {
+            dropAirWarps--; // testkit replay of a Hypixel warp used in the air that never landed (creeperbeams-1118)
+            fired = false;
+        } else if (ETHERWARP_ITEMS.contains(id)) {
             fired = sneaking ? etherwarp(sp, held) : instantTransmission(sp, held);
         } else if (WITHER_BLADES.contains(id)) {
             fired = witherImpact(sp);
@@ -455,7 +458,25 @@ public final class SimAbilities {
      * wrong in only one of the two would be worse than not having it.
      */
     private static boolean instantTransmission(ServerPlayer sp, ItemStack held) {
-        return dash(sp, instantTransmissionRange(held));
+        double range = instantTransmissionRange(held);
+        Vec3 modeled = dashShortBlocks > 0.0 ? dashTarget(sp.level(), sp, range) : null;
+        if (modeled != null) {
+            // Testkit replay of Hypixel cutting a teleport short with "There are blocks in the way!" (his Creeper Beams
+            // run 2026-11-18: 1-3 blocks short of the model's landing, line first, then the position).
+            sp.sendSystemMessage(net.minecraft.network.chat.Component.literal("There are blocks in the way!"));
+            range = Math.max(1.0, modeled.distanceTo(sp.position()) - dashShortBlocks);
+        }
+        return dash(sp, range);
+    }
+
+    /** Testkit knobs (server thread reads them): every Instant Transmission goes this many blocks short, and this many
+     *  sneaking AOTV uses made in the air do nothing. 0 is Hypixel-as-modeled. */
+    private static volatile double dashShortBlocks;
+    private static volatile int dropAirWarps;
+
+    public static void setTestDashShort(double blocks, int airWarpsToDrop) {
+        dashShortBlocks = blocks;
+        dropAirWarps = airWarpsToDrop;
     }
 
     /**
