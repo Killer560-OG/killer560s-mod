@@ -310,6 +310,42 @@ public final class TranslateFeature {
         }
     }
 
+    /** One translation request; the real one asks the service, a test passes its own. */
+    public interface Fetch {
+        TranslationResult get(String text) throws Exception;
+    }
+
+    /**
+     * Click Translate's call: a result that is only the source text again is a failure, never a translation. When
+     * the service detects a language whose own script is not Latin (Bulgarian typed in Latin letters, say) and hands
+     * the text back, the text is put into that script and asked ONCE more. Returns null when nothing real came back.
+     */
+    public static TranslationResult translateReadable(String text, String targetCode) throws Exception {
+        return translateReadable(text, targetCode, t -> translate(t, "auto", targetCode));
+    }
+
+    public static TranslationResult translateReadable(String text, String targetCode, Fetch fetch) throws Exception {
+        TranslationResult first = fetch.get(text);
+        if (!sameText(first.text(), text)) {
+            return first;
+        }
+        String lang = first.detectedLanguageCode();
+        if (lang != null && lang.regionMatches(true, 0, targetCode, 0, 2)) {
+            return first; // already in the target language
+        }
+        String script = RomanizedText.toNative(text, lang);
+        if (script == null) {
+            return null;
+        }
+        TranslationResult second = fetch.get(script);
+        return sameText(second.text(), script) || sameText(second.text(), text) ? null
+                : new TranslationResult(second.text(), lang);
+    }
+
+    private static boolean sameText(String a, String b) {
+        return a.trim().replaceAll("\s+", " ").equalsIgnoreCase(b.trim().replaceAll("\s+", " "));
+    }
+
     private static TranslationResult translateGoogle(String text, String targetCode) throws Exception {
         String url = GOOGLE_ENDPOINT + "?client=gtx&sl=auto&tl=" + urlEncode(targetCode) + "&dt=t&q=" + urlEncode(text);
         HttpRequest request = HttpRequest.newBuilder(URI.create(url))

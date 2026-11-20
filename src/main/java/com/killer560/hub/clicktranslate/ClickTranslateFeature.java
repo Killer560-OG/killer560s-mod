@@ -133,7 +133,7 @@ public final class ClickTranslateFeature {
         String targetCode = ClickTranslateConfig.getInstance().getTargetLanguageCode();
         CompletableFuture.supplyAsync(() -> {
             try {
-                return TranslateFeature.translate(content, "auto", targetCode);
+                return TranslateFeature.translateReadable(content, targetCode);
             } catch (Exception e) {
                 LOGGER.warn("Click-to-translate failed", e);
                 return (TranslateFeature.TranslationResult) null;
