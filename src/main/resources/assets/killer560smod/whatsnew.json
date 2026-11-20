@@ -50,7 +50,8 @@
      "Auto Accept Invites' Only From Guild Members now reads your guild from the mod's relay (Hypixel API) instead of sending /guild list; the chat command is only the fallback when the relay cannot be reached.",
      "RNG Meter: the best pick's slot now pulses with a bright fill and border so it is easy to spot; hovering an item in the RNG Meter menu now also shows its value.",
      "Reparty: typing !reinv in party chat now makes you leave (if you are not the leader) and rejoin, a leader kicks and re-invites whoever types it after a Reinv Delay you set (1-15 s), and Rejoin After Kick accepts your party's invite back after a kick, not only after a disband.",
-     "Dungeon Sim Help now lists each page as short bullet points instead of sentences, and its pictures are twice as sharp."
+     "Dungeon Sim Help now lists each page as short bullet points instead of sentences, and its pictures are twice as sharp.",
+     "Profile Viewer: Spider, Wolf, Enderman and Blaze slayer levels now use the right XP thresholds."
     ]
    }
   ]
