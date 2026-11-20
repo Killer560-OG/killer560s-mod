@@ -8,6 +8,7 @@ import com.killer560.hub.runstats.RunStatsTracker;
 import com.killer560.hub.scorecalc.ScoreCalculator;
 import com.killer560.hub.scorecalc.ScoreCalculatorFeature;
 import com.killer560.hub.secrets.DungeonState;
+import com.killer560.hub.sharesite.ShareToWebsite;
 import com.killer560.hub.secrets.DungeonRun;
 import com.killer560.hub.splittimers.SplitTimersConfig;
 import com.killer560.hub.splittimers.SplitTimersFeature;
@@ -103,6 +104,8 @@ public final class RunSummaryFeature {
     private static long currentSplitStartMs = 0L;
     private static ScoreCalculator.Result lastEstimate = null;
     private static int secretsFound = RunRecord.UNKNOWN_INT;
+    /** The Stats block's "Secrets Found: N", the player's OWN count (secretsFound is the tab list's team total). */
+    private static int ownSecrets = RunRecord.UNKNOWN_INT;
     private static int crypts = RunRecord.UNKNOWN_INT;
     private static int deaths = RunRecord.UNKNOWN_INT;
     private static int puzzleCount = RunRecord.UNKNOWN_INT;
@@ -135,7 +138,9 @@ public final class RunSummaryFeature {
             finishRun();
             return;
         }
-        if (!RunSummaryConfig.getInstance().isEnabled()) return;
+        // Share To Website (sharesite-1119) needs only the run's floor, time and end lines, not the polls below.
+        boolean full = RunSummaryConfig.getInstance().isEnabled();
+        if (!full && !ShareToWebsite.active()) return;
         if (RUN.newRun(client.level)) {
             if (active) {
                 if (runEndMs > 0L) {
@@ -150,11 +155,20 @@ public final class RunSummaryFeature {
             }
         }
         if (!active) return;
-        pollSplits();
         String liveFloor = DungeonState.getFloor();
         if (liveFloor != null && !liveFloor.isBlank()) {
             floor = liveFloor;
         }
+        if (!full) {
+            // Sharing alone: the Terminals + Goldor splits (P3) and the party size (solo) the website's boards need.
+            pollSplits();
+            if (++pollCounter >= 20) {
+                pollCounter = 0;
+                readParty();
+            }
+            return;
+        }
+        pollSplits();
         ScoreCalculator.Result estimate = ScoreCalculatorFeature.currentResult();
         if (estimate != null) {
             lastEstimate = estimate;
@@ -414,7 +428,7 @@ public final class RunSummaryFeature {
 
 
     private static void onChat(Component message) {
-        if (!RunSummaryConfig.getInstance().isEnabled()) return;
+        if (!RunSummaryConfig.getInstance().isEnabled() && !ShareToWebsite.active()) return;
         String raw = ChatObserver.strip(message);
         String trimmed = raw.trim();
 
@@ -455,6 +469,11 @@ public final class RunSummaryFeature {
             if (finishDelayTicks > FINISH_DELAY_AFTER_SCORE_TICKS) {
                 finishDelayTicks = FINISH_DELAY_AFTER_SCORE_TICKS;
             }
+            return;
+        }
+        Matcher own = runEndMs > 0L ? com.killer560.hub.runstats.RunStatsTracker.OWN_SECRETS.matcher(trimmed) : null;
+        if (own != null && own.matches()) {
+            ownSecrets = parseInt(own.group(1), RunRecord.UNKNOWN_INT);
             return;
         }
         if (RunSummaryConfig.getInstance().isRecordDeviceTimes()) {
@@ -504,6 +523,7 @@ public final class RunSummaryFeature {
         currentSplitStartMs = 0L;
         lastEstimate = null;
         secretsFound = RunRecord.UNKNOWN_INT;
+        ownSecrets = RunRecord.UNKNOWN_INT;
         crypts = RunRecord.UNKNOWN_INT;
         deaths = RunRecord.UNKNOWN_INT;
         puzzleCount = RunRecord.UNKNOWN_INT;
@@ -560,9 +580,13 @@ public final class RunSummaryFeature {
                 false,
                 buildPartyRows(Minecraft.getInstance()),
                 mapSnapshot);
-        RunHistoryStore.BestFlags flags = RunHistoryStore.add(record);
-        com.killer560.hub.carrytracker.CarryTracker.onRun(record);
-        announce(RunHistoryStore.latest(), flags);
+        // Run History, the carry tracker and the chat summary are Run Summary's own; sharing alone only uploads.
+        if (RunSummaryConfig.getInstance().isEnabled()) {
+            RunHistoryStore.BestFlags flags = RunHistoryStore.add(record);
+            com.killer560.hub.carrytracker.CarryTracker.onRun(record);
+            announce(RunHistoryStore.latest(), flags);
+        }
+        ShareToWebsite.onRun(record, ownSecrets);
         resetRun();
     }
 

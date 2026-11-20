@@ -34,7 +34,9 @@ public class HomeTab extends FolderTab {
                 // Auto Crash Reports (killer560, 2026-11-04): next to Ban Reports, both builds, OFF by default.
                 new CrashReportTab(),
                 // Discord Link (discordlink-1105): link your Discord with a one-time code; named on crash reports.
-                new DiscordLinkTab()
+                new DiscordLinkTab(),
+                // Share To Website (sharesite-1119, killer560 2026-11-19): ON by default, both builds, after Discord Link.
+                new ShareToWebsiteTab()
         ));
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             tabs.add(new CorrectionAlarmTab());

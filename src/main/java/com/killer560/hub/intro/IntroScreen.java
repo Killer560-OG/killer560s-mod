@@ -14,6 +14,9 @@ import com.killer560.hub.gui.MenuThemedScreen;
 import com.killer560.hub.gui.ModScreen;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.tab.DiscordLinkTab;
+import com.killer560.hub.gui.tab.ShareToWebsiteTab;
+import com.killer560.hub.sharesite.ShareToWebsite;
+import com.killer560.hub.sharesite.ShareToWebsiteConfig;
 import com.killer560.hub.hud.AutoScale;
 import com.killer560.hub.hud.GuiRects;
 import com.killer560.hub.hud.HudConfig;
@@ -51,7 +54,7 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
 
     /** One stop of the tour. */
     public enum Scene {
-        WELCOME, OPEN_MENU, THEME, THEME_DONE, VARIANT, BAN_LOGS, CRASH_REPORTS, DISCORD_LINK, AUTO_UPDATE, MENUS, COMMUNITY
+        WELCOME, OPEN_MENU, THEME, THEME_DONE, VARIANT, BAN_LOGS, CRASH_REPORTS, DISCORD_LINK, AUTO_UPDATE, SHARE_WEBSITE, MENUS, COMMUNITY
     }
 
     private enum Spot { LEFT, NEAR, RIGHT }
@@ -107,10 +110,23 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         this(parent, false);
     }
 
+    /** Only the Share To Website scene, for a player who finished the tour before it existed (shown once, over the title screen). */
+    public static IntroScreen noticeOnly(Screen parent) {
+        return new IntroScreen(parent, false, true);
+    }
+
     public IntroScreen(Screen parent, boolean autoOpened) {
+        this(parent, autoOpened, false);
+    }
+
+    private IntroScreen(Screen parent, boolean autoOpened, boolean noticeOnly) {
         super(Component.literal("Killer560's Mod Tour"));
         this.parent = parent;
         this.autoOpened = autoOpened;
+        if (noticeOnly) {
+            scenes.add(Scene.SHARE_WEBSITE);
+            return;
+        }
         scenes.add(Scene.WELCOME);
         scenes.add(Scene.OPEN_MENU);
         scenes.add(Scene.THEME);
@@ -120,6 +136,7 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         scenes.add(Scene.CRASH_REPORTS);
         scenes.add(Scene.DISCORD_LINK);
         scenes.add(Scene.AUTO_UPDATE);
+        scenes.add(Scene.SHARE_WEBSITE);
         scenes.add(Scene.MENUS);
         scenes.add(Scene.COMMUNITY);
     }
@@ -169,6 +186,12 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
             case DISCORD_LINK -> discordLinkText();
             case AUTO_UPDATE -> "{Auto Update} keeps the mod up to date by itself, installing new versions when you close "
                     + "the game. Want it on? You can change it anytime in {Home}.";
+            case SHARE_WEBSITE -> ShareToWebsiteConfig.getInstance().isEnabled()
+                    ? "{Share To Website} is on: after each dungeon run, your floor times, secrets and terminal times go to "
+                    + "your page on my website, so you and your friends can look them up. Never anyone else's name. "
+                    + "Turn it off anytime in {Home > " + ShareToWebsiteTab.NAME + "}; that deletes your page."
+                    : "{Share To Website} is off: nothing is sent, and your page on my website is deleted. You can turn it "
+                    + "back on anytime in {Home > " + ShareToWebsiteTab.NAME + "}.";
             case MENUS -> "Every feature has a card, sorted into the categories on the left. Open a card for its "
                     + "settings, or use the {search} at the top to find anything.";
             case COMMUNITY -> "Last thing! Join the {Discord} if you're not in it already, and subscribe to my "
@@ -330,6 +353,13 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
                 rowsOf.add(row);
             }
             case AUTO_UPDATE -> rowsOf.add(yesNo("Yes, keep me updated", updateChoice, this::chooseAutoUpdate));
+            // ON by default (killer560, 2026-11-19: "have it put into the intro thing so on by default"): the current
+            // value is the chosen chip, and the scene never holds Next.
+            case SHARE_WEBSITE -> {
+                boolean on = ShareToWebsiteConfig.getInstance().isEnabled();
+                rowsOf.add(List.of(chip("Keep it on", on ? IntroButton.Kind.CHOSEN : IntroButton.Kind.PLAIN, () -> chooseShareWebsite(true)),
+                        chip("Turn it off", on ? IntroButton.Kind.PLAIN : IntroButton.Kind.CHOSEN, () -> chooseShareWebsite(false))));
+            }
             case COMMUNITY -> rowsOf.add(List.of(
                     chip("Join Discord", IntroButton.Kind.PLAIN, () -> ExternalOpen.uri(ModScreen.DISCORD_URL)),
                     chip("YouTube", IntroButton.Kind.PLAIN, () -> ExternalOpen.uri(ModScreen.YOUTUBE_URL))));
@@ -478,6 +508,9 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         if (nextBlocked()) {
             return;
         }
+        if (scene() == Scene.SHARE_WEBSITE) {
+            ShareToWebsite.acknowledgeNotice(); // Next past it: shown, and the text says how to turn it off
+        }
         if (index >= scenes.size() - 1) {
             finish();
             return;
@@ -562,6 +595,15 @@ public class IntroScreen extends Screen implements MenuThemedScreen {
         cfg.setEnabled(yes);
         cfg.save();
         updateChoice = yes;
+        rebuildWidgets();
+    }
+
+    /** The Share To Website answer: sets the switch (OFF also deletes the page) and saves. */
+    public void chooseShareWebsite(boolean on) {
+        if (on != ShareToWebsiteConfig.getInstance().isEnabled()) {
+            ShareToWebsite.setEnabled(on);
+        }
+        ShareToWebsite.acknowledgeNotice();
         rebuildWidgets();
     }
 

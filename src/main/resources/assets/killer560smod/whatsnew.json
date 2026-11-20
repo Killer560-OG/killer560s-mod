@@ -14,7 +14,8 @@
      "New Item Alerts card (Items): Bottle Full Alert for Thunder, Storm and Hurricane in a Bottle and Runebook Rarity Alert, as movable HUDs with sound and Persistent or Timed display (26.3 cheat green; legit and 26.2 compile only)",
      "Auto Routes: new Breaker Style setting picks the break style routes use (Breaker Aura card, Legit Multi Break or Burst Multi Break) without changing the Breaker Aura card; a breaker block is dug again only after the server has answered its first dig, and Burst digs only blocks the current look strikes.",
      "Auto Creeper Beams melee: the cut-short teleport landing is taken when it is in reach, the click is sent again only after a fall, the Blocks in the way line is hidden, and no hit goes out in the tick of your own use, now in the legit build too.",
-     "The game no longer freezes when a settings file save is slow: the Custom Scoreboard, mining, armor HUD and fairy soul saves moved off the game thread."
+     "The game no longer freezes when a settings file save is slow: the Custom Scoreboard, mining, armor HUD and fairy soul saves moved off the game thread.",
+     "Share To Website now records your terminal solve times in the F7 and M7 boss and times your Fastest F7, M7, F7 Solo Clear, M7 Solo Clear and P3 in real runs, uploading each new personal best to the website's leaderboards on its own; nothing is sent until you have seen its notice."
     ]
    }
   ]

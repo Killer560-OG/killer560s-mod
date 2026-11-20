@@ -423,6 +423,9 @@ public final class TerminalSolverFeature {
      *  get noticed (and this message posted) whenever the next screen of any kind rendered, inflating the
      *  reported time by however long that took - now posted on the first client tick after the close,
      *  see {@link #ensureCloseWatcherRegistered}. */
+    /** True while the solver is timing a terminal (it reports that one's close itself). */
+    public static boolean timing() { return currentType != null && terminalOpenedAtMs > 0; }
+
     private static void reportTerminalCompletion() {
         if (currentType == null || terminalOpenedAtMs <= 0) return;
         double seconds = (System.currentTimeMillis() - terminalOpenedAtMs) / 1000.0;

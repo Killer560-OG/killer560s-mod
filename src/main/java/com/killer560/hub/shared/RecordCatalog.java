@@ -297,8 +297,25 @@ public final class RecordCatalog {
         }
     });
 
+    /** The player's best uploaded time for each of the website's five boards: {@code {"f7": {"ms": N, "at": N}, ...}}. The faster one
+     *  always wins, so two instances never undo each other (modlb5-1120). */
+    public static final Kind BOARD_BESTS = new Kind("killer560smod-board-bests.json", null, "board-bests.json",
+            Scope.ACCOUNT, new JsonMerge.Policy() {
+        @Override
+        public JsonObject custom(JsonObject disk, JsonObject base, JsonObject mine) {
+            if (mine == null) return null;
+            JsonObject out = disk == null ? new JsonObject() : disk.deepCopy();
+            for (String k : mine.keySet()) {
+                if (!out.has(k) || mine.getAsJsonObject(k).get("ms").getAsLong() < out.getAsJsonObject(k).get("ms").getAsLong()) {
+                    out.add(k, mine.get(k).deepCopy());
+                }
+            }
+            return out;
+        }
+    });
+
     public static final List<Kind> ALL = List.of(CROESUS_LOG, CROESUS_RUNS, RNG_ITEM_LOG, EXPERIMENTS, BAZAAR_FLIP,
-            NPC_SOLD, RUN_HISTORY, BEST_FRIENDS, EGG_TRACKER, LUCK, CARRY, SIM_MOB_LOOKS, CARNIVAL, ACCOUNT_ACTIVITY, GUILD_LIST);
+            NPC_SOLD, RUN_HISTORY, BEST_FRIENDS, EGG_TRACKER, LUCK, CARRY, SIM_MOB_LOOKS, CARNIVAL, ACCOUNT_ACTIVITY, GUILD_LIST, BOARD_BESTS);
 
     /** Sorts the array {@code key} of {@code root} by a field (numbers, or ISO timestamps as strings); returns it. */
     static JsonArray sortBy(JsonObject root, String key, String field, boolean descending) {

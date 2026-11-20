@@ -230,6 +230,8 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.banreport.BanReportFeature.register();
         // Auto Crash Reports (opt-in, OFF by default): one tick listener that looks for a new crash file once per start.
         com.killer560.hub.crashreport.CrashReportFeature.register();
+        // Share To Website (ON by default): uploads a finished run off-thread; a world join retries a waiting upload or delete.
+        com.killer560.hub.sharesite.ShareToWebsite.register();
         // Online Count (always on, no setting): an anonymous session id and the island, once a minute on Hypixel.
         com.killer560.hub.onlinecount.OnlinePresence.register();
         AutoJoinSkyblockFeature.register();

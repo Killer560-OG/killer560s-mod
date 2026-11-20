@@ -7,6 +7,7 @@ import com.killer560.hub.secrets.DungeonRun;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
@@ -82,6 +83,23 @@ public final class TerminalTimersFeature {
                 resetSection(true); // LevelEvent.Load
             }
         }));
+        ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> watchForSharing(screen));
+    }
+
+    /** Share To Website with every solver off: a terminal screen opening in the F7/M7 boss is timed from its title alone
+     *  (once per screen open, nothing per tick), and its close goes through the same pairing as the solver's. */
+    private static void watchForSharing(net.minecraft.client.gui.screens.Screen screen) {
+        if (!(screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>)
+                || !com.killer560.hub.sharesite.ShareToWebsite.active() || !DungeonState.isBossPhaseActive()) return;
+        com.killer560.hub.terminals.TerminalType type = com.killer560.hub.terminals.TerminalType.match(screen.getTitle().getString());
+        if (type == null) return;
+        long openedAt = System.currentTimeMillis();
+        ScreenEvents.remove(screen).register(s -> {
+            // The solver is timing this terminal and reports it itself: never twice.
+            if (!com.killer560.hub.terminals.TerminalSolverFeature.timing()) {
+                onTerminalClosed(type.displayName(), (System.currentTimeMillis() - openedAt) / 1000.0);
+            }
+        });
     }
 
     // Splits
@@ -255,6 +273,7 @@ public final class TerminalTimersFeature {
             }
             return;
         }
+        com.killer560.hub.sharesite.ShareToWebsite.onTerminalSolved(pendingSolveName, pendingSolveSeconds);
         if (TerminalTimersConfig.getInstance().isSolveTimes() && DungeonState.isInDungeon()) {
             ModChat.send("Terminal Timers", ModChat.value(pendingSolveName), ModChat.text(" solved in "),
                     ModChat.value(String.format(Locale.US, "%.2fs", pendingSolveSeconds)), ModChat.text("!"));

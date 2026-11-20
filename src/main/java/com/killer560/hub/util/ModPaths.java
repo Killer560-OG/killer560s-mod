@@ -346,6 +346,8 @@ public final class ModPaths {
         t.put("banreport", "system/banreport");
         // Auto Crash Reports (2026-11-04): its switch, name consent and the hashed keys of crashes already sent.
         t.put("crashreport", "system/crashreport");
+        // Share To Website (sharesite-1119): its switch and whether a delete still has to reach the relay.
+        t.put("sharesite", "system/sharesite");
         // The first-launch tour (2026-11-01): whether it has run.
         t.put("intro", "system/intro");
         t.put("bug-reports", "system/bugreport");

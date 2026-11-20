@@ -78,6 +78,7 @@ final class CardBlurbsData {
         d.put("BanReportTab", "Opt-in: reports a Hypixel ban to staff.");
         d.put("CrashReportTab", "Opt-in crash reports.");
         d.put("DiscordLinkTab", "Link your Discord account.");
+        d.put("ShareToWebsiteTab", "Your run stats on the website.");
         d.put("CollectionTrackerTab", "Tracks collection gains.");
         d.put("CorrectionAlarmTab", "Siren on a position fix.");
         d.put("ArchitectDraftTab", "Chat link for a draft.");

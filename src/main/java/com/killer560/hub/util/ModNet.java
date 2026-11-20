@@ -65,6 +65,8 @@ import java.util.concurrent.CompletableFuture;
  *       {@code relay} and read on every call</li>
  *   <li>{@code discordlink-relay} - the relay's {@code /discord-link/*} only (Discord Link), applied on top of
  *       {@code relay} and read on every call</li>
+ *   <li>{@code sharesite-relay} - the relay's {@code /site/stats} only (Share To Website), applied on top of
+ *       {@code relay} and read on every call</li>
  *   <li>{@code presence-relay} - the relay's {@code /presence} only (Online Count heartbeat), applied on top of
  *       {@code relay} and read on every call</li>
  *   <li>{@code lrclib} - lrclib.net: Spotify lyrics</li>

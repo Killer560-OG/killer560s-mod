@@ -50,7 +50,15 @@ public final class IntroLauncher {
             return;
         }
         triedThisSession = true;
-        if (!allowedHere() || IntroConfig.getInstance().isDone()) {
+        if (!allowedHere()) {
+            return;
+        }
+        if (IntroConfig.getInstance().isDone()) {
+            // Finished the tour before Share To Website existed: show only that scene, once, before anything is sent.
+            if (!com.killer560.hub.sharesite.ShareToWebsiteConfig.getInstance().isNoticeShown()) {
+                autoShown++;
+                McCompat.setScreen(client, IntroScreen.noticeOnly(screen));
+            }
             return;
         }
         autoShown++;

@@ -57,7 +57,7 @@ public final class RunStatsTracker {
     private static final Map<String, String> DISPLAY_NAMES = new LinkedHashMap<>();
     /** Newest lifetime secret total seen per player this session (bounded); a stale start read is lifted to it. */
     private static final Map<String, Long> KNOWN_TOTALS = new ConcurrentHashMap<>();
-    private static final Pattern OWN_SECRETS = Pattern.compile("^Secrets Found: (\\d{1,6})$");
+    public static final Pattern OWN_SECRETS = Pattern.compile("^Secrets Found: (\\d{1,6})$"); // also read by Run Summary
 
     private static volatile List<PlayerRunStats> lastRun = List.of();
     /** This run's secret counts; a lookup that finishes after a reset feeds the run it was asked for, never the new one. */
