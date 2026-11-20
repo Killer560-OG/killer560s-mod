@@ -31,7 +31,17 @@ public class RepartyTab extends BaseTab {
             widgets.add(steppedSlider(contentX + colW + 8, y, colW, 18, windowLabel(cfg), RepartyConfig.MIN_WINDOW, RepartyConfig.MAX_WINDOW,
                     cfg.getRejoinWindow(), 5, v -> cfg.setRejoinWindow((int) v), () -> windowLabel(cfg), cfg::save));
         }
+        y += 24;
+        widgets.add(onOffButton("Rejoin After Kick", cfg::isRejoinOnKick, cfg::setRejoinOnKick, cfg::save, requestRebuild, contentX, y, colW, 18));
+        widgets.add(onOffButton("Leave On !reinv", cfg::isLeaveOnReinv, cfg::setLeaveOnReinv, cfg::save, requestRebuild, contentX + colW + 8, y, colW, 18));
+        y += 24;
+        widgets.add(steppedSlider(contentX, y, contentWidth, 18, reinvLabel(cfg), RepartyConfig.MIN_REINV, RepartyConfig.MAX_REINV,
+                cfg.getReinvDelay(), 1, v -> cfg.setReinvDelay((int) v), () -> reinvLabel(cfg), cfg::save));
         return widgets;
+    }
+
+    private static Component reinvLabel(RepartyConfig cfg) {
+        return Component.literal("Reinv Delay: §6" + cfg.getReinvDelay() + " s");
     }
 
     private static Component delayLabel(RepartyConfig cfg) {

@@ -2146,6 +2146,9 @@ final class SettingTooltipsData {
         d.put("reparty", "Type /rp or /reparty as party leader to disband the party and invite everyone back.");
         d.put("invite delay", "Seconds between disbanding the party and inviting everyone back, 0 to 10 in half seconds.");
         d.put("auto rejoin", "Accepts the invite when another player disbands the party and invites you back within the Rejoin Window.");
+        d.put("rejoin after kick", "Accepts the invite when you are kicked from a party, or leave it with !reinv, and the leader or a member of that party invites you back within the Rejoin Window.");
+        d.put("leave on !reinv", "When you type !reinv in party chat and are not the leader, leaves the party and rejoins on the invite. Needs the Reinvite party command on.");
+        d.put("reinv delay", "Seconds the leader waits before inviting a member back after their !reinv (1 to 15). Used by the Reinvite party command.");
         d.put("rejoin window", "How many seconds after the disband an invite from a former member is accepted.");
         d.put("carry tracker", "Counts every finished dungeon run that a client on your list was in and shows them in a HUD with done/total runs. Alerts once when a client reaches the runs you set. Counts are saved for your account and shared by every instance.");
         d.put("carry tracker/add party", "Adds everyone in your party except you to the list, with the Default Runs target.");

@@ -34,6 +34,9 @@ import java.util.regex.Pattern;
 public final class RepartyFeature {
 
     private static final Pattern NAME = Pattern.compile("(?:\\[[^\\]]+\\] ?)?([A-Za-z0-9_]{1,16}) ?●");
+    private static final Pattern KICKED = Pattern.compile("^You have been kicked from the party by (?:\\[[^\\]]+\\] ?)?([A-Za-z0-9_]{1,16})\\W*$");
+    /** "X has invited you to join their party!" and "X has invited you to join [RANK] Y's party!" (verified in his logs). */
+    private static final Pattern INVITE_ANY = Pattern.compile("^(?:\\[[A-Z+]{1,12}\\] )?([A-Za-z0-9_]{1,16}) has invited you to join (?:their|(?:\\[[A-Z+]{1,12}\\] )?[A-Za-z0-9_]{1,16}'s) party!$");
     private static final long LIST_WAIT_MS = 1_500L;
     private static final long GIVE_UP_MS = 60_000L;
 
@@ -45,6 +48,7 @@ public final class RepartyFeature {
     private static final List<String> LAST_MEMBERS = new ArrayList<>();
     private static List<String> formerMembers = List.of();
     private static long disbandedAtMs;
+    private static boolean leavePending;
     private static String acceptName;
     private static long acceptUntilMs;
     private static String leader;
@@ -72,6 +76,7 @@ public final class RepartyFeature {
     public static synchronized void reset() {
         phase = Phase.IDLE;
         acceptName = null;
+        leavePending = false;
         formerMembers = List.of();
         LAST_MEMBERS.clear();
         disbandedAtMs = 0L;
@@ -97,6 +102,36 @@ public final class RepartyFeature {
 
     /** One real chat line, already stripped; public so the testkit can feed party lists and the run end. */
     public static synchronized void onLine(String plain, long now) {
+        for (String line : plain.split("\n")) {
+            onOneLine(line.trim(), now);
+        }
+    }
+
+    /**
+     * The member's own {@code !reinv} in party chat (Party Commands calls this only for a real echoed line while the leader
+     * is known to be someone else): leave the party and expect the invite back. No-op when Leave On !reinv is off.
+     */
+    public static synchronized void selfReinv(long now) {
+        RepartyConfig cfg = RepartyConfig.getInstance();
+        List<String> members = PartyTracker.teammates();
+        if (!cfg.isEnabled() || !cfg.isLeaveOnReinv() || members.isEmpty()) {
+            return;
+        }
+        arm(members, null, now);
+        leavePending = true;
+        startedMs = now;
+    }
+
+    private static void arm(List<String> members, String extra, long now) {
+        List<String> former = new ArrayList<>(members);
+        if (extra != null) {
+            former.add(extra);
+        }
+        formerMembers = List.copyOf(former);
+        disbandedAtMs = now;
+    }
+
+    private static void onOneLine(String plain, long now) {
         if (phase == Phase.LISTING) {
             String label = plain.startsWith("Party Leader:") ? "L" : plain.startsWith("Party Moderators:") || plain.startsWith("Party Members:") ? "M" : null;
             if (label != null) {
@@ -111,19 +146,26 @@ public final class RepartyFeature {
             }
         }
         RepartyConfig cfg = RepartyConfig.getInstance();
-        if (!cfg.isEnabled() || !cfg.isAutoRejoin()) {
+        if (!cfg.isEnabled()) {
             return;
         }
         Matcher dis = LfgFeature.DISBANDED.matcher(plain);
         if (dis.matches()) {
-            if (LAST_MEMBERS.stream().anyMatch(dis.group(1)::equalsIgnoreCase)) {
-                formerMembers = List.copyOf(LAST_MEMBERS);
-                disbandedAtMs = now;
+            if (cfg.isAutoRejoin() && LAST_MEMBERS.stream().anyMatch(dis.group(1)::equalsIgnoreCase)) {
+                arm(LAST_MEMBERS, null, now);
             }
             LAST_MEMBERS.clear();
             return;
         }
-        Matcher inv = LfgFeature.INVITE.matcher(plain);
+        Matcher kick = KICKED.matcher(plain);
+        if (kick.matches()) {
+            if (cfg.isRejoinOnKick()) {
+                arm(LAST_MEMBERS, kick.group(1), now);
+            }
+            LAST_MEMBERS.clear();
+            return;
+        }
+        Matcher inv = INVITE_ANY.matcher(plain);
         if (inv.matches()) {
             String who = inv.group(1);
             if (disbandedAtMs != 0L && now - disbandedAtMs <= cfg.getRejoinWindow() * 1000L
@@ -140,6 +182,11 @@ public final class RepartyFeature {
 
     /** One tick of the job; public so the testkit can step it with exact times. */
     public static synchronized void step(long now) {
+        if (leavePending && OutgoingChat.standingStill()) {
+            leavePending = false;
+            OutgoingChat.command("party leave");
+            ModChat.log("Reparty", ModChat.text("Left the party for !reinv; expecting an invite back."));
+        }
         if (acceptName != null) {
             if (now > acceptUntilMs) {
                 acceptName = null;

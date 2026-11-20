@@ -71,8 +71,11 @@ public final class PartyCommandsFeature {
     private static final String[] FLOOR_WORDS = {"one", "two", "three", "four", "five", "six", "seven"};
     private static final String[] KUUDRA_TIERS = {"normal", "hot", "burning", "fiery", "infernal"};
 
-    /** {@code !reinv}: how long to leave the player out before inviting them back. */
-    private static final long REINVITE_DELAY_MS = 5_000L;
+    /** {@code !reinv}: a member who typed it may leave on their own; the kick waits this long to see that. */
+    private static final long KICK_GRACE_MS = 1_000L;
+    private static final Pattern LEFT_PARTY = Pattern.compile("^(?:\\[[^]]+] )?([A-Za-z0-9_]{1,16}) has left the party\\.$");
+    /** lower-case name -> when "X has left the party." was last read (at most a party's worth). */
+    private static final Map<String, Long> LEFT = new java.util.concurrent.ConcurrentHashMap<>();
     private static final String REINVITE_KEY = "reinvite:";
     private static final String QUEUE_KEY = "queue-instance";
 
@@ -117,6 +120,14 @@ public final class PartyCommandsFeature {
      */
     static void onServerLine(String plain) {
         if (plain == null || plain.isEmpty()) return;
+        if (plain.endsWith("has left the party.")) {
+            Matcher left = LEFT_PARTY.matcher(plain);
+            if (left.matches()) {
+                long now = System.currentTimeMillis();
+                LEFT.values().removeIf(t -> now - t > 30_000L);
+                LEFT.put(left.group(1).toLowerCase(Locale.US), now);
+            }
+        }
         // A party that disbands (kicking its last other member does) must not drop a queued !reinv: the invite starts a new one.
         if (!REJOIN.isEmpty() && plain.contains(" has invited you to join ")) {
             Matcher inv = INVITED_YOU.matcher(plain);
@@ -170,6 +181,13 @@ public final class PartyCommandsFeature {
         // that targets the sender would act on yourself: a bare "!pt", warp+transfer, demote, promote, reinv, a DM invite.
         Minecraft selfClient = Minecraft.getInstance();
         String selfName = selfClient.player == null ? null : selfClient.player.getGameProfile().name();
+        if (command == Command.REINVITE && channel == Channel.PARTY && selfName != null && selfName.equalsIgnoreCase(sender)) {
+            // My own !reinv: a member leaves (Reparty), the leader does nothing (it would kick itself).
+            if (PartyTracker.knownNotLeader()) {
+                com.killer560.hub.reparty.RepartyFeature.selfReinv(System.currentTimeMillis());
+            }
+            return false;
+        }
         if (selfName != null && selfName.equalsIgnoreCase(sender) && targetsSender(command, arg, selfName, channel)) {
             LOGGER.info("[PartyCommands] Ignored your own \"!{}\" - it would act on yourself", word);
             return false;
@@ -415,8 +433,8 @@ public final class PartyCommandsFeature {
     // ------------------------------------------------------------------ reinvite (!reinv)
 
     /**
-     * {@code !reinv} / {@code !reinvite}: kick the teammate who asked, then invite them back {@link #REINVITE_DELAY_MS}
-     * later. The gap is a scheduled tick entry, re-validated when due ({@link #reinviteStillValid}) and kept even if the party disbands.
+     * {@code !reinv} / {@code !reinvite}: kick the teammate who asked, then invite them back Reparty's Reinv Delay
+     * (default 5 s) later. A member whose own client already left (Reparty's Leave On !reinv) is not kicked, only invited back. The gap is a scheduled tick entry, re-validated when due ({@link #reinviteStillValid}) and kept even if the party disbands.
      */
     private static void reinvite(String sender) {
         String key = REINVITE_KEY + sender.toLowerCase(Locale.US);
@@ -428,11 +446,18 @@ public final class PartyCommandsFeature {
         ClientLevel level = client.level;
         boolean wasInDungeon = DungeonState.isInDungeon();
         rememberForRejoin(sender);
-        execute(sender, "p kick " + sender,
-                "asked to be re-invited - kicked, inviting back in " + (REINVITE_DELAY_MS / 1000) + "s");
-        schedule(REINVITE_DELAY_MS, key, () -> reinviteStillValid(level, wasInDungeon), () -> {
-            toServer("p invite " + sender);
-            log(sender, "re-invited");
+        long delayMs = com.killer560.hub.reparty.RepartyConfig.getInstance().getReinvDelay() * 1000L;
+        schedule(KICK_GRACE_MS, key, () -> reinviteStillValid(level, wasInDungeon), () -> {
+            Long left = LEFT.get(sender.toLowerCase(Locale.US));
+            if (left != null && System.currentTimeMillis() - left < 10_000L) {
+                log(sender, "asked to be re-invited and already left - inviting back in " + (delayMs / 1000) + "s");
+            } else {
+                execute(sender, "p kick " + sender, "asked to be re-invited - kicked, inviting back in " + (delayMs / 1000) + "s");
+            }
+            schedule(delayMs, key, () -> reinviteStillValid(level, wasInDungeon), () -> {
+                toServer("p invite " + sender);
+                log(sender, "re-invited");
+            });
         });
     }
 
@@ -587,7 +612,7 @@ public final class PartyCommandsFeature {
     }
 
     /** Invite lines: "[MVP+] Name has invited you to join their party!" / "... join Other's party!". */
-    private static final Pattern INVITED_YOU = Pattern.compile("^(?:\\[[^]]{1,20}] )?([A-Za-z0-9_]{1,16}) has invited you to join (?:their|[A-Za-z0-9_]{1,16}'s) party!");
+    private static final Pattern INVITED_YOU = Pattern.compile("^(?:\\[[^]]{1,20}] )?([A-Za-z0-9_]{1,16}) has invited you to join (?:their|(?:\\[[^]]{1,20}] )?[A-Za-z0-9_]{1,16}'s) party!", Pattern.MULTILINE);
     /** How long after a !reinv an invite from one of that party's members is accepted without asking. */
     private static final long REJOIN_WINDOW_MS = 60_000L;
     /** lower-case name -> accept-until (ms), from the last !reinv: the party's members then. At most a party's worth. */
