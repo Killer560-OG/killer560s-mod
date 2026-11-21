@@ -238,6 +238,7 @@ final class CardBlurbsData {
         d.put("StorageSearchTab", "Searches storages.");
         d.put("AutoAnvilTab", "Combines enchant books at the anvil.");
         d.put("AutoHarpTab", "Plays Melody's Harp for you.");
+        d.put("HarpHelperTab", "Harp keys and a tracker.");
         d.put("AutoGfsTab", "Refills dungeon items from sacks.");
         d.put("AutoSellTab", "Sells your sell list on its own.");
         d.put("BazaarFlipTab", "Buy and sell flips.");

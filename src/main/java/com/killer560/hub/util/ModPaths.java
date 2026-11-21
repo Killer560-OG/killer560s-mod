@@ -228,6 +228,7 @@ public final class ModPaths {
         t.put("autosell", "skyblock/autosell");
         t.put("autoanvil", "skyblock/autoanvil");
         t.put("island-autoharp", "skyblock/autoharp");
+        t.put("island-harphelper", "skyblock/harphelper");
         t.put("ability", "skyblock/abilities");
         t.put("slotbinds", "skyblock/slotbinds");
         t.put("loadoutkeybinds", "skyblock/loadoutkeybinds");

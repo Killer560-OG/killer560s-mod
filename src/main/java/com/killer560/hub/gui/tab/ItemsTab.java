@@ -33,6 +33,7 @@ public class ItemsTab extends FolderTab {
                 new LoadoutKeybindsTab(),
                 new PetWheelTab(),
                 new ItemProtectTab(),
+                new HarpHelperTab(),
                 // Armor Recolor is Custom Items in the Cosmetics category since 2026-10-08.
                 new EnchantColorsTab(),
                 new MissingEnchantsTab(),

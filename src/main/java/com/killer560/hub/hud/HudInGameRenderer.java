@@ -145,6 +145,21 @@ public final class HudInGameRenderer {
     private static List<HudElement> overLeapList = List.of();
     private static int overLeapVersion = -1;
 
+    /** Draws one element at its HUD position over an open menu (Melody's Harp progress), from that screen's afterExtract. */
+    public static void drawOver(GuiGraphicsExtractor graphics, HudElement element) {
+        if (!hudAllowed(Minecraft.getInstance()) || !element.isEnabledInSettings()) {
+            return;
+        }
+        HudTextCache.begin();
+        HudVisibility.overScreen = true;
+        try {
+            com.killer560.hub.hud.HudElementRegistry.drawAt(graphics, element);
+        } finally {
+            HudVisibility.overScreen = false;
+            HudTextCache.end();
+        }
+    }
+
     /** Draws {@link #OVER_LEAP_IDS} at their usual HUD position, from the leap menu's own afterExtract (the HUD layer sits
      *  under a screen's dim). Same gates as {@link #draw} except the open-menu one. */
     public static void drawOverScreen(GuiGraphicsExtractor graphics) {

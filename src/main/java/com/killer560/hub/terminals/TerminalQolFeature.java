@@ -3,7 +3,6 @@ package com.killer560.hub.terminals;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ChatObserver;
 import com.mojang.blaze3d.platform.InputConstants;
-import com.mojang.blaze3d.platform.Window;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -379,34 +378,9 @@ public final class TerminalQolFeature {
      *  scale straight from {@code options.guiScale()} whenever the window is resized, which would otherwise
      *  silently drop the override mid-terminal. */
     private static void tickGuiScale() {
-        Minecraft client = Minecraft.getInstance();
-        Window window = client.getWindow();
-        if (window == null || client.options == null) return;
         TerminalQolConfig cfg = TerminalQolConfig.getInstance();
         int wanted = currentType == null ? 0
                 : currentType == TerminalType.MELODY ? cfg.getMelodyGuiScale() : cfg.getTerminalGuiScale();
-        if (wanted > 0) {
-            int target = window.calculateScale(wanted, client.isEnforceUnicode());
-            if (window.getGuiScale() != target) {
-                applyScale(client, window, target);
-            }
-            guiScaleApplied = true;
-        } else if (guiScaleApplied) {
-            guiScaleApplied = false;
-            // Recomputed from the live option rather than remembered, so a scale the player changed in Video
-            // Settings while a terminal was open is still honored when it closes.
-            int vanilla = window.calculateScale(client.options.guiScale().get(), client.isEnforceUnicode());
-            if (window.getGuiScale() != vanilla) {
-                applyScale(client, window, vanilla);
-            }
-        }
-    }
-
-    private static void applyScale(Minecraft client, Window window, int scale) {
-        window.setGuiScale(scale);
-        Screen screen = McCompat.screen(client);
-        if (screen != null) {
-            screen.resize(window.getGuiScaledWidth(), window.getGuiScaledHeight());
-        }
+        guiScaleApplied = com.killer560.hub.util.GuiScaleOverride.tick(wanted, guiScaleApplied);
     }
 }

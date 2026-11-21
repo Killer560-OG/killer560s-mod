@@ -254,6 +254,9 @@ public final class ActionGate {
         /** Auto Melody's Harp middle-clicking the note slots of a "Harp - song" menu. Wired in
          *  {@code islands.AutoHarpFeature}, its only click site. */
         ISLAND_HARP(Kind.SCREEN),
+        /** His own key (or bound mouse button) playing a note in Melody's Harp ({@code islands.HarpHelperFeature}): his
+         *  input, sent at once and never held; it only takes the tick if free ({@link #noteHisClick}). */
+        HARP_KEY(Kind.SCREEN),
         /** The Bazaar-to-NPC Flipper's {@code /bz <item>} and {@code /trades} sends (killer560, 2026-09-29:
          *  "a bazaar flipper"). A command, so {@link Kind#COMMAND}. Same "no one dies if this is a tick late"
          *  bucket as Auto Sell - it is shop automation in the Hub, never in a run. Wired in the same change
@@ -585,6 +588,17 @@ public final class ActionGate {
      */
     public static void noteCommand(Actor actor) {
         if (actor.kind != Kind.COMMAND) throw new IllegalArgumentException(actor + " is not a command actor");
+        claimIfFree(actor);
+    }
+
+    /** {@link #noteCommand} for a container click he just caused with his own key ({@link Actor#HARP_KEY}): sent at once,
+     *  and an automated click that asks later in the same tick waits for the next one. */
+    public static void noteHisClick(Actor actor) {
+        if (actor != Actor.HARP_KEY) throw new IllegalArgumentException(actor + " is not a key-click actor");
+        claimIfFree(actor);
+    }
+
+    private static void claimIfFree(Actor actor) {
         if (armed && claimedTick != tick) {
             claimedTick = tick;
             claimant = actor;
@@ -595,7 +609,7 @@ public final class ActionGate {
 
     /** Actors that only ever act on a bind he pressed that tick: the emergency hold leaves them alone. */
     private static boolean playerBind(Actor actor) {
-        return actor == Actor.SLOT_BIND || actor == Actor.PET_WHEEL_MENU || actor == Actor.PET_WHEEL_CMD
+        return actor == Actor.SLOT_BIND || actor == Actor.HARP_KEY || actor == Actor.PET_WHEEL_MENU || actor == Actor.PET_WHEEL_CMD
                 || actor == Actor.LOADOUT_SWAP_MENU || actor == Actor.LOADOUT_SWAP_CMD;
     }
 

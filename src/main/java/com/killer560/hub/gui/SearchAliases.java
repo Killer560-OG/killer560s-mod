@@ -16,6 +16,9 @@ public final class SearchAliases {
     private static final Map<String, String> ALIASES = Map.ofEntries(
             Map.entry("etable", "experiment"),
             Map.entry("auto harp", "auto melody's harp"),
+            Map.entry("harp keybinds", "melody's harp helper"),
+            Map.entry("harp gui scale", "melody's harp helper"),
+            Map.entry("harp progress", "melody's harp helper"),
             Map.entry("time lost", "melody lost"),
             Map.entry("lost to melody", "melody lost"),
             // espname-1118: Dungeon ESP / Mob ESP became Dungeon Mob Highlight.

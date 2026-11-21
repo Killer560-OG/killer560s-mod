@@ -3209,6 +3209,21 @@ final class SettingTooltipsData {
         d.put("auto melody's harp", "Plays any song you open in Melody's Harp by itself, to the end (cheat build only).");
         d.put("auto melody's harp/auto detect lag", "Follows how fast the note rows really move (a laggy server moves them slower) instead of assuming a fixed speed, to decide how early a click must go.");
         d.put("auto melody's harp/auto detect ping", "Clicks early by your measured ping when it is longer than half a note step, so the click reaches the server while the note is still there.");
+        d.put("melody's harp helper", "Helpers for Melody's Harp: keys for the notes, a GUI scale, a progress tracker, key labels, hidden tooltips and Quick Restart. Off by default.");
+        d.put("melody's harp helper/key binds", "While a song is open, a key (or mouse button) per note column plays that column's button at once, even when the press lands in the same tick as another. Default keys 1 to 7.");
+        d.put("melody's harp helper/key 1", "The key or mouse button that plays note column 1 (the first from the left). Click, then press it; Escape clears it.");
+        d.put("melody's harp helper/key 2", "The key or mouse button that plays note column 2 (the second from the left). Click, then press it; Escape clears it.");
+        d.put("melody's harp helper/key 3", "The key or mouse button that plays note column 3 (the third from the left). Click, then press it; Escape clears it.");
+        d.put("melody's harp helper/key 4", "The key or mouse button that plays note column 4 (the fourth from the left). Click, then press it; Escape clears it.");
+        d.put("melody's harp helper/key 5", "The key or mouse button that plays note column 5 (the fifth from the left). Click, then press it; Escape clears it.");
+        d.put("melody's harp helper/key 6", "The key or mouse button that plays note column 6 (the sixth from the left). Click, then press it; Escape clears it.");
+        d.put("melody's harp helper/key 7", "The key or mouse button that plays note column 7 (the seventh from the left). Click, then press it; Escape clears it.");
+        d.put("melody's harp helper/show keys", "Draws each column's key in the corner of its button.");
+        d.put("melody's harp helper/progress tracker", "Shows notes hit out of notes seen, the percent and your combo over the song, counted from what the menu shows (it is an estimate; the server decides).");
+        d.put("melody's harp helper/custom gui scale", "Uses its own GUI scale in Melody's Harp and its song list, and puts yours back when you leave. Your saved GUI Scale option is never changed.");
+        d.put("melody's harp helper/gui scale", "The scale used in Melody's Harp: Auto is the biggest that fits the window, or 1 to 6 (a bigger number than fits is cut down to what fits). Click to step up, right click to step down.");
+        d.put("melody's harp helper/hide tooltips", "Hides every item tooltip inside the song, so none covers the notes.");
+        d.put("melody's harp helper/quick restart", "In Melody's song list, a click on the close button within 2 seconds of opening it clicks the selected song instead, so the song starts again.");
         d.put("auto melody's harp/click offset", "Added to the ping lead in milliseconds (it is the whole lead with Auto Detect Ping off): positive clicks earlier, negative later. -300 to 300 ms.");
     }
 
