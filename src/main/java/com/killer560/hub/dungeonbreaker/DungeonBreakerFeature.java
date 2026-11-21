@@ -50,7 +50,9 @@ public final class DungeonBreakerFeature {
         if (charges <= 0) {
             return false;
         }
-        boolean blocked = BreakerGuard.protects(client.level, pos);
+        // A sim wither/blood door is protected from digging but a punch OPENS it (SimDoors.punch): let that START go through.
+        boolean blocked = BreakerGuard.protects(client.level, pos)
+                && !(com.killer560.hub.roomsim.SimState.isActive() && com.killer560.hub.roomsim.SimDoors.isLockedDoorBlock(pos));
         if (blocked) {
             logOnce("guard " + pos.toShortString(),
                     "[Breaker] click canceled at startDestroyBlock HEAD: pos={} block={} charges={} fairyRoom={} tick={}"

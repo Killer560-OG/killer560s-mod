@@ -33,6 +33,9 @@ public final class SimBreakRules {
 
     public static boolean refuses(BlockGetter level, BlockPos pos) {
         Block b = level.getBlockState(pos).getBlock();
+        if (SimDoors.isLockedDoorBlock(pos)) {
+            return true; // wither and blood doors open only with the key
+        }
         if (b == Blocks.POLISHED_GRANITE || b == Blocks.DISPENSER || b instanceof PistonBaseBlock || b instanceof PistonHeadBlock
                 || b instanceof MovingPistonBlock) {
             return true;

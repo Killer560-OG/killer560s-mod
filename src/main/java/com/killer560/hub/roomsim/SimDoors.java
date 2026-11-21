@@ -108,6 +108,12 @@ public final class SimDoors {
     /** A shut door's block: a click on it is the door's, never an ability's (SimAbilities skips it). */
     static boolean isDoorBlock(BlockPos pos) { return pos != null && BLOCK_INDEX.containsKey(pos); }
 
+    /** A wither or blood door's block: no break path (Dungeonbreaker, Breaker Aura, Superboom) may take it, key or no key, as on Hypixel. */
+    public static boolean isLockedDoorBlock(BlockPos pos) {
+        Door d = pos == null ? null : BLOCK_INDEX.get(pos);
+        return d != null && (d.type() == DungeonLayout.DOOR_WITHER || d.type() == DungeonLayout.DOOR_BLOOD);
+    }
+
     /** Doors currently mid-open: door -> ticks remaining until the BARRIER blocks are removed. */
     private static final Map<Door, Integer> PENDING = new ConcurrentHashMap<>();
 
@@ -359,6 +365,19 @@ public final class SimDoors {
             return useDoor(client, player, hand, door);
         });
         registerServerTick();
+    }
+
+    /**
+     * A left click (START_DESTROY_BLOCK) on a wither or blood door block, on the server thread: on Hypixel a punch opens the door
+     * like a right click, whatever is in hand. Runs the same rule as the right click; consumes the click so no tool digs.
+     * @return true when the block is a locked door's (the caller then does nothing else with the click)
+     */
+    static boolean punch(net.minecraft.server.level.ServerPlayer sp, BlockPos pos) {
+        Door door = isLockedDoorBlock(pos) ? BLOCK_INDEX.get(pos) : null;
+        if (door == null) return false;
+        Minecraft client = Minecraft.getInstance();
+        client.execute(() -> useDoor(client, sp, InteractionHand.MAIN_HAND, door));
+        return true;
     }
 
     /** One click on a door by {@code player} (him, or a co-op guest's server player). Client thread. */

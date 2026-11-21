@@ -499,6 +499,7 @@ public final class SimItems {
             Minecraft.getInstance().execute(() -> com.killer560.hub.roomsim.puzzles.SimCreeperPuzzle.struckAt(pos, eye));
             return net.minecraft.world.InteractionResult.SUCCESS;
         }
+        if (SimDoors.punch(sp, pos)) return net.minecraft.world.InteractionResult.SUCCESS;
         String id = com.killer560.hub.cheatutils.CheatUtils.skyblockId(sp.getItemInHand(hand));
         if ("DUNGEONBREAKER".equals(id)) {
             // ONE charge per block per press, which is what the real item costs.
@@ -669,7 +670,7 @@ public final class SimItems {
             for (BlockPos here : targets) {
                 // What a blast never takes, whichever group brought it in: a secret, and anything unbreakable.
                 BlockState was = level.getBlockState(here);
-                if (was.isAir() || isSecretBlock(level, here) || was.getDestroySpeed(level, here) < 0) continue;
+                if (was.isAir() || isSecretBlock(level, here) || was.getDestroySpeed(level, here) < 0 || SimDoors.isLockedDoorBlock(here)) continue;
                 // The prince: the golden crypt that was already in the room. Blowing one opens it and drops
                 // its zombie; only the FIRST prince of the run scores, on his word "multiple princes still
                 // the first one only gives 1 score".
@@ -940,6 +941,7 @@ public final class SimItems {
     /** Skips air and anything with a negative destroy speed (bedrock, barriers, ...) - the same "obstruction
      *  only, never actually clears" boundary the rest of the mod already respects for indestructible blocks. */
     private static void breakIfBreakable(ServerLevel level, BlockPos pos, ServerPlayer breaker) {
+        if (SimDoors.isLockedDoorBlock(pos)) return;
         BlockState state = level.getBlockState(pos);
         // Remembered BEFORE it goes, so it can come back - killer560 (2026-09-28): "make sure dungeon breaker
         // blocks come back after broken just like on main".

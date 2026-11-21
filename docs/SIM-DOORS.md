@@ -219,3 +219,16 @@ per-block override map as `RoomDoorPieces` (which skips Deuces W0). Matched to h
 Mimic eligibility matched names against "puzzle"/"trap", which Tic Tac Toe's does not contain, so its reward chest bit.
 `SimMimic.roomEligible` reads `RoomDatabase` type too, and `SimSecrets` offers a placed chest to the picker only for an
 eligible room (86b6b2ce). The same rule is why `SimFloorLayout.isDeadEnd` goes by type.
+
+## Keys open any hand; no tool breaks a wither or blood door (sim-witherdoor-1121, killer560 2026-11-21)
+
+A right click on a wither door with the team's Wither Key (SimKeys, not an item) opens it whatever is in hand (Dungeonbreaker,
+AOTV, Hyperion, bow, Superboom, empty hand), and the Blood Key does the same for the Blood door: the door rule runs in
+`SimDoors.DOOR_PHASE`, before the default phase where the ability items answer, and `SimAbilities` passes a door block. Without
+a key the click does nothing and the sim says nothing. A LEFT click (punch) opens it the same way, as on Hypixel: `SimItems.onServerAttack` hands a START on a locked door block to
+`SimDoors.punch` before any tool answers it, and `DungeonBreakerFeature.shouldBlockStart` lets that START through in the sim
+(it used to cancel it client-side because BreakerGuard protects the block).
+Nothing in the sim breaks a wither or blood door block, key or no key, as on Hypixel: `SimDoors.isLockedDoorBlock` is asked by
+`SimBreakRules.refuses` (the Dungeonbreaker START, and through `BreakerGuard.protects` Breaker Aura, Zero Ping and Auto Routes),
+by Superboom's per-block loop and by `SimItems.breakIfBreakable`. A refused break changes no block, so the client has no ghost
+hole. Testkit 1121-sim-witherdoor-anyitem and 1121-sim-witherdoor-nobreak.
