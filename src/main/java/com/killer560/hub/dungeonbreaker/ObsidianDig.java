@@ -100,6 +100,23 @@ public final class ObsidianDig {
         return pos != null;
     }
 
+    /** The block being dug, or null. */
+    public BlockPos target() {
+        return pos;
+    }
+
+    /** Digs held right now (any owner). */
+    private static volatile int live;
+
+    /**
+     * True while any obsidian dig is held. Vanilla ignores a right click while its own hand dig is in progress
+     * ({@code Minecraft#startUseItem} returns on {@code isDestroying}); this dig is sent without it, so the player's click
+     * would go out in the middle of it and GrimAC's experimental PacketOrderI flags a place/use while digging.
+     */
+    public static boolean holdingDig() {
+        return live > 0;
+    }
+
     /**
      * Sends the dig's START for {@code at} (which must be obsidian, loaded and in reach; the caller has already chosen
      * it, spent its charge and put the breaker in the hand). {@code aim}, when not null, turns the body to the block
@@ -107,6 +124,9 @@ public final class ObsidianDig {
      */
     public void start(Minecraft client, LocalPlayer player, BlockPos at, Direction digFace, Consumer<BlockPos> aim) {
         ClientLevel level = client.level;
+        if (pos == null) {
+            live++;
+        }
         pos = at.immutable();
         face = digFace;
         startGameTime = level.getGameTime();
@@ -278,6 +298,9 @@ public final class ObsidianDig {
     private void clear() {
         if (watched != null && watched.equals(pos)) {
             watched = null;
+        }
+        if (pos != null) {
+            live--;
         }
         pos = null;
         face = null;

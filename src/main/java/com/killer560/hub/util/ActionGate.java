@@ -354,6 +354,7 @@ public final class ActionGate {
     private static Actor lastScreenActor = null;
     private static long settleUntilTick = Long.MIN_VALUE;
     private static long teleportSettleUntilTick = Long.MIN_VALUE;
+    private static int prevPackets;
     /** The screen-transition settle, kept apart from {@link #settleUntilTick} so a fresh-each-tick world actor can waive it. */
     private static long screenSettleUntilTick = Long.MIN_VALUE;
     private static Actor selfTeleportActor = null;
@@ -498,6 +499,13 @@ public final class ActionGate {
             if (until > teleportSettleUntilTick) {
                 teleportSettleUntilTick = until;
             }
+        }
+        // Any server position packet, however short its move (a teleport accept to his own spot): the click of the same tick
+        // would go out beside the accept, and Grim reads that as RotationPlace (flaghunt-1110 B). One tick of quiet.
+        int packets = ServerCorrections.packetCount();
+        if (packets != prevPackets) {
+            prevPackets = packets;
+            teleportSettleUntilTick = Math.max(teleportSettleUntilTick, tick + 1);
         }
         prevPos = pos;
     }

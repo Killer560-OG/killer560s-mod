@@ -733,9 +733,20 @@ public final class BreakerAuraFeature {
         // STOP when the client's progress is full, and nothing else sent meanwhile. Its charge was spent on its START.
         if (OBSIDIAN.active()) {
             double r = cfg.getBreakerAuraReach();
+            // A STOP or restarted START is judged on the look (RotationBreak): a server teleport turns the body off the
+            // block mid-dig, so it waits while the look is turned back (fhb-1117, tp every 30 ticks on experimental Grim).
+            BlockPos dug = OBSIDIAN.target();
             com.killer560.hub.dungeonbreaker.ObsidianDig.Result res = OBSIDIAN.tick(client, player, r * r,
-                    () -> !com.killer560.hub.util.DigWindow.handDigsThisTick(client)
-                            && ActionGate.tryAct(ActionGate.Actor.BREAKER_AURA), null);
+                    () -> {
+                        if (com.killer560.hub.util.DigWindow.handDigsThisTick(client)) {
+                            return false;
+                        }
+                        if (!BreakerAim.digReady(player, dug)) {
+                            BreakerAim.aimFor(client, player, dug, false);
+                            return false;
+                        }
+                        return ActionGate.tryAct(ActionGate.Actor.BREAKER_AURA);
+                    }, null);
             if (res == com.killer560.hub.dungeonbreaker.ObsidianDig.Result.RUNNING) {
                 lastSkipReason = null;
                 idleSinceSwapTicks = 0;
@@ -869,12 +880,9 @@ public final class BreakerAuraFeature {
         idleSinceSwapTicks = 0;
 
         if (autoSwap && selected != breakerSlot) {
-            if (swapArmedTicks <= 0) {
-                armSwap(player, cfg, selected, breakerSlot);
-            } else {
-                logRated("swapwait", "[BreakerAura] held: {} target(s) in reach, breaker not in hand yet (slot {} ->"
-                        + " {}), swap armed {} tick(s)", targets.size(), selected, breakerSlot, swapArmedTicks);
-            }
+            // Also while a swap is still armed: his own hotbar change undid it, and the settling count only runs with the
+            // breaker in hand, so waiting here left the aura stuck for good (1110-fhb-breaker-autoswap-swap).
+            armSwap(player, cfg, selected, breakerSlot);
             return;
         }
         if (swapArmedTicks > 0) {
