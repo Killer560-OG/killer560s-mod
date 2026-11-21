@@ -92,6 +92,8 @@ public final class SimClasses {
         if (mate >= 0) return teammate(mate);
         Pick g = guestNames.get(name);
         if (g != null) return g;
+        DungeonClass listed = mateClass(name);
+        if (listed != null) return new Pick(listed, MAX_LEVEL);
         return name.equals(hostName) || hostName.isEmpty() ? self() : new Pick(DungeonClass.MAGE, MAX_LEVEL);
     }
 

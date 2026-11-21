@@ -259,7 +259,7 @@ public final class SimCoop {
         Party p = party;
         List<String> real = p.names().size() > 1 ? p.names()
                 : List.of(client.player == null ? "" : client.player.getGameProfile().name());
-        List<String> mates = SimTeammates.names();
+        List<String> mates = mates(p);
         if (mates.isEmpty()) return real;
         List<String> all = new ArrayList<>(real);
         all.addAll(mates);
@@ -270,7 +270,7 @@ public final class SimCoop {
     static String partyKey(Minecraft client) {
         Party p = party;
         String real = p.names().size() > 1 ? p.key() : client.player == null ? "" : client.player.getGameProfile().name();
-        List<String> mates = SimTeammates.names();
+        List<String> mates = mates(p);
         if (mates.isEmpty()) return real;
         // Asked every client tick by the tab: build the joined key only when either part changed.
         if (!real.equals(keyReal) || mates != keyMates) {
@@ -282,6 +282,26 @@ public final class SimCoop {
     }
 
     private static String keyReal;
+    private static List<String> lastMates = List.of();
+    private static int lastMatesClass = -1;
+
+    /**
+     * The party's Sim Teammates for the tab. Alone in a boss fight the Spirit Leap menu offers all four classes he does
+     * not play, placed or not (SimLeap.targets), so the tab lists them too, as Hypixel's would: Fast Leap and every other
+     * tab reader find the Mage there (fastleap-sim-1120: "Mage not found" with no teammate placed).
+     */
+    private static List<String> mates(Party p) {
+        if (p.names().size() > 1 || !com.killer560.hub.bosssim.BossLeapSpots.active()) return SimTeammates.names();
+        int cls = SimClasses.version();
+        if (cls != lastMatesClass) {
+            lastMatesClass = cls;
+            List<String> all = new ArrayList<>(SimTeammates.MAX);
+            for (int i = 0; i < SimTeammates.MAX; i++) all.add(SimTeammates.nameOf(i));
+            lastMates = List.copyOf(all);
+        }
+        return lastMates;
+    }
+
     private static List<String> keyMates;
     private static String key;
 

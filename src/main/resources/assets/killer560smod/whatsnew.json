@@ -1,5 +1,18 @@
 [
  {
+  "date": "2026-11-21",
+  "summary": "Fast Leap now works in the dungeon sim even with no Sim Team",
+  "sections": [
+   {
+    "title": "More",
+    "blurb": "Changes in this update.",
+    "items": [
+     "Fast Leap now works in the dungeon sim even with no Sim Teammate placed (the tab lists the four classes the leap menu offers), and a completed P3 section's Fast Leap goes to the target of the section you are standing in instead of the section that just finished."
+    ]
+   }
+  ]
+ },
+ {
   "date": "2026-11-20",
   "summary": "Inventory Sorter now waits 0.25 s between sack fetches inste",
   "sections": [

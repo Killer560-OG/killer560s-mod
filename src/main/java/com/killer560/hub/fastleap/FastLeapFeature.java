@@ -384,13 +384,13 @@ public final class FastLeapFeature {
         return cfg.isLeapFast(LeapGroup.MIDDLE) && isOutsideMiddle() && leapToConfigured(LeapTarget.MIDDLE);
     }
 
+    /**
+     * A completed section's auto leap goes to the target of the section he STANDS in (fastleap-sim-1120: "have the leaps
+     * be off of where i am not what section it actively is"), not the one that just finished; outside S1-S4 it does not leap.
+     */
     private static void handleP3Leap(Stage completedStage) {
         Stage currentStage = Floor7Tracker.getStageAt();
-        // don't leap if the player is already in a later stage
-        if (currentStage == Stage.UNKNOWN || currentStage.number > completedStage.number) {
-            return;
-        }
-        LeapTarget target = switch (completedStage) {
+        LeapTarget target = switch (currentStage) {
             case S1 -> LeapTarget.S1;
             case S2 -> LeapTarget.S2;
             case S3 -> LeapTarget.S3;

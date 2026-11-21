@@ -2300,7 +2300,7 @@ final class SettingTooltipsData {
         d.put("fast/auto leap/return to", "The hotbar slot an Auto leap swaps to after leaping, when it had to swap to the leap: your previous slot, Stay on Leap (no swap back), or a fixed slot 1-9 (cheat build only).");
         d.put("fast/auto leap/keywords", "Posmsg mode: party-chat words that mark who is at this spot, comma separated.");
         for (int sec = 1; sec <= 4; sec++) {
-            d.put("fast/auto leap/s" + sec, "Who you leap to in P3 when section " + sec + " is done." + pick);
+            d.put("fast/auto leap/s" + sec, "Who you leap to in P3 when a section is done while you stand in section " + sec + "." + pick);
             d.put("fast/auto leap/s" + sec + " keywords", "Posmsg mode: party-chat words that mark who is at section " + sec + ", comma separated.");
         }
         d.put("gif player/speed", "GIF playback speed, 0.25x-4x (1 = normal).");
