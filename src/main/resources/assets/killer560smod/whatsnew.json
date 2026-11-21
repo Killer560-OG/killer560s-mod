@@ -13,7 +13,8 @@
      "Closing the game while Spotify's media helper is stuck no longer hangs the shutdown and draws a watchdog crash.",
      "Insta Clear tracker: saving its evidence file after a room closes no longer happens on the game tick, so it cannot cause a stutter.",
      "Menu audit fixes: wrong and missing tooltips, labels and spellings corrected, Storage Overlay and Ghost ESP through walls now start OFF, Terminal First Click Delay 150 ms, Auto Terminals click delay 120-160 ms, launcher-neutral Account Switcher wording.",
-     "Auto Correct now fixes a short command typed with one extra letter, such as /ety to /et."
+     "Auto Correct now fixes a short command typed with one extra letter, such as /ety to /et.",
+     "Block Ender Pearls In Boss no longer blocks Spirit Leaps, only plain Ender Pearls."
     ]
    }
   ]
