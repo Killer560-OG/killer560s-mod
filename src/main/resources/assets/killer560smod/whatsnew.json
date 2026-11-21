@@ -18,7 +18,8 @@
      "Dungeon map: a large room no longer splits into two rooms with the same name partway through a run.",
      "Auto Terminals no longer waits on or stalls at a click another mod's terminal solver blocked: Rubix and Click in Order finish in about 2 s again instead of 4 s or more, and the dungeon sim's terminals answer a click with only the changed slots, as Hypixel does.",
      "Dungeon sim: the Watcher now behaves like the real one in the blood camp. He flies to each skull he picks and hovers over it, greets with the real line, sends the first wave and the later skulls at the real times, says a summon line on the tick a skull leaves, comments on a kill a moment after it and says the pass line shortly after the last kill.",
-     "New Melody's Harp Helper tab: press keys 1 to 7 to play the harp columns (rebindable, with labels in the click row), a progress tracker with hits, combo and best, a custom GUI scale just for the harp, hidden item tooltips, and a quick restart when you replay a song. Auto Melody's Harp no longer misses notes after a server lag or a burst: it clicks a new note the moment it shows."
+     "New Melody's Harp Helper tab: press keys 1 to 7 to play the harp columns (rebindable, with labels in the click row), a progress tracker with hits, combo and best, a custom GUI scale just for the harp, hidden item tooltips, and a quick restart when you replay a song. Auto Melody's Harp no longer misses notes after a server lag or a burst: it clicks a new note the moment it shows.",
+     "Door Keys: the Sphere highlight is now one even color from every angle instead of a patchwork that shifted as you moved."
     ]
    }
   ]

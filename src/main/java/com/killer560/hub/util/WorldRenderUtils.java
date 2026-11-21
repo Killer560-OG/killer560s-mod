@@ -129,8 +129,8 @@ public final class WorldRenderUtils {
     }
 
     /**
-     * Draws a filled sphere (latitude/longitude quads), depth-tested like {@link #renderFilledBox}, every face in both
-     * windings so it reads the same from inside it as from outside. One flat color: the bands were shaded darker toward
+     * Draws a filled sphere (latitude/longitude quads), depth-tested like {@link #renderFilledBox}, as ONE layer
+     * ({@link EspTypes#FILLED_SHELL}: the winding that faces the camera, inside or out). One flat color: the bands were shaded darker toward
      * the bottom until 2026-11-01, when killer560 asked for the Door Keys sphere to be all one color.
      */
     public static void renderFilledSphere(LevelRenderContext context, Vec3 centre, double radius, int stacks, int slices,
@@ -139,7 +139,11 @@ public final class WorldRenderUtils {
         int nl = Math.max(6, slices);
         SphereTrig trig = sphereTrig(ns, nl);
         final double[] sinP = trig.sinP, cosP = trig.cosP, sinT = trig.sinT, cosT = trig.cosT;
-        McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.FILLED, (pose, buffer) -> {
+        // One layer (keysphere-1121): each quad once, back faces culled, no depth write. Inside the ball the winding flips.
+        Vec3 cam = McRender.cameraPos(context);
+        double dxc = cam.x - centre.x, dyc = cam.y - centre.y, dzc = cam.z - centre.z;
+        boolean camInside = dxc * dxc + dyc * dyc + dzc * dzc < radius * radius;
+        McRender.inCameraSpace(context, com.killer560.hub.util.EspTypes.FILLED_SHELL, (pose, buffer) -> {
             var matrix = pose.pose();
             for (int i = 0; i < ns; i++) {
                 // One flat color, no per-band shading (killer560, 2026-11-01, Door Keys: "Make it all the same color").
@@ -153,7 +157,17 @@ public final class WorldRenderUtils {
                     float bx = (float) (centre.x + cosT[j + 1] * c0), bz = (float) (centre.z + sinT[j + 1] * c0);
                     float cx = (float) (centre.x + cosT[j + 1] * c1), cz = (float) (centre.z + sinT[j + 1] * c1);
                     float dx = (float) (centre.x + cosT[j] * c1), dz = (float) (centre.z + sinT[j] * c1);
-                    twoSidedQuad(buffer, matrix, ax, y0, az, bx, y0, bz, cx, y1, cz, dx, y1, dz, sr, sg, sb, a);
+                    if (camInside) {
+                        vertex(buffer, matrix, ax, y0, az, sr, sg, sb, a);
+                        vertex(buffer, matrix, bx, y0, bz, sr, sg, sb, a);
+                        vertex(buffer, matrix, cx, y1, cz, sr, sg, sb, a);
+                        vertex(buffer, matrix, dx, y1, dz, sr, sg, sb, a);
+                    } else {
+                        vertex(buffer, matrix, dx, y1, dz, sr, sg, sb, a);
+                        vertex(buffer, matrix, cx, y1, cz, sr, sg, sb, a);
+                        vertex(buffer, matrix, bx, y0, bz, sr, sg, sb, a);
+                        vertex(buffer, matrix, ax, y0, az, sr, sg, sb, a);
+                    }
                 }
             }
         });

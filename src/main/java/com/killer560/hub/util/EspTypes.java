@@ -57,6 +57,20 @@ public final class EspTypes {
                     .build())), "killer560smod_esp_filled_nearest", false, BIAS_SLOPE, BIAS_CONSTANT)
                     .createRenderSetup());
 
+    /**
+     * One layer of a closed convex shell (keysphere-1121): back faces culled, depth tested with the bias but NO depth write,
+     * no sort. Every pixel of the shell is covered by exactly one front face, so its color cannot depend on draw order; the
+     * old {@link #FILLED} sphere (both windings, depth written, sorted per quad) rejected a random share of its far layers
+     * and read as a shifting patchwork. The caller emits the winding that faces the camera (outward, or inward when inside).
+     */
+    public static final RenderType FILLED_SHELL = RenderType.create("killer560smod_esp_filled_shell",
+            McRender.withOitDepthBias(RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
+                    .withLocation(Identifier.fromNamespaceAndPath("killer560smod", "pipeline/esp_filled_shell"))
+                    .withCull(true)
+                    .withDepthStencilState(new DepthStencilState(CompareOp.GREATER_THAN_OR_EQUAL, false, BIAS_SLOPE, BIAS_CONSTANT))
+                    .build())), "killer560smod_esp_filled_shell", false, BIAS_SLOPE, BIAS_CONSTANT)
+                    .createRenderSetup());
+
     /** Depth-tested (with {@link #BIAS_SLOPE} bias) and depth-writing translucent debug fill. */
     public static final RenderType FILLED = RenderType.create("killer560smod_esp_filled_depth",
             McRender.withOitDepthBias(RenderSetup.builder(RenderPipelines.register(RenderPipeline.builder(RenderPipelines.DEBUG_FILLED_SNIPPET)
