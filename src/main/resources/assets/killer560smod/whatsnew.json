@@ -16,7 +16,8 @@
      "Auto Correct now fixes a short command typed with one extra letter, such as /ety to /et.",
      "Block Ender Pearls In Boss no longer blocks Spirit Leaps, only plain Ender Pearls.",
      "Dungeon map: a large room no longer splits into two rooms with the same name partway through a run.",
-     "Auto Terminals no longer waits on or stalls at a click another mod's terminal solver blocked: Rubix and Click in Order finish in about 2 s again instead of 4 s or more, and the dungeon sim's terminals answer a click with only the changed slots, as Hypixel does."
+     "Auto Terminals no longer waits on or stalls at a click another mod's terminal solver blocked: Rubix and Click in Order finish in about 2 s again instead of 4 s or more, and the dungeon sim's terminals answer a click with only the changed slots, as Hypixel does.",
+     "Dungeon sim: the Watcher now behaves like the real one in the blood camp. He flies to each skull he picks and hovers over it, greets with the real line, sends the first wave and the later skulls at the real times, says a summon line on the tick a skull leaves, comments on a kill a moment after it and says the pass line shortly after the last kill."
     ]
    }
   ]

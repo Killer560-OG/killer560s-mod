@@ -38,24 +38,41 @@ public final class SimBloodCamp {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-sim");
 
-    /** From his 2026-11 camp logs: the first wave's four trips (ticks after the greeting), its flight, the move line. */
-    private static final int[] FIRST_TRIPS = {153, 153, 190, 235};
+    /*
+     * Measured (sim-watcher-real-1121) over 136 real camps in his logger recordings 11-16..11-21 (134 F7, 1 F4, ticks after
+     * the greeting line): the first wave's trips leave at a median 121 / 161 / 201 / 250, "Let's see how you can handle
+     * this." at 307, the first later trip 156 after it and later trips 50 apart (median, players killing at once); a summon
+     * line goes out on its trip's own tick (median 0), a kill line 14 after the kill, the pass line 10 after the last.
+     */
+    private static final int[] FIRST_TRIPS = {121, 161, 201, 250};
+    /** Which first-wave trips carry a summon line (real camps: about two of the four, the later ones). */
+    private static final boolean[] FIRST_LINE = {false, false, true, true};
     private static final int FIRST_FLIGHT = 77;
-    private static final int MOVE_LINE = 300;
-    /** Later trips: first one this long after the move line, then one every LATER_GAP ticks (logs: 16-103, ~53). */
-    private static final int LATER_START = 17;
-    private static final int LATER_GAP = 53;
+    private static final int MOVE_LINE = 307;
+    private static final int LATER_START = 156;
+    private static final int LATER_GAP = 50;
     private static final int LATER_FLIGHT = 39;
-    /** Estimated: his summon line before each trip, the pass line after the last kill, kill lines at most this often. */
-    private static final int SUMMON_LEAD = 40;
-    private static final int PASS_DELAY = 40;
+    private static final int PASS_DELAY = 10;
+    private static final int KILL_LINE_DELAY = 14;
+    /** Estimated: kill lines at most this often (not every kill gets one). */
     private static final int KILL_LINE_GAP = 40;
+    /*
+     * The Watcher's own flight (same camps, his position once a second): he greets from the room's center 4.5 up, flies
+     * to the case of each mob he picks and is there when its skull leaves (median 2 blocks from it, 1 block in front, 2.25
+     * above its skull), waits at the center 5.5 up from the move line until the first later trip, and flies in straight
+     * lines at about 0.6 blocks a tick. HOVER (how long he stays at a case after its skull left) is estimated.
+     */
+    private static final double SPEED = 0.6;
+    private static final int HOVER = 20;
 
-    /** Greeting per floor (index 0 = Entrance). The lines are the list; which floor says which is estimated. */
+    /**
+     * Greeting per floor (index 0 = Entrance). F4 and F7 are measured ("Ah, we meet again. As I foresaw..." in every real
+     * camp on both); the other floors keep the wiki's older lines (estimated).
+     */
     private static final String[] GREETINGS = {
             "Congratulations, you made it through the Entrance.", "Ah, you've finally arrived.", "Ah, we meet again...",
-            "So you made it this far... interesting.", "You've managed to scratch and claw your way here, eh?",
-            "I'm starting to get tired of seeing you around here...", "Oh.. hello?", "Things feel a little more roomy now, eh?"};
+            "So you made it this far... interesting.", "Ah, we meet again. As I foresaw...",
+            "I'm starting to get tired of seeing you around here...", "Oh.. hello?", "Ah, we meet again. As I foresaw..."};
     private static final String[] SUMMONS = {"This guy looks like a fighter.", "Go and live again!", "Not bad.", "You'll do.",
             "Go, fight!", "Hmmm... this one!"};
     private static final String[] KILLS = {"I'm impressed.", "That one was weak anyway.", "Aw, I liked that one.",
@@ -65,7 +82,7 @@ public final class SimBloodCamp {
         final ArmorStand skull;
         final String skin;
         final String name;
-        final int start;
+        int start;
         final int flight;
         final double distance;
         Vec3 from;
@@ -84,6 +101,13 @@ public final class SimBloodCamp {
         }
     }
 
+    /** One straight flight of the Watcher: from, to, the tick he leaves and the tick he arrives, his yaw on the way. */
+    private record Leg(Vec3 from, Vec3 to, int depart, int arrive, float yaw) {
+    }
+
+    private static final List<Leg> LEGS = new ArrayList<>();
+    private static int legIndex;
+    private static int killLineAt = -1;
     private static String mapCode = "";
     /** Ticks since the greeting, or -1 before the camp started. */
     private static int tick = -1;
@@ -190,25 +214,33 @@ public final class SimBloodCamp {
                 if (t.mob != null) com.killer560.hub.compat.McEntities.setInvulnerable(t.mob, false);
             }
         }
+        moveWatcher();
         int summon = 0;
         boolean allDown = !TRIPS.isEmpty();
         for (int i = 0; i < TRIPS.size(); i++) {
             Trip t = TRIPS.get(i);
-            if (tick == t.start - SUMMON_LEAD && (i == 0 || TRIPS.get(i - 1).start != t.start)) {
-                say(server, i == TRIPS.size() - 1 ? "That will be enough for now." : SUMMONS[summon++ % SUMMONS.length]);
+            boolean speaks = i >= FIRST_TRIPS.length || FIRST_LINE[i];
+            if (speaks) summon++;
+            if (tick == t.start && speaks) {
+                say(server, i == TRIPS.size() - 1 ? "That will be enough for now." : SUMMONS[(summon - 1) % SUMMONS.length]);
             }
             fly(level, t);
             if (t.mob != null && !t.killed && (t.mob.isRemoved() || !t.mob.isAlive())) {
                 t.killed = true;
                 if (t.tag != null) t.tag.discard();
-                if (tick - lastKillLine >= KILL_LINE_GAP) {
-                    lastKillLine = tick;
-                    say(server, KILLS[rng.nextInt(KILLS.length)]);
-                }
+                if (killLineAt < 0 && tick - lastKillLine >= KILL_LINE_GAP) killLineAt = tick + KILL_LINE_DELAY;
             }
             allDown &= t.killed;
         }
-        if (allDown && passAt < 0) passAt = tick + PASS_DELAY;
+        if (allDown && passAt < 0) {
+            passAt = tick + PASS_DELAY;
+            killLineAt = -1; // the last kill gets the pass line instead (real camps: pass 10 ticks after it, no kill line)
+        }
+        if (tick == killLineAt) {
+            killLineAt = -1;
+            lastKillLine = tick;
+            say(server, KILLS[rng.nextInt(KILLS.length)]);
+        }
         if (tick == passAt) {
             say(server, "You have proven yourself. You may pass.");
             LOGGER.info("[Sim] blood camp cleared {} ticks after the greeting ({} mobs)", tick, TRIPS.size());
@@ -241,13 +273,72 @@ public final class SimBloodCamp {
             TRIPS.add(new Trip(SimMobs.spawnBloodSkull(level, at[0], at[1], at[2], skin), skin,
                     names.get(rng.nextInt(names.size())), startAt, first ? FIRST_FLIGHT : LATER_FLIGHT, first ? 16.1 : 11.9));
         }
-        watcher = SimMobs.spawnWatcher(level, center.x, center.y + 6, center.z, BloodCampFeature.watcherSkin());
+        plan();
+        watcher = SimMobs.spawnWatcher(level, center.x, center.y + 4.5, center.z, BloodCampFeature.watcherSkin());
         forceChunks(level, c.getX() >> 4, c.getZ() >> 4, true);
         tick = 0;
         lastKillLine = -KILL_LINE_GAP;
+        killLineAt = -1;
         say(server, GREETINGS[n]);
         LOGGER.info("[Sim] blood camp started on {} by {}: {} mobs, killable {} ticks after the greeting, center {}", floor,
                 p.getGameProfile().name(), total, killable, c.toShortString());
+    }
+
+    /**
+     * The Watcher's flights: to each trip's case (1 block in front of it, 2.25 above the skull) so he is there on its start
+     * tick, back to the center after the first wave, waiting HOVER ticks at a case before leaving. A trip whose case he
+     * cannot reach in time at SPEED leaves when he arrives.
+     */
+    private static void plan() {
+        LEGS.clear();
+        legIndex = 0;
+        Vec3 at = new Vec3(center.x, center.y + 4.5, center.z);
+        int free = 0;
+        for (int i = 0; i < TRIPS.size(); i++) {
+            Trip t = TRIPS.get(i);
+            if (i == FIRST_TRIPS.length) {
+                Vec3 mid = new Vec3(center.x, center.y + 5.5, center.z);
+                int depart = Math.max(free, MOVE_LINE - travel(at, mid));
+                free = addLeg(at, mid, depart);
+                at = mid;
+            }
+            Vec3 c = t.skull.position();
+            boolean xWall = Math.abs(c.x - center.x) > Math.abs(c.z - center.z);
+            Vec3 hover = new Vec3(c.x + (xWall ? Math.signum(center.x - c.x) : 0), c.y + 2.25,
+                    c.z + (xWall ? 0 : Math.signum(center.z - c.z)));
+            int arrive = addLeg(at, hover, Math.max(free, t.start - travel(at, hover)));
+            t.start = Math.max(t.start, arrive);
+            if (i + 1 < TRIPS.size() && TRIPS.get(i + 1).start < t.start) TRIPS.get(i + 1).start = t.start + 1;
+            at = hover;
+            free = t.start + HOVER;
+        }
+    }
+
+    private static int travel(Vec3 a, Vec3 b) {
+        return (int) Math.ceil(a.distanceTo(b) / SPEED);
+    }
+
+    /** Adds a flight leaving on {@code depart}; returns its arrival tick. */
+    private static int addLeg(Vec3 from, Vec3 to, int depart) {
+        int arrive = depart + travel(from, to);
+        LEGS.add(new Leg(from, to, depart, arrive, (float) Math.toDegrees(Math.atan2(-(to.x - from.x), to.z - from.z))));
+        return arrive;
+    }
+
+    /** Moves the Watcher along his current flight (nothing while he waits). */
+    private static void moveWatcher() {
+        if (watcher == null || watcher.isRemoved()) return;
+        while (legIndex < LEGS.size()) {
+            Leg l = LEGS.get(legIndex);
+            if (tick < l.depart()) return;
+            double f = l.arrive() <= l.depart() ? 1 : Math.min(1, (tick - l.depart()) / (double) (l.arrive() - l.depart()));
+            watcher.setPos(l.from().x + (l.to().x - l.from().x) * f, l.from().y + (l.to().y - l.from().y) * f,
+                    l.from().z + (l.to().z - l.from().z) * f);
+            watcher.setYRot(l.yaw());
+            watcher.setYHeadRot(l.yaw());
+            if (f < 1) return;
+            legIndex++;
+        }
     }
 
     /**
@@ -353,6 +444,7 @@ public final class SimBloodCamp {
         }
         if (watcher != null && !watcher.isRemoved()) watcher.discard();
         TRIPS.clear();
+        LEGS.clear();
         forceChunks(level, 0, 0, false);
         watcher = null;
         tick = -1;

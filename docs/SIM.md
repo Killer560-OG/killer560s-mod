@@ -62,20 +62,28 @@ Positions always come from `BloodRushData.boxes` (the shared table, a static fal
 type, gear, skin and yaw, read from the shared store (`RecordCatalog.SIM_MOB_LOOKS`, `sim-mob-looks.json`) by `SimMobLooks.lookIn`. Nothing records new
 looks since brboxes-only-1117 (the recorder rode on Learn Spawn Spots); a recorder belongs in the logger mod if wanted again.
 
-Measured from his 2026-11 camp logs (ticks after the greeting): first wave 4 trips at +153, +153, +190, +235, 77-tick
-flights of 16.1 blocks; "Let's see how you can handle this." at ~+300; later trips 11.9 blocks in 39 ticks; mobs killable
-from `BloodCampMoveTimer.fastWatcherMoveTicks(floor)`; 9 + floor number mobs; case grid x/z 12 out from the room center (one
-wall pair at -4/0/4 along it, the other at +-9), y 71.75 / 75.75 / 79.75 (sim: center y + 1.75 / 5.75 / 9.75). In the Blood
-capture the cases are cauldrons at y 75 and 79, which is how the camp picks the grid's turn.
+Measured from his 2026-11 camp logs (ticks after the greeting): 77-tick first-wave flights of 16.1 blocks; later trips
+11.9 blocks in 39 ticks; mobs killable from `BloodCampMoveTimer.fastWatcherMoveTicks(floor)`; 9 + floor number mobs; case
+grid x/z 12 out from the room center (one wall pair at -4/0/4 along it, the other at +-9), y 71.75 / 75.75 / 79.75 (sim:
+center y + 1.75 / 5.75 / 9.75). In the Blood capture the cases are cauldrons at y 75 and 79, which is how the camp picks
+the grid's turn.
 
-**Estimated** (refine from real camps' `[BloodCamp] camp census: floor X, N skull trips (M first wave), cleared T game
-ticks after the greeting` line): later trips start move line + 17 then every 53 ticks (logs ranged 16-103); the summon
-line 40 ticks before each trip; kill lines at most every 40 ticks; the pass line 40 ticks after the last kill; which
-greeting each floor says (the list, in order E..F7); the Watcher's spot (room center, 6 up, still); landings aimed
-within 4 blocks of the center at floor height; the mob count on Master Mode (same 9 + floor); blood mobs are zombies in
-the skull (Hypixel's are player models).
+Measured again over 136 real camps in his logger recordings 11-16..11-21 (134 F7, 1 F4; sim-watcher-real-1121, scripts in
+killer560s-mod-logs/simwatch-1121, medians): the greeting on F4 and F7 is "Ah, we meet again. As I foresaw..."; the
+first wave leaves at +121 / +161 / +201 / +250 (spread 114-228, 132-281, 142-292, 173-301), about two of its four trips
+with a summon line; "Let's see how you can handle this." at +307; the first later trip 156 after it, then every 50 ticks
+(players killing at once); a summon line on its trip's own tick (median 0, the last one "That will be enough for now.");
+a kill line 14 ticks after its kill; the pass line 10 after the last kill, with no kill line for it. The Watcher is not
+still: he greets from the room center 4.5 up, flies in straight lines at about 0.6 blocks a tick to the case of each mob
+he picks and is there when its skull leaves (about 1 block in front of it, 2.25 above the skull), and waits at the center
+5.5 up from the move line until the first later trip.
 
-Testkit 1110-sim-reallooks, 1110-sim-bloodcamp, 1110-sim-bloodcamp-off, 1110-sim-switches; 1104-bloodrush-known checks the
+**Estimated** (still to refine from real camps): how long he stays at a case after its skull left (20 ticks); kill lines
+at most every 40 ticks; greetings on E, F1-F3, F5 and F6 (the wiki's older lines); later trip spacing when players kill
+slowly (the sim keeps 50); landings aimed within 4 blocks of the center at floor height; the mob count on Master Mode
+(same 9 + floor); blood mobs are zombies in the skull (Hypixel's are player models); Watchful Eyes on F4+ are not built.
+
+Testkit 1121-sim-watcher-real (timing and flight against the real camps), 1110-sim-reallooks, 1110-sim-bloodcamp, 1110-sim-bloodcamp-off, 1110-sim-switches; 1104-bloodrush-known checks the
 recorder (a look per learned room, saved to the store).
 
 ## Spirit Leap and InfiniLeap (siminfleap-1116)
