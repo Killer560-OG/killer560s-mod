@@ -913,8 +913,12 @@ public final class LiveMapFeature {
         return mapKind != DungeonMapScanner.KIND_DOOR && !mapShowsRoomsAround(idx);
     }
 
-    /** Whether the dungeon map shows a room on every tile the gap {@code idx} lies between: left and right of a gap
-     *  between columns, above and below one between rows, all four diagonal tiles of a 2x2 room's center. */
+    /** Whether the dungeon map shows an OPENED room on every tile the gap {@code idx} lies between: left and right of a
+     *  gap between columns, above and below one between rows, all four diagonal tiles of a 2x2 room's center.
+     *  <p>atlasmap-1121 (killer560, 2026-11-21: "THE MAP JUST BROKE FOR ATLAS"): the map draws an unopened room (gray, the
+     *  question mark) as a bare square per tile with nothing in the gaps between them, so an empty gap next to an
+     *  unopened tile says nothing about a wall. Counting it as one split Atlas's 2x2 into two rooms the moment a second
+     *  of its tiles showed gray. */
     static boolean mapShowsRoomsAround(int idx) {
         int gx = idx % GRID;
         int gz = idx / GRID;
@@ -925,7 +929,8 @@ public final class LiveMapFeature {
                 : oddX ? new int[][]{{gx - 1, gz}, {gx + 1, gz}} : new int[][]{{gx, gz - 1}, {gx, gz + 1}};
         for (int[] t : tiles) {
             if (t[0] < 0 || t[1] < 0 || t[0] >= GRID || t[1] >= GRID
-                    || DungeonMapScanner.kindAt(t[0] + t[1] * GRID) != DungeonMapScanner.KIND_ROOM) {
+                    || DungeonMapScanner.kindAt(t[0] + t[1] * GRID) != DungeonMapScanner.KIND_ROOM
+                    || DungeonMapScanner.stateAt(t[0] + t[1] * GRID) >= DungeonMapScanner.STATE_UNOPENED) {
                 return false;
             }
         }
@@ -1515,6 +1520,20 @@ public final class LiveMapFeature {
             }
         }
         groupsDirty = true;
+    }
+
+    /** Test hook (testkit 1121-logic-map-atlas-split): sets the map item's reading ({@link DungeonMapScanner#testSetCells}
+     *  format) over the floor {@link #testLoadFloor} left, and returns the rebuilt grouping as "rooms|Name:tiles/cells ...". */
+    public static String testLoadMap(String[] rows) {
+        DungeonMapScanner.testSetCells(rows);
+        groupsDirty = true;
+        ensureGroups();
+        StringBuilder sb = new StringBuilder().append(groups.size()).append('|');
+        for (RoomGroup g : groups) {
+            sb.append(g.entry != null ? g.entry.name : "?").append(':').append(g.tiles.length).append('/')
+                    .append(g.cells.length).append(' ');
+        }
+        return sb.toString().trim();
     }
 
     /** Test hook (testkit 1117-logic-maplabel-shape): the label center {gx, gz} of the room named {@code name} after {@link #testLoadFloor}, or null. */

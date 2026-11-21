@@ -454,6 +454,29 @@ final class DungeonMapScanner {
         };
     }
 
+    /** Test hook (testkit 1121-logic-map-atlas-split): the map item's reading per cell as text rows, '.' nothing,
+     *  'r' an opened room tile, 'u' an unopened (gray) one, 's' a room separator, 'd' a door; no rows = reset. */
+    static void testSetCells(String[] rows) {
+        reset();
+        if (rows.length == 0) {
+            return;
+        }
+        calibrated = true;
+        for (int gz = 0; gz < rows.length; gz++) {
+            for (int gx = 0; gx < rows[gz].length(); gx++) {
+                int idx = gx + gz * GRID;
+                char ch = rows[gz].charAt(gx);
+                kinds[idx] = switch (ch) {
+                    case 'r', 'u' -> KIND_ROOM;
+                    case 's' -> KIND_SEPARATOR;
+                    case 'd' -> KIND_DOOR;
+                    default -> KIND_NONE;
+                };
+                states[idx] = ch == 'u' ? STATE_UNOPENED : ch == '.' ? STATE_UNDISCOVERED : STATE_DISCOVERED;
+            }
+        }
+    }
+
     /** Test hook: the calibrated start corner {x, z} and room size, or null before calibration. */
     static int[] calibration() {
         return calibrated ? new int[]{startCornerX, startCornerZ, mapRoomSize} : null;

@@ -14,7 +14,8 @@
      "Insta Clear tracker: saving its evidence file after a room closes no longer happens on the game tick, so it cannot cause a stutter.",
      "Menu audit fixes: wrong and missing tooltips, labels and spellings corrected, Storage Overlay and Ghost ESP through walls now start OFF, Terminal First Click Delay 150 ms, Auto Terminals click delay 120-160 ms, launcher-neutral Account Switcher wording.",
      "Auto Correct now fixes a short command typed with one extra letter, such as /ety to /et.",
-     "Block Ender Pearls In Boss no longer blocks Spirit Leaps, only plain Ender Pearls."
+     "Block Ender Pearls In Boss no longer blocks Spirit Leaps, only plain Ender Pearls.",
+     "Dungeon map: a large room no longer splits into two rooms with the same name partway through a run."
     ]
    }
   ]
