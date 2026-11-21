@@ -183,9 +183,9 @@ public final class SimHelp {
                 Line.text("Join: lists open rooms"),
                 Line.text("Friends on another Minecraft version are told which version to open"),
                 Line.text("Receive Sim Invites (Sim Settings): turns invites on"),
+                Line.text("Share My IP (Sim Settings, off): friends may join you directly if the relay is full or down; they see your IP"),
                 Line.text("/siminvite: answer an invite"),
-                Line.text("The game is a direct connection to the host"),
-                Line.text("Only the room's name and address go through the mod's relay")), true, List.of(COOP)));
+                Line.text("The game goes through the mod's private relay: nobody sees anyone's IP")), true, List.of(COOP)));
         pages.add(new Page("Keys and Records", List.of(
                 Line.text("Next Room and Previous Room keys (Sim Settings): same as /next and /back"),
                 Line.text("Run time and score: on the sidebar and in chat as you clear"),

@@ -159,6 +159,11 @@ public class SimSettingsTab extends BaseTab implements KeyCaptureTab {
         w.add(onOffButton("Receive Sim Invites", coop::receiveInvites, coop::setReceiveInvites, () -> { }, null,
                 contentX, y, contentWidth, 18));
         y += 22;
+        // Share My IP (coopproxy-1120, default OFF): the relay proxy keeps every address private; this lets friends connect
+        // straight to the host when the relay is full or down, after each of them confirms it.
+        w.add(onOffButton("Share My IP (direct connection)", coop::shareIp, coop::setShareIp, () -> { }, null,
+                contentX, y, contentWidth, 18));
+        y += 22;
         int blocked = coop.blocked().size();
         if (blocked > 0) {
             w.add(SettingsButtonWidget.builder(Component.literal("Clear Blocked Inviters: " + blocked), b -> {

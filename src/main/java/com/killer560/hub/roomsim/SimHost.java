@@ -23,8 +23,10 @@ import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Co-op sim, phase 2: the owner's room (docs/SIM-COOP.md "Multiplayer"). Create opens the sim world to LAN on a free
- * port, asks the router to forward it ({@link SimUpnp}) and lists the room on the relay ({@link SimRooms}); only room
- * metadata goes through the relay, never game traffic. In a locked or listed room the host's server admits a guest only
+ * port, starts the co-op gateway ({@link SimProxy}) on its own port, asks the router to forward THAT port
+ * ({@link SimUpnp}) and lists the room on the relay ({@link SimRooms}), whose probe checks the gateway answers from
+ * outside. Guests come in through the relay's proxy, so neither side sees the other's address (coopproxy-1120);
+ * Share My IP (default off) also lets a guest who confirmed it connect straight to the gateway. In a locked or listed room the host's server admits a guest only
  * with a ticket the relay issued (its {@code sim_hello_ack} names it) and kicks one without, ~12 s after it joined. Max
  * players holds on the server too. Client thread for the room, server thread for admission; the shared fields are
  * volatile or concurrent.
@@ -44,9 +46,12 @@ public final class SimHost {
     private static final int REFRESH_TICKS = 600;
     private static final int OPEN_WAIT_TICKS = 20 * 90;
 
-    private static volatile boolean active, pendingOpen, refreshNow, inFlight;
-    private static volatile String name = "", password = "", roomId, secret, publicHost;
-    private static volatile int max = 5, port = -1, publicPort = -1, punchPort;
+    private static volatile boolean active, pendingOpen, refreshNow, inFlight, reachable, toldUnreachable;
+    private static volatile String name = "", password = "", roomId, secret;
+    /** The LAN port, the gateway's own port, and the port the router maps to it (the gateway port when UPnP failed). */
+    private static volatile int max = 5, port = -1, gatewayPort = -1, mappedPort = -1;
+    /** Refreshes since the last probe while unreachable (a probe goes every 4th refresh, 2 min). */
+    private static int sinceProbe;
     private static volatile long roomKey;
     /** What Create shows: the port, the router's answer, the list's answer. */
     private static volatile String status = "", upnpLine = "", listLine = "";
@@ -168,11 +173,11 @@ public final class SimHost {
     /** Every guest on the server (not the owner), refreshed every 10 server ticks. */
     public static List<Guest> guests() { return guests; }
 
-    /** The public address guests outside his network use, or null when the router did not open the port. */
-    public static String publicAddress() { return publicHost == null ? null : publicHost + ":" + publicPort; }
+    /** Whether the relay's probe reached this room's gateway from outside (the room is listed only then). */
+    public static boolean reachable() { return reachable; }
 
-    /** The local port this room's TCP hole punches go out from (0: punching is off). */
-    static int punchPort() { return punchPort; }
+    /** The port friends outside the network come in on (the mapped gateway port), -1 before it is known. */
+    public static int coopPort() { return mappedPort; }
 
     /** {kicked without a ticket or by the owner, refused as full}, for tests. */
     public static int[] countsForTest() { return new int[]{kicks, fullRefusals}; }
@@ -218,8 +223,15 @@ public final class SimHost {
         roomId = null;
         secret = null;
         roomKey = 0;
-        publicHost = null;
-        punchPort = SimPunch.pickHostPort();
+        reachable = false;
+        toldUnreachable = false;
+        mappedPort = -1;
+        try {
+            gatewayPort = SimProxy.hostStart(p);
+        } catch (java.io.IOException e) {
+            status = "Could not open the co-op gateway (" + e.getMessage() + ").";
+            return status;
+        }
         TICKETS.clear();
         CLAIMED.clear();
         ADMITTED.clear();
@@ -228,11 +240,13 @@ public final class SimHost {
         upnpLine = "Asking your router to open the port...";
         listLine = "";
         SimCoop.LOGGER.info("[SimCoop] hosting \"{}\" on port {} ({} max{})", name, p, max, locked() ? ", locked" : "");
-        SimUpnp.map(p).thenAccept(r -> {
+        int gw = gatewayPort;
+        SimUpnp.map(gw).thenAccept(r -> {
             if (!active || port != p) return;
-            upnpLine = r.ok() ? r.message() + ": anyone can join." : r.message();
-            publicHost = r.ok() ? r.externalIp() : null;
-            publicPort = r.externalPort();
+            // Never the external address on screen: the host may be streaming. A failed mapping still lists with the
+            // gateway port, so a manual forward of it passes the relay's probe.
+            upnpLine = r.ok() ? "Your router opened co-op port " + r.externalPort() + "." : r.message();
+            mappedPort = r.ok() ? r.externalPort() : gw;
             list();
         });
         return null;
@@ -243,7 +257,7 @@ public final class SimHost {
         if (!active || inFlight) return;
         inFlight = true;
         listLine = "Listing the room...";
-        SimRooms.create(name, password, max, mode(), publicHost, publicPort, punchPort).whenComplete((rep, err) -> {
+        SimRooms.create(name, password, max, mode(), mappedPort, SimProxy.probeKey(), shareIp()).whenComplete((rep, err) -> {
             inFlight = false;
             if (!active) return;
             if (rep != null && rep.status() == 200 && rep.body() != null && rep.body().has("roomId")) {
@@ -251,20 +265,39 @@ public final class SimHost {
                 secret = rep.body().get("hostSecret").getAsString();
                 roomKey = key(id);
                 roomId = id;
-                listLine = "Listed in the room list" + (publicHost != null ? "." : punchPort > 0
-                        ? " (guests join by hole punch; if that fails, enable UPnP or forward port " + port + ")."
-                        : " (no way in from outside: enable UPnP or forward port " + port + ").");
-                SimCoop.LOGGER.info("[SimCoop] room listed ({}{})", publicHost == null ? "no public address" : "public",
-                        punchPort > 0 ? ", hole punch from port " + punchPort : "");
-                SimSignal.hostOpen(id, secret, port);
+                sinceProbe = 0;
+                probed(rep.body());
             } else {
                 String why = rep == null ? String.valueOf(err) : rep.error() == null ? "status " + rep.status() : rep.error();
-                listLine = "Not in the room list (" + why + ")" + (locked()
-                        ? ": a locked room cannot be joined until it is listed." : ": friends can still join by address.");
+                listLine = rep != null && rep.status() == 426 ? SimProxy.text(SimProxy.Fail.UPDATE, "")
+                        : "Not in the room list (" + why + "): friends on your network can still join from the LAN list.";
                 SimCoop.LOGGER.warn("[SimCoop] room not listed: {}", why);
             }
         });
     }
+
+    /** The relay's probe answer ({@code proxy}) on create or refresh: listed and reachable, or the unreachable text. */
+    private static void probed(JsonObject body) {
+        if (body == null || !body.has("proxy")) return;
+        boolean ok = body.get("proxy").getAsBoolean();
+        if (ok != reachable || listLine.isEmpty() || listLine.startsWith("Listing")) {
+            listLine = ok ? "Listed: friends join through the private relay; nobody sees anyone's IP address."
+                    : unreachableText();
+            SimCoop.LOGGER.info("[SimCoop] room {}", ok ? "listed: the relay reached the gateway" : "not reachable from outside");
+        }
+        reachable = ok;
+        if (!ok && !toldUnreachable) {
+            toldUnreachable = true;
+            com.killer560.hub.util.ModChat.send("Sim", com.killer560.hub.util.ModChat.text(unreachableText()));
+        }
+    }
+
+    static String unreachableText() {
+        return "Friends outside your network cannot reach you: turn on UPnP in your router or forward TCP port " + mappedPort
+                + ", or let a friend host. Friends on your network can still join from the LAN list.";
+    }
+
+    private static boolean shareIp() { return SimCoopConfig.get().shareIp(); }
 
     static long key(String roomId) {
         try {
@@ -298,7 +331,6 @@ public final class SimHost {
             end("the world closed");
             return;
         }
-        SimSignal.hostTick();
         if (++refreshTicks < REFRESH_TICKS && !refreshNow) return;
         refreshTicks = 0;
         refreshNow = false;
@@ -310,7 +342,9 @@ public final class SimHost {
         if (inFlight) return;
         inFlight = true;
         int players = Math.max(1, Math.min(max, server.getPlayerCount()));
-        SimRooms.refresh(id, secret, players, mode(), publicHost, publicPort, punchPort).whenComplete((rep, err) -> {
+        // An unreachable room asks for a new probe every 4th refresh (UPnP turned on or a port forwarded meanwhile).
+        boolean probe = !reachable && ++sinceProbe % 4 == 0;
+        SimRooms.refresh(id, secret, players, mode(), probe ? mappedPort : 0, SimProxy.probeKey(), shareIp()).whenComplete((rep, err) -> {
             inFlight = false;
             if (rep == null || !active) return;
             if (rep.status() == 404) {
@@ -319,6 +353,7 @@ public final class SimHost {
                 return;
             }
             if (rep.status() != 200 || rep.body() == null || !rep.body().has("tickets")) return;
+            probed(rep.body());
             for (JsonElement e : rep.body().getAsJsonArray("tickets")) {
                 JsonObject t = e.getAsJsonObject();
                 TICKETS.put(norm(t.get("uuid").getAsString()), new Ticket(t.get("nonce").getAsString(),
@@ -350,7 +385,7 @@ public final class SimHost {
         TICKETS.clear();
         CLAIMED.clear();
         if (id != null) SimRooms.delete(id, s);
-        SimSignal.hostClose();
+        SimProxy.hostStop();
         SimUpnp.unmap();
         if (was) {
             status = "Room closed (" + why + ").";

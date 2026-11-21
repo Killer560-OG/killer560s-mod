@@ -32,7 +32,7 @@ public final class SimCoop {
 
     static final Logger LOGGER = ModLog.get("killer560smod-simcoop");
     /** Bumped on any change to a payload's fields; a guest refuses any other number. */
-    public static final int PROTOCOL = 2;
+    public static final int PROTOCOL = 3;
     private static final int STR = 64;
     /** How often, in server ticks, the host greets new players and checks the state for a change. */
     private static final int EVERY = 10;

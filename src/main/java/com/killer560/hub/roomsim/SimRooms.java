@@ -12,7 +12,9 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * The relay's co-op sim room list ({@code /simrooms/*}, relay src/simrooms.ts; contract in docs/SIM-COOP.md "Room list").
- * Only room metadata goes through the relay, never game traffic: the guest connects straight to the host. The call is
+ * Game bytes go through the relay's stateless proxy ({@link SimProxy}, relay /simproxy); no answer here names a
+ * player's address except a Share My IP room's join with {@code direct: true} (coopproxy-1120). Every create and join
+ * carries {@code net: 3}; an older mod is answered 426. The call is
  * {@link RelayCalls#call} (bearer token, the relay takes name and uuid from it). Service key {@code simrooms-relay}
  * points just these at a fake.
  */
@@ -33,7 +35,7 @@ public final class SimRooms {
     }
 
     public static CompletableFuture<RelayCalls.Reply> create(String name, String password, int max, String mode,
-                                                             String host, int port, int punchPort) {
+                                                             int proxyPort, String probeKey, boolean shareIp) {
         JsonObject b = new JsonObject();
         b.addProperty("name", name);
         if (password != null && !password.isEmpty()) b.addProperty("password", password);
@@ -42,28 +44,28 @@ public final class SimRooms {
         b.addProperty("modVersion", SimGuest.modVersion());
         b.addProperty("protocol", SimCoop.PROTOCOL);
         b.addProperty("mode", mode);
-        b.add("endpoint", endpoint(host, port));
-        if (punchPort > 0) b.addProperty("punchPort", punchPort);
+        b.addProperty("net", SimProxy.NET);
+        gateway(b, proxyPort, probeKey);
+        b.addProperty("shareIp", shareIp);
         return call("POST", "/simrooms/create", b);
     }
 
+    /** {@code proxyPort} 0: no new probe this time (the room keeps its last result). */
     public static CompletableFuture<RelayCalls.Reply> refresh(String roomId, String secret, int players, String mode,
-                                                              String host, int port, int punchPort) {
+                                                              int proxyPort, String probeKey, boolean shareIp) {
         JsonObject b = owner(roomId, secret);
         b.addProperty("players", players);
         b.addProperty("mode", mode);
-        b.add("endpoint", endpoint(host, port));
-        if (punchPort > 0) b.addProperty("punchPort", punchPort);
+        gateway(b, proxyPort, probeKey);
+        b.addProperty("shareIp", shareIp);
         return call("POST", "/simrooms/refresh", b);
     }
 
-    /** TCP hole punch (a guest holding a join ticket): {host, port, key, delayMs}; the relay tells the host at once. */
-    public static CompletableFuture<RelayCalls.Reply> punch(String roomId, String nonce, int port) {
-        JsonObject b = new JsonObject();
-        b.addProperty("roomId", roomId);
-        b.addProperty("nonce", nonce);
-        b.addProperty("port", port);
-        return call("POST", "/simrooms/punch", b);
+    /** The gateway port the relay should probe, and the key the gateway answers it with. */
+    private static void gateway(JsonObject b, int proxyPort, String probeKey) {
+        if (proxyPort <= 0 || probeKey == null) return;
+        b.addProperty("proxyPort", proxyPort);
+        b.addProperty("probeKey", probeKey);
     }
 
     public static CompletableFuture<RelayCalls.Reply> delete(String roomId, String secret) {
@@ -71,13 +73,18 @@ public final class SimRooms {
     }
 
     public static CompletableFuture<RelayCalls.Reply> join(String roomId, String password) {
-        return join(roomId, password, null);
+        return join(roomId, password, null, false);
     }
 
-    /** Phase 3: an invite key (bound to this account) skips the password. */
-    public static CompletableFuture<RelayCalls.Reply> join(String roomId, String password, String invite) {
+    /**
+     * Phase 3: an invite key (bound to this account) skips the password. {@code direct}: the guest confirmed that a direct
+     * connection shows its address to the host; a Share My IP room then also answers {@code direct {host, port}}.
+     */
+    public static CompletableFuture<RelayCalls.Reply> join(String roomId, String password, String invite, boolean direct) {
         JsonObject b = new JsonObject();
         b.addProperty("roomId", roomId);
+        b.addProperty("net", SimProxy.NET);
+        if (direct) b.addProperty("direct", true);
         if (password != null && !password.isEmpty()) b.addProperty("password", password);
         if (invite != null && !invite.isEmpty()) b.addProperty("invite", invite);
         return call("POST", "/simrooms/join", b);
@@ -106,6 +113,7 @@ public final class SimRooms {
             case 404 -> "That room is gone.";
             case 409 -> "That room is full.";
             case 429 -> "Too many tries, wait a minute.";
+            case 426 -> SimProxy.text(SimProxy.Fail.UPDATE, "");
             case -1 -> "Could not reach the room list: " + r.error();
             default -> r.error() == null ? "The room list said no (" + r.status() + ")." : r.error();
         };
@@ -116,14 +124,6 @@ public final class SimRooms {
         b.addProperty("roomId", roomId);
         b.addProperty("hostSecret", secret);
         return b;
-    }
-
-    private static com.google.gson.JsonElement endpoint(String host, int port) {
-        if (host == null) return com.google.gson.JsonNull.INSTANCE;
-        JsonObject e = new JsonObject();
-        e.addProperty("host", host);
-        e.addProperty("port", port);
-        return e;
     }
 
     private static synchronized void record(String line) {

@@ -113,7 +113,7 @@ menu's "Sim Session", `SimPauseEntry`).
 - **Create** (`SimHost.create`): Room Name (relay cap 32), Password (optional), Max Players 2-5. Starts the F7 boss sim,
   publishes the integrated server on a free port (LAN, authentication off as vanilla's Open to LAN), asks the router
   (`SimUpnp`), and lists the room (`SimRooms.create`, relay `/simrooms/*`, metadata only: name, lock, players, max, mode,
-  versions and the public endpoint when UPnP opened one). The room is refreshed every 600 server ticks and at once when a
+  versions and the gateway port the relay probes; never an address). The room is refreshed every 600 server ticks and at once when a
   guest comes or goes (the relay's capacity is players + live tickets); the refresh answer carries new tickets. Close or
   leaving sends a relay delete and removes the port mapping. With guests in, Close Room and the pause menu's quit ask
   first ("N player(s) will be disconnected.").
@@ -123,8 +123,8 @@ menu's "Sim Session", `SimPauseEntry`).
   `-Dkiller560.simcoop.ssdp=host:port` names a gateway (the testkit's `FakeGateway`), so no test ever asks the real router.
 - **Join**: the relay list for this MC version (fetched on opening Join, on Refresh, and at most every 30 s while open),
   rows "[Locked] name  -  owner  p/max  mode  vX". A locked room asks for its password. `SimRooms.join` gets a ticket
-  (nonce, 120 s) and the owner's endpoint; 403 "Wrong password.", 409 "That room is full.", 404 "That room is gone.", no
-  endpoint (or an unreachable one) tries a TCP hole punch, else says plainly that the host must enable UPnP or forward the port (see "Free co-op"), another `protocol` refused before asking. Also join by address
+  (nonce, 120 s), never an address; 403 "Wrong password.", 409 "That room is full.", 404 "That room is gone.", then the
+  game goes through the relay proxy (see "Private proxy"), another `protocol` refused before asking. Also join by address
   (host:port) and the LAN list (vanilla `LanServerDetection`). A ticket's address is trusted like a private one by
   `SimGuest.eligible` (the receivers register for that connection only).
 - **Admission** (`SimHost.serverTick` / `acked`): in a locked or listed room a guest must name a live ticket for its uuid in
@@ -247,7 +247,7 @@ Two runs in one testkit checkout at once kill each other (the client exits -1): 
 killer560 2026-11-10: "rooms should never be lan only". A friend behind a router that refuses UPnP got "That room is LAN only".
 - **Tunnel**: REMOVED in coopfree-1111 (killer560 2026-11-11: "I don't want it to ever fall back to the relay otherwise they can
   spam use that relay and then everything else in the mod that relies on it won't work"). No game byte goes through the relay;
-  `/simtunnel` is now only the host's signal socket for hole punches (see "Free co-op" below). The old game tunnel is in git
+  `/simtunnel` is 426 since coopproxy-1120; game bytes go through the stateless `/simproxy` Worker (see "Private proxy" below), which no Durable Object carries. The old game tunnel is in git
   history (coopnet-1110, mod `roomsim/SimTunnel.java` before 2026-11-11).
 - **Versions**: the list is fetched with `all=1`, each room carries `mc`, rows read `[26.3] ...` or `[26.2 - other version] ...`,
   and pick() refuses another version with "Host is on 26.2 - open 26.2 to join." (no join call). A real cross-version join
@@ -257,8 +257,7 @@ killer560 2026-11-10: "rooms should never be lan only". A friend behind a router
   plan ("the very original one"). In co-op the HOST builds the world, so guests see the host's arena. His P1 and P3 captures
   now ship in the jar (`assets/killer560smod/sim-boss/`, ~1 MB) and are always used, with no way to override them (his call,
   2026-11-10); the plan is an ERROR fallback only. Nothing is downloaded and nothing is sent to guests.
-- Testkit: 1110-mp-tunnel (now the blocked path: punch dropped, the guest must NOT connect and must show the UPnP/forward text),
-  1109-mp-menu (other-version row and blocked Join, every list call has all=1).
+- Testkit: 1109-mp-menu (other-version row and blocked Join, every list call has all=1).
 
 ## Party chat (coopsim final pass)
 
@@ -273,39 +272,36 @@ player through `SimCoop.broadcast`. Nothing is registered on Hypixel: a guest's 
 acts only while the sim's state is held. PROTOCOL stays 2 (a new payload, no changed field). Test: 1109-coopfloor-two (`/pc` both ways in party format,
 `SimPartyChat.sentForTest`, no "Unknown or incomplete"); simlights' 1109-boss-lights keeps the alone line; 1110-sim-partychat covers the mod-sent solo path.
 
-## Free co-op: direct or hole punch, never the relay (coopfree-1111)
+## Private proxy, Share My IP opt-in (coopproxy-1120; replaced coopfree-1111's direct/hole punch)
 
-killer560 2026-11-11: "no cost for me to eat" - co-op must never cost him money - and the same day: "I don't want it to ever
-fall back to the relay otherwise they can spam use that relay and then everything else in the mod that relies on it won't
-work since it will be out of usage ... it has to work with something that doesn't go through that relay". So the relay
-carries signaling only (create/refresh/list/join/punch and the host's PUNCH socket) and NO game traffic. A join tries:
-1. **Direct**: the host's router forwards the port. `SimUpnp` asks UPnP IGD for a one-hour lease (`NewLeaseDuration` 3600; a
-   router that answers error 725 OnlyPermanentLeasesSupported gets a permanent one), renewed every 30 minutes while hosting,
-   removed on close and by a JVM shutdown hook. No UPnP router: NAT-PMP (UDP 5351 on x.y.z.1 of this PC's address, opcode 2
-   TCP map, then opcode 0 for the public address), and PCP MAP (version 2, nonce kept for the delete) when the router answers
-   NAT-PMP with UNSUPP_VERSION. NAT-PMP/PCP may give another external port: the room lists `Result.externalPort()`. Tests
-   name fakes with `killer560.simcoop.ssdp` / `killer560.simcoop.natpmp`; a test or offline client never asks a real router.
-2. **Hole punch** (`roomsim/SimPunch`): the host picks a free local port at publish and lists it as `punchPort`, and keeps one
-   signal socket open (`roomsim/SimSignal`, relay `/simtunnel?role=host`, headers `x-sim-room` + `x-sim-key`; it takes no
-   messages, any frame from the host closes it 1003, a guest is refused 410). A guest whose direct probe fails POSTs
-   `/simrooms/punch {roomId, nonce, port}`; the relay sends the host a PUNCH frame (type 4, conn 0, JSON {ip, port, key,
-   delayMs}) and answers the guest {host, port, key, delayMs 1500}. After the delay both sides connect to each other from their
-   ports for 6 s, 5 ms after each refused try (300 ms connect timeout): TCP simultaneous open. Windows cannot share a port between a listening
-   and a connecting socket, so neither side listens. The guest sends the key first; the host splices only a socket that sent
-   it to its LAN port, and the guest hands vanilla a 127.0.0.1 port, so every server-side check is unchanged. One punch at a
-   time on the host. Log lines: guest "[SimPunch] guest punched through to the owner", host "[SimPunch] host joined a punched
-   guest to the game", host socket "[SimSignal] host signal socket up". Property `killer560.simcoop.punch`: `off` (no
-   punchPort, guest skips), `drop` (host advertises but ignores PUNCH: the blocked path).
-3. **Neither**: no connection. The guest reads "Can't connect to <room>: the host's router blocks direct connections; the host
-   can enable UPnP or forward port N." (N from the room's endpoint; `SimMultiplayerScreen.blockedText`), and the log
-   "[SimCoop] join failed: ...". The host's Publish line says the same ("enable UPnP or forward port N").
-Relay limits (relay `src/simrooms.ts`, `src/index.ts`): the Worker front refuses co-op calls before any Durable Object (60 a
-minute per address in the isolate, and 503 once SimRooms said the day is closed); SimRooms allows 40 calls a minute per
-address, punches 6 a minute per player and per address and 10 per room, and a co-op daily cap of 20k calls
-(`SIGNAL_DAILY_OPS`); past it every co-op call is 503 "co-op rooms are closed for today ...; nothing else in the mod is
-affected" until UTC midnight. Only /simrooms/* and /simtunnel count toward these, so co-op can never use up the relay
-services the rest of the mod needs (Mod Chat, songs, supporters, invites keep their own paths and limits).
-Every join logs "[SimCoop] join path: Direct|Punched (address)"; list rows end in [Direct], [Punch] or [Blocked] (the
-relay's guess, `path` direct|punch|none). Testkit: 1111-mp-punch (punch on, guest must log Punched), 1110-mp-tunnel (host
-`drop`: punch fails, the guest must not connect and must show the UPnP/forward text), 1109-mp-upnp (lease 3600, 725 retry,
-renew, NAT-PMP, PCP).
+killer560 2026-11-20: "Make the new variant of it that will be essentially free to run and make an option to share your IP in
+case that other one goes down but by default have it go through the essentially free option make sure it has a hard cap as
+well to never charge me". By default no player ever learns another's address.
+- **Relay** (relay `src/simproxy.ts`, PROTOCOL.md "Co-op sim rooms"): a guest's `/simproxy?net=3` WebSocket (headers
+  `x-sim-room` + `x-sim-key` = the join ticket, which becomes a 12 h session key on first use so the same key resumes) is
+  piped by a plain Worker to `connect(host's address as the relay saw it, host's mapped gateway port)`. Workers bill one
+  request per connection and only CPU per message; the relay's hard cap (`COOP_MONTHLY_CPU_MS` 10M est. CPU-ms, a third of
+  Workers Paid's 30M) refuses new connections with 503 "co-op relay is full for this month" and ends live ones with 4009.
+- **Host** (`roomsim/SimProxy` host gateway): publish opens a ServerSocket on its own port beside the LAN port, `SimUpnp`
+  maps THAT port (one-hour leases, NAT-PMP/PCP, as before), and create/refresh send `proxyPort` (the external port) +
+  `probeKey` (32 hex, per room). The relay probes it (`K5PROBE1\n` -> `K5KEY <key>\n`); only a probed room is listed, and
+  an unprobed host hears once in chat "Friends outside your network cannot reach you: turn on UPnP ... or forward TCP port
+  N, or let a friend host. Friends on your network can still join from the LAN list." (re-probed every 4th refresh). A
+  guest session (hello `K5G1 <nonce> <sid> <recv>` -> `K5OK <recv>`) is spliced to the LAN port, so vanilla and every
+  server-side check see a local connection; at most 16 sessions.
+- **Guest** (`SimProxy.guest`): a 127.0.0.1 port for vanilla, framed both ways ([type u8][len u16][payload]: 1 DATA, 2 ACK
+  u64, 3 CLOSE), unacked bytes kept (8 MB max) and resent from the peer's count after a drop: a dropped relay link (4010 at
+  90,000 messages or 2 h, network blip) resumes within 60 s and says "Co-op connection resumed." Refusals map to plain
+  text (`SimProxy.text`): 503 full month, 502/409 host unreachable, 426 update the mod, 401/403/404 ticket, 429 busy.
+- **Share My IP** (`SimCoopConfig.shareIp`, Sim Settings "Share My IP (direct connection)", default OFF, BoolFields, so it
+  survives restarts and profile applies): the host flags the room `shareIp`; only then may a guest whose relay join was
+  refused as FULL or RELAY_DOWN see a ConfirmScreen ("This room is a direct connection: the host will be able to see your
+  IP address. Join anyway?", `SimMultiplayerScreen.DIRECT_NOTICE`); on yes it asks `/simrooms/join` with `direct: true`
+  and connects to `{host, port}` through the same framed stream. Off, the relay answers 403 to a
+  direct join and the guest never falls back. Never silent.
+- Logs never carry an address: "[SimCoop] join path: Relay|Direct", "[SimProxy] gateway open on port N", "[SimProxy] guest
+  session opened|resumed", "[SimProxy] <side> session ended (<why>): N frames out, M in over S s (R / s), K resumes".
+- PROTOCOL 3 (the transport changed): an older mod's create/join gets 426 "update the mod to play co-op".
+- Testkit: 1120-mp-proxy-two (two clients through a local wrangler dev proxy, bytes counted, no address in logs or room
+  list), 1120-mp-proxy-full (cap -> message, no connection), 1120-mp-shareip (off: no fallback; on + full: notice, joins
+  only after confirm), 1120-ui-shareip-persist.

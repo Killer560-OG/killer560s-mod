@@ -299,91 +299,90 @@ public final class SimMultiplayerScreen extends Screen {
         join(r, null);
     }
 
-    /** Asks the relay for a ticket, then connects straight to the host, or by a TCP hole punch; never through the relay. */
+    /** Asks the relay for a ticket, then connects through the relay's private proxy (nobody sees anyone's address). */
     void join(Room r, String password) {
         join(r.id(), r.name(), password, null);
     }
 
-    /** {@code invite}: a received invite's key, which skips the password (phase 3). */
+    /**
+     * {@code invite}: a received invite's key, which skips the password (phase 3). The relay proxy first; only when it is
+     * refused as full for the month or cannot be reached, and only in a Share My IP room, the guest is asked to confirm a
+     * direct connection (its own address will show to the host) and only then joins that way. Never silently.
+     */
     void join(String roomId, String roomName, String password, String invite) {
         say("Joining " + roomName + "...", MenuStyle.TXT_SOFT);
-        SimRooms.join(roomId, password, invite).whenComplete((rep, err) -> Minecraft.getInstance().execute(() -> {
+        SimRooms.join(roomId, password, invite, false).whenComplete((rep, err) -> Minecraft.getInstance().execute(() -> {
             if (rep == null || rep.status() != 200 || rep.body() == null || !rep.body().has("nonce")) {
                 say(rep == null ? "Could not reach the room list." : SimRooms.refusal(rep), MenuStyle.RED);
                 return;
             }
             JsonObject b = rep.body();
-            String direct = null;
-            if (b.has("endpoint") && b.get("endpoint").isJsonObject()) {
-                JsonObject e = b.getAsJsonObject("endpoint");
-                direct = e.get("host").getAsString() + ":" + e.get("port").getAsInt();
-            }
             String nonce = b.get("nonce").getAsString();
             long expires = b.has("expires") ? b.get("expires").getAsLong() : System.currentTimeMillis() + 120_000L;
-            boolean punch = b.has("punch") && b.get("punch").getAsBoolean();
-            String blocked = blockedText(direct);
+            boolean share = b.has("share") && b.get("share").getAsBoolean();
             passwordFor = null;
             rebuildWidgets();
-            String first = direct;
-            // Direct first, then a TCP hole punch. Game traffic never goes through the relay (killer560, 2026-11-11).
-            CompletableFuture.supplyAsync(() -> first != null && reachable(first))
-                    .thenCompose(ok -> {
-                        if (ok) return CompletableFuture.completedFuture(joined(first, "Direct"));
-                        if (!punch) return CompletableFuture.completedFuture((String) null);
-                        Minecraft.getInstance().execute(() -> say("Joining " + roomName + " by hole punch...", MenuStyle.TXT_SOFT));
-                        return SimPunch.guest(roomId, nonce).handle((a, e) -> {
-                            if (e != null) SimCoop.LOGGER.info("[SimCoop] hole punch failed ({})", SimSignal.reason(e));
-                            return a == null ? null : joined(a, "Punched");
-                        });
-                    })
-                    .whenComplete((address, failed) -> Minecraft.getInstance().execute(() -> {
-                        if (address == null) {
-                            SimCoop.LOGGER.info("[SimCoop] join failed: {}", failed == null ? "no direct or punched way in" : SimSignal.reason(failed));
-                            say("Can't connect to " + roomName + ": " + blocked, MenuStyle.RED);
-                            return;
-                        }
-                        SimGuest.expect(new SimGuest.Pending(roomId, nonce, expires, address, SimHost.key(roomId)));
-                        connect(address, roomName);
-                    }));
+            SimProxy.guest(nonce, SimProxy.relay(roomId)).whenComplete((address, failed) -> Minecraft.getInstance().execute(() -> {
+                if (address != null) {
+                    joined(roomId, nonce, expires, address, roomName, "Relay");
+                    return;
+                }
+                SimProxy.Fail f = SimProxy.failOf(failed);
+                SimCoop.LOGGER.info("[SimCoop] relay join failed: {}", f);
+                if (share && SimProxy.fallsBack(f)) confirmDirect(roomId, roomName, password, invite, f);
+                else say(SimProxy.text(f, roomName), MenuStyle.RED);
+            }));
         }));
     }
 
-    /** What a guest is told when neither the direct address nor the hole punch got in. */
-    static String blockedText(String direct) {
-        int colon = direct == null ? -1 : direct.lastIndexOf(':');
-        String port = colon < 0 ? "the co-op port shown on their Host page" : "port " + direct.substring(colon + 1);
-        return "the host's router blocks direct connections; the host can enable UPnP or forward " + port + ".";
+    /** The Share My IP fallback: one confirm click, then a direct join with a fresh ticket. */
+    private void confirmDirect(String roomId, String roomName, String password, String invite, SimProxy.Fail why) {
+        Screen back = this;
+        McCompat.setScreen(this.minecraft, new ConfirmScreen(yes -> {
+            McCompat.setScreen(this.minecraft, back);
+            if (!yes) {
+                say(SimProxy.text(why, roomName), MenuStyle.RED);
+                return;
+            }
+            say("Joining " + roomName + " directly...", MenuStyle.TXT_SOFT);
+            SimRooms.join(roomId, password, invite, true).whenComplete((rep, err) -> Minecraft.getInstance().execute(() -> {
+                JsonObject b = rep == null ? null : rep.body();
+                if (rep == null || rep.status() != 200 || b == null || !b.has("direct") || !b.get("direct").isJsonObject()) {
+                    say(rep == null ? "Could not reach the room list." : SimRooms.refusal(rep), MenuStyle.RED);
+                    return;
+                }
+                JsonObject d = b.getAsJsonObject("direct");
+                String nonce = b.get("nonce").getAsString();
+                long expires = b.has("expires") ? b.get("expires").getAsLong() : System.currentTimeMillis() + 120_000L;
+                SimProxy.guest(nonce, SimProxy.direct(d.get("host").getAsString(), d.get("port").getAsInt()))
+                        .whenComplete((address, failed) -> Minecraft.getInstance().execute(() -> {
+                            if (address != null) joined(roomId, nonce, expires, address, roomName, "Direct");
+                            else say(SimProxy.text(SimProxy.failOf(failed), roomName), MenuStyle.RED);
+                        }));
+            }));
+        }, Component.literal(why == SimProxy.Fail.FULL ? "The co-op relay is full for this month" : "The co-op relay cannot be reached"),
+                Component.literal(DIRECT_NOTICE)));
     }
 
-    /** Logs how a join got through (Direct or Punched) and hands the address on. */
-    private static String joined(String address, String path) {
-        SimCoop.LOGGER.info("[SimCoop] join path: {} ({})", path, address);
+    /** The one-line notice a guest confirms before a direct connection (testkit reads it). */
+    static final String DIRECT_NOTICE = "This room is a direct connection: the host will be able to see your IP address. Join anyway?";
+
+    /** Hands vanilla the loopback address the transport opened, and logs how the join got through (never an address). */
+    private void joined(String roomId, String nonce, long expires, String address, String roomName, String path) {
+        SimCoop.LOGGER.info("[SimCoop] join path: {}", path);
         lastPath = path;
-        return address;
+        SimGuest.expect(new SimGuest.Pending(roomId, nonce, expires, address, SimHost.key(roomId)));
+        connect(address, roomName);
     }
 
-    /** How the last join got through: Direct or Punched (null before one). Join page and testkit. */
+    /** How the last join got through: Relay or Direct (null before one). Join page and testkit. */
     static volatile String lastPath;
 
     private static String pathTag(String path) {
         return switch (path) {
-            case "direct" -> "  [Direct]";
-            case "punch" -> "  [Punch]";
-            case "none" -> "  [Blocked]";
+            case "relay" -> "  [Relay]";
             default -> "";
         };
-    }
-
-    /** A TCP connect to the host's public address within 2.5 s (off the render thread). */
-    private static boolean reachable(String address) {
-        int colon = address.lastIndexOf(':');
-        try (java.net.Socket s = new java.net.Socket()) {
-            s.connect(new java.net.InetSocketAddress(address.substring(0, colon), Integer.parseInt(address.substring(colon + 1))), 2_500);
-            return true;
-        } catch (Exception e) {
-            SimCoop.LOGGER.info("[SimCoop] direct address not reachable ({})", e.toString());
-            return false;
-        }
     }
 
     private void joinAddress() {
@@ -699,9 +698,7 @@ public final class SimMultiplayerScreen extends Screen {
             ScreenChrome.text(g, "Room: " + SimHost.roomName() + (SimHost.locked() ? " (locked)" : "") + "  up to "
                     + SimHost.max() + " players", x, y, MenuStyle.TXT);
             ScreenChrome.text(g, SimHost.status(), x, y + 11, MenuStyle.TXT_SOFT);
-            String pub = SimHost.publicAddress();
-            ScreenChrome.text(g, pub != null ? "Public address: " + pub : SimHost.upnpLine(), x, y + 22,
-                    pub != null ? MenuStyle.TXT : MenuStyle.TXT_SOFT);
+            ScreenChrome.text(g, SimHost.upnpLine(), x, y + 22, SimHost.reachable() ? MenuStyle.TXT : MenuStyle.TXT_SOFT);
             ScreenChrome.text(g, SimHost.listLine(), x, y + 33, MenuStyle.TXT_SOFT);
             int py = y + 4 * 11 + 4 + 5;
             List<SimHost.Guest> gs = SimHost.guests();

@@ -24,13 +24,16 @@ public final class SimCoopConfig {
             .add("guestsLoadout", true, c -> c.loadout, (c, v) -> c.loadout = v)
             .add("guestsItems", true, c -> c.items, (c, v) -> c.items = v)
             .add("guestsCommands", true, c -> c.commands, (c, v) -> c.commands = v)
-            .add("receiveInvites", true, c -> c.receiveInvites, (c, v) -> c.receiveInvites = v);
+            .add("receiveInvites", true, c -> c.receiveInvites, (c, v) -> c.receiveInvites = v)
+            .add("shareIp", false, c -> c.shareIp, (c, v) -> c.shareIp = v);
     /** Most blocked inviters kept (the relay takes 100 a socket). */
     static final int MAX_BLOCKED = 100;
 
     private static final SimCoopConfig INSTANCE = new SimCoopConfig();
 
     volatile boolean teleport = true, speed = true, fly = true, loadout = true, items = true, commands = true, receiveInvites = true;
+    /** Share My IP (coopproxy-1120, default OFF): a guest may connect straight to this host if the relay proxy refuses. */
+    volatile boolean shareIp;
     /** Blocked inviters, uuid (as the relay sent it) -> name, oldest first. Replaced whole on change. */
     private volatile java.util.Map<String, String> blocked = java.util.Map.of();
     volatile String roomName = "";
@@ -105,6 +108,13 @@ public final class SimCoopConfig {
             case ITEM -> items = on;
             case COMMAND -> commands = on;
         }
+        save();
+    }
+
+    public boolean shareIp() { return shareIp; }
+
+    public void setShareIp(boolean on) {
+        shareIp = on;
         save();
     }
 
