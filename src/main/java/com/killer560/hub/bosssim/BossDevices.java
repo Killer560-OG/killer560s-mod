@@ -56,6 +56,8 @@ public final class BossDevices {
     private static final int[] ssSeq = new int[SS_ROUNDS];
     /** Rounds shown since the last reset (the round being put in), and how many of it are pressed. */
     private static int ssRound, ssNext, ssGen;
+    /** Counts shows: a show's own buttons-back opens input only while no later show has begun (a stray round 1). */
+    private static int ssShow;
     private static final boolean[] ssLit = new boolean[16], ssUp = new boolean[16], ssWasPowered = new boolean[16];
     /** Hypixel's round tasks and show steps: a reset never cancels them, only a new device or its completion. */
     private record SsJob(int at, int gen, Runnable run) {
@@ -393,6 +395,10 @@ public final class BossDevices {
     }
 
     private static void done(ServerLevel level, int section) {
+        if (BossPractice.active()) {
+            BossPractice.finished(level, section);
+            return;
+        }
         java.util.UUID u = lastBy[section];
         ServerPlayer by = u == null ? null : level.getServer().getPlayerList().getPlayer(u);
         if (by == null) {
@@ -425,7 +431,32 @@ public final class BossDevices {
         }
     }
 
-    private static boolean powered(BlockState s) {
+    /** The device clock (ticks since P3 began), for the practice timer. */
+    static int now() {
+        return tick;
+    }
+
+    /** Device practice: Simon Says back to its start (the start button idle, nothing shown). */
+    static void practiceResetSs(ServerLevel level) {
+        ssGen++;
+        ssJobs.clear();
+        ssDone = ssStarted = ssAccepting = ssBroken = ssRoundDone = false;
+        ssRound = ssNext = 0;
+        ssAllOff(level);
+    }
+
+    /** Device practice: the Target device back to its start (nine blue targets, no attempt running). */
+    static void practiceResetTarget(ServerLevel level) {
+        targetDone = targetFirstShown = false;
+        targetHits = 0;
+        targetGrid = targetShowAt = plateUntil = -1;
+        lit = null;
+        for (int i = 0; i < 9; i++) {
+            BossBlocks.set(level, targetCell(i), BossBlocks.of("minecraft:blue_terracotta"));
+        }
+    }
+
+    static boolean powered(BlockState s) {
         return s.is(net.minecraft.world.level.block.Blocks.STONE_BUTTON) && s.getValue(BlockStateProperties.POWERED);
     }
 
@@ -458,7 +489,7 @@ public final class BossDevices {
      * Hypixel's buttons come back up fast (measured: the start button 2 ticks after a press, a grid button 3), not after a
      * vanilla stone button's 20, so a quick second press (a reset, the next step) is a new press.
      */
-    private static void popUp(ServerLevel level, BlockPos pos, int ticks) {
+    static void popUp(ServerLevel level, BlockPos pos, int ticks) {
         BossFight.later(ticks, "ss button up", () -> {
             BlockState s = level.getBlockState(pos);
             if (s.is(net.minecraft.world.level.block.Blocks.STONE_BUTTON) && s.getValue(BlockStateProperties.POWERED)) {
@@ -533,6 +564,7 @@ public final class BossDevices {
         }
         ssStarted = true;
         ssBroken = false;
+        BossPractice.ssStarted();
         ssNewPattern();
         ssAfter(4, () -> ssNextRound(level));
         LOGGER.info("[BossSim] Simon Says started");
@@ -573,7 +605,8 @@ public final class BossDevices {
                 ssAfter(8 * j, light);
             }
         }
-        ssAfter(8 * n + 10, () -> ssButtonsBack(level, true));
+        int show = ++ssShow;
+        ssAfter(8 * n + 10, () -> ssButtonsBack(level, show == ssShow));
     }
 
     /** Every button up but under lit lamps; {@code accept}: the round shown is put in from now. */
@@ -600,12 +633,15 @@ public final class BossDevices {
 
     private static void ssPress(ServerLevel level, int c) {
         if (!ssAccepting || ssDone) {
+            BossPractice.ssIgnored();
             return;
         }
         if (c == ssSeq[ssNext]) {
+            BossPractice.ssClick(true);
             if (++ssNext < ssRound) {
                 return;
             }
+            BossPractice.ssRound(ssRound);
             ssAccepting = false;
             ssRoundDone = true;
             ssAfter(6, () -> ssNextRound(level));
@@ -614,6 +650,7 @@ public final class BossDevices {
         // Wrong: back to round 0 and stopped, the buttons gone 3 ticks later; a new show of round 2 follows on its own 26
         // ticks after that, or a stray round 1 a few ticks before a round 2 at 34. The old buttons come back 1-4 ticks
         // into each show (stale: they press, nothing counts).
+        BossPractice.ssClick(false);
         LOGGER.info("[BossSim] Simon Says broken in round {}", ssRound);
         ssAccepting = ssStarted = false;
         ssBroken = true;
@@ -675,6 +712,7 @@ public final class BossDevices {
             targetHits = 0;
             targetFirstShown = false;
             targetShowAt = tick;
+            BossPractice.i4Reset();
         }
         if (targetGrid >= 0 && (tick - targetGrid) % 10 == 0) {
             if (!pressed) {
@@ -690,6 +728,7 @@ public final class BossDevices {
             if (lit == null && targetHits < TARGET_HITS && tick >= targetShowAt) {
                 lit = targetCell(order.get(targetHits));
                 targetFirstShown = true;
+                BossPractice.i4Shown();
                 BossBlocks.set(level, lit, BossBlocks.of("minecraft:emerald_block"));
             }
         }
@@ -709,6 +748,7 @@ public final class BossDevices {
         if (hits.get(0).getOwner() instanceof ServerPlayer shooter) {
             noteActor(4, shooter);
         }
+        BossPractice.i4Hit(hits.size());
         hits.forEach(AbstractArrow::discard);
         if (cur.equals(lit)) {
             BossBlocks.set(level, lit, BossBlocks.of("minecraft:blue_terracotta"));

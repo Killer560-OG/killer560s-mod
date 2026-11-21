@@ -119,6 +119,7 @@ public final class SearchAliases {
             Map.entry("sweat mode", "mod & hud"),
             Map.entry("dungeon sim room filters", "sim settings"),
             Map.entry("dungeon sim f7 boss", "sim settings"),
+            Map.entry("dungeon sim device practice", "sim settings"),
             Map.entry("dungeon sim blood camp", "sim settings"),
             Map.entry("dungeon sim real mob looks", "sim settings"),
             Map.entry("dungeon sim teleports", "sim settings"),

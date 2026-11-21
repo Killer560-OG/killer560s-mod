@@ -288,6 +288,17 @@ public final class RecordCatalog {
         }
     });
 
+    /** Dungeon Sim device practice (simdevpractice-1118): per device ("ss", "i4") the best time in ms (smaller wins) and the
+     *  attempts (counter). The legacy name never existed (a new record). */
+    public static final Kind SIM_DEVICE_PRACTICE = new Kind("killer560smod-sim-device-practice.json", null,
+            "sim-device-practice.json", Scope.GLOBAL, new JsonMerge.Policy() {
+        @Override
+        public JsonMerge.NumberMode number(String path) {
+            if (JsonMerge.matches(path, "*.bestMs")) return JsonMerge.NumberMode.MIN;
+            return JsonMerge.matches(path, "*.runs") ? JsonMerge.NumberMode.COUNTER : JsonMerge.NumberMode.STATE;
+        }
+    });
+
     /** Your guild's members (guildtag-1118), per account: "members" = [{name (lower case), rank}]. */
     public static final Kind GUILD_LIST = new Kind("killer560smod-guild-list.json", null, "guild-list.json",
             Scope.ACCOUNT, new JsonMerge.Policy() {
@@ -315,7 +326,8 @@ public final class RecordCatalog {
     });
 
     public static final List<Kind> ALL = List.of(CROESUS_LOG, CROESUS_RUNS, RNG_ITEM_LOG, EXPERIMENTS, BAZAAR_FLIP,
-            NPC_SOLD, RUN_HISTORY, BEST_FRIENDS, EGG_TRACKER, LUCK, CARRY, SIM_MOB_LOOKS, CARNIVAL, ACCOUNT_ACTIVITY, GUILD_LIST, BOARD_BESTS);
+            NPC_SOLD, RUN_HISTORY, BEST_FRIENDS, EGG_TRACKER, LUCK, CARRY, SIM_MOB_LOOKS, CARNIVAL, ACCOUNT_ACTIVITY, GUILD_LIST, BOARD_BESTS,
+            SIM_DEVICE_PRACTICE);
 
     /** Sorts the array {@code key} of {@code root} by a field (numbers, or ISO timestamps as strings); returns it. */
     static JsonArray sortBy(JsonObject root, String key, String field, boolean descending) {

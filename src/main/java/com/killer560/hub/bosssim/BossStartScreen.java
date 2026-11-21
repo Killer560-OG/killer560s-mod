@@ -105,7 +105,7 @@ public final class BossStartScreen extends Screen {
     protected void init() {
         loadMode();
         panelW = Math.min(this.width - 16, 340);
-        panelH = Math.min(this.height - 16, 250);
+        panelH = Math.min(this.height - 16, 300);
         panelX = (this.width - panelW) / 2;
         panelY = (this.height - panelH) / 2;
         int bw = (panelW - 30) / 2;
@@ -125,6 +125,19 @@ public final class BossStartScreen extends Screen {
         y += SECTION_H + SECTION_GAP;
         section("P4 Necron", x1, y, bw, new Object[][]{{"Start", BossFight.Start.P4}});
         section("P5 Dragons", x2, y, bw, new Object[][]{{"Start", BossFight.Start.P5}});
+        y += SECTION_H + SECTION_GAP;
+        // Device practice (simdevpractice-1118): one device alone with a Restart button beside you.
+        sections.add(new Object[]{x1, y, fullW, "Device Practice"});
+        int pw = (fullW - 10 - 4) / 2;
+        int[] devices = {BossPractice.SS, BossPractice.I4};
+        String[] names = {"Simon Says", "Fourth Device (i4)"};
+        for (int i = 0; i < 2; i++) {
+            int device = devices[i];
+            addRenderableWidget(SettingsButtonWidget.builder(Component.literal(names[i]), b -> {
+                McCompat.setScreen(this.minecraft, null);
+                BossSim.startPractice(this.minecraft, device);
+            }).bounds(x1 + 5 + i * (pw + 4), y + 17, pw, 18).build());
+        }
         y += SECTION_H + SECTION_GAP + 2;
         addRenderableWidget(SettingsButtonWidget.cycling(Component.literal(modeLabel()), (b, dir) -> {
             master = !master;

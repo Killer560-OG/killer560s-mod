@@ -90,6 +90,7 @@ public final class ProfileManager {
             // Shared-store records (RecordCatalog): sim mob looks, Carnival history - records, not settings.
             "killer560smod-sim-mob-looks.json",
             "killer560smod-carnival-history.json",
+            "killer560smod-sim-device-practice.json",
             "killer560smod-guild-list.json",
             // an old recording of Hypixel's Auction House menus - a log, not a setting (2026-11-02).
             "killer560smod-ahflip-menudump.txt",

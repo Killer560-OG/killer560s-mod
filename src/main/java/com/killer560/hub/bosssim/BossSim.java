@@ -51,6 +51,8 @@ public final class BossSim {
     private static boolean building;
     /** The pending start came from /simboss inside a running fight: reset everything, move nobody (simstartstay-1112). */
     private static boolean pendingStay;
+    /** A device practice to start instead of the fight's phase: {@link BossPractice#SS}, {@link BossPractice#I4} or 0. */
+    private static int pendingPractice;
     private static Object lastLevel;
     private static int outsideTicks;
 
@@ -171,15 +173,16 @@ public final class BossSim {
                                 .suggests((ctx, sb) -> suggest(PHASES, sb))
                                 .executes(ctx -> command(StringArgumentType.getString(ctx, "phase"), null))
                                 .then(ClientCommands.argument("mode", StringArgumentType.word())
-                                        .suggests((ctx, sb) -> suggest(List.of("floor7", "master"), sb))
+                                        .suggests((ctx, sb) -> suggest(List.of("floor7", "master", "ss", "i4"), sb))
                                         .executes(ctx -> command(StringArgumentType.getString(ctx, "phase"),
                                                 StringArgumentType.getString(ctx, "mode"))))));
             }
         });
         BossPortal.register();
+        BossPractice.register();
     }
 
-    private static final List<String> PHASES = List.of("p1", "p2", "s1", "s2", "s3", "s4", "core", "p4", "p5", "stop");
+    private static final List<String> PHASES = List.of("p1", "p2", "s1", "s2", "s3", "s4", "core", "p4", "p5", "practice", "stop");
 
     private static java.util.concurrent.CompletableFuture<com.mojang.brigadier.suggestion.Suggestions> suggest(
             List<String> words, com.mojang.brigadier.suggestion.SuggestionsBuilder sb) {
@@ -193,6 +196,15 @@ public final class BossSim {
     private static int command(String phase, String mode) {
         Minecraft mc = Minecraft.getInstance();
         String p = phase.toLowerCase(Locale.ROOT);
+        if (p.equals("practice")) {
+            int device = "ss".equalsIgnoreCase(mode) ? BossPractice.SS : "i4".equalsIgnoreCase(mode) ? BossPractice.I4 : 0;
+            if (device == 0) {
+                com.killer560.hub.util.ModChat.send("Sim", com.killer560.hub.util.ModChat.text("Use /start practice ss|i4"));
+                return 0;
+            }
+            mc.execute(() -> startPractice(mc, device));
+            return 1;
+        }
         if (p.equals("stop")) {
             MinecraftServer server = mc.getSingleplayerServer();
             if (server != null) {
@@ -230,10 +242,20 @@ public final class BossSim {
         start(client, from, master, false);
     }
 
+    /** Device practice ({@link BossPractice#SS} or {@link BossPractice#I4}): the boss room with just that device up. */
+    public static void startPractice(Minecraft client, int device) {
+        start(client, device == BossPractice.SS ? BossFight.Start.S1 : BossFight.Start.S4, true, false, device);
+    }
+
     private static void start(Minecraft client, BossFight.Start from, boolean master, boolean stay) {
+        start(client, from, master, stay, 0);
+    }
+
+    private static void start(Minecraft client, BossFight.Start from, boolean master, boolean stay, int practice) {
         if (building) {
             return;
         }
+        pendingPractice = practice;
         pendingStart = from;
         pendingMaster = master;
         pendingStay = stay;
@@ -259,6 +281,7 @@ public final class BossSim {
         BossFight.Start from = pendingStart;
         boolean master = pendingMaster;
         boolean stay = pendingStay;
+        int practice = pendingPractice;
         pendingStart = null;
         building = true;
         server.execute(() -> {
@@ -285,7 +308,7 @@ public final class BossSim {
                     ServerPlayer sp = server.getPlayerList().getPlayer(uuid);
                     for (int i = 0; sp != null && i < inv.length; i++) sp.getInventory().setItem(i, inv[i]);
                 });
-                BossFight.begin(server, from, master, stay);
+                BossFight.begin(server, from, master, stay, practice);
                 building = false;
                 client.execute(() -> SimWorld.buildFinished(client, "F7 boss"));
             });

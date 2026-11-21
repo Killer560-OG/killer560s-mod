@@ -315,6 +315,7 @@ public final class BossFight {
         }
         BossStations.reset();
         BossTerminals.resetTypes();
+        BossPractice.stop();
         BossDevices.stop();
         BossTerminals.closeAll(server);
         if (phase != Phase.IDLE) {
@@ -328,6 +329,7 @@ public final class BossFight {
         LOGGER.info("[BossSim] fight forgotten in {} ({})", phase, why);
         gen++;
         LATER.clear();
+        BossPractice.forget();
         maxor = storm = goldor = necron = null;
         java.util.Arrays.fill(tops, null);
         java.util.Arrays.fill(placed, null);
@@ -363,6 +365,11 @@ public final class BossFight {
 
     /** {@code stay}: every reset runs but nobody is teleported (position, look and velocity untouched). */
     static void begin(MinecraftServer s, Start from, boolean masterMode, boolean stay) {
+        begin(s, from, masterMode, stay, 0);
+    }
+
+    /** {@code practice}: a device practice ({@link BossPractice#SS} or {@link BossPractice#I4}) instead of the fight's start at {@code from}. */
+    static void begin(MinecraftServer s, Start from, boolean masterMode, boolean stay, int practice) {
         stayPut = stay;
         stop("new fight");
         if (seedForTest != null) {
@@ -419,6 +426,10 @@ public final class BossFight {
         LOGGER.info("[BossSim] fight begins at {} ({})", from, master ? "Master Mode" : "Floor 7");
         com.killer560.hub.secrets.DungeonState.simBossBegins(master);
         BossDevices.arrows(level, from.ordinal() > Start.S3.ordinal());
+        if (practice != 0) {
+            startPractice(practice);
+            return;
+        }
         switch (from) {
             case P1 -> startP1(true);
             case P2 -> {
@@ -641,7 +652,7 @@ public final class BossFight {
         return new ArmorStand[]{label(at.x, at.y + 0.125, at.z, "§bEnergy Crystal"), label(at.x, at.y - 0.25, at.z, "§e§lCLICK HERE")};
     }
 
-    private static ArmorStand label(double x, double y, double z, String name) {
+    static ArmorStand label(double x, double y, double z, String name) {
         ArmorStand s = new TransientStand(level, x, y, z);
         s.snapTo(x, y, z, 0f, 0f);
         s.setInvisible(true);
@@ -1488,6 +1499,24 @@ public final class BossFight {
         return goldorFirstLap ? 1 : goldorSegment(goldorS) + 1;
     }
 
+    /**
+     * Device practice: P3 with only one device up (Simon Says in section 1, the Target in section 4) and nothing else of the
+     * fight, no Goldor, terminals, gates or death ticks. He stands on the device's spot, as the real run does.
+     */
+    private static void startPractice(int device) {
+        openBossHole(0);
+        openBossHole(1);
+        BossArena.applyP3(level);
+        boolean ss = device == BossPractice.SS;
+        phase(Phase.P3);
+        section = ss ? 1 : 4;
+        Vec3 at = ss ? BossSpots.landing(level, "ss").at() : new Vec3(63.5, 127.0, 35.5);
+        teleportAll(at, ss ? -90f : 0f);
+        BossChat.chat(server, "§4[BOSS] Goldor§r§c: Who dares trespass into my domain?");
+        BossDevices.start(level, section);
+        BossPractice.begin(level, device);
+    }
+
     private static void startP3(int fromSection) {
         boolean fromStorm = phase == Phase.P2;
         phase(Phase.P3);
@@ -1558,6 +1587,11 @@ public final class BossFight {
     }
 
     private static void tickP3() {
+        if (BossPractice.active()) {
+            BossDevices.tick(level);
+            BossPractice.tick(level);
+            return;
+        }
         drainGoldorLines();
         if (gateAt >= 0 && t >= gateAt) {
             gateAt = -1;
