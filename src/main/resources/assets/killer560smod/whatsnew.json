@@ -15,7 +15,8 @@
      "Menu audit fixes: wrong and missing tooltips, labels and spellings corrected, Storage Overlay and Ghost ESP through walls now start OFF, Terminal First Click Delay 150 ms, Auto Terminals click delay 120-160 ms, launcher-neutral Account Switcher wording.",
      "Auto Correct now fixes a short command typed with one extra letter, such as /ety to /et.",
      "Block Ender Pearls In Boss no longer blocks Spirit Leaps, only plain Ender Pearls.",
-     "Dungeon map: a large room no longer splits into two rooms with the same name partway through a run."
+     "Dungeon map: a large room no longer splits into two rooms with the same name partway through a run.",
+     "Auto Terminals no longer waits on or stalls at a click another mod's terminal solver blocked: Rubix and Click in Order finish in about 2 s again instead of 4 s or more, and the dungeon sim's terminals answer a click with only the changed slots, as Hypixel does."
     ]
    }
   ]

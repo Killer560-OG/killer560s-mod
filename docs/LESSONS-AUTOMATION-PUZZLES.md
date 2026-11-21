@@ -242,6 +242,24 @@ The puzzle autos at run time (camera, timing, leaving, each puzzle). Part of the
   every click on a "Click in order!" board while its slot-packet-built solution is missing, and leaves the other types
   alone. On the pre-fix sim that gave exactly his report (Numbers 0 clicks through, the rest solved); with `sendSlots`
   every type solves under both filters. Testkit 1119-boss-term-odin-filter, -nofrills-order, -nofrills-all.
+- **A click another mod swallows must not wait for an answer (zeeks-simterm-1120).** After the slot-packet fix the friend's
+  sim Rubix still sat 4 s unsolved (his 11-20 report). NoFrills' Colors solver cancels a click for 10 ping-ticks after the
+  open, for 1 tick after a click it passed (so 4 of a 5-click burst), and on a pane at the board's most common color; each
+  cancel left Auto Terminals waiting the 600 ms retry timeout for a click that never went out (stand-in: Rubix 3.6-6.0 s, 11-15
+  cancels), and its sticky pane (a Rubix pane needing 2) could sit at the most common color and be refused for good. Now
+  `TerminalClickSentMixin` counts `MultiPlayerGameMode.handleContainerInput` calls: a slotClicked that reaches none was
+  swallowed, the caller treats it as never sent (next try after the normal delay, not counted in the 5-in-10-ticks budget),
+  and the paced clicker skips that slot for 300 ms when another is free (Rubix 1.7-2.0 s, no stall). Odin's own re-send goes
+  through handleContainerInput, so it counts as sent. The sim's terminal menus answered every click with a full contents
+  packet (all slots); Hypixel sends only the changed slots, and Odin's Starts With drops every slot a packet names after a
+  click attempt, so the full re-send stalled Starts With once clicks stopped waiting. `BossTerminals.Menu` now answers through
+  vanilla's `broadcastChanges` only (`broadcastFullState` is routed there too). That solver also never moves a Rubix pane at
+  the board's most common color, so a cheapest target that is not the most common color could stall for good (lane
+  1119-boss-term-nofrills-all, 123 cancels): a refusal no timing gate explains (600 ms after the open, 150 ms after the last
+  click out) on a pane whose color outnumbers the target switches the target to that color (`noteRefused`); Odin keeps our
+  target, so the timing guard keeps its first-click protection from switching it. `List.of(...).indexOf(null)` throws: the
+  first version crashed the client on an empty slot. Testkit 1120-boss-term-zeeks-seq(-nf, -odin): twelve boards one after
+  another, each but Melody solved within 3.0 s (the stand-in's gates alone need 2.0-2.5 s for a 10-click Rubix); cheat only.
 - **Auto Ice Fill on Hypixel (icefillbugs-1118, his 2026-11-18 run, table killer560s-mod-logs/icefillbugs-1118.md).** Hypixel
   judges where he stands ONCE PER SERVER TICK: two hops handled in one of its ticks are one two-tile move ("Don't move
   diagonally! Bad!", pos ids 11 and 12 in one tick). With Delay 1 / Adaptive off the old auto hopped every tick whatever he

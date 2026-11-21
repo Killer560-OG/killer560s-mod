@@ -28,6 +28,8 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -237,6 +239,15 @@ public final class TerminalSolverFeature {
     // set once another mod's slotClicked mixin has thrown on this terminal - see #invokeSlotClicked.
     // Both click loops stand down for the rest of the terminal rather than re-throwing on every retry.
     private static boolean foreignClickFailed;
+    /** Container clicks that reached {@code MultiPlayerGameMode.handleContainerInput} (TerminalClickSentMixin), and terminal
+     *  clicks another mod canceled before that (the testkit reads it). */
+    public static int containerInputs;
+    static int swallowedClicks;
+    /** Slots whose last click another mod canceled, and when: the paced clicker picks another slot for {@link #REFUSED_MS}
+     *  when one is free. A solver that refuses a Rubix pane at its most common color would otherwise hold the clicker on
+     *  that pane for good while the panes that would change its mind waited (zeeks-simterm-1120). */
+    private static final Map<Integer, Long> refusedAtMs = new HashMap<>();
+    private static final long REFUSED_MS = 300;
     // 600 not 400 (review pass): other implementations use 500-600ms - a lag spike past a shorter floor re-clicked
     // already-correct Panes back to wrong before the confirm arrived.
     private static final long MIN_RETRY_TIMEOUT_MS = 600;
@@ -761,6 +772,7 @@ public final class TerminalSolverFeature {
     private static void resetAutoClickState() {
         nextAutoClickAllowedAtMs = 0;
         pendingClicks.clear();
+        refusedAtMs.clear();
         predictedSlots.clear();
         foreignClickFailed = false;
         melodyButtonRow = null;
@@ -896,7 +908,10 @@ public final class TerminalSolverFeature {
             }
         }
         if (target == null) {
-            target = pickAutoClickTarget(type, currentHighlights, pendingClicks.keySet(), cfg.getAutoClickOrder(), lastAutoSlot);
+            target = pickAutoClickTarget(type, currentHighlights, skipRefused(now), cfg.getAutoClickOrder(), lastAutoSlot);
+            if (target == null && !refusedAtMs.isEmpty()) {
+                target = pickAutoClickTarget(type, currentHighlights, pendingClicks.keySet(), cfg.getAutoClickOrder(), lastAutoSlot);
+            }
         }
         if (target == null) {
             // Every clickable highlight is still awaiting its server confirm (for Numbers: its one
@@ -930,10 +945,60 @@ public final class TerminalSolverFeature {
             // The click never actually left - drop the pending entry just recorded for it so the retry
             // loop does not spend #retryTimeoutMs waiting on a confirm for a click nobody made.
             pendingClicks.remove(target.slot());
+            noteRefused(type, items, target.slot(), now);
+            if (stickySlot == target.slot()) {
+                stickySlot = -1;
+            }
             return;
         }
+        refusedAtMs.remove(target.slot());
         stickySlot = needsMoreClicks(type, currentHighlights.get(target.slot())) ? target.slot() : -1;
         noteAutoClick(target.slot(), now);
+    }
+
+    /** The slots the paced clicker skips: those awaiting an answer, plus those another mod refused in the last
+     *  {@link #REFUSED_MS}. */
+    private static Set<Integer> skipRefused(long now) {
+        if (refusedAtMs.isEmpty()) {
+            return pendingClicks.keySet();
+        }
+        refusedAtMs.values().removeIf(at -> now - at >= REFUSED_MS);
+        Set<Integer> skip = new HashSet<>(pendingClicks.keySet());
+        skip.addAll(refusedAtMs.keySet());
+        return skip;
+    }
+
+    /** {@code item}'s place in {@link #RUBIX_COLOR_ORDER}, or -1 (no pane; the list refuses a null lookup). */
+    private static int rubixColorIndex(ItemStack item) {
+        DyeColor color = paneDyeColor(item);
+        return color == null ? -1 : RUBIX_COLOR_ORDER.indexOf(color);
+    }
+
+    /** Another mod refused a click on {@code slot}. One such solver never lets a Rubix pane at the board's most common
+     *  color move, so a pane of a color that outnumbers our committed target switches the target to that color: with
+     *  nine panes no other target can finish under that rule (zeeks-simterm-1120). */
+    private static void noteRefused(TerminalType type, List<ItemStack> items, int slot, long now) {
+        refusedAtMs.put(slot, now);
+        // Only a refusal no timing gate explains: past the opening window (first-click protection) and over 150 ms after
+        // the last click that went out (a gate that holds the tick after a click). Odin's solver keeps our own target.
+        long lastSent = recentClickAtMs[(recentClickIndex + CLICK_LIMIT - 1) % CLICK_LIMIT];
+        if (type != TerminalType.RUBIX || rubixTargetColorIndex < 0 || slot >= items.size()
+                || now - terminalOpenedAtMs < 600 || now - lastSent < 150) {
+            return;
+        }
+        int refused = rubixColorIndex(items.get(slot));
+        if (refused < 0 || refused == rubixTargetColorIndex) {
+            return;
+        }
+        int[] count = new int[RUBIX_COLOR_ORDER.size()];
+        for (ItemStack item : items) {
+            int c = rubixColorIndex(item);
+            if (c >= 0) count[c]++;
+        }
+        if (count[refused] > count[rubixTargetColorIndex]) {
+            rubixTargetColorIndex = refused;
+            refusedAtMs.clear();
+        }
     }
 
     /** Stall net (termplus-1112): no click out for 2.5 s while clicks remain drops the pacing and pending state, so the next
@@ -1061,6 +1126,7 @@ public final class TerminalSolverFeature {
             for (int i = 0; i < times; i++) {
                 if (!sendTerminalClick(screen, slot, button, input)) {
                     pendingClicks.remove(slot);
+                    noteRefused(type, items, slot, now);
                     break;
                 }
                 sent++;
@@ -1283,7 +1349,14 @@ public final class TerminalSolverFeature {
      *  @return whether the click actually reached the server. */
     static boolean invokeSlotClicked(AbstractContainerScreen<?> screen, Slot slot, int button, ContainerInput clickType) {
         try {
+            int sentBefore = containerInputs;
             ((SlotClickInvoker) (Object) screen).killer560smod$slotClicked(slot, slot.index, button, clickType);
+            if (containerInputs == sentBefore) {
+                // Another mod's terminal solver canceled it at slotClicked: nothing went out, so the caller tries again after
+                // its normal delay instead of waiting the retry timeout for an answer to a click never sent.
+                swallowedClicks++;
+                return false;
+            }
             recentClickAtMs[recentClickIndex] = System.currentTimeMillis();
             recentClickIndex = (recentClickIndex + 1) % CLICK_LIMIT;
             return true;

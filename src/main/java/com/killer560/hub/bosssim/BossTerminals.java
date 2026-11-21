@@ -158,14 +158,23 @@ public final class BossTerminals {
                 onClick(this, sp, slot, button);
             }
             setCarried(ItemStack.EMPTY);
-            broadcastFullState();
-            sendSlots();
+            // The server's click handler then sends a slot packet for each slot that differs from what the client predicted
+            // (broadcastChanges), and nothing for the rest, as Hypixel answers a click.
+        }
+
+        /** The click handler's resync when the click carried an old state id (clicks sent before the last answer arrived).
+         *  Hypixel never answers with a whole-window contents packet, only with slot packets for what changed: other mods'
+         *  solvers read slot packets and take one as "this slot changed" (Odin's Starts With drops a slot from its solution
+         *  for good on any packet for it, so re-sending unchanged slots after every click hid unclicked ones, zeeks-simterm-1120). */
+        @Override
+        public void broadcastFullState() {
+            broadcastChanges();
         }
 
         /** Hypixel describes a terminal one slot packet at a time, never with a whole-window contents packet, and other
          *  mods' terminal solvers read only those (Odin's solves from AbstractContainerMenu.setItem, which a contents
          *  packet never calls, and then cancels every click outside its empty solution: a friend's Auto Terminals never
-         *  clicked in the sim, friendterms2-1119). So after the contents packet every window slot follows as its own. */
+         *  clicked in the sim, friendterms2-1119). So after the open every window slot follows as its own. */
         void sendSlots() {
             for (int i = 0; i < items.getContainerSize(); i++) {
                 owner.connection.send(new ClientboundContainerSetSlotPacket(containerId, getStateId(), i, items.getItem(i).copy()));
