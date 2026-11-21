@@ -2,8 +2,6 @@ package com.killer560.hub.autopuzzles;
 
 import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.livemap.autoclear.AutoClearUtils;
-import com.killer560.hub.livemap.DungeonLayout;
-import com.killer560.hub.livemap.autoclear.DungeonMapPathfinder;
 import com.killer560.hub.livemap.autoclear.ClearExecutor;
 import com.killer560.hub.puzzlesolvers.PuzzleCoords;
 import com.killer560.hub.puzzlesolvers.TicTacToeSolverConfig;
@@ -44,8 +42,7 @@ import com.killer560.hub.compat.McCompat;
  * </ul>
  * <p>2026-10-15 (killer560): it etherwarps onto the block right in front of the board ({@link #boardSpot}) rather than
  * walking, the chest trip is "Grab Secret" - one etherwarp next to the secret, Secret Aura's click, one etherwarp back -
- * and Walk Out When Done waits for the game to be over ({@link TicTacToeSolverFeature#isGameOver}), not for a board on
- * which the computer has yet to reply.
+ * and it ends when the game is over ({@link TicTacToeSolverFeature#isGameOver}); nothing walks him out.
  */
 final class AutoTicTacToe {
 
@@ -92,7 +89,6 @@ final class AutoTicTacToe {
     private static boolean roomSpotAttempted = false;
     private static int totalPlaced = 0;
     /** One attempt per room visit, so a board that reads as finished for many ticks queues a single walk. */
-    private static boolean walkOutAttempted = false;
     /** {@link AutoPuzzleActivity#ended} has gone for this visit's finished game. */
     private static boolean endedSent = false;
 
@@ -131,8 +127,8 @@ final class AutoTicTacToe {
         if (!wasInRoom) {
             visitStartTick = com.killer560.hub.util.SessionRecorderSink.tick();
             LOGGER.info("[AutoPuzzles] TicTacToe: entered the room with the auto on - solver move {}, grab secret {},"
-                            + " walk out {}, reposition {} (tick {})", best == null ? "none" : AutoPuzzleUtil.fmt(best),
-                    cfg.isTicTacToeAuraChestEnabled(), cfg.isTicTacToeWalkOutEnabled(), cfg.isEtherwarpReposition(),
+                            + " reposition {} (tick {})", best == null ? "none" : AutoPuzzleUtil.fmt(best),
+                    cfg.isTicTacToeAuraChestEnabled(), cfg.isEtherwarpReposition(),
                     visitStartTick);
         }
         wasInRoom = true;
@@ -212,50 +208,10 @@ final class AutoTicTacToe {
             stopApproach(client, "the Interactive Map is moving him");
             return; // walking (room spot, or our own chest trip's ClearExecutor leg)
         }
-        // WALK OUT WHEN THE BOARD IS DONE.
-        //
-        // "Finished" is the game being over (see below), and at least one placed this visit.
-        //
-        // The destination is not a hand-measured exit. There is no verified doorway coordinate for this room
-        // and inventing one walks you into a wall, which is why this was left unbuilt until now;
-        // AutoClearUtils.nearestDoorOut asks the live map for the closest door to the room you are in, which
-        // works in any room and stands two blocks back from a locked one. Off by default all the same: it is
-        // the only auto-puzzle walk whose target nobody has stood on and checked.
-        // "Done" is the GAME being over - the solver saw a line of three or a full board, or the tab list reads the
-        // puzzle solved or failed. It used to be "no move for him and one placed", which is also the board between
-        // his click and the computer's reply: on Hypixel the reply takes a second or two, and his log of 2026-10-14
-        // 17:26 shows the walk-out firing right after the FIRST click, two warps out of the room, then the auto
-        // walking him back in to carry on (killer560: "it etherwapred out, then walked back into the room").
         char tab = com.killer560.hub.scorecalc.ScoreCalculatorFeature.puzzleState(ROOM);
         boolean gameOver = TicTacToeSolverFeature.isGameOver() || tab == '✔' || tab == '✖';
-        if (gameOver && totalPlaced > 0 && !walkOutAttempted && cfg.isTicTacToeWalkOutEnabled()) {
-            DungeonLayout layout = DungeonLayout.current();
-            int door = layout == null ? -1 : AutoClearUtils.nearestDoorOut(layout);
-            if (door >= 0) {
-                BlockPos exit = DungeonMapPathfinder.getDoorPos(layout, layout.currentRoom(), door);
-                if (exit != null && AutoPuzzleUtil.pathIfMapOn(exit, null)) {
-                    walkOutAttempted = true;
-                    LOGGER.info("[AutoPuzzles] TicTacToe: game over - walking out through door {} at {} (tick {})", door,
-                            AutoPuzzleUtil.fmt(exit), com.killer560.hub.util.SessionRecorderSink.tick());
-                } else {
-                    String why = exit == null ? "door " + door + " has no position"
-                            : "the Interactive Map refused a path to " + AutoPuzzleUtil.fmt(exit);
-                    if (!why.equals(loggedWalkOut)) {
-                        loggedWalkOut = why;
-                        LOGGER.info("[AutoPuzzles] TicTacToe: walk out held - {} (tick {})", why,
-                                com.killer560.hub.util.SessionRecorderSink.tick());
-                    }
-                }
-            } else if (layout != null) {
-                // Said once, not every tick: no layout means the map has nothing to path with.
-                walkOutAttempted = true;
-                LOGGER.info("[AutoPuzzles] TicTacToe: board done but the map has no door to walk out to");
-            }
-        }
-        if (gameOver && totalPlaced > 0 && !endedSent && !WARP.isActive() && !approaching
-                && (walkOutAttempted || !cfg.isTicTacToeWalkOutEnabled())) {
-            // The game is over and nothing of ours is left (the secret trip is over - its stages return above - and the
-            // walk out, when on, is the map's trip): Auto Secret and Autopilot carry on now, not 40 ticks later.
+        if (gameOver && totalPlaced > 0 && !endedSent && !WARP.isActive() && !approaching) {
+            // The game is over and nothing of ours is left (the secret trip is over - its stages return above): Auto Secret and Autopilot carry on now, not 40 ticks later.
             endedSent = true;
             CAMERA.release(client.player);
             AutoPuzzleActivity.ended();
@@ -457,8 +413,6 @@ final class AutoTicTacToe {
         }
     }
 
-    /** The walk-out refusal last logged, kept apart from {@link #loggedWait} so the two never alternate. */
-    private static String loggedWalkOut = null;
     /** The click-logic hold last logged (screen, sneak, gate), apart from {@link #loggedWait} for the same reason. */
     private static String loggedHold = null;
 
@@ -837,7 +791,6 @@ final class AutoTicTacToe {
         lastClickMs = 0L;
         roomSpotAttempted = false;
         totalPlaced = 0;
-        walkOutAttempted = false;
         chestStage = ChestStage.NONE;
         chestReal = null;
         chestLegStartMs = 0L;
@@ -851,7 +804,6 @@ final class AutoTicTacToe {
         CAMERA.release(Minecraft.getInstance().player);
         loggedWait = null;
         loggedHold = null;
-        loggedWalkOut = null;
         loggedChestHold = null;
         visitStartTick = -1L;
     }

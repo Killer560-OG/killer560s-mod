@@ -254,3 +254,4 @@ The puzzle autos at run time (camera, timing, leaving, each puzzle). Part of the
   at once instead of after the 40-tick arrival wait. A point counts as stood on up to 0.06 over it (an etherwarp landing
   is 0.05 over), or the recovery fired a second straight-down warp. A give-up releases the free camera. Testkit
   93-solve-icefill-1118-bunched/-recovery/-sweep, 1118-same-icefill-* (Grim).
+- Tic Tac Toe walkout (killer560, 2026-11-20: "you dont need ttt walkout since you can etherwarp inside of the ttt room"): the Walk Out When Done setting is gone for good; never bring a walkout back. 93-solve-tictactoe-resume failed once at 18 ticks (bound 5) in a loaded run and passed alone on this branch jar (remerge3a-1120): a load flake, so the bound stays.

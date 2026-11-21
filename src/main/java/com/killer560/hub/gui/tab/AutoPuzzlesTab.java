@@ -117,9 +117,6 @@ public class AutoPuzzlesTab extends BaseTab {
             widgets.add(onOffButton("Grab Secret", cfg::getTicTacToeAuraChestEnabledRaw,
                     cfg::setTicTacToeAuraChestEnabled, cfg::save, null, contentX, y, contentWidth, 20));
             y += ROW_STEP;
-            widgets.add(onOffButton("Walk Out When Done", cfg::getTicTacToeWalkOutEnabledRaw,
-                    cfg::setTicTacToeWalkOutEnabled, cfg::save, null, contentX, y, contentWidth, 20));
-            y += ROW_STEP;
         }
 
         y = header(widgets, contentX, y, contentWidth, "Movement Puzzles");

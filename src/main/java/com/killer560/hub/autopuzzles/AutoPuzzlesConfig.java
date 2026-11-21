@@ -80,21 +80,13 @@ public final class AutoPuzzlesConfig {
     /**
      * "an overall toggle for that whole section" (killer560, 2026-09-27) - one switch over every piece of
      * WALKING the auto puzzles do: Water Board's start-area warp, Boulder's trip above the chest, Tic Tac Toe's
-     * room spot and chest trip, Higher/Lower's walk to the secret, and the walk out of a finished room.
+     * room spot and chest trip, Higher/Lower's walk to the secret.
      * <p>
      * Enforced in one place, {@link AutoPuzzleUtil#pathIfMapOn}, because every one of those goes through it.
      * Defaults ON so turning the setting on for the first time does not silently change what the puzzles
      * already did; off, the solvers and their clicking still work and nothing moves you.
      */
     private boolean autoPuzzlePathingEnabled = true;
-    /**
-     * Tic Tac Toe only: walk out of the room once the board is finished (killer560, 2026-09-27, "then have it
-     * walk out of the room once it is done"). Off by default - it is the one auto-puzzle walk with no
-     * hand-verified destination, since it aims at whatever door the live map says is nearest rather than a
-     * measured exit, so it wants one real run before being trusted.
-     */
-    private boolean ticTacToeWalkOutEnabled = false;
-
     private AutoPuzzlesConfig() {
     }
 
@@ -123,8 +115,7 @@ public final class AutoPuzzlesConfig {
             .add("iceFillAdaptive", false, c -> c.iceFillAdaptive, (c, v) -> c.iceFillAdaptive = v)
             .add("autoBlazeSecretEnabled", false, c -> c.autoBlazeSecretEnabled, (c, v) -> c.autoBlazeSecretEnabled = v)
             .add("ticTacToeAuraChestEnabled", false, c -> c.ticTacToeAuraChestEnabled, (c, v) -> c.ticTacToeAuraChestEnabled = v)
-            .add("autoPuzzlePathingEnabled", true, c -> c.autoPuzzlePathingEnabled, (c, v) -> c.autoPuzzlePathingEnabled = v)
-            .add("ticTacToeWalkOutEnabled", false, c -> c.ticTacToeWalkOutEnabled, (c, v) -> c.ticTacToeWalkOutEnabled = v);
+            .add("autoPuzzlePathingEnabled", true, c -> c.autoPuzzlePathingEnabled, (c, v) -> c.autoPuzzlePathingEnabled = v);
 
     public static void load() {
         if (!Files.exists(CONFIG_PATH)) {
@@ -315,19 +306,6 @@ public final class AutoPuzzlesConfig {
 
     public void setAutoPuzzlePathingEnabled(boolean enabled) {
         this.autoPuzzlePathingEnabled = enabled;
-    }
-
-    /** Walk out of the Tic Tac Toe room when the board is done - only meaningful with Auto Tic Tac Toe on. */
-    public boolean isTicTacToeWalkOutEnabled() {
-        return isAutoTicTacToeEnabled() && ticTacToeWalkOutEnabled;
-    }
-
-    public boolean getTicTacToeWalkOutEnabledRaw() {
-        return ticTacToeWalkOutEnabled;
-    }
-
-    public void setTicTacToeWalkOutEnabled(boolean enabled) {
-        this.ticTacToeWalkOutEnabled = enabled;
     }
 
     /** "have an option for auto secret" (killer560, 2026-09-27) - only meaningful with Auto Blaze itself on. */
