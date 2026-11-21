@@ -3209,6 +3209,10 @@ final class SettingTooltipsData {
         d.put("auto anvil/close when done", "Closes the anvil once nothing is left to combine, if anything was combined.");
         d.put("auto anvil/min delay", "Shortest random wait after the server answers one Auto Anvil click, 50-1000 ms.");
         d.put("auto anvil/max delay", "Longest random wait after the server answers one Auto Anvil click, 50-1000 ms.");
+        d.put("auto melody's harp", "Plays any song you open in Melody's Harp by itself, to the end (cheat build only).");
+        d.put("auto melody's harp/auto detect lag", "Follows how fast the note rows really move (a laggy server moves them slower) instead of assuming a fixed speed, to decide how early a click must go.");
+        d.put("auto melody's harp/auto detect ping", "Clicks early by your measured ping when it is longer than half a note step, so the click reaches the server while the note is still there.");
+        d.put("auto melody's harp/click offset", "Added to the ping lead in milliseconds (it is the whole lead with Auto Detect Ping off): positive clicks earlier, negative later. -300 to 300 ms.");
     }
 
     /** Custom Party Finder (killer560's to-do item 1, 2026-10-18). Scoped to the tab's name. */

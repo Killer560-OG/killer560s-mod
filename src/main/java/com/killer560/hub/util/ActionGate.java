@@ -251,6 +251,9 @@ public final class ActionGate {
          *  2026-10-07). Shop-side convenience, same bucket as Auto Sell; wired in {@code AutoAnvilFeature#click},
          *  its only click site. */
         AUTO_ANVIL(Kind.SCREEN),
+        /** Auto Melody's Harp middle-clicking the note slots of a "Harp - song" menu. Wired in
+         *  {@code islands.AutoHarpFeature}, its only click site. */
+        ISLAND_HARP(Kind.SCREEN),
         /** The Bazaar-to-NPC Flipper's {@code /bz <item>} and {@code /trades} sends (killer560, 2026-09-29:
          *  "a bazaar flipper"). A command, so {@link Kind#COMMAND}. Same "no one dies if this is a tick late"
          *  bucket as Auto Sell - it is shop automation in the Hub, never in a run. Wired in the same change

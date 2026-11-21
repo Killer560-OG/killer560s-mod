@@ -7,7 +7,8 @@
     "title": "More",
     "blurb": "Changes in this update.",
     "items": [
-     "Fast Leap now works in the dungeon sim even with no Sim Teammate placed (the tab lists the four classes the leap menu offers), and a completed P3 section's Fast Leap goes to the target of the section you are standing in instead of the section that just finished."
+     "Fast Leap now works in the dungeon sim even with no Sim Teammate placed (the tab lists the four classes the leap menu offers), and a completed P3 section's Fast Leap goes to the target of the section you are standing in instead of the section that just finished.",
+     "Auto Melody's Harp (cheat build only) plays any Melody's Harp song you open, with Auto Detect Lag, Auto Detect Ping and a Click Offset slider."
     ]
    }
   ]

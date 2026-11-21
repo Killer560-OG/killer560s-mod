@@ -54,6 +54,7 @@ public class ItemsTab extends FolderTab {
             tabs.add(new InventorySorterTab());
             tabs.add(new AutoSellTab());
             tabs.add(new AutoAnvilTab());
+            tabs.add(new AutoHarpTab());
             tabs.add(new AutoGfsTab());
             tabs.add(new BazaarFlipTab());
         }
