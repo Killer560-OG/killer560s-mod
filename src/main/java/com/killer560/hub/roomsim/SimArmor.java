@@ -109,15 +109,73 @@ public enum SimArmor {
         return stack;
     }
 
-    /** Server thread: puts the selected set on, or takes a sim set off when NONE. Armor the sim did not give stays. */
-    static void wear(ServerPlayer sp, SimArmor set) {
-        for (int i = 0; i < 4; i++) {
-            ItemStack worn = sp.getItemBySlot(SLOTS[i]);
-            String id = com.killer560.hub.cheatutils.CheatUtils.skyblockId(worn);
-            boolean ours = id != null && (id.startsWith("INFERNAL_TERROR_") || id.startsWith("THERMODYNAMIC_"));
-            if (set != NONE) sp.setItemSlot(SLOTS[i], set.piece(i));
-            else if (ours) sp.setItemSlot(SLOTS[i], ItemStack.EMPTY);
+    /** The set whose wardrobe slot is the one on the body, null before the sim put one on this game. Server thread. */
+    private static SimArmor onBody;
+
+    /**
+     * Piece {@code i} as this set's wardrobe slot holds it (wardrobekeep-1120, killer560 2026-11-20: "in hypixel the two would
+     * be their own sets. if i trade out a helmet from one and then close and change it over then it keeps that new set"):
+     * what was worn in that slot when the set was last left ({@link SimLoadout#keptId}), else the set's own piece.
+     */
+    ItemStack held(int i) {
+        String id = SimLoadout.keptId(this, i);
+        if (id == null || id.equals(pieceId(i))) return piece(i);
+        if (id.isEmpty()) return ItemStack.EMPTY;
+        if (id.indexOf(':') >= 0) {
+            return new ItemStack(net.minecraft.core.registries.BuiltInRegistries.ITEM.getValue(net.minecraft.resources.Identifier.parse(id)));
         }
+        return SimItems.build(id);
+    }
+
+    /** What the menus show in {@code set}'s slot: the body's pieces for the slot that is on, else what the slot holds. */
+    static ItemStack shown(ServerPlayer sp, SimArmor set, int i) {
+        return set == onBody ? sp.getItemBySlot(SLOTS[i]).copy() : set.held(i);
+    }
+
+    /** How a worn piece is kept: its Skyblock id, a vanilla item's registry id, "" for an empty slot. */
+    private static String keepId(ItemStack worn) {
+        if (worn.isEmpty()) return "";
+        String id = com.killer560.hub.cheatutils.CheatUtils.skyblockId(worn);
+        return id != null ? id : net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(worn.getItem()).toString();
+    }
+
+    private static boolean ours(ItemStack worn) {
+        String id = com.killer560.hub.cheatutils.CheatUtils.skyblockId(worn);
+        return id != null && (id.startsWith("INFERNAL_TERROR_") || id.startsWith("THERMODYNAMIC_"));
+    }
+
+    /**
+     * Server thread: wears {@code set}'s slot as Hypixel's wardrobe does. The slot being left keeps exactly what is worn,
+     * a piece swapped in by hand included (the piece it replaced is already in the inventory); NONE takes the set off.
+     * Wearing the slot that is already on changes nothing, so hand-swapped pieces stay. Armor no wardrobe slot gave goes
+     * to the inventory, never lost (with NONE and no slot on, it simply stays worn).
+     */
+    static void wear(ServerPlayer sp, SimArmor set) {
+        ItemStack[] off = new ItemStack[4];
+        boolean bare = true;
+        for (int i = 0; i < 4; i++) {
+            off[i] = sp.getItemBySlot(SLOTS[i]).copy();
+            bare &= off[i].isEmpty();
+        }
+        if (set == onBody && !bare) return;
+        if (onBody != null && onBody != NONE && !bare) {
+            String[] ids = new String[4];
+            for (int i = 0; i < 4; i++) ids[i] = keepId(off[i]);
+            SimLoadout.keep(onBody, ids);
+        }
+        boolean slotOn = onBody != null && onBody != NONE;
+        for (int i = 0; i < 4; i++) {
+            if (set == NONE) {
+                if (slotOn || ours(off[i])) sp.setItemSlot(SLOTS[i], ItemStack.EMPTY);
+                continue;
+            }
+            // No slot on: armor it did not give goes to the inventory (the slot's own kept piece after a restart is not
+            // doubled), and stays worn when the inventory is full.
+            if (!slotOn && !off[i].isEmpty() && !ours(off[i]) && !keepId(off[i]).equals(keepId(set.held(i)))
+                    && !sp.getInventory().add(off[i])) continue;
+            sp.setItemSlot(SLOTS[i], set.held(i));
+        }
+        onBody = set;
         sp.inventoryMenu.sendAllDataToRemote(); // an open chest menu does not sync the armor slots (Loadouts and Wardrobe stay open)
     }
 }

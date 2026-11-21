@@ -139,7 +139,7 @@ public final class SimWardrobe {
         if (kind == Kind.WARDROBE) {
             for (int c = 0; c < 9; c++) {
                 SimArmor set = c < WARDROBE_SETS.length ? WARDROBE_SETS[c] : SimArmor.NONE;
-                for (int r = 0; r < 4; r++) box.setItem(r * 9 + c, set == SimArmor.NONE ? ItemStack.EMPTY : set.piece(r));
+                for (int r = 0; r < 4; r++) box.setItem(r * 9 + c, set == SimArmor.NONE ? ItemStack.EMPTY : SimArmor.shown(sp, set, r));
                 boolean on = set != SimArmor.NONE && set == worn;
                 box.setItem(36 + c, set == SimArmor.NONE
                         ? labeled(McItems.GRAY_DYE, "Slot " + (c + 1), ChatFormatting.GRAY, "Empty")
@@ -163,8 +163,8 @@ public final class SimWardrobe {
             if (!sp.getMainHandItem().isEmpty()) box.setItem(HELD_SLOT, sp.getMainHandItem().copy());
         } else {
             for (int i = 0; i < 4; i++) {
-                // the worn set, not the player slots: the wear itself lands a moment later on the server thread
-                if (worn != SimArmor.NONE) box.setItem(LOADOUT_WORN_SLOTS[i], worn.piece(i));
+                // the set being worn as its slot holds it: the wear itself lands a moment later on the server thread
+                if (worn != SimArmor.NONE) box.setItem(LOADOUT_WORN_SLOTS[i], SimArmor.shown(sp, worn, i));
             }
             for (int n = 1; n <= 12; n++) {
                 SimArmor set = SimLoadout.setAt(n);
@@ -239,18 +239,8 @@ public final class SimWardrobe {
                 sp.setItemSlot(WORN[i], clicked.copy());
                 getSlot(slot).set(old);
             }
+            // A hand swap never changes which wardrobe slot is on: that slot keeps the new piece when it is left (SimArmor#wear).
             sp.inventoryMenu.sendAllDataToRemote(); // the armor slots belong to the inventory menu, which the open menu does not sync
-            for (SimArmor a : SimArmor.values()) {
-                boolean all = a != SimArmor.NONE, none = true;
-                for (int i = 0; i < 4; i++) {
-                    String id = com.killer560.hub.cheatutils.CheatUtils.skyblockId(sp.getItemBySlot(WORN[i]));
-                    all &= id != null && id.equals(a.pieceId(i));
-                    none &= id == null || !(id.startsWith("INFERNAL_TERROR_") || id.startsWith("THERMODYNAMIC_"));
-                }
-                if (all || a == SimArmor.NONE && none) { this.worn = a; break; }
-            }
-            SimArmor now = this.worn;
-            if (now != SimArmor.current()) Minecraft.getInstance().execute(() -> SimLoadout.setArmor(now));
         }
 
         @Override

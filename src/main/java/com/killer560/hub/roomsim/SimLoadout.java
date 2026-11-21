@@ -55,6 +55,8 @@ public final class SimLoadout {
     /** Hypixel loadout spot (1-12) each armor set is saved in, by ordinal (NONE unused): Terror 1, Thermodynamic 2. */
     private static final int[] DEFAULT_SPOTS = {0, 1, 2};
     private static final int[] spots = DEFAULT_SPOTS.clone();
+    /** Per set (by ordinal), the piece ids its wardrobe slot holds since it was last left (SimArmor#held); null = its own pieces. */
+    private static final String[][] kept = new String[SimArmor.values().length][];
     private static boolean loaded;
 
     private SimLoadout() {
@@ -231,6 +233,27 @@ public final class SimLoadout {
         persist();
     }
 
+    /** The id of piece {@code i} that {@code set}'s slot keeps ("" empty), or null for the set's own piece. */
+    static synchronized String keptId(SimArmor set, int i) {
+        load();
+        String[] k = kept[set.ordinal()];
+        return k == null ? null : k[i];
+    }
+
+    /** {@code set}'s slot now holds {@code ids} (what was worn as it was left), saved with the loadout. */
+    static synchronized void keep(SimArmor set, String[] ids) {
+        load();
+        kept[set.ordinal()] = ids.clone();
+        persist();
+    }
+
+    /** Every wardrobe slot back to its own set's pieces (tests; a hand-swapped piece kept in a slot is dropped). */
+    public static synchronized void resetKept() {
+        load();
+        java.util.Arrays.fill(kept, null);
+        persist();
+    }
+
     /** Puts the selected set on the sim player; a no-op outside a sim. */
     static void applyArmor(Minecraft client) {
         if (client.player == null || !SimState.canAct(client)) return;
@@ -251,6 +274,7 @@ public final class SimLoadout {
         applyOnLoad = true;
         armor = SimArmor.NONE;
         System.arraycopy(DEFAULT_SPOTS, 0, spots, 0, spots.length);
+        java.util.Arrays.fill(kept, null);
         load();
     }
 
@@ -276,6 +300,15 @@ public final class SimLoadout {
                 }
                 if (spots[1] == spots[2]) System.arraycopy(DEFAULT_SPOTS, 0, spots, 0, spots.length);
             }
+            JsonObject k = o.has("kept") ? o.getAsJsonObject("kept") : null;
+            for (SimArmor a : SimArmor.values()) {
+                if (k == null || a == SimArmor.NONE || !k.has(a.name())) continue;
+                JsonArray ka = k.getAsJsonArray(a.name());
+                if (ka.size() != 4) continue;
+                String[] ids = new String[4];
+                for (int i = 0; i < 4; i++) ids[i] = ka.get(i).isJsonNull() ? null : ka.get(i).getAsString();
+                kept[a.ordinal()] = ids;
+            }
             JsonArray arr = o.getAsJsonArray("slots");
             for (int i = 0; arr != null && i < arr.size() && i < SLOTS; i++) {
                 slots[i] = arr.get(i).isJsonNull() ? null : arr.get(i).getAsString();
@@ -294,6 +327,14 @@ public final class SimLoadout {
             JsonObject sp = new JsonObject();
             for (SimArmor a : SimArmor.values()) if (a != SimArmor.NONE) sp.addProperty(a.name(), spots[a.ordinal()]);
             o.add("spots", sp);
+            JsonObject k = new JsonObject();
+            for (SimArmor a : SimArmor.values()) {
+                if (kept[a.ordinal()] == null) continue;
+                JsonArray ka = new JsonArray();
+                for (String id : kept[a.ordinal()]) ka.add(id);
+                k.add(a.name(), ka);
+            }
+            o.add("kept", k);
             JsonArray arr = new JsonArray();
             for (String s : slots) {
                 if (s == null) {
