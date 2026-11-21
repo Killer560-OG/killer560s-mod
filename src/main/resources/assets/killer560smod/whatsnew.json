@@ -26,7 +26,8 @@
      "Dungeon sim: /wardrobe, /stats, /loadouts and the new /class now match Hypixel (Terror and Thermodynamic sets, loadout spots chosen in Sim Settings, class menu).",
      "Auto Tic Tac Toe: the Walk Out When Done setting is removed; after the solve nothing moves you, so you can etherwarp out yourself.",
      "Auto Clear with a Hyperion: one Wither Impact now aims across to reach more mobs, a cast chains on to the next mob instead of an etherwarp trip when that is quicker, the Hyperion is already in hand and aimed when a trip lands, and a clear no longer skips a starred mob because the clear before went to the same spot",
-     "Sim co-op now goes through the private relay by default: no player sees anyone's IP address, and a new Share My IP setting (off by default) lets a friend connect directly when the relay is full or down."
+     "Sim co-op now goes through the private relay by default: no player sees anyone's IP address, and a new Share My IP setting (off by default) lets a friend connect directly when the relay is full or down.",
+     "Test fix only: the join fingerprint smoke case no longer fails on a starved test server (opensign resent, more join tries)."
     ]
    }
   ]
