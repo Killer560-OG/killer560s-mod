@@ -61,6 +61,7 @@ Sim lessons that sit with a feature rather than the sim are in [LESSONS-AUTOCLEA
 Positions always come from `BloodRushData.boxes` (the shared table, a static fallback for rooms it lacks; one spot at the middle of each box, brboxes-only-1117); a look only adds
 type, gear, skin and yaw, read from the shared store (`RecordCatalog.SIM_MOB_LOOKS`, `sim-mob-looks.json`) by `SimMobLooks.lookIn`. Nothing records new
 looks since brboxes-only-1117 (the recorder rode on Learn Spawn Spots); a recorder belongs in the logger mod if wanted again.
+MINIBOSS SPOT (sim-minispawn-1121): miniboss (CHAMPION) rooms have no spawn boxes, so their miniboss stood on a random seeded tile. Blood Rush Helper (`trackMobs`, a newly seen Player-type starred mob; once per room, skipped with a real player within 4 blocks) now calls `SimMobLooks.recordMiniboss`: room-relative xyz, yaw and name in the same record (`"miniboss":true`, never a box look: `lookIn` skips it). `SimLiveMobs` puts the room's miniboss on that spot (`SimMobs.placeBoss`, turned with the room) when Real Mob Looks is on; a room with none recorded keeps the old placement. Rooms known at the 1121 start: none (his store held no miniboss).
 
 Measured from his 2026-11 camp logs (ticks after the greeting): 77-tick first-wave flights of 16.1 blocks; later trips
 11.9 blocks in 39 ticks; mobs killable from `BloodCampMoveTimer.fastWatcherMoveTicks(floor)`; 9 + floor number mobs; case

@@ -509,7 +509,14 @@ public final class BloodRushHelperFeature {
                 continue;
             }
             Vec3 at = e.position();
-            MOBS.put(e.getId(), new Mob(e.getId(), at, e.getBoundingBox(), layout.roomAtWorld(at.x, at.z), e, tagOf(client, e)));
+            int room = layout.roomAtWorld(at.x, at.z);
+            MOBS.put(e.getId(), new Mob(e.getId(), at, e.getBoundingBox(), room, e, tagOf(client, e)));
+            if (e instanceof net.minecraft.world.entity.player.Player p && room >= 0 && layout.name(room) != null) {
+                // A miniboss: remember where it stood, for the Dungeon Sim's Real Mob Looks (once a room).
+                int[] cr = layout.clayRotation(room);
+                com.killer560.hub.roomsim.SimMobLooks.recordMiniboss(layout.name(room),
+                        new RouteCoords.Frame(layout.name(room), cr[0], cr[1], cr[2]), p, client.level.players());
+            }
         }
         Vec3 me = client.player.position();
         for (Mob m : MOBS.values()) {

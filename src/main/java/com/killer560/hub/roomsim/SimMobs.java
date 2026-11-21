@@ -435,12 +435,19 @@ public final class SimMobs {
 
     /** A live miniboss of {@code name} on {@code pos} (a starred zombie when it cannot be placed). Server thread. */
     private static void placeBoss(ServerLevel level, BlockPos pos, SimMiniboss.Name name, double hp) {
+        placeBoss(level, pos, name, hp, 0f);
+    }
+
+    /** The same, facing {@code yaw} (a recorded miniboss spot's, already turned with the room). */
+    static void placeBoss(ServerLevel level, BlockPos pos, SimMiniboss.Name name, double hp, float yaw) {
         SimMiniboss.Placed placed = SimMiniboss.place(level, pos, name, hp);
         if (placed == null) {
             spawnDummy(level, new SimZombie(McEntities.ZOMBIE, level), pos, pos.getY(), true, hp);
             return;
         }
         ServerPlayer boss = placed.boss();
+        boss.setYRot(yaw);
+        boss.setYHeadRot(yaw);
         SPAWNED.add(boss.getUUID());
         STARRED.add(boss.getUUID());
         recordStarred(boss.getUUID(), boss.getX(), boss.getY(), boss.getZ());

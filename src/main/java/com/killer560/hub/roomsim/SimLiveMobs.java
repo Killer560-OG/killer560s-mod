@@ -246,6 +246,21 @@ public final class SimLiveMobs {
                     }
                 }
                 boolean boss = bosses && champion.get(e.getKey()) && !got.isEmpty();
+                // The miniboss stands where one was recorded on Hypixel in this room (room-relative, turned with the room), when
+                // known; its room has no other spot taken for it then.
+                SimMobLooks.MinibossSpot real = boss && looks ? SimMobLooks.minibossIn(e.getKey()) : null;
+                if (real != null) {
+                    for (SimMiniboss.Name n : SimMiniboss.Name.values()) {
+                        if (n.text().equals(real.name())) {
+                            BlockPos feet = com.killer560.hub.autoroutes.RouteCoords.toRealBlock(frame, real.rel());
+                            SimMobs.placeBoss(level, feet, n, hp * 3, com.killer560.hub.autoroutes.RouteCoords.toRealYaw(frame, real.yaw()));
+                            placed++;
+                            boss = false;
+                            LOGGER.info("[Sim] miniboss {} placed on its recorded spot in {}", n.text(), e.getKey());
+                            break;
+                        }
+                    }
+                }
                 int k = 0;
                 for (BlockPos p : got) {
                     if (lookAt.containsKey(p)) {

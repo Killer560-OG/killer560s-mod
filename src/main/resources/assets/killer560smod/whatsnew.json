@@ -21,7 +21,8 @@
      "New Melody's Harp Helper tab: press keys 1 to 7 to play the harp columns (rebindable, with labels in the click row), a progress tracker with hits, combo and best, a custom GUI scale just for the harp, hidden item tooltips, and a quick restart when you replay a song. Auto Melody's Harp no longer misses notes after a server lag or a burst: it clicks a new note the moment it shows.",
      "Door Keys: the Sphere highlight is now one even color from every angle instead of a patchwork that shifted as you moved.",
      "Dungeon sim: a left click or right click on a wither or blood door opens it with any item in hand once you have the key, including the Dungeonbreaker, which still cannot break door blocks.",
-     "New cheat feature Map Cycler (default off, /roomcycle or a keybind): re-rolls the dungeon until the rooms you must open to reach Blood are at most the number you set. It keeps a map only when what the map shows proves Blood is that close (\"Kept: Blood is at most N room(s) away.\"), using wither doors and room shapes; any other map is re-rolled a fixed 1 s after the creation cooldown ends, and it works only in the Entrance room before the run starts"
+     "New cheat feature Map Cycler (default off, /roomcycle or a keybind): re-rolls the dungeon until the rooms you must open to reach Blood are at most the number you set. It keeps a map only when what the map shows proves Blood is that close (\"Kept: Blood is at most N room(s) away.\"), using wither doors and room shapes; any other map is re-rolled a fixed 1 s after the creation cooldown ends, and it works only in the Entrance room before the run starts",
+     "Dungeon sim: with Real Mob Looks on, a miniboss room's miniboss now stands where one was seen on Hypixel in that room (turned with the room) instead of a random spot; Blood Rush Helper now remembers where a miniboss first stood, so rooms you visit fill in over time."
     ]
    }
   ]

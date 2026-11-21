@@ -4,6 +4,8 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.killer560.hub.shared.RecordCatalog;
 import com.killer560.hub.shared.SharedRecords;
+import com.killer560.hub.shared.SharedWriter;
+import com.killer560.hub.autoroutes.RouteCoords;
 import com.killer560.hub.util.ModLog;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -12,6 +14,8 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.DyedItemColor;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.player.Player;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
@@ -46,6 +50,13 @@ public final class SimMobLooks {
     private static boolean loaded;
     private static boolean loading;
     private static int total;
+    private static boolean dirty;
+    private static long lastSave;
+    private static final long SAVE_EVERY_MS = 10_000L;
+    /** A miniboss is recorded only when no real player (not a version-2 UUID) stands this close: an untouched one has not moved. */
+    private static final double ALONE = 4.0;
+    /** Test hook: record in the Dungeon Sim too (never on in play). */
+    public static volatile boolean recordInSimForTest;
 
     private SimMobLooks() {
     }
@@ -54,16 +65,98 @@ public final class SimMobLooks {
     public record Look(String type, String name, String skin, float yaw, Map<EquipmentSlot, ItemStack> gear) {
     }
 
+    /** Where a miniboss stood on Hypixel: the room-relative block it was first seen on, its name and room-relative yaw. */
+    public record MinibossSpot(BlockPos rel, String name, float yaw) {
+    }
+
+    /**
+     * Records a miniboss (a player-type entity with a version-2 UUID and one of the five names) first seen in {@code room} (once
+     * a room: later sightings are not kept), room-relative like every look, saved to the shared store off the render thread.
+     * Client thread, called for a newly seen miniboss only. Not recorded when a real player stands within {@link #ALONE}.
+     */
+    public static void recordMiniboss(String room, RouteCoords.Frame frame, Player boss, Iterable<? extends Player> players) {
+        if (room == null || frame == null || (SimState.isActive() && !recordInSimForTest)) return;
+        for (Player o : players) {
+            if (o != boss && o.getUUID().version() != 2 && o.distanceToSqr(boss) < ALONE * ALONE) return;
+        }
+        synchronized (LOCK) {
+            if (!loaded && !loading) {
+                loading = true;
+                SharedWriter.submit(SimMobLooks::loadNow);
+            }
+            for (JsonObject o : ROOMS.getOrDefault(room, List.of())) {
+                if (o.has("miniboss")) return;
+            }
+            BlockPos rel = RouteCoords.toRelativeBlock(frame, BlockPos.containing(boss.position()));
+            JsonObject e = new JsonObject();
+            e.addProperty("room", room);
+            e.addProperty("x", rel.getX());
+            e.addProperty("y", rel.getY());
+            e.addProperty("z", rel.getZ());
+            e.addProperty("type", "minecraft:player");
+            e.addProperty("name", boss.getName().getString());
+            e.addProperty("miniboss", true);
+            e.addProperty("yaw", Math.round(RouteCoords.toRelativeYaw(frame, boss.getYRot())));
+            e.addProperty("seen", 1);
+            if (!put(e)) return;
+            dirty = true;
+        }
+        LOGGER.info("[SimMobLooks] recorded miniboss {} in {}", boss.getName().getString(), room);
+        saveIfDirty(false);
+    }
+
+    /** Writes the memory to the shared store (merged onto the disk) when something changed; throttled unless {@code now}. */
+    public static void saveIfDirty(boolean now) {
+        JsonObject snap;
+        synchronized (LOCK) {
+            long t = System.currentTimeMillis();
+            if (!dirty || (!now && t - lastSave < SAVE_EVERY_MS)) return;
+            dirty = false;
+            lastSave = t;
+            com.google.gson.JsonArray all = new com.google.gson.JsonArray();
+            for (List<JsonObject> l : ROOMS.values()) {
+                for (JsonObject o : l) all.add(o.deepCopy());
+            }
+            snap = new JsonObject();
+            snap.addProperty("version", 1);
+            snap.add("mobs", all);
+        }
+        SharedWriter.submit(() -> {
+            JsonObject merged = SharedRecords.save(SharedRecords.file(RecordCatalog.SIM_MOB_LOOKS), snap);
+            synchronized (LOCK) {
+                install(merged);
+            }
+        });
+    }
+
+    /** The miniboss recorded in {@code room}, or null (no spot known: the sim keeps its own placement). */
+    public static MinibossSpot minibossIn(String room) {
+        synchronized (LOCK) {
+            if (!loaded) loading = true;
+        }
+        if (!isLoaded()) loadNow();
+        synchronized (LOCK) {
+            for (JsonObject o : ROOMS.getOrDefault(room, List.of())) {
+                if (o.has("miniboss")) {
+                    return new MinibossSpot(new BlockPos(o.get("x").getAsInt(), o.get("y").getAsInt(), o.get("z").getAsInt()),
+                            o.get("name").getAsString(), o.has("yaw") ? o.get("yaw").getAsFloat() : 0f);
+                }
+            }
+        }
+        return null;
+    }
+
     /** Adds or updates (the newest look wins, seen counts up); false when it only updated or the store is full. */
     private static boolean put(JsonObject e) {
         String room = e.get("room").getAsString();
         List<JsonObject> list = ROOMS.computeIfAbsent(room, k -> new ArrayList<>());
         int x = e.get("x").getAsInt(), y = e.get("y").getAsInt(), z = e.get("z").getAsInt();
         for (JsonObject o : list) {
+            if (o.has("miniboss") != e.has("miniboss")) continue;
             if (Math.abs(o.get("x").getAsInt() - x) <= MERGE && Math.abs(o.get("y").getAsInt() - y) <= MERGE
                     && Math.abs(o.get("z").getAsInt() - z) <= MERGE) {
                 int seen = o.has("seen") ? o.get("seen").getAsInt() : 1;
-                for (String k : List.of("type", "name", "skin", "yaw", "gear")) {
+                for (String k : List.of("type", "name", "skin", "yaw", "gear", "miniboss")) {
                     o.remove(k);
                     if (e.has(k)) o.add(k, e.get(k));
                 }
@@ -103,7 +196,7 @@ public final class SimMobLooks {
             List<JsonObject> list = ROOMS.computeIfAbsent(room, k -> new ArrayList<>());
             boolean known = false;
             for (JsonObject m : list) {
-                known |= m.get("x").getAsInt() == o.get("x").getAsInt() && m.get("y").getAsInt() == o.get("y").getAsInt()
+                known |= m.has("miniboss") == o.has("miniboss") && m.get("x").getAsInt() == o.get("x").getAsInt() && m.get("y").getAsInt() == o.get("y").getAsInt()
                         && m.get("z").getAsInt() == o.get("z").getAsInt();
             }
             if (!known && list.size() < MAX_PER_ROOM && total < MAX) {
@@ -132,6 +225,7 @@ public final class SimMobLooks {
             List<JsonObject> list = ROOMS.get(room);
             int bestD = Integer.MAX_VALUE;
             for (JsonObject o : list == null ? List.<JsonObject>of() : list) {
+                if (o.has("miniboss")) continue;
                 int x = o.get("x").getAsInt(), y = o.get("y").getAsInt(), z = o.get("z").getAsInt();
                 int dx = Math.abs(x - cx), dy = Math.abs(y - cy), dz = Math.abs(z - cz);
                 if (x >= box[0] - MERGE && x <= box[3] + MERGE && y >= box[1] - MERGE && y <= box[4] + MERGE
@@ -191,6 +285,24 @@ public final class SimMobLooks {
             });
         }
         return out;
+    }
+
+    /** Test hook: a miniboss for {@code room} at a room-relative block (memory only, never saved). */
+    public static void putMinibossForTest(String room, int x, int y, int z, String name, float yaw) {
+        JsonObject e = new JsonObject();
+        e.addProperty("room", room);
+        e.addProperty("x", x);
+        e.addProperty("y", y);
+        e.addProperty("z", z);
+        e.addProperty("type", "minecraft:player");
+        e.addProperty("name", name);
+        e.addProperty("miniboss", true);
+        e.addProperty("yaw", yaw);
+        e.addProperty("seen", 1);
+        synchronized (LOCK) {
+            loaded = true;
+            put(e);
+        }
     }
 
     /** Test hook: one look for {@code room} at a room-relative block (memory only, never saved). */
