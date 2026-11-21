@@ -76,6 +76,15 @@ public final class CommandFixer {
                 found.add(c);
             }
         }
+        if (found.isEmpty() && len >= 3) {
+            // one extra letter ("ety" -> "et"): the only rule that may reach a 2-letter command
+            for (int i = 0; i < len; i++) {
+                String s = lower.substring(0, i) + lower.substring(i + 1);
+                if (valid.contains(s)) {
+                    found.add(s);
+                }
+            }
+        }
         if (found.isEmpty()) {
             return "NONE";
         }
