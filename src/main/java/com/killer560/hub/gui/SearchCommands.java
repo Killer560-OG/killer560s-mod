@@ -31,6 +31,7 @@ public final class SearchCommands {
             Map.entry("k560", "CommandPrefixesTab"),
             Map.entry("cringe", "CringeTab"),
             Map.entry("chmap", "CrystalHollowsMapTab"),
+            Map.entry("roomcycle", "MapCyclerTab"),
             Map.entry("ew", "EtherwarpTab"),
             Map.entry("language", "TranslateTab"),
             Map.entry("translate", "TranslateTab"),

@@ -55,6 +55,7 @@ public final class CreationCooldownFeature {
             "^(?:\\[[^\\]]{1,20}] ){0,2}([A-Za-z0-9_]{1,16}) entered (?:MM )?The Catacombs, .{1,30}!$");
 
     private static long endsAtMs = 0;
+    private static volatile String creator;
     private static boolean warnedOver = true;
     private static int blockedCount = 0;
     private static String lastDrawn = null;
@@ -97,7 +98,9 @@ public final class CreationCooldownFeature {
             return;
         }
         for (String line : plain.split("\n")) {
-            if (ENTERED.matcher(line.trim()).matches()) {
+            java.util.regex.Matcher m = ENTERED.matcher(line.trim());
+            if (m.matches()) {
+                creator = m.group(1);
                 start(System.currentTimeMillis());
                 return;
             }
@@ -111,9 +114,20 @@ public final class CreationCooldownFeature {
         LOGGER.info("[CreationCooldown] entered a dungeon: no new instance for {} s", COOLDOWN_MS / 1000);
     }
 
+    /** Who made the last instance (the name in the last "entered" line; Hypixel prints only the creator's), or null. Only the
+     *  creator can re-queue it (Map Cycler). */
+    public static String creator() {
+        return creator;
+    }
+
     /** Milliseconds until a new instance can be made, 0 when none is pending. */
     public static long remainingMs() {
         return Math.max(0L, endsAtMs - System.currentTimeMillis());
+    }
+
+    /** When the cooldown ends (wall clock ms), 0 before it ever started. Map Cycler decides by then. */
+    public static long endsAtMs() {
+        return endsAtMs;
     }
 
     /** Whether the cooldown has ever started since the client did (false: nothing is known about it). */
@@ -170,8 +184,9 @@ public final class CreationCooldownFeature {
         return cfg.isShowOnAllIslands() && SkyblockGate.isOnSkyblock();
     }
 
-    /** In the Entrance (green) room - or before the map knows any room, which is where a run starts (the rule). */
-    static boolean inEntrance() {
+    /** In the Entrance (green) room - or before the map knows any room, which is where a run starts (the rule). Also
+     *  Map Cycler's gate. */
+    public static boolean inEntrance() {
         if (LiveMapFeature.isInBoss()) {
             return false;
         }

@@ -431,6 +431,9 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.dungeonextras.DungeonExtrasFeature.register();
         com.killer560.hub.dungeonqueue.DungeonQueueFeature.register();
         com.killer560.hub.creationcooldown.CreationCooldownFeature.register();
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            com.killer560.hub.mapcycler.MapCyclerFeature.register();
+        }
         HudElementRegistry.register(com.killer560.hub.creationcooldown.CreationCooldownFeature.HUD);
         com.killer560.hub.kickrejoin.KickRejoinFeature.register();
         HudElementRegistry.register(com.killer560.hub.kickrejoin.KickRejoinFeature.HUD);

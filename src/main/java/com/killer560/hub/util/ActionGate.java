@@ -300,7 +300,9 @@ public final class ActionGate {
          *  {@code AUTO_GFS}/{@code PET_WHEEL_CMD}. Declared last (lowest priority): unlike a route step or a
          *  boss lever, losing this tick to something else costs nothing - {@code AutoKickFeature} already
          *  rate-limits its own kicks well below one per tick on top of whatever this gate adds. */
-        AUTO_KICK(Kind.COMMAND);
+        AUTO_KICK(Kind.COMMAND),
+        /** Map Cycler's /joininstance re-roll (roomcycle-1118): one command at least 30 s apart, nothing lost if a tick late. */
+        MAP_CYCLER(Kind.COMMAND);
 
         private final Kind kind;
         /** Actors that are steps of one sequence (one item use opening the menu its next step clicks) share a flow,

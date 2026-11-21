@@ -1484,7 +1484,7 @@ public final class LiveMapFeature {
     }
 
     /** Whether the world scan read cell {@code idx} in a loaded chunk and found nothing there (see {@link #seenEmpty}). */
-    static boolean seenEmpty(int idx) {
+    public static boolean seenEmpty(int idx) {
         return seenEmpty[idx];
     }
 

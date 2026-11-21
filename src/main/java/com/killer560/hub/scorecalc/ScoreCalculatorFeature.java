@@ -100,7 +100,7 @@ public final class ScoreCalculatorFeature {
     public static final Pattern PRINCE_KILLED = Pattern.compile("^A Prince falls\\. \\+1 Bonus Score$");
     public static final Pattern BAT_KILLED = Pattern.compile("^A Bat has been slain\\. \\+1 Bonus Score$");
     private static final Pattern WATCHER_DONE = Pattern.compile("^\\[BOSS] The Watcher: You have proven yourself\\. You may pass\\.");
-    private static final Pattern RUN_START = Pattern.compile("^\\[NPC] Mort: Here, I found this map when I first entered the dungeon\\.$");
+    public static final Pattern RUN_START = Pattern.compile("^\\[NPC] Mort: Here, I found this map when I first entered the dungeon\\.$");
     private static final Pattern PARTY_MESSAGE = Pattern.compile("^Party > .*?: (.+)$");
     // The reference DungeonListener party-assist lists (+ the marker strings).
     private static final Set<String> MIMIC_PARTY = Set.of("mimic killed", "mimic slain", "mimic killed!", "mimic dead",

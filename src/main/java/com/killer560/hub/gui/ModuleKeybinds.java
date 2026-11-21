@@ -63,6 +63,8 @@ public final class ModuleKeybinds {
     /** Structure Scanner, folded into the Crystal Hollows Map tab (killer560, 2026-11-05); its old card id keeps old binds. */
     public static final String STRUCTURE_SCANNER_ID = "StructureScannerTab";
     public static final String STRUCTURE_SCANNER_LABEL = "Scanner Toggle Keybind";
+    /** Map Cycler's run key (roomcycle-1118): starts or stops cycling, like /roomcycle; the card keeps its own switch key. */
+    public static final String MAP_CYCLER_RUN_ID = "MapCyclerRun";
 
     static {
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
@@ -79,6 +81,9 @@ public final class ModuleKeybinds {
                     () -> com.killer560.hub.mining.scanner.StructureScannerConfig.getInstance().isEnabled(),
                     v -> com.killer560.hub.mining.scanner.StructureScannerConfig.getInstance().setEnabled(v),
                     () -> com.killer560.hub.mining.scanner.StructureScannerConfig.getInstance().save()));
+            EXTRAS.put(MAP_CYCLER_RUN_ID, new Extra("Map Cycler", "Cycle Keybind",
+                    com.killer560.hub.mapcycler.MapCyclerFeature::isRunning,
+                    com.killer560.hub.mapcycler.MapCyclerFeature::setRunning, () -> { }));
         }
     }
 

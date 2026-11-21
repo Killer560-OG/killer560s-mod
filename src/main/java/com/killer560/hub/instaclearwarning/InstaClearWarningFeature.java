@@ -288,7 +288,7 @@ public final class InstaClearWarningFeature {
     }
 
     /** "F7" -> catacombs_floor_seven, "M3" -> master_catacombs_floor_three, "E" -> the entrance; null when unknown. */
-    static String instanceFor(String floor) {
+    public static String instanceFor(String floor) {
         if (floor == null || floor.isEmpty()) {
             return null;
         }
