@@ -504,6 +504,7 @@ public final class ClearExecutor {
         goalTile = tileIdx;
         goalComplete = complete;
         pressNanos = System.nanoTime();
+        long pressAt = pressNanos;
         Vec3 from = player.position();
         int packetsAtPlan = positionPackets;
         planPackets = packetsAtPlan;
@@ -521,6 +522,7 @@ public final class ClearExecutor {
         lastPathFailed = false;
         PLANNER.submit(() -> {
             long start = System.currentTimeMillis();
+            long queuedNanos = System.nanoTime() - pressAt;
             List<EtherwarpPathfinder.Node> path = null;
             try {
                 // Landings are planned at block top + 1.05, the figure for Hypixel - and the sim's server now
@@ -618,9 +620,11 @@ public final class ClearExecutor {
                 }
                 ModChat.log(CHAT, ModChat.text("Found path in "), ModChat.value(took + "ms"), ModChat.dim(" ("
                         + result.size() + " warps)"));
-                LOGGER.info("[Path] running {} warp(s) from {} to {}{} - {} ms from the press to the first warp's turn",
-                        list.size(), fmt(from), to, replans > 0 ? " (planned again, " + replans + "/" + MAX_REPLANS + ")"
-                                : "", String.format(java.util.Locale.ROOT, "%.1f", (System.nanoTime() - pressNanos) / 1e6));
+                LOGGER.info("[Path] running {} warp(s) from {} to {}{} - {} ms from the press to the first warp's turn"
+                                + " (queued {} ms, searched {} ms)", list.size(), fmt(from), to, replans > 0
+                                ? " (planned again, " + replans + "/" + MAX_REPLANS + ")" : "",
+                        String.format(java.util.Locale.ROOT, "%.1f", (System.nanoTime() - pressNanos) / 1e6),
+                        String.format(java.util.Locale.ROOT, "%.1f", queuedNanos / 1e6), took);
                 startQueue(list, complete);
                 if (gate != null) {
                     gateHold = gate;
@@ -1893,6 +1897,21 @@ public final class ClearExecutor {
         // 2026-10-15).
         BODY.tick(client.player, false);
         completeArrival(client);
+        return true;
+    }
+
+    /**
+     * True while every warp of a fast trip is out and only its landings are awaited, so the caller may get ready for
+     * what it does on landing (achype4-1117). The hops' body goes back to his view now: the last hop's movement packet
+     * has reported its look (no hop is left to send this tick), and this class's own tick later in START would otherwise
+     * undo the caller's turn.
+     */
+    public static boolean landingOnly(LocalPlayer player) {
+        if (!goalFastArrival || pendingInteract != null || (nodes != null && !nodes.isEmpty()) || issued.isEmpty()
+                || confirmed >= issued.size()) {
+            return false;
+        }
+        BODY.giveBack(player);
         return true;
     }
 

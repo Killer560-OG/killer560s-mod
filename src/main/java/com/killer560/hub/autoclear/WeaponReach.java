@@ -109,6 +109,96 @@ public final class WeaponReach {
         return best;
     }
 
+    /** One Wither Impact look and the mobs ({@code mask}, bit i = mobs[i]) and known spawn spots its landing blast reaches. */
+    public record Cast(Aim aim, long mask, int mobs, int spots, int fall) {
+        /** Most mobs, then the shortest fall after the dash (the next cast waits for the ground), then most spots. */
+        boolean beats(Cast o) {
+            return o == null || mobs > o.mobs || mobs == o.mobs && (fall < o.fall || fall == o.fall && spots > o.spots);
+        }
+
+        Cast falling(int ticks) {
+            return new Cast(aim, mask, mobs, spots, ticks);
+        }
+    }
+
+    /**
+     * Ticks a player whose feet are at {@code at} falls (vanilla gravity, v = (v - 0.08) * 0.98) before standing again:
+     * a dash that ends in the air holds the next cast until he lands (new5 2026-11-17: a link ending 3 blocks up waited
+     * 6-8 ticks). The highest ground under his box corners within 24 blocks; 99 with none.
+     */
+    static int fallTicks(Level level, Player player, Vec3 at) {
+        double top = Double.NEGATIVE_INFINITY;
+        for (int c = 0; c < 4; c++) {
+            Vec3 from = at.add((c & 1) == 0 ? -0.29 : 0.29, 0.01, (c & 2) == 0 ? -0.29 : 0.29);
+            BlockHitResult hit = level.clip(new ClipContext(from, from.add(0, -24, 0), ClipContext.Block.COLLIDER,
+                    ClipContext.Fluid.NONE, player));
+            if (hit.getType() == HitResult.Type.BLOCK) {
+                top = Math.max(top, hit.getLocation().y);
+            }
+        }
+        if (top == Double.NEGATIVE_INFINITY) {
+            return 99;
+        }
+        double drop = at.y - top;
+        int t = 0;
+        for (double v = 0, fallen = 0; fallen < drop - 1e-3 && t < 99; t++) {
+            v = (v - 0.08) * 0.98;
+            fallen -= v;
+        }
+        return t;
+    }
+
+    private static final float[] FAN_PITCHES = {0f, 12f, 25f, 40f, 55f, 70f};
+    private static final int FAN_YAWS = 24;
+
+    /** The mobs and spots a blast with his feet at {@code at} reaches. */
+    static Cast castFrom(Aim aim, Vec3 at, List<AABB> mobs, List<Vec3> spots) {
+        long mask = 0L;
+        for (int i = 0; i < mobs.size() && i < 64; i++) {
+            if (hyperionHits(at, mobs.get(i))) {
+                mask |= 1L << i;
+            }
+        }
+        int s = 0;
+        double r = HYPERION_RADIUS - MARGIN;
+        Vec3 blast = at.add(0, BLAST_ABOVE_FEET, 0);
+        for (Vec3 p : spots) {
+            if (p.distanceToSqr(blast) <= r * r) {
+                s++;
+            }
+        }
+        return new Cast(aim, mask, Long.bitCount(mask), s, 0);
+    }
+
+    /**
+     * The one Wither Impact (owner, 2026-11-17: "it only hyped straight down never across to other boxes to get multiple
+     * at once") whose landing blast reaches mob {@code must} and the most other mobs, then the most known spawn spots not
+     * yet holding a seen mob: looks fanned all round ({@value #FAN_YAWS} yaws x {@code FAN_PITCHES}), each landing
+     * predicted by the sim's dash model. Null when no look reaches {@code must}. Called once per plan key, never per tick.
+     */
+    public static Cast hyperionBest(Level level, Player player, Vec3 feet, List<AABB> mobs, int must, List<Vec3> spots) {
+        Cast best = null;
+        float base = player.getYRot();
+        for (int y = 0; y < FAN_YAWS; y++) {
+            float yaw = base + y * (360f / FAN_YAWS);
+            for (float pitch : FAN_PITCHES) {
+                Vec3 land = com.killer560.hub.roomsim.SimAbilities.dashTarget(level, player, feet,
+                        TeleportUtils.getLook(yaw, pitch), HYPERION_TELEPORT);
+                if (land == null || land.distanceToSqr(feet) < 1.0) {
+                    continue;
+                }
+                Cast c = castFrom(new Aim(yaw, pitch, land, "Wither Impact across"), land, mobs, spots);
+                if ((c.mask & (1L << must)) != 0 && (best == null || c.mobs >= best.mobs)) {
+                    c = c.falling(fallTicks(level, player, land));
+                    if (c.beats(best)) {
+                        best = c;
+                    }
+                }
+            }
+        }
+        return best;
+    }
+
     /** Hops a greedy chain of {@link #hyperionHop}s needs to get the mob in range, or -1 past {@code maxHops}. */
     public static int hyperionHopsNeeded(Level level, Player player, Vec3 feet, AABB mob, int maxHops) {
         Vec3 at = feet;

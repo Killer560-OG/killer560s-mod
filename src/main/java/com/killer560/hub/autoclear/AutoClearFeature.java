@@ -118,6 +118,11 @@ public final class AutoClearFeature {
     private static int noMobTicks = 0;
     private static int pathFailures = 0;
     private static int hopTicks = 0;
+    /** Ticks since the last Hyperion cast's use while its landing is not yet stood on (-1: none pending), the fall its
+     *  landing was predicted, and the learned cost of a cast past that fall (use, dash, landing seen; ~3 measured). */
+    private static int linkTicks = -1;
+    private static int linkFall = 0;
+    private static double linkMean = 3.0;
     /** util/ServerLag readings on the first tick of a hop, a mob and a mob-less wait: a server stall since then extends
      *  that timeout by its length, so a lagging server never reads as a hop that missed or a mob that will not die
      *  (killer560, 2026-10-15). With no lag every timeout is the tick count it always was. */
@@ -166,6 +171,26 @@ public final class AutoClearFeature {
     private static long planKey = Long.MIN_VALUE;
     private static WeaponReach.Aim cachedAttack = null;
     private static int cachedHops = -1;
+    /** The best single Wither Impact for the target (hyperionBest), worked out once per plan key; null = none reaches it. */
+    private static WeaponReach.Cast cachedCast = null;
+    private static boolean cachedCastDone = false;
+    /** The room's live starred mobs as of the last decision (the cast planner's mob set). */
+    private static List<Entity> roomMobs = List.of();
+    /** The room's known spawn spots (BloodRushData.worldBoxes: each box's bottom center), and those a mob was seen near this room. */
+    private static String spotsKey = null;
+    private static List<Vec3> roomSpots = List.of();
+    private static final Set<Vec3> spotsSeen = new java.util.HashSet<>();
+    /** For the testkit: Wither Impacts cast across (a look other than straight down where he stands) and hops, ever. */
+    private static int acrossCasts = 0;
+    private static int hopCasts = 0;
+
+    public static int acrossCasts() {
+        return acrossCasts;
+    }
+
+    public static int hopCasts() {
+        return hopCasts;
+    }
 
     private static String lastReason = null;
     private static long lastReasonMs = 0L;
@@ -324,12 +349,18 @@ public final class AutoClearFeature {
         noMobTicks = 0;
         pathFailures = 0;
         hopsOffFor = -1;
+        roomMobs = List.of();
+        spotsKey = null;
+        roomSpots = List.of();
+        spotsSeen.clear();
         walkOffFor = -1;
         walkDecisionKey = null;
         walkDecisionPlan = null;
         travelStarted = false;
         skippedRooms.clear();
         skippedMobs.clear();
+        lastTripGoal = null;   // a goal from an earlier clear made this clear's first trip there "never land" (achype6)
+        sameGoalTrips = 0;
         doorTarget = -1;
         doorOnly = false;
         keyId = -1;
@@ -420,6 +451,7 @@ public final class AutoClearFeature {
         running = false;
         bodyWanted = false;
         releaseUse(client);
+        roomMobs = List.of();   // no entity of an old world is kept
         endWalk("Auto Clear stopped");
         if (phase == Phase.TRAVEL && ClearExecutor.isBusy()) {
             ClearExecutor.cancel();
@@ -577,6 +609,11 @@ public final class AutoClearFeature {
     }
 
     private static void step(Minecraft client, LocalPlayer player) {
+        if (linkTicks >= 0 && ++linkTicks > 0 && phase != Phase.HOP && player.onGround()) {
+            // A cast's cost from its use to standing again, less the fall it was predicted (the chain's price learns it).
+            linkMean = linkMean * 0.7 + Math.max(1, linkTicks - linkFall) * 0.3;
+            linkTicks = -1;
+        }
         if (phase == Phase.WALK && stepWalk(client, player)) {
             return;
         }
@@ -584,10 +621,14 @@ public final class AutoClearFeature {
             // Auto Clear's own trips (etherPathFast) end on the tick the server confirms the last landing, not ~9 ticks
             // later: Auto Routes asks this too, and whichever asks first ends it.
             if (ClearExecutor.isBusy() && !ClearExecutor.finishArrivalEarly(client) || ClearExecutor.isBusy()) {
+                aimForLanding(client, player);
                 return;
             }
             phase = Phase.IDLE;
             planKey = Long.MIN_VALUE;
+            if (lastTripGoal != null && BlockPos.containing(player.position()).below().equals(lastTripGoal)) {
+                lastTripGoal = null;   // it landed on its goal: a later trip there is a new trip, not a repeat
+            }
             if (!tripEnded(player, ClearExecutor.lastPathFailed())) {
                 return;
             }
@@ -619,6 +660,29 @@ public final class AutoClearFeature {
             }
         }
         decide(client, player);
+    }
+
+    /**
+     * While a mob trip's last landing is in flight (achype4-1117): the Hyperion and its straight-down look go ahead now,
+     * so the cast's use goes on the landing tick instead of a swap-and-turn tick after it (an etherwarp keeps the look).
+     * Nothing changes on a tick a use went out (BadPacketsJ) or a swap would follow one (PacketOrderE).
+     */
+    private static void aimForLanding(Minecraft client, LocalPlayer player) {
+        if (targetId < 0 || keyTrip || quizTrip || roamTrip || doorTarget >= 0
+                || AutoClearConfig.getInstance().getWeapon() != AutoClearConfig.Weapon.HYPERION
+                || com.killer560.hub.util.HotbarSelect.swapWouldFlag() || !ClearExecutor.landingOnly(player)) {
+            return;
+        }
+        int slot = ItemIdentity.findHotbarSlot(player, AutoClearConfig.Weapon.HYPERION.itemId());
+        if (slot < 0) {
+            return;
+        }
+        select(client, player, slot);
+        bodyWanted = true;
+        if (!BODY.isHeld() || Math.abs(player.getXRot() - 90f) > 0.5f) {
+            BODY.turn(player, player.getYRot(), 90f);
+            LOGGER.info("[AutoClear] Hyperion ready for the landing");
+        }
     }
 
     /**
@@ -869,6 +933,8 @@ public final class AutoClearFeature {
         noMobTicks = 0;
         emptySince = -1;
         midasCheckOpened(client);
+        roomMobs = mobs;
+        noteSpawnSpots(layout, room, mobs);
         planRepositions(client, player, mobs, cfg.getWeapon(), layout, room);
         Entity target = pickTarget(player, mobs, cfg.getWeapon());
         if (target.getId() != targetId) {
@@ -2882,6 +2948,8 @@ public final class AutoClearFeature {
             cachedPreferEther = null;
             cachedAttackFlight = -1;
             cachedTripSpotDone = false;
+            cachedCast = null;
+            cachedCastDone = false;
             if (cachedAttack != null && missedAims.contains(key)) {
                 cachedAttack = null;   // its bats from this block went off somewhere else: a move instead
             }
@@ -2896,6 +2964,20 @@ public final class AutoClearFeature {
             // With the sceptre, a bat from here still has to FLY there: a far one can be slower than etherwarping onto
             // the plan's block and firing down. Never second-guessed once its use is held (no flip-flop mid-flight).
             boolean held = useHeld && phase == Phase.ATTACK;
+            if (weapon == AutoClearConfig.Weapon.HYPERION && !held && cfg.isHyperionHops() && hopsOffFor != targetId
+                    && player.onGround()) {
+                // Across, not straight down, when one look's landing blast reaches every mob straight down does and more.
+                WeaponReach.Cast across = bestCast(client, player, feet, target);
+                if (across != null) {
+                    action = "Wither Impact across -> " + targetName + " (" + across.mobs() + " mobs)";
+                    castHop(client, player, feet, across.aim(), true);
+                    if (phase == Phase.HOP) {
+                        LOGGER.info("[AutoClear] Wither Impact across at {}: {} mob(s) in its blast", targetName,
+                                across.mobs());
+                    }
+                    return;
+                }
+            }
             if (weapon != AutoClearConfig.Weapon.SPIRIT_SCEPTRE || held
                     || !sceptreSlowerThanEther(client, player, target, box, cfg)) {
                 WeaponReach.Aim aim = weapon == AutoClearConfig.Weapon.HYPERION
@@ -2948,7 +3030,9 @@ public final class AutoClearFeature {
             action = "landing";
             return;
         }
-        if (canHop && hypeTicks <= etherTicks) {
+        // A hop's own landing blast is the kill; a trip still needs the weapon back and the cast after it.
+        int etherKill = etherTicks + HYPERION_KILL_TICKS;
+        if (canHop && hypeTicks <= etherKill) {
             WeaponReach.Aim hop = WeaponReach.hyperionHop(client.level, player, feet, box);
             // A hop is a reposition too: where the plan's block for this mob reaches others as well, the hop must reach
             // every one of them from where it lands, or it would cost a reposition the plan does not (killer560,
@@ -2958,13 +3042,32 @@ public final class AutoClearFeature {
             }
             if (hop != null) {
                 action = hop.what() + " (" + cachedHops + " hop(s) ~" + hypeTicks + " ticks vs etherwarp ~" + etherTicks + ")";
-                if (aimAndHold(client, player, AutoClearConfig.Weapon.HYPERION.itemId(), "Hyperion", hop, Phase.HOP)) {
-                    hopTicks = 0;
-                    hopStart = feet;
-                    hopLook = TeleportUtils.getLook(hop.yaw(), hop.pitch());
-                    hopLanded = false;
+                castHop(client, player, feet, hop, false);
+                if (phase == Phase.HOP) {
                     LOGGER.info("[AutoClear] hop toward {} at {}: {} hop(s) ~{} ticks vs etherwarp ~{} ticks", targetName,
                             target.blockPosition().toShortString(), cachedHops, hypeTicks, etherTicks);
+                }
+                return;
+            }
+        }
+        // The chain stands in for a TRIP only (swap, warp, swap); where the old hop goes, it still goes, since a chain link
+        // landing elsewhere changed the rest of the room's tour (Museum 6 -> 11 warp uses in the first version). A link
+        // must reach the plan's whole group for this mob (a looser rule left mobs for more links and the floor took 7-14%
+        // longer), and is taken only where its measured price undercuts the trip: a turn tick, the learned use-to-standing
+        // cost, and the fall after a dash that ends in the air (new5 priced a link a flat 2 ticks; it really cost a turn,
+        // ~3 ticks to see the landing and up to 8 falling, so 22 chains made the floor 8% slower).
+        WeaponReach.Cast one = canHop && weapon == AutoClearConfig.Weapon.HYPERION ? bestCast(client, player, feet, target) : null;
+        if (one != null && landingKeepsPlan(client, one.aim().expectFeet(), target)) {
+            int link = (int) Math.round(1 + linkMean) + one.fall();
+            // A tie goes to the chain: the trip's price leaves out its own swap ticks, and in the same layout a tied trip
+            // (1 warp ~3 + 2 vs link 5) cleared 2 ticks later (last death 9 vs 7, 26.2 Quad Lava / 26.3 Museum).
+            if (link <= etherKill) {
+                action = "Wither Impact chain -> " + targetName + " (" + one.mobs() + " mobs, ~" + link + " ticks vs etherwarp ~" + etherKill + ")";
+                castHop(client, player, feet, one.aim(), false);
+                if (phase == Phase.HOP) {
+                    LOGGER.info("[AutoClear] Wither Impact chain toward {} at {}: {} mob(s) in its blast, ~{} ticks (turn 1, cast {}, fall {}) vs etherwarp ~{}",
+                            targetName, target.blockPosition().toShortString(), one.mobs(), link,
+                            String.format(Locale.US, "%.1f", linkMean), one.fall(), etherKill);
                 }
                 return;
             }
@@ -4564,6 +4667,100 @@ public final class AutoClearFeature {
         return dx * dx + dz * dz <= 1.6 * 1.6;
     }
 
+    /**
+     * The room's known spawn spots (the Blood Rush table, bundled and learned), read once per room and frame; a spot a
+     * seen mob has stood within 3 blocks of this room is spent (its mob is visible or dead), so only spots no mob has been
+     * seen at yet weigh in the cast planner (a tie-break after live mobs, never a target of its own).
+     */
+    private static void noteSpawnSpots(DungeonLayout layout, int room, List<Entity> mobs) {
+        String name = layout.name(room);
+        int[] cr = layout.clayRotation(room);
+        String key = name == null || cr == null ? null : name + "@" + cr[0] + "," + cr[1] + "," + cr[2];
+        if (key == null ? spotsKey != null : !key.equals(spotsKey)) {
+            spotsKey = key;
+            spotsSeen.clear();
+            roomSpots = new java.util.ArrayList<>();
+            if (key != null) {
+                for (net.minecraft.world.phys.AABB box : com.killer560.hub.bloodrush.BloodRushData.worldBoxes(name,
+                        new com.killer560.hub.autoroutes.RouteCoords.Frame(name, cr[0], cr[1], cr[2]))) {
+                    roomSpots.add(new Vec3((box.minX + box.maxX) / 2, box.minY, (box.minZ + box.maxZ) / 2));
+                }
+            }
+        }
+        for (Vec3 s : roomSpots) {
+            if (spotsSeen.contains(s)) {
+                continue;
+            }
+            for (Entity m : mobs) {
+                if (m.position().distanceToSqr(s) <= 9.0) {
+                    spotsSeen.add(s);
+                    break;
+                }
+            }
+        }
+    }
+
+    /**
+     * The best single Wither Impact for {@code target} among the room's live mobs and unspent spawn spots, worked out
+     * once per plan key (he, the target or its block moved).
+     */
+    private static WeaponReach.Cast bestCast(Minecraft client, LocalPlayer player, Vec3 feet, Entity target) {
+        if (cachedCastDone) {
+            return cachedCast;
+        }
+        cachedCastDone = true;
+        List<AABB> boxes = new java.util.ArrayList<>(Math.min(64, roomMobs.size() + 1));
+        int must = -1;
+        for (Entity m : roomMobs) {
+            if (boxes.size() == 64) {
+                break;
+            }
+            if (m.isAlive() && !com.killer560.hub.mobesp.GhostMobs.hidden(m)) {
+                if (m == target) {
+                    must = boxes.size();
+                }
+                boxes.add(m.getBoundingBox());
+            }
+        }
+        if (must < 0) {
+            must = boxes.size();
+            boxes.add(target.getBoundingBox());
+        }
+        List<Vec3> spots = new java.util.ArrayList<>();
+        for (Vec3 s : roomSpots) {
+            if (!spotsSeen.contains(s)) {
+                spots.add(s);
+            }
+        }
+        WeaponReach.Cast best = WeaponReach.hyperionBest(client.level, player, feet, boxes, must, spots);
+        if (best != null && WeaponReach.hyperionHits(feet, target.getBoundingBox())) {
+            // In reach from here: the across cast only where it reaches every mob straight down does and more.
+            WeaponReach.Cast here = WeaponReach.castFrom(null, feet, boxes, spots);
+            if ((best.mask() & here.mask()) != here.mask() || best.mobs() <= here.mobs()) {
+                best = null;
+            }
+        }
+        cachedCast = best;
+        return best;
+    }
+
+    /** Starts one Hyperion cast along {@code hop}, held until its landing is seen (Phase.HOP). */
+    private static void castHop(Minecraft client, LocalPlayer player, Vec3 feet, WeaponReach.Aim hop, boolean across) {
+        if (aimAndHold(client, player, AutoClearConfig.Weapon.HYPERION.itemId(), "Hyperion", hop, Phase.HOP)) {
+            linkTicks = 0;
+            linkFall = hop.expectFeet() == null ? 0 : Math.min(20, WeaponReach.fallTicks(client.level, player, hop.expectFeet()));
+            hopTicks = 0;
+            hopStart = feet;
+            hopLook = TeleportUtils.getLook(hop.yaw(), hop.pitch());
+            hopLanded = false;
+            if (across) {
+                acrossCasts++;
+            } else {
+                hopCasts++;
+            }
+        }
+    }
+
     private static List<Entity> starredIn(Minecraft client, DungeonLayout layout, int room) {
         List<Entity> out = new java.util.ArrayList<>();
         for (Entity mob : MobEspFeature.starredMobs(client)) {
@@ -5030,6 +5227,11 @@ public final class AutoClearFeature {
      * reaches, with the blast, every live mob that block reaches. Always true when that block reaches the target alone.
      */
     private static boolean hopKeepsPlan(Minecraft client, WeaponReach.Aim hop, Entity target) {
+        return landingKeepsPlan(client, cachedHops == 1 ? hop.expectFeet() : null, target);
+    }
+
+    /** Whether a cast landing at {@code feet} (null: unknown) reaches every live mob the plan's block for target reaches. */
+    private static boolean landingKeepsPlan(Minecraft client, Vec3 feet, Entity target) {
         for (int i = 0; i < coverSpots.size(); i++) {
             Set<Integer> ids = coverMobs.get(i);
             if (!ids.contains(target.getId())) {
@@ -5038,12 +5240,12 @@ public final class AutoClearFeature {
             if (ids.size() <= 1) {
                 return true;
             }
-            if (cachedHops != 1 || hop.expectFeet() == null) {
+            if (feet == null) {
                 return false;
             }
             for (int id : ids) {
                 Entity e = client.level.getEntity(id);
-                if (e != null && e.isAlive() && !WeaponReach.hyperionHits(hop.expectFeet(), e.getBoundingBox())) {
+                if (e != null && e.isAlive() && !WeaponReach.hyperionHits(feet, e.getBoundingBox())) {
                     return false;
                 }
             }
@@ -5051,6 +5253,7 @@ public final class AutoClearFeature {
         }
         return true;
     }
+
 
     /** How many mobs the plan's block for {@code mob} reaches (0 when it has none). */
     private static int coverCountFor(Entity mob) {
