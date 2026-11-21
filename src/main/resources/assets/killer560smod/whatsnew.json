@@ -28,7 +28,8 @@
      "Auto Clear with a Hyperion: one Wither Impact now aims across to reach more mobs, a cast chains on to the next mob instead of an etherwarp trip when that is quicker, the Hyperion is already in hand and aimed when a trip lands, and a clear no longer skips a starred mob because the clear before went to the same spot",
      "Sim co-op now goes through the private relay by default: no player sees anyone's IP address, and a new Share My IP setting (off by default) lets a friend connect directly when the relay is full or down.",
      "Test fix only: the join fingerprint smoke case no longer fails on a starved test server (opensign resent, more join tries).",
-     "Breaker Aura Auto Swap no longer gets stuck after you change your own hotbar slot, and its obsidian dig now waits for the look the server heard before stopping or restarting."
+     "Breaker Aura Auto Swap no longer gets stuck after you change your own hotbar slot, and its obsidian dig now waits for the look the server heard before stopping or restarting.",
+     "Sound Disabler: new Custom Sounds screen lists every sound in the game with a search, a 0 to 200 percent volume slider, Mute and Preview per sound, plus a Volume Sliders option that puts the same slider under each preset sound. Above 100 percent a sound plays as two copies (about twice as loud at most)."
     ]
    }
   ]

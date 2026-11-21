@@ -33,7 +33,7 @@ public abstract class SoundManagerClickMixin {
     @Inject(method = "playDelayed(Lnet/minecraft/client/resources/sounds/SoundInstance;I)V", at = @At("HEAD"),
             cancellable = true)
     private void killer560smod$delayedSound(SoundInstance instance, int delay, CallbackInfo ci) {
-        SoundInstance out = ClickSounds.replace(instance);
+        SoundInstance out = ClickSounds.replace(instance, delay);
         if (out == instance) {
             return;
         }

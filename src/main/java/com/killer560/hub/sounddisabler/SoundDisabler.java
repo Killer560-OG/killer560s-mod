@@ -10,12 +10,18 @@ import net.minecraft.network.chat.HoverEvent;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
+import com.killer560.hub.clicksound.mixin.SoundVolumeAccessor;
+import net.minecraft.client.resources.sounds.AbstractSoundInstance;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.client.resources.sounds.SoundInstance;
+import net.minecraft.client.sounds.SoundManager;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Predicate;
 
@@ -48,6 +54,14 @@ public final class SoundDisabler {
     private static volatile double shotY;
     private static volatile double shotZ;
 
+    private static boolean layering;
+    private static volatile int layers;
+    private static volatile int scaled;
+    private static volatile String lastScaledId = "";
+    private static volatile int lastScaledPercent;
+    /** Ids already judged (bounded) and, of those, the ones the game has no sound event for. */
+    private static final Set<Identifier> SEEN = ConcurrentHashMap.newKeySet();
+    private static final Set<Identifier> UNREGISTERED = ConcurrentHashMap.newKeySet();
     private static volatile int checked;
     private static volatile int muted;
     private static volatile String lastMutedId = "";
@@ -60,24 +74,93 @@ public final class SoundDisabler {
     private SoundDisabler() {
     }
 
-    /** Whether {@code in} is muted. Never throws: a sound that cannot be judged plays. */
+    /** Whether {@code in} is muted (a mute, or a volume of 0%). Never throws: a sound that cannot be judged plays. */
     public static boolean mute(SoundInstance in) {
+        return factor(in) <= 0f;
+    }
+
+    /**
+     * The hook ClickSounds.replace calls for every sound: null when it is muted (or at 0%), else the same instance, its
+     * volume already scaled in place. The engine clamps one instance's gain to 0..1 BEFORE the category volume, so above 100%
+     * the first copy plays at full gain and a second copy of the sound (same place, pitch and source) adds the rest: 200% is
+     * two full copies, a true doubling of amplitude that still scales with the category and master sliders. A delayed sound
+     * ({@code delay} ticks) delays its extra copy the same.
+     */
+    public static SoundInstance adjust(SoundInstance in, int delay) {
+        float f = factor(in);
+        if (f <= 0f) return null;
+        if (f == 1f || !(in instanceof AbstractSoundInstance)) return in;
+        SoundVolumeAccessor raw = (SoundVolumeAccessor) in;
+        float vol = raw.killer560$getVolume();
+        float eff = Math.min(vol, 1f) * f;
+        raw.killer560$setVolume(f < 1f ? (vol > 1f ? f : vol * f) : (vol > 1f ? vol : Math.min(eff, 1f)));
+        if (eff > 1f && !in.isLooping()) {
+            SoundInstance copy = new SimpleSoundInstance(in.getIdentifier(), in.getSource(), eff - 1f, raw.killer560$getPitch(),
+                    SoundInstance.createUnseededRandom(), false, 0, in.getAttenuation(), in.getX(), in.getY(), in.getZ(),
+                    in.isRelative());
+            SoundManager sounds = Minecraft.getInstance().getSoundManager();
+            layering = true;
+            try {
+                if (delay > 0) sounds.playDelayed(copy, delay); else sounds.play(copy);
+            } finally {
+                layering = false;
+            }
+            layers++;
+        }
+        scaled++;
+        lastScaledId = in.getIdentifier().toString();
+        lastScaledPercent = Math.round(f * 100f);
+        return in;
+    }
+
+    /** The Custom Sounds screen's Preview button: plays {@code id} at {@code percent} (two copies above 100%), hook bypassed. */
+    public static void preview(Identifier id, int percent) {
+        SoundManager sounds = Minecraft.getInstance().getSoundManager();
+        float v = percent / 100f;
+        layering = true;
+        try {
+            for (float left = v; left > 0f; left -= 1f) {
+                sounds.play(SimpleSoundInstance.forUI(net.minecraft.sounds.SoundEvent.createVariableRangeEvent(id), 1f,
+                        Math.min(left, 1f)));
+            }
+        } finally {
+            layering = false;
+        }
+    }
+
+    /** True while an extra copy of a loud sound is being played, so the hook leaves it alone. */
+    public static boolean layering() { return layering; }
+
+    /** Every id that played while the feature was on and is not a registered sound event (Hypixel's own), newest bounded. */
+    public static Set<Identifier> unregisteredSeen() { return UNREGISTERED; }
+
+    /**
+     * The volume factor for {@code in}: 0 or less when it is muted, 1 when untouched. Preset rows (muted ones first win)
+     * multiply by their slider while Volume Sliders is on, then the sound's own entry from the Custom Sounds screen.
+     */
+    private static float factor(SoundInstance in) {
         SoundDisablerConfig cfg = SoundDisablerConfig.getInstance();
-        if (!cfg.isEnabled() || in == null) return false;
+        if (!cfg.isEnabled() || in == null || layering) return 1f;
         Identifier id;
         try {
             id = in.getIdentifier();
         } catch (RuntimeException e) {
-            return false;
+            return 1f;
         }
-        if (id == null) return false;
+        if (id == null) return 1f;
         checked++;
+        if (SEEN.size() < 4096 && SEEN.add(id) && BuiltInRegistries.SOUND_EVENT.get(id).isEmpty()) {
+            UNREGISTERED.add(id);
+        }
         String row = null;
+        float f = 1f;
         SoundSource source = null;
         try {
             source = in.getSource();
+            boolean sliders = cfg.isVolumeSliders();
             for (MutedSound s : MutedSound.ALL) {
-                if (!cfg.isOn(s) || !s.matches(id, source)) {
+                boolean muteRow = cfg.isOn(s);
+                if (!muteRow && (!sliders || cfg.getPresetPercent(s) == 100) || !s.matches(id, source)) {
                     continue;
                 }
                 if (s == MutedSound.SKYBLOCK_WEATHER && !SkyblockGate.isOnSkyblock()) {
@@ -93,25 +176,35 @@ public final class SoundDisabler {
                 if (s == MutedSound.ABILITY_COOLDOWN && !cooldownSoundWindow()) {
                     continue;
                 }
+                if (!muteRow) {
+                    f *= cfg.getPresetPercent(s) / 100f;
+                    continue;
+                }
                 row = s.key;
                 MUTED_BY_ROW[s.ordinal()]++;
                 break;
             }
-            if (row == null && cfg.customCount() > 0 && cfg.customMatches(id.toString())) {
-                row = "custom";
-                mutedCustom++;
+            SoundDisablerConfig.Setting own = row == null ? cfg.sound(id) : null;
+            if (own != null) {
+                if (own.muted()) {
+                    row = "custom";
+                    mutedCustom++;
+                } else {
+                    f *= own.percent() / 100f;
+                }
             }
         } catch (RuntimeException e) {
             row = null;
+            f = 1f;
         }
         if (cfg.isShowIds()) {
             show(id, source, row != null);
         }
-        if (row == null) return false;
+        if (row == null) return f;
         muted++;
         lastMutedId = id.toString();
         lastMutedRow = row;
-        return true;
+        return 0f;
     }
 
     /** A ghast sound where a Bonzo's Staff holder stands, or a firework blast just after one and near it. */
@@ -172,6 +265,15 @@ public final class SoundDisabler {
     static boolean cooldownSoundWindow() {
         return System.nanoTime() - lastCooldownNanos <= COOLDOWN_WINDOW_NANOS;
     }
+
+    /** Sounds whose volume was scaled, extra copies started for sounds above 100%, and the last scaled sound (testkit evidence). */
+    public static int scaled() { return scaled; }
+
+    public static int layers() { return layers; }
+
+    public static String lastScaledId() { return lastScaledId; }
+
+    public static int lastScaledPercent() { return lastScaledPercent; }
 
     /** Test hook: the cooldown chat line just arrived. */
     public static void noteCooldownForTest() { lastCooldownNanos = System.nanoTime(); }

@@ -295,11 +295,16 @@ public final class ClickSounds {
      * place. Anything other than {@code in} is played INSTEAD of it; {@code in} itself never reaches the engine then.
      */
     public static SoundInstance replace(SoundInstance in) {
-        if (in == null || layering) {
+        return replace(in, 0);
+    }
+
+    /** {@link #replace(SoundInstance)} for a sound played after {@code delay} ticks (a far sound's extra copies wait too). */
+    public static SoundInstance replace(SoundInstance in, int delay) {
+        if (in == null || layering || com.killer560.hub.sounddisabler.SoundDisabler.layering()) {
             return in;
         }
         // Sound Disabler (2026-11-02) first: a muted sound is dropped before anything replaces or layers it.
-        if (com.killer560.hub.sounddisabler.SoundDisabler.mute(in)) {
+        if (com.killer560.hub.sounddisabler.SoundDisabler.adjust(in, delay) == null) {
             return null;
         }
         // Powder Break Sounds: a block break / hit sound near him while powder mining is dropped or swapped.
