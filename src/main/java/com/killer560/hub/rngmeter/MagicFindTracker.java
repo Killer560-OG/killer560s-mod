@@ -7,17 +7,17 @@ import java.util.regex.Pattern;
 
 /**
  * Reads the player's current effective Magic Find off the chat messages Hypixel already sends
- * whenever a Magic-Find-affected item drops (format: "...(164% Magic Find)" at the end of the
+ * whenever a Magic-Find-affected item drops (format: "...(164% Magic Find)", now "...(+175 Magic Find)", at the end of the
  * message) - per killer560, this is the source to use instead of trying to compute Magic Find from
  * inventory/pet/potion state ourselves.
  */
 public final class MagicFindTracker {
 
-    // Matches "(<percent>% ... Magic Find)" - the text between the percent and "Magic Find"
+    // Matches "(164% ... Magic Find)" and the current "(+175 Magic Find)" (plus sign, no percent) - the text between the percent and "Magic Find"
     // is left loose (symbols like the star glyph, color codes already stripped by getString())
     // since the exact surrounding wording isn't confirmed and may vary by drop type.
     private static final Pattern MAGIC_FIND_PATTERN =
-            Pattern.compile("\\((\\d+(?:\\.\\d+)?)%[^)]*Magic Find\\)");
+            Pattern.compile("\\(\\+?(\\d+(?:\\.\\d+)?)%?[^)]*Magic Find\\)");
 
     private static volatile Integer lastMagicFind = null;
 

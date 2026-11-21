@@ -72,8 +72,9 @@ public final class MaxorCrystalsFeature {
     /**  line 34. */
     private static final Pattern ACTIVE = Pattern.compile("^(\\d)/(\\d) Energy Crystals are now active!$");
 
-    /** MaxorsCrystals.kt line 46. */
-    private static final int RESPAWN_TICKS = 34;
+    /** From the respawn line to the next set on its towers: 40 server ticks (both crystal sets of the 11-20 run, +6 and +7 over
+     *  MaxorsCrystals.kt line 46's 34, measured by the Tick Timer Audit against the tower crystal's add packet). */
+    private static final int RESPAWN_TICKS = 40;
     /** MaxorsCrystals.kt lines 55-57: the crystal's spawn Y and the 2D range from the player. */
     private static final int PLACE_Y = 224;
     private static final double PLACE_RANGE = 5.0;
@@ -98,7 +99,7 @@ public final class MaxorCrystalsFeature {
      * Server ticks left before the "Active" counter gives up waiting for the next set and drops to 0 on its own; -1 when
      * no laser line is pending. Armed by the stun line whatever the Respawn Timer switch says. The real signal is the
      * next set's first crystal appearing on a tower ({@link #watchNextSet}); this is only the backstop for a client that
-     * never sees that entity, so it runs {@link #NEXT_SET_SLACK_TICKS} past the 34-tick respawn and cannot beat it.
+     * never sees that entity, so it runs {@link #NEXT_SET_SLACK_TICKS} past the 40-tick respawn and cannot beat it.
      */
     private static int nextSetTicks = -1;
     private static final int NEXT_SET_SLACK_TICKS = 10;

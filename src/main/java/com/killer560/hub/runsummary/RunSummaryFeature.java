@@ -503,7 +503,8 @@ public final class RunSummaryFeature {
     private static void startRun() {
         resetRun();
         active = true;
-        runStartMs = System.currentTimeMillis();
+        // The game's clock starts at Mort's line, 1 s after this one; Split Timers' own run start replaces it at the end.
+        runStartMs = System.currentTimeMillis() + 1000L;
         floor = DungeonState.getFloor();
         LOGGER.info("[RunSummary] Run started (floor={})", floor);
     }
@@ -545,6 +546,8 @@ public final class RunSummaryFeature {
         }
         long end = runEndMs > 0L ? runEndMs : System.currentTimeMillis();
         closeCurrentSplit(end);
+        long splitStart = SplitTimersFeature.getRunStartedAtMs();
+        if (splitStart > 0L && splitStart < end) runStartMs = splitStart; // one run start with Split Timers
         String resolvedFloor = floor;
         if ((resolvedFloor == null || resolvedFloor.isBlank()) && lastEstimate != null) {
             resolvedFloor = DungeonState.getFloor();

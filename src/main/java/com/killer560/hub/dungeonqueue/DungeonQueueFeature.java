@@ -1,5 +1,6 @@
 package com.killer560.hub.dungeonqueue;
 
+import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
@@ -46,8 +47,12 @@ public final class DungeonQueueFeature {
             Pattern.compile("^You left the party\\.$"),
             Pattern.compile("^You are not currently in a party\\.$"));
 
+    private static final String NOT_CREATOR = "Only the instance creator can re-queue!";
+    private static final Pattern YOU_JOINED_PARTY = Pattern.compile("^You have joined " + NAME + "'s? party!$");
     private static boolean disableRequeue = false;
     private static boolean requeuedThisRun = false;
+    /** The server said "Only the instance creator can re-queue!": nothing is sent again until the party changes. */
+    private static boolean notCreator = false;
     private static int pendingTicks = -1;
     private static Object lastLevel;
 
@@ -67,6 +72,15 @@ public final class DungeonQueueFeature {
         }
         String plain = ChatObserver.strip(message);
 
+        if (NOT_CREATOR.equals(plain.trim())) {
+            notCreator = true;
+            return;
+        }
+        if (YOU_JOINED_PARTY.matcher(plain.trim()).matches()) {
+            notCreator = false;
+            return;
+        }
+
         if (EXTRA_STATS.matcher(plain).find()) {
             if (requeuedThisRun) {
                 return;
@@ -81,16 +95,14 @@ public final class DungeonQueueFeature {
             return;
         }
 
-        if (cfg.isDisableOnLeave()) {
-            String trimmed = plain.trim();
-            for (Pattern p : PARTY_LEAVE) {
-                if (p.matcher(trimmed).matches()) {
-                    disableRequeue = true;
-                    if (pendingTicks >= 0) {
-                        pendingTicks = -1;
-                        ModChat.send(FEATURE, ModChat.text("Canceled - a party member left."));
-                    }
-                    return;
+        String trimmed = plain.trim();
+        if (PARTY_LEAVE.stream().anyMatch(p -> p.matcher(trimmed).matches())) {
+            notCreator = false;
+            if (cfg.isDisableOnLeave()) {
+                disableRequeue = true;
+                if (pendingTicks >= 0) {
+                    pendingTicks = -1;
+                    ModChat.send(FEATURE, ModChat.text("Canceled - a party member left."));
                 }
             }
         }
@@ -131,7 +143,7 @@ public final class DungeonQueueFeature {
             return;
         }
         pendingTicks = -1;
-        if (disableRequeue) {
+        if (disableRequeue || notCreator || PartyTracker.knownNotLeader()) {
             return;
         }
         LOGGER.info("[AutoRequeue] Sending /instancerequeue");

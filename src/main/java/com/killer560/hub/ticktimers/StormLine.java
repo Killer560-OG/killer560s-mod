@@ -67,7 +67,6 @@ public final class StormLine {
         } else if (phase == Phase.PURPLE && !purpleLogged && remaining() == 0) {
             purpleLogged = true;
             TimerMark.proc("Storm Purple", purpleMark);
-            TickAudit.predict("Storm Purple", 0);
         }
     }
 
@@ -102,7 +101,6 @@ public final class StormLine {
             purpleAt = purpleReadAt + PURPLE_TICKS;
             purpleMark = TimerMark.now();
             purpleLogged = false;
-            TickAudit.predict("Storm Purple", PURPLE_TICKS);
         }
     }
 
@@ -110,9 +108,6 @@ public final class StormLine {
     static void onCrush() {
         TickAudit.truth("Storm Pad", "Storm's crush line");
         if (phase == Phase.LIGHTNING || phase == Phase.PURPLE || phase == Phase.WAITING) {
-            if (phase != Phase.LIGHTNING) {
-                TickAudit.truth("Storm Purple", "Storm's first crush line");
-            }
             phase = Phase.YELLOW;
         }
     }
