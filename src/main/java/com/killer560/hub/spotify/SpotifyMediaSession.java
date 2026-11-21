@@ -163,13 +163,22 @@ public final class SpotifyMediaSession {
             early.clear();
             if (!hookAdded) {
                 hookAdded = true;
-                Runtime.getRuntime().addShutdownHook(new Thread(this::stop, "killer560smod-spotify-session-stop"));
+                Runtime.getRuntime().addShutdownHook(new Thread(this::killHelper, "killer560smod-spotify-session-stop"));
             }
             Thread reader = new Thread(() -> read(p, piped ? pipe : null), "killer560smod-spotify-session");
             reader.setDaemon(true);
             reader.start();
         } catch (Throwable t) {
             LOGGER.warn("Could not start the Spotify media-session reader: {}", String.valueOf(t));
+        }
+    }
+
+    /** Shutdown hook: no lock, because a pipe write held under it (helper not reading) would block {@link #stop} and so the JVM exit (watchdog crash). Killing the helper frees that write. */
+    private void killHelper() {
+        Process p = process;
+        if (p != null) {
+            p.descendants().forEach(ProcessHandle::destroy);
+            p.destroy();
         }
     }
 
