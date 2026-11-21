@@ -293,7 +293,7 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
                         McCompat.setScreen(Minecraft.getInstance(), new DirectSessionLoginScreen(this, this.parent)))
                 .bounds(at[1][0], at[1][1], oneRow ? fw : lastW, FOOTER_H).build();
         direct.setTooltip(Tooltip.create(Component.literal(
-                "Sign in from a Minecraft session token (Shift-click Copy ID gives one) without adding it to Prism's "
+                "Sign in from a Minecraft session token (Shift-click Copy ID gives one) without adding it to the launcher's "
                         + "accounts. The token IS saved, in plain text, in killer560smod-session-login.json so it "
                         + "survives a restart; anyone who can read that file can use it until it expires.")));
         this.addRenderableWidget(direct);
@@ -311,7 +311,7 @@ public class AccountSwitcherScreen extends Screen implements MenuThemedScreen {
         this.universalButton = new UniversalSwitch(at[3][0], at[3][1], oneRow ? fw + (contentX + contentW - (at[3][0] + fw))
                 : lastW, FOOTER_H);
         this.universalButton.setTooltip(Tooltip.create(Component.literal(
-                "On: every Prism instance connects through the Universal proxy, whatever its own or its account's proxy "
+                "On: every instance on this PC connects through the Universal proxy, whatever its own or its account's proxy "
                         + "is. Off: each instance uses its own.")));
         this.addRenderableWidget(this.universalButton);
         refreshUniversalLabel();

@@ -21,6 +21,9 @@ public class MiningGoldenGoblinTab extends BaseTab {
         w.add(onOffButton("Golden Goblin", () -> cfg.isGoldenGoblinRaw(), cfg::setGoldenGoblin, cfg::save, requestRebuild,
                 contentX, y, contentWidth, 20));
         y += MiningQolRows.STEP;
+        if (!cfg.isGoldenGoblinRaw() && !isSearchScan()) {
+            return w;
+        }
         MiningQolRows.toggle(w, contentX, y, contentWidth, "Highlight Box", cfg::isGoldenGoblinBox,
                 cfg::setGoldenGoblinBox, cfg::save);
         y += MiningQolRows.STEP;

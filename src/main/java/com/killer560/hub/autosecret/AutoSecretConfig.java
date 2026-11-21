@@ -76,7 +76,9 @@ public final class AutoSecretConfig {
         }
     }
 
-    private SecretBloodFirst secretBloodFirst = SecretBloodFirst.OFF;
+    /** The mode kept while the switch is off; {@link #secretBloodFirstOn} is the real switch. */
+    private SecretBloodFirst secretBloodFirst = SecretBloodFirst.DOOR_CAMP;
+    private boolean secretBloodFirstOn;
 
     /**
      * The order Auto Secret takes the rooms in (killer560, 2026-10-18: "For auto secret make two modes. One is largest to
@@ -180,10 +182,12 @@ public final class AutoSecretConfig {
             cfg.bloodFirst = ConfigJson.getBool(o, "bloodFirst", cfg.bloodFirst);
             String sbf = ConfigJson.getString(o, "secretBloodFirst", cfg.secretBloodFirst.name());
             for (SecretBloodFirst m : SecretBloodFirst.values()) {
-                if (m.name().equals(sbf)) {
+                if (m != SecretBloodFirst.OFF && m.name().equals(sbf)) {
                     cfg.secretBloodFirst = m;
                 }
             }
+            // A file from the selector era says OFF (switch off) or a mode (switch on).
+            cfg.secretBloodFirstOn = ConfigJson.getBool(o, "secretBloodFirstOn", !"OFF".equals(sbf) && o.has("secretBloodFirst"));
             String so = ConfigJson.getString(o, "secretOrder", cfg.secretOrder.name());
             for (SecretOrder m : SecretOrder.values()) {
                 if (m.name().equals(so)) {
@@ -226,6 +230,7 @@ public final class AutoSecretConfig {
         o.addProperty("runMode", runMode.name());
         o.addProperty("bloodFirst", bloodFirst);
         o.addProperty("secretBloodFirst", secretBloodFirst.name());
+        o.addProperty("secretBloodFirstOn", secretBloodFirstOn);
         o.addProperty("secretOrder", secretOrder.name());
         o.addProperty("roomPlan", roomPlan.name());
         o.addProperty("skipUnneededSecrets", skipUnneededSecrets);
@@ -273,8 +278,22 @@ public final class AutoSecretConfig {
     public boolean isBloodFirst() { return bloodFirst; }
     public void setBloodFirst(boolean v) { bloodFirst = v; }
 
-    public SecretBloodFirst getSecretBloodFirst() { return secretBloodFirst; }
-    public void setSecretBloodFirst(SecretBloodFirst v) { secretBloodFirst = v == null ? SecretBloodFirst.OFF : v; }
+    /** What the run uses: OFF while the switch is off. */
+    public SecretBloodFirst getSecretBloodFirst() { return secretBloodFirstOn ? secretBloodFirst : SecretBloodFirst.OFF; }
+    public void setSecretBloodFirst(SecretBloodFirst v) {
+        secretBloodFirstOn = v != null && v != SecretBloodFirst.OFF;
+        if (secretBloodFirstOn) {
+            secretBloodFirst = v;
+        }
+    }
+    public boolean isSecretBloodFirstOn() { return secretBloodFirstOn; }
+    public void setSecretBloodFirstOn(boolean v) { secretBloodFirstOn = v; }
+    public SecretBloodFirst getSecretBloodFirstMode() { return secretBloodFirst; }
+    public void setSecretBloodFirstMode(SecretBloodFirst v) {
+        if (v != null && v != SecretBloodFirst.OFF) {
+            secretBloodFirst = v;
+        }
+    }
 
     public SecretOrder getSecretOrder() { return secretOrder; }
     public void setSecretOrder(SecretOrder v) { secretOrder = v == null ? SecretOrder.LEAST_ETHERWARPS : v; }

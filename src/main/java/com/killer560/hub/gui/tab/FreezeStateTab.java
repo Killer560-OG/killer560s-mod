@@ -76,7 +76,7 @@ public class FreezeStateTab extends BaseTab implements KeyCaptureTab {
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, ROW).build());
         y += ROW + 6;
-        if (!cfg.isFreezeStateEnabled()) {
+        if (!cfg.isFreezeStateEnabled() && !isSearchScan()) {
             return w;
         }
         w.add(SectionHeaders.row(contentX, y, contentWidth, "Freeze State", true));

@@ -68,7 +68,7 @@ public final class RoomNameHud extends BasicHud {
     public void render(GuiGraphicsExtractor graphics, int x, int y) {
         String s = line();
         if (!s.isEmpty()) {
-            graphics.text(Minecraft.getInstance().font, s, x, y, 0xFFFFFFFF, true);
+            graphics.text(Minecraft.getInstance().font, s, x, y, DungeonQolConfig.getInstance().getRoomColor(), true);
             HudSeen.markDrawn(id());
         }
     }

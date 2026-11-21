@@ -27,6 +27,9 @@ public class MiningPigeonDrillTab extends BaseTab {
         w.add(onOffButton("Swap To Drill On Pigeon", cfg::isPigeonDrillRaw, cfg::setPigeonDrill, cfg::save,
                 requestRebuild, contentX, y, contentWidth, 20));
         y += MiningQolRows.STEP;
+        if (!cfg.isPigeonDrillRaw() && !isSearchScan()) {
+            return w;
+        }
         MiningQolRows.cycle(w, contentX, y, contentWidth, "Drill Choice", () -> cfg.getPigeonDrillMode().label(),
                 cfg::stepPigeonDrillMode, cfg::save);
         y += MiningQolRows.STEP;

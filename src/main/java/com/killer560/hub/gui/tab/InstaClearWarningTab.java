@@ -36,10 +36,13 @@ public class InstaClearWarningTab extends BaseTab {
         widgets.add(onOffButton("Requeue Same Floor", cfg::isRequeue, cfg::setRequeue, cfg::save,
                 null, colBX, y, colW, 18));
         y += 20;
+        widgets.add(onOffButton("Sound", cfg::isSound, cfg::setSound, cfg::save,
+                null, contentX, y, colW, 18));
+        y += 20;
         widgets.add(onOffButton("Party Message", cfg::isPartyMessage, cfg::setPartyMessage, cfg::save,
                 requestRebuild, contentX, y, contentWidth, 18));
         y += 20;
-        if (cfg.isPartyMessage()) {
+        if (cfg.isPartyMessage() || isSearchScan()) {
             CommitEditBox message = new CommitEditBox(Minecraft.getInstance().font, contentX, y, contentWidth, 18,
                     Component.literal("Party Message Text"));
             message.setMaxLength(InstaClearWarningConfig.MAX_MESSAGE);

@@ -40,7 +40,7 @@ public final class MaskInvincibilityConfig {
     private boolean autoSwapPhoenix = true;
     private boolean showItemIcons = false;
     private boolean hideMaskNames = false;
-    private boolean onlyInDungeons = false;
+    private boolean onlyInDungeons = true;
     private boolean bossOnly = false;
     private boolean autoSwapEnabled = false;
     private AutoMaskMode autoMaskMode = AutoMaskMode.FULL_AUTO;
@@ -123,7 +123,7 @@ public final class MaskInvincibilityConfig {
             .add("autoSwapPhoenix", true, c -> c.autoSwapPhoenix, (c, v) -> c.autoSwapPhoenix = v)
             .add("showItemIcons", false, c -> c.showItemIcons, (c, v) -> c.showItemIcons = v)
             .add("hideMaskNames", false, c -> c.hideMaskNames, (c, v) -> c.hideMaskNames = v)
-            .add("onlyInDungeons", false, c -> c.onlyInDungeons, (c, v) -> c.onlyInDungeons = v)
+            .add("onlyInDungeons", true, c -> c.onlyInDungeons, (c, v) -> c.onlyInDungeons = v)
             .add("bossOnly", false, c -> c.bossOnly, (c, v) -> c.bossOnly = v)
             .add("autoMaskDungeonsOnly", true, c -> c.autoMaskDungeonsOnly, (c, v) -> c.autoMaskDungeonsOnly = v)
             .add("maskKeyEnabled", false, c -> c.maskKeyEnabled, (c, v) -> c.maskKeyEnabled = v)

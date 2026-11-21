@@ -39,7 +39,7 @@ public class RagAxeTab extends BaseTab {
         header(w, contentX, y, contentWidth, "Rag Axe");
         master(w, contentX, y, contentWidth, "Rag Axe", cfg::isEnabled, cfg::setEnabled, cfg, requestRebuild);
 
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabled() && !isSearchScan()) {
             return w;
         }
 

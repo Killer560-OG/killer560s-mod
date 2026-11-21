@@ -183,8 +183,18 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
         }).bounds(contentX + half + GAP, y[0], right, 20).build());
         y[0] += ROW;
         // Its own label: the Autopilot's "Blood First" switch is in this tab too, and a tooltip is keyed by label.
-        w.add(SettingsButtonWidget.cycleEnum(() -> secretBloodFirstText(cfg), cfg::getSecretBloodFirst, cfg::setSecretBloodFirst, cfg::save).bounds(contentX, y[0], contentWidth, 20).build());
+        w.add(onOffButton("Secret Blood First", cfg::isSecretBloodFirstOn, cfg::setSecretBloodFirstOn, cfg::save,
+                requestRebuild, contentX, y[0], contentWidth, 20));
         y[0] += ROW;
+        if (cfg.isSecretBloodFirstOn() || isSearchScan()) {
+            w.add(SettingsButtonWidget.cycling(secretBloodFirstText(cfg), (btn, dir) -> {
+                cfg.setSecretBloodFirstMode(cfg.getSecretBloodFirstMode() == AutoSecretConfig.SecretBloodFirst.DOOR_CAMP
+                        ? AutoSecretConfig.SecretBloodFirst.FULL_BLOOD_RUSH : AutoSecretConfig.SecretBloodFirst.DOOR_CAMP);
+                cfg.save();
+                btn.setMessage(secretBloodFirstText(cfg));
+            }).bounds(contentX, y[0], contentWidth, 20).build());
+            y[0] += ROW;
+        }
         w.add(SettingsButtonWidget.cycleEnum(() -> secretOrderText(cfg), cfg::getSecretOrder, cfg::setSecretOrder, cfg::save).bounds(contentX, y[0], contentWidth, 20).build());
         y[0] += ROW;
         w.add(SettingsButtonWidget.cycleEnum(() -> roomPlanText(cfg), cfg::getRoomPlan, cfg::setRoomPlan, cfg::save).bounds(contentX, y[0], half, 20).build());
@@ -242,8 +252,7 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
     }
 
     private static Component secretBloodFirstText(AutoSecretConfig cfg) {
-        AutoSecretConfig.SecretBloodFirst m = cfg.getSecretBloodFirst();
-        return Component.literal("Secret Blood First: " + (m == AutoSecretConfig.SecretBloodFirst.OFF ? "§cOff" : "§e" + m.label()));
+        return Component.literal("Blood First Mode: §e" + cfg.getSecretBloodFirstMode().label());
     }
 
     private static Component secretOrderText(AutoSecretConfig cfg) {

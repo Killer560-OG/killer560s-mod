@@ -47,7 +47,7 @@ public class MaskKeybindsTab extends BaseTab implements KeyCaptureTab {
         w.add(onOffButton("Mask Keybinds", cfg::isMaskKeyEnabledRaw, cfg::setMaskKeyEnabled, cfg::save, requestRebuild,
                 contentX, y, contentWidth, 20));
         y += 24;
-        if (!cfg.isMaskKeyEnabledRaw()) {
+        if (!cfg.isMaskKeyEnabledRaw() && !isSearchScan()) {
             return w;
         }
         w.add(SettingsButtonWidget.builder(capturing ? Component.literal("Press any key...")

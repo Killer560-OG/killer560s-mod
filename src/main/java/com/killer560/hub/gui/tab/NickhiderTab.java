@@ -26,7 +26,7 @@ public class NickhiderTab extends BaseTab {
         NameChangerConfig cfg = NameChangerConfig.getInstance();
         int y = contentY;
 
-        if (masterClosed(widgets, "Randomize Others", cfg::isRandomizeOthers, cfg::setRandomizeOthers, cfg::save, requestRebuild,
+        if (masterClosed(widgets, "Nickhider", cfg::isRandomizeOthers, cfg::setRandomizeOthers, cfg::save, requestRebuild,
                 contentX, y, contentWidth)) {
             return widgets;
         }

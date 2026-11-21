@@ -29,7 +29,7 @@ public class AhFlipperTab extends BaseTab {
         w.add(onOffButton("AH Flipper", cfg::isFlipperEnabledRaw, cfg::setFlipperEnabled, cfg::save, requestRebuild,
                 contentX, y, contentWidth, 20));
         y += 26;
-        if (!cfg.isFlipperEnabledRaw()) {
+        if (!cfg.isFlipperEnabledRaw() && !isSearchScan()) {
             return w;
         }
         w.add(cycling(contentX, y, contentWidth, () -> "Min Profit %: §6" + cfg.getMinProfitPercent() + "%",

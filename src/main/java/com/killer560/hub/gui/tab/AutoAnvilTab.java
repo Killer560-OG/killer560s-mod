@@ -35,7 +35,7 @@ public class AutoAnvilTab extends BaseTab {
         int[] y = {contentY};
 
         toggle(w, contentX, y, "Auto Anvil", cfg::isEnabledRaw, cfg::setEnabled, requestRebuild);
-        if (!cfg.isEnabledRaw()) {
+        if (!cfg.isEnabledRaw() && !isSearchScan()) {
             return w;
         }
         w.add(SettingsButtonWidget.cycling(Component.literal("Start Mode: " + cfg.getStartMode().label), (btn, dir) -> {

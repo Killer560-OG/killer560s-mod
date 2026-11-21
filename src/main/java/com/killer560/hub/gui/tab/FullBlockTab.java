@@ -52,7 +52,7 @@ public class FullBlockTab extends BaseTab {
                 requestRebuild, contentX, y, 220, 20));
         y += 26;
 
-        if (!SecretsConfig.getInstance().isMasterEnabled()) {
+        if (!SecretsConfig.getInstance().isMasterEnabled() && !isSearchScan()) {
             return widgets;
         }
 

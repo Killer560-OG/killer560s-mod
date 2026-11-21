@@ -21,15 +21,25 @@ public class MiningWrongArmorTab extends BaseTab {
         w.add(onOffButton("Wrong Armor Alert", cfg::isWrongArmorRaw, cfg::setWrongArmor, cfg::save, requestRebuild,
                 contentX, y, contentWidth, 20));
         y += MiningQolRows.STEP;
-        MiningQolRows.toggle(w, contentX, y, contentWidth, "Alert Sound", cfg::isWrongArmorSound, cfg::setWrongArmorSound,
-                cfg::save);
-        y += MiningQolRows.STEP;
+        if (cfg.isWrongArmorRaw() || isSearchScan()) {
+            MiningQolRows.toggle(w, contentX, y, contentWidth, "Alert Sound", cfg::isWrongArmorSound, cfg::setWrongArmorSound,
+                    cfg::save);
+            y += MiningQolRows.STEP;
+        }
         // Independent of the armor alert: its own switch, so the card is ON while either is (masterToggles below).
         w.add(onOffButton("Jungle Pickaxe Alert", cfg::isJunglePickRaw, cfg::setJunglePick, cfg::save, requestRebuild,
                 contentX, y, contentWidth, 20));
         y += MiningQolRows.STEP;
-        MiningQolRows.toggle(w, contentX, y, contentWidth, "Jungle Alert Sound", cfg::isJunglePickSound,
-                cfg::setJunglePickSound, cfg::save);
+        if (cfg.isJunglePickRaw() || isSearchScan()) {
+            MiningQolRows.toggle(w, contentX, y, contentWidth, "Jungle Alert Sound", cfg::isJunglePickSound,
+                    cfg::setJunglePickSound, cfg::save);
+        }
         return w;
+    }
+
+    /** Each feature here has its own switch, so the card is ON while either is (menufix-1102 rule). */
+    @Override
+    public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
+        return switchRows(built, "Wrong Armor Alert", "Jungle Pickaxe Alert");
     }
 }

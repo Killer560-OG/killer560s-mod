@@ -38,7 +38,7 @@ public class AutoGfsTab extends BaseTab {
         int[] y = {contentY};
 
         toggle(w, contentX, y, "Auto GFS", cfg::isAutoGfsEnabled, cfg::setAutoGfsEnabled, requestRebuild);
-        if (!cfg.isAutoGfsEnabled()) {
+        if (!cfg.isAutoGfsEnabled() && !isSearchScan()) {
             return w;
         }
 

@@ -38,7 +38,7 @@ public class AutoUltTab extends BaseTab {
         int[] y = {contentY};
 
         toggle(w, contentX, y, "Auto Ult", cfg::isAutoUltEnabled, cfg::setAutoUltEnabled, requestRebuild);
-        if (!cfg.isAutoUltEnabled()) {
+        if (!cfg.isAutoUltEnabled() && !isSearchScan()) {
             return w;
         }
 

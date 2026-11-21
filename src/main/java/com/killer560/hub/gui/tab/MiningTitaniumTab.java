@@ -21,6 +21,9 @@ public class MiningTitaniumTab extends BaseTab {
         w.add(onOffButton("Titanium Highlight", () -> cfg.isTitaniumRaw(), cfg::setTitanium, cfg::save, requestRebuild, contentX, y,
                 contentWidth, 20));
         y += MiningQolRows.STEP;
+        if (!cfg.isTitaniumRaw() && !isSearchScan()) {
+            return w;
+        }
 
         // Owner 2026-11-03: a toggle, not a "Show" cycle: ON = only the commission's area, OFF = everywhere.
         MiningQolRows.toggle(w, contentX, y, contentWidth, "Commission Area Only",

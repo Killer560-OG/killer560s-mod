@@ -21,6 +21,9 @@ public class MiningRaffleTab extends BaseTab {
         w.add(onOffButton("Raffle Ticket Highlight", () -> cfg.isRaffleRaw(), cfg::setRaffle, cfg::save, requestRebuild, contentX, y,
                 contentWidth, 20));
         y += MiningQolRows.STEP;
+        if (!cfg.isRaffleRaw() && !isSearchScan()) {
+            return w;
+        }
 
         MiningQolRows.color(w, contentX, y, contentWidth, "Ticket Color", cfg::getRaffleColor, cfg::setRaffleColor,
                 MiningQolConfig.DEFAULT_RAFFLE_COLOR, cfg::save);

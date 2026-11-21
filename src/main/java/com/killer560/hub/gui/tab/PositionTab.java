@@ -39,7 +39,7 @@ public class PositionTab extends BaseTab {
                 }).bounds(contentX, y[0], contentWidth, 20).build());
         y[0] += 24;
 
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabled() && !isSearchScan()) {
             return w;
         }
 

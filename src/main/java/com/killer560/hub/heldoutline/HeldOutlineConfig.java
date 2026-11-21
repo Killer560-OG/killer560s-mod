@@ -123,6 +123,16 @@ public final class HeldOutlineConfig {
         fillColor = v;
     }
 
+    /** The outline as drawn: the untouched default follows the menu theme, a picked color stays (helditem outline, 2026-11-18). */
+    public int drawnOutlineColor() {
+        return outlineColor == DEFAULT_OUTLINE_COLOR ? com.killer560.hub.gui.ThemeAccent.accent(outlineColor) : outlineColor;
+    }
+
+    /** The fill as drawn: same rule as {@link #drawnOutlineColor}. */
+    public int drawnFillColor() {
+        return fillColor == DEFAULT_FILL_COLOR ? com.killer560.hub.gui.ThemeAccent.accent(fillColor) : fillColor;
+    }
+
     public float getWidth() {
         return width;
     }

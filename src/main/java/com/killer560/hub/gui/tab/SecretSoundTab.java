@@ -34,7 +34,7 @@ public class SecretSoundTab extends BaseTab {
         w.add(onOffButton("Secret Sound", () -> cfg.secretSoundEnabled, v -> cfg.secretSoundEnabled = v, cfg::save, requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
-        if (!cfg.secretSoundEnabled) {
+        if (!cfg.secretSoundEnabled && !isSearchScan()) {
             return w;
         }
 

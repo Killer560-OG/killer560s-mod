@@ -241,6 +241,8 @@ public final class InstaClearWarningFeature {
         if (cfg.isHudPopup()) {
             popupUntil = System.currentTimeMillis() + POPUP_MS;
             popupRoom = room;
+        }
+        if (cfg.isSound()) {
             Minecraft client = Minecraft.getInstance();
             client.execute(() -> client.getSoundManager().play(
                     SimpleSoundInstance.forUI(SoundEvents.NOTE_BLOCK_PLING.value(), 0.5f, 1.0f)));

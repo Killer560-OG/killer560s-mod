@@ -85,7 +85,7 @@ public final class CheatUtilsConfig {
     private double auraRange = MEASURED_MAX_REACH;
     private double auraSkullRange = MAX_AURA_SKULL_RANGE;  // The reference default, eye to block center
     private int auraCooldownMs = 150;     // The reference "Click delay" default
-    private boolean auraSwing = false;    // The reference "Swing hand" default off
+    private boolean auraSwing = true;
     private boolean auraPauseWhileSneaking = true;
     /** Comma-separated; matched case-insensitively against the held item's Skyblock id and display name. */
     private String auraPauseHolding = "";
@@ -161,7 +161,7 @@ public final class CheatUtilsConfig {
                 cfg.setAuraRange(ConfigJson.getDouble(o, "auraRange", 6.2));
                 cfg.setAuraSkullRange(ConfigJson.getDouble(o, "auraSkullRange", 4.7));
                 cfg.setAuraCooldownMs(integer(o, "auraCooldownMs", 150));
-                cfg.auraSwing = bool(o, "auraSwing", false);
+                cfg.auraSwing = bool(o, "auraSwing", true);
                 cfg.auraPauseWhileSneaking = bool(o, "auraPauseWhileSneaking", true);
                 cfg.auraPauseHolding = str(o, "auraPauseHolding", "");
 

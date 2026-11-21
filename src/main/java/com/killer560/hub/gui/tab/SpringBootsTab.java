@@ -32,10 +32,10 @@ public class SpringBootsTab extends BaseTab {
         w.add(onOffButton("Spring Boots Overlay", () -> cfg.springBootsEnabled, v -> cfg.springBootsEnabled = v, cfg::save, requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
-        if (cfg.springBootsEnabled) {
+        if (cfg.springBootsEnabled || isSearchScan()) {
             w.add(onOffButton("Height Box", () -> cfg.springBootsBox, v -> cfg.springBootsBox = v, cfg::save, requestRebuild, contentX, y, contentWidth, 18));
             y += 22;
-            if (cfg.springBootsBox) {
+            if (cfg.springBootsBox || isSearchScan()) {
                 // Color and style of the height box (killer560, 2026-10-11).
                 Minecraft mc = Minecraft.getInstance();
                 w.add(SettingsButtonWidget.builder(ColorSwatch.label("Height Box Color", cfg.springBootsColor), btn ->

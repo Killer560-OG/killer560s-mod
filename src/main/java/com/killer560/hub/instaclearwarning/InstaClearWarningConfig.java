@@ -23,7 +23,8 @@ public final class InstaClearWarningConfig {
 
     private boolean enabled = false;
     private boolean hudPopup = true;
-    private boolean partyMessage = true;
+    private boolean partyMessage = false;
+    private boolean sound = true;
     private String message = DEFAULT_MESSAGE;
     private boolean requeue = false;
 
@@ -43,7 +44,8 @@ public final class InstaClearWarningConfig {
         if (obj != null) {
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.hudPopup = ConfigJson.getBool(obj, "hudPopup", true);
-            cfg.partyMessage = ConfigJson.getBool(obj, "partyMessage", true);
+            cfg.partyMessage = ConfigJson.getBool(obj, "partyMessage", false);
+            cfg.sound = ConfigJson.getBool(obj, "sound", cfg.hudPopup);
             cfg.setMessage(ConfigJson.getString(obj, "message", DEFAULT_MESSAGE));
             cfg.requeue = ConfigJson.getBool(obj, "requeue", false);
         }
@@ -55,6 +57,7 @@ public final class InstaClearWarningConfig {
         obj.addProperty("enabled", enabled);
         obj.addProperty("hudPopup", hudPopup);
         obj.addProperty("partyMessage", partyMessage);
+        obj.addProperty("sound", sound);
         obj.addProperty("message", message);
         obj.addProperty("requeue", requeue);
         ConfigJson.write(CONFIG_PATH, obj);
@@ -78,6 +81,14 @@ public final class InstaClearWarningConfig {
 
     public void setHudPopup(boolean value) {
         hudPopup = value;
+    }
+
+    public boolean isSound() {
+        return sound;
+    }
+
+    public void setSound(boolean value) {
+        sound = value;
     }
 
     public boolean isPartyMessage() {

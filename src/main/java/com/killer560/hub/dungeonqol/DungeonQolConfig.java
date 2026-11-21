@@ -20,6 +20,7 @@ public final class DungeonQolConfig {
     private boolean roomHud = false;
     private boolean blockBossPearls = true;
     private int icedColor = 0xFF55FFFF;
+    private int roomColor = 0xFFFFFFFF;
 
     private static final BoolFields<DungeonQolConfig> BOOLS = new BoolFields<DungeonQolConfig>()
             .add("itemQuality", false, c -> c.itemQuality, (c, v) -> c.itemQuality = v)
@@ -43,6 +44,7 @@ public final class DungeonQolConfig {
         if (obj != null) {
             BOOLS.load(cfg, obj);
             cfg.icedColor = ConfigJson.getInt(obj, "icedColor", cfg.icedColor);
+            cfg.roomColor = ConfigJson.getInt(obj, "roomColor", cfg.roomColor);
         }
         instance = cfg;
     }
@@ -51,6 +53,7 @@ public final class DungeonQolConfig {
         JsonObject obj = new JsonObject();
         BOOLS.save(this, obj);
         obj.addProperty("icedColor", icedColor);
+        obj.addProperty("roomColor", roomColor);
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
@@ -70,4 +73,7 @@ public final class DungeonQolConfig {
 
     public int getIcedColor() { return icedColor; }
     public void setIcedColor(int argb) { icedColor = argb; }
+
+    public int getRoomColor() { return roomColor; }
+    public void setRoomColor(int argb) { roomColor = argb; }
 }

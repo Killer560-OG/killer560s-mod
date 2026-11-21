@@ -33,7 +33,7 @@ public class BazaarOrderHelperTab extends BaseTab {
         widgets.add(onOffButton("Order Helper", cfg::isEnabledRaw, cfg::setEnabled, cfg::save,
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
-        if (!cfg.isEnabledRaw()) {
+        if (!cfg.isEnabledRaw() && !isSearchScan()) {
             return widgets;
         }
         widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Bazaar", false));

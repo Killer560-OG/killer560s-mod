@@ -29,6 +29,12 @@ public class P4PlatformHighlightTab extends BaseTab {
 
         widgets.add(onOffButton("Filled Box", cfg::isFilled, cfg::setFilled, cfg::save,
                 null, contentX, y, contentWidth, 18));
+        y += 22;
+        widgets.add(swatchRow(contentX, y, contentWidth, "Color", 0xFF000000 | cfg.getColor(), 0xFF33FFFF,
+                c -> {
+                    cfg.setColor(c);
+                    cfg.save();
+                }));
 
         // No shared Solver Highlight section here (killer560, 2026-10-18): the 3x3 highlight is the only thing this tab draws,
         // and its own switch and Filled Box are the rows above.

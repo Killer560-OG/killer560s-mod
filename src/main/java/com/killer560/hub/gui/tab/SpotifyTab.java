@@ -332,6 +332,6 @@ public class SpotifyTab extends BaseTab implements KeyCaptureTab {
     }
 
     private static Component profanityText() {
-        return Component.literal("Profanity Filter: §b" + SpotifyLyricsFeature.profanityLevel.displayName);
+        return Component.literal("Chat Censor: §b" + SpotifyLyricsFeature.profanityLevel.displayName);
     }
 }

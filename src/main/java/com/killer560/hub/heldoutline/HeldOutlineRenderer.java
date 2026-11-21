@@ -298,8 +298,8 @@ public final class HeldOutlineRenderer {
         float mode = side == HeldOutlineConfig.Side.FAR || !facesFound ? 0f
                 : side == HeldOutlineConfig.Side.NEAR ? 1f : 2f;
         McRender.writeUniformVec4s(hBuffer, new float[]{style.outline ? w : 0f, (float) McRender.FAR_DEPTH, mode, 0f});
-        int o = cfg.getOutlineColor();
-        int f = cfg.getFillColor();
+        int o = cfg.drawnOutlineColor();
+        int f = cfg.drawnFillColor();
         int segs = mode == 2f ? segmentCount : 0;
         float[] v = uniformScratch;
         java.util.Arrays.fill(v, 0f);

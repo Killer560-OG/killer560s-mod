@@ -32,7 +32,7 @@ public class ChatHistoryTab extends BaseTab {
         widgets.add(onOffButton("Chat History", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
                 contentX, y, contentWidth, ROW));
         y += GAP;
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabled() && !isSearchScan()) {
             return widgets;
         }
         widgets.add(SettingsButtonWidget.cycling(lengthText(cfg), (btn, dir) -> {

@@ -35,7 +35,7 @@ public class LagDisplayTab extends BaseTab {
                 requestRebuild, contentX, y[0], contentWidth, 20));
         y[0] += 24;
 
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabled() && !isSearchScan()) {
             return w;
         }
 

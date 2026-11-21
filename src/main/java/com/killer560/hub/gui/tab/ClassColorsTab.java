@@ -29,7 +29,7 @@ public class ClassColorsTab extends BaseTab {
         w.add(onOffButton("Class Colors", () -> cfg.classColorsEnabled, v -> cfg.classColorsEnabled = v, cfg::save, requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
 
-        if (cfg.classColorsEnabled) {
+        if (cfg.classColorsEnabled || isSearchScan()) {
             w.add(onOffButton("Tab List", () -> cfg.classColorsTab, v -> cfg.classColorsTab = v, cfg::save, null, contentX, y, half, 18));
             w.add(onOffButton("Nametags", () -> cfg.classColorsNametags, v -> cfg.classColorsNametags = v, cfg::save, null, colB, y, half, 18));
         }

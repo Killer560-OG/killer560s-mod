@@ -26,6 +26,9 @@ public class PowderChestTriggerbotTab extends BaseTab {
         w.add(onOffButton("Powder Chest Triggerbot", cfg::isChestTriggerbotRaw, cfg::setChestTriggerbot, cfg::save,
                 requestRebuild, contentX, y, contentWidth, 20));
         y += MiningQolRows.STEP;
+        if (!cfg.isChestTriggerbotRaw() && !isSearchScan()) {
+            return w;
+        }
         int half = (contentWidth - 8) / 2;
         w.add(msRange(contentX, y, contentWidth, "Delay", cfg.getChestTriggerbotMinDelayMs(),
                 cfg.getChestTriggerbotMaxDelayMs(), cfg::setChestTriggerbotDelayRange, cfg::save));

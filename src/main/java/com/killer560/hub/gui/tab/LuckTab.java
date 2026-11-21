@@ -29,7 +29,7 @@ public class LuckTab extends BaseTab {
         int y = contentY;
         int half = (contentWidth - GAP) / 2;
 
-        widgets.add(onOffButton("RNG Tracker", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
+        widgets.add(onOffButton("How Lucky Are You", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
                 contentX, y, contentWidth, 20));
         y += 24;
         widgets.add(SettingsButtonWidget.builder(Component.literal("Open How Lucky Are You"), btn ->

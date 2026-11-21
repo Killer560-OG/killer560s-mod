@@ -184,7 +184,7 @@ public class DoorKeysTab extends BaseTab {
     }
 
     private static Component rangeText(DoorKeysConfig cfg) {
-        return Component.literal("Pickup Range: " + DoorKeysConfig.RANGE_STYLE_NAMES[cfg.getRangeStyle()]);
+        return Component.literal("Pickup Shape: " + DoorKeysConfig.RANGE_STYLE_NAMES[cfg.getRangeStyle()]);
     }
 
     private static Component thicknessText(DoorKeysConfig cfg) {

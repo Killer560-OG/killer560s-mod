@@ -26,7 +26,7 @@ public class ChocolateFactoryTab extends BaseTab {
         ChocolateFactoryConfig cfg = ChocolateFactoryConfig.getInstance();
         int[] y = {contentY};
         toggle(w, contentX, y, "Chocolate Factory Helper", cfg::isEnabled, cfg::setEnabled, requestRebuild);
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabled() && !isSearchScan()) {
             return w;
         }
         // Split (killer560, 2026-10-19): what shows inside the factory menu, then Hoppity's Hunt outside it, then Cheat.

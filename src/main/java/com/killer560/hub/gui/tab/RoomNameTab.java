@@ -19,6 +19,13 @@ public class RoomNameTab extends BaseTab {
         List<AbstractWidget> widgets = new ArrayList<>();
         widgets.add(onOffButton("Current Room Name", cfg::isRoomHud, cfg::setRoomHud, cfg::save,
                 null, contentX, contentY, contentWidth, 20));
+        if (cfg.isRoomHud() || isSearchScan()) {
+            widgets.add(swatchRow(contentX, contentY + 24, contentWidth, "Name Color", cfg.getRoomColor(), 0xFFFFFFFF,
+                    c -> {
+                        cfg.setRoomColor(c);
+                        cfg.save();
+                    }));
+        }
         return widgets;
     }
 }

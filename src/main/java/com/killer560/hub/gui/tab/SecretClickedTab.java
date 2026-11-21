@@ -29,7 +29,7 @@ public class SecretClickedTab extends BaseTab {
         int y = contentY;
         w.add(onOffButton("Secret Clicked", cfg::isSecretClickedEnabled, cfg::setSecretClickedEnabled, cfg::save, requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
-        if (cfg.isSecretClickedEnabled()) {
+        if (cfg.isSecretClickedEnabled() || isSearchScan()) {
             y = toggle(w, contentX, y, contentWidth, "Locked Chest Sound", cfg::isSecretClickedLockedSound, cfg::setSecretClickedLockedSound);
             y = toggle(w, contentX, y, contentWidth, "Box On Every Secret", cfg::isSecretClickedTakenBox, cfg::setSecretClickedTakenBox);
         }

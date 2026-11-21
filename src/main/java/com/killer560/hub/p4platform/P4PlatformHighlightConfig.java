@@ -21,6 +21,7 @@ public final class P4PlatformHighlightConfig {
 
     private boolean enabled = false;
     private boolean filled = true;
+    private int color = 0x33FFFF;
 
     private P4PlatformHighlightConfig() {
     }
@@ -49,6 +50,7 @@ public final class P4PlatformHighlightConfig {
             P4PlatformHighlightConfig cfg = new P4PlatformHighlightConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.filled = ConfigJson.getBool(obj, "filled", true);
+            cfg.color = ConfigJson.getInt(obj, "color", cfg.color) & 0xFFFFFF;
             instance = cfg;
         } catch (Exception e) {
             instance = new P4PlatformHighlightConfig();
@@ -59,6 +61,7 @@ public final class P4PlatformHighlightConfig {
         JsonObject obj = new JsonObject();
         obj.addProperty("enabled", enabled);
         obj.addProperty("filled", filled);
+        obj.addProperty("color", color);
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
@@ -75,4 +78,9 @@ public final class P4PlatformHighlightConfig {
     public boolean isFilled() { return filled; }
 
     public void setFilled(boolean filled) { this.filled = filled; }
+
+    /** RGB of the highlight; the default is the cyan it always drew. */
+    public int getColor() { return color; }
+
+    public void setColor(int argb) { color = argb & 0xFFFFFF; }
 }

@@ -38,7 +38,7 @@ public class SplitTimersTab extends BaseTab {
                 requestRebuild, contentX, y, 220, 20));
         y += 26;
 
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabled() && !isSearchScan()) {
             // Core Entry can run with the splits off (killer560, 2026-11-01), so its rows stay reachable.
             coreEntryRows(widgets, cfg, contentX, y, contentWidth, requestRebuild);
             return widgets;

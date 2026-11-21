@@ -21,6 +21,9 @@ public class MiningCommissionHudTab extends BaseTab {
         w.add(onOffButton("Commission HUD", () -> cfg.isCommissionHudRaw(), cfg::setCommissionHud, cfg::save, requestRebuild, contentX, y,
                 contentWidth, 20));
         y += MiningQolRows.STEP;
+        if (!cfg.isCommissionHudRaw() && !isSearchScan()) {
+            return w;
+        }
 
         y = MiningQolRows.toggles(w, contentX, y, contentWidth, cfg::save,
                 MiningQolRows.t("Hide While Powder Mining", cfg::isHideCommissionsPowder, cfg::setHideCommissionsPowder),

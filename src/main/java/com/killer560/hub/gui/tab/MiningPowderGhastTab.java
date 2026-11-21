@@ -21,6 +21,9 @@ public class MiningPowderGhastTab extends BaseTab {
         w.add(onOffButton("Powder Ghast", () -> cfg.isPowderGhastRaw(), cfg::setPowderGhast, cfg::save, requestRebuild,
                 contentX, y, contentWidth, 20));
         y += MiningQolRows.STEP;
+        if (!cfg.isPowderGhastRaw() && !isSearchScan()) {
+            return w;
+        }
 
         y = MiningQolRows.toggles(w, contentX, y, contentWidth, cfg::save,
                 MiningQolRows.t("Spawn Title", cfg::isPowderGhastTitle, cfg::setPowderGhastTitle),

@@ -21,6 +21,9 @@ public class MiningPickobulusTab extends BaseTab {
         w.add(onOffButton("Pickobulus Estimate", () -> cfg.isPickobulusRaw(), cfg::setPickobulus, cfg::save, requestRebuild, contentX, y,
                 contentWidth, 20));
         y += MiningQolRows.STEP;
+        if (!cfg.isPickobulusRaw() && !isSearchScan()) {
+            return w;
+        }
 
         MiningQolRows.color(w, contentX, y, contentWidth, "Outline Color", cfg::getPickobulusColor,
                 cfg::setPickobulusColor, MiningQolConfig.DEFAULT_PICKOBULUS_COLOR, cfg::save);

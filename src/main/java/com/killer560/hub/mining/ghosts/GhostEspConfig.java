@@ -26,7 +26,7 @@ public final class GhostEspConfig {
 
     private boolean enabled = false;
     private int color = DEFAULT_COLOR;
-    private boolean throughWalls = true;
+    private boolean throughWalls = false;
 
     private GhostEspConfig() {
     }

@@ -26,7 +26,7 @@ public class CapeTab extends BaseTab {
         CapeConfig cfg = CapeConfig.getInstance();
         widgets.add(onOffButton("Cape", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild,
                 contentX, contentY, contentWidth, 18));
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabled() && !isSearchScan()) {
             return widgets;
         }
         widgets.add(SettingsButtonWidget.cycling(capeText(cfg), (btn, dir) -> {

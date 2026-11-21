@@ -148,7 +148,7 @@ public class ThornTab extends BaseTab {
             // (ModuleKeybinds.THORN_TRIGGERBOT_ID), so a bind made on the card carries over.
             widgets.add(onOffButton("Thorn Triggerbot", cfg::isTriggerbotRaw, cfg::setTriggerbot, cfg::save, requestRebuild,
                     contentX, y, colW, 18));
-            if (cfg.isTriggerbotRaw()) {
+            if (cfg.isTriggerbotRaw() || isSearchScan()) {
                 widgets.add(toggle(col2X, y, colW, "Only When Aimed At Thorn", cfg::isTriggerbotAimed, cfg::setTriggerbotAimed));
             }
             y += 22;

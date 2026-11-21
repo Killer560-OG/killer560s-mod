@@ -89,7 +89,7 @@ public class SecretAuraTab extends BaseTab {
             toggle(w, contentX, y, "In Rooms", cfg::isAuraLevers, cfg::setAuraLevers, null);
         }
         toggle(w, contentX, y, "In Boss", cfg::isAuraBossLevers, cfg::setAuraBossLevers, requestRebuild);
-        if (!cfg.isAuraBossLevers()) {
+        if (!cfg.isAuraBossLevers() && !isSearchScan()) {
             return w;
         }
 
@@ -123,7 +123,7 @@ public class SecretAuraTab extends BaseTab {
         SecretTriggerbotConfig t = SecretTriggerbotConfig.getInstance();
         header(w, x, y, width, "Secret Triggerbot (dungeons)");
         toggle(w, x, y, "Secret Triggerbot", t::isEnabled, t::setEnabled, rebuild, t::save);
-        if (!t.isEnabled()) {
+        if (!t.isEnabled() && !isSearchScan()) {
             return;
         }
         slider(w, x, y[0], half, () -> "Delay: " + t.getDelayMs() + " ms",

@@ -34,7 +34,7 @@ public class ScoreWarningTab extends BaseTab {
 
         w.add(onOffButton("Pre-Boss Warning", cfg::isPreBossWarning, cfg::setPreBossWarning, cfg::save, requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
-        if (cfg.isPreBossWarning()) {
+        if (cfg.isPreBossWarning() || isSearchScan()) {
             // killer560, 2026-11-01: Mage only, and a Permanent title (DO NOT ENTER PORTAL / ENTER THE PORTAL).
             int half = (contentWidth - 6) / 2;
             w.add(onOffButton("Mage Only", cfg::isPreBossMageOnly, cfg::setPreBossMageOnly, cfg::save,
@@ -42,7 +42,7 @@ public class ScoreWarningTab extends BaseTab {
             w.add(onOffButton("Permanent", cfg::isPreBossPermanent, cfg::setPreBossPermanent, cfg::save,
                     requestRebuild, contentX + half + 6, y, contentWidth - half - 6, 18));
             y += 22;
-            if (cfg.isPreBossPermanent()) {
+            if (cfg.isPreBossPermanent() || isSearchScan()) {
                 w.add(onOffButton("List Missing Score", cfg::isPreBossListMissing, cfg::setPreBossListMissing, cfg::save,
                         null, contentX, y, contentWidth, 18));
                 y += 22;
@@ -63,7 +63,7 @@ public class ScoreWarningTab extends BaseTab {
         y += 16;
         w.add(onOffButton("Crypt Reminder", cfg::isCryptReminder, cfg::setCryptReminder, cfg::save, requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
-        if (cfg.isCryptReminder()) {
+        if (cfg.isCryptReminder() || isSearchScan()) {
             int span = ScoreCalculatorConfig.MAX_CRYPT_REMINDER_SECONDS - ScoreCalculatorConfig.MIN_CRYPT_REMINDER_SECONDS;
             w.add(new ThemedSliderButton(contentX, y, contentWidth, 18, timeLabel(cfg),
                     (cfg.getCryptReminderSeconds() - ScoreCalculatorConfig.MIN_CRYPT_REMINDER_SECONDS) / (double) span) {

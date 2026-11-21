@@ -55,11 +55,10 @@ public class PeekChatTab extends BaseTab implements KeyCaptureTab {
         List<AbstractWidget> widgets = new ArrayList<>();
         PeekChatConfig cfg = PeekChatConfig.getInstance();
         int y = contentY;
-        widgets.add(SettingsButtonWidget.builder(Component.literal("Peek Chat: " + (cfg.isEnabled() ? "§aON" : "§cOFF")), btn -> {
-                    cfg.setEnabled(!cfg.isEnabled());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
+        if (masterClosed(widgets, "Peek Chat", cfg::isEnabled, cfg::setEnabled, cfg::save, requestRebuild, contentX, y,
+                contentWidth)) {
+            return widgets;
+        }
         y += 26;
         widgets.add(SettingsButtonWidget.builder(keyText(cfg), btn -> {
                     capturing = true;

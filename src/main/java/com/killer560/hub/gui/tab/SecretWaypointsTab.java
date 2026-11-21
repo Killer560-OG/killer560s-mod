@@ -113,7 +113,11 @@ public class SecretWaypointsTab extends BaseTab {
     }
 
     private static Component styleText(SecretWaypointsConfig cfg) {
-        return Component.literal("Style: " + cfg.getStyle().name());
+        return Component.literal("Style: " + switch (cfg.getStyle()) {
+            case FILL -> "Fill";
+            case OUTLINE -> "Outline";
+            case FILL_OUTLINE -> "Fill + Outline";
+        });
     }
 
     private static Component boxSizeText(SecretWaypointsConfig cfg) {

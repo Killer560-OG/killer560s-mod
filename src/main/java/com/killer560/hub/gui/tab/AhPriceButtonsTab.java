@@ -24,7 +24,7 @@ public class AhPriceButtonsTab extends BaseTab {
         w.add(onOffButton("AH Price Buttons", cfg::isPriceButtonsEnabledRaw, cfg::setPriceButtonsEnabled, cfg::save,
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 26;
-        if (!cfg.isPriceButtonsEnabledRaw()) {
+        if (!cfg.isPriceButtonsEnabledRaw() && !isSearchScan()) {
             return w;
         }
         w.add(SettingsButtonWidget.cycling(undercutText(cfg), (btn, dir) -> {

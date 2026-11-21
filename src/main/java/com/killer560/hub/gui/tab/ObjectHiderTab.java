@@ -14,7 +14,7 @@ import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 /** Toggles that hide specific vanilla/Hypixel screen elements, entities and particles. Started (2026-09-08) as a
- *  single "No Fire Overlay" switch; expanded (2026-09-16) into the full Object Hider pack backed by
+ *  single "Hide Fire Overlay" switch; expanded (2026-09-16) into the full Object Hider pack backed by
  *  {@link com.killer560.hub.objecthider.ObjectHiderFeature} - the biggest FPS/visibility win available in M7 P5
  *  and F7 P3. Everything here is legit: pure client-side render suppression, no entity is ever removed from the
  *  world. Every switch defaults to OFF. The whole list scrolls (ModScreen owns scrolling), so it's laid out as
@@ -54,7 +54,7 @@ public class ObjectHiderTab extends BaseTab {
 
         header(widgets, contentX, contentWidth, y, "Screen");
 
-        widgets.add(SettingsButtonWidget.builder(onOff("No Fire Overlay", NoFireConfig.getInstance().isEnabled()), btn -> {
+        widgets.add(SettingsButtonWidget.builder(onOff("Hide Fire Overlay", NoFireConfig.getInstance().isEnabled()), btn -> {
                     NoFireConfig nf = NoFireConfig.getInstance();
                     nf.setEnabled(!nf.isEnabled());
                     nf.save();
@@ -63,9 +63,9 @@ public class ObjectHiderTab extends BaseTab {
         y[0] += 24;
 
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Blindness Effect", cfg::getDisableBlindnessRaw, cfg::setDisableBlindness);
+                "Hide Blindness Effect", cfg::getDisableBlindnessRaw, cfg::setDisableBlindness);
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "No Glow Outlines", cfg::getNoGlowRaw, cfg::setNoGlow);
+                "Hide Glow Outlines", cfg::getNoGlowRaw, cfg::setNoGlow);
 
         header(widgets, contentX, contentWidth, y, "Dungeon Clutter");
 
@@ -96,7 +96,7 @@ public class ObjectHiderTab extends BaseTab {
             }
         }
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Soulweaver Skulls", cfg::getHideSoulweaverSkullsRaw, cfg::setHideSoulweaverSkulls);
+                "Hide Soulweaver Skulls", cfg::getHideSoulweaverSkullsRaw, cfg::setHideSoulweaverSkulls);
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
                 "Archer Passive", cfg::getHideArcherPassiveRaw, cfg::setHideArcherPassive);
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
@@ -148,11 +148,11 @@ public class ObjectHiderTab extends BaseTab {
         header(widgets, contentX, contentWidth, y, "Render Optimizer");
 
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Disable Text Shadow", cfg::getDisableTextShadowRaw, cfg::setDisableTextShadow);
+                "Hide Text Shadow", cfg::getDisableTextShadowRaw, cfg::setDisableTextShadow);
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
                 "Container Text Shadow", cfg::getContainerTextShadowRaw, cfg::setContainerTextShadow);
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Disable Fog", cfg::getDisableFogRaw, cfg::setDisableFog);
+                "Hide Fog", cfg::getDisableFogRaw, cfg::setDisableFog);
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
                 "Fix Crimson Isle Fog", cfg::getFixCrimsonIsleFogRaw, cfg::setFixCrimsonIsleFog);
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
@@ -175,14 +175,14 @@ public class ObjectHiderTab extends BaseTab {
         header(widgets, contentX, contentWidth, y, "Tweaks");
 
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "Disable Item Cooldowns", cfg::getDisableItemCooldownsRaw, cfg::setDisableItemCooldowns);
+                "Hide Item Cooldowns", cfg::getDisableItemCooldownsRaw, cfg::setDisableItemCooldowns);
 
         header(widgets, contentX, contentWidth, y, "Item Animations");
 
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "No Eat Animation", cfg::getNoEatAnimationRaw, cfg::setNoEatAnimation);
+                "Hide Eat Animation", cfg::getNoEatAnimationRaw, cfg::setNoEatAnimation);
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
-                "No Shortbow Swing", cfg::getNoShortbowSwingRaw, cfg::setNoShortbowSwing);
+                "Hide Shortbow Swing", cfg::getNoShortbowSwingRaw, cfg::setNoShortbowSwing);
 
         // "Chat Replacements" moved out 2026-09-30, per killer560: "move the hide chat stuff into the chat
         // section" - it became HideChatMessagesTab, and on 2026-10-08 part of Chat Hider (ChatHiderTab, its own

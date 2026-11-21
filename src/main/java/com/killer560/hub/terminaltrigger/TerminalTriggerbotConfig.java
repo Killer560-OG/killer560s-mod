@@ -35,7 +35,7 @@ public final class TerminalTriggerbotConfig {
     private boolean enabled = false;
     private int delayMs = 0;
     private int cooldownMs = 250;
-    private double range = 4.0;
+    private double range = MAX_RANGE;
 
     private TerminalTriggerbotConfig() {
     }
@@ -56,7 +56,7 @@ public final class TerminalTriggerbotConfig {
                 cfg.enabled = ConfigJson.getBool(root, "enabled", false);
                 cfg.delayMs = ConfigJson.getInt(root, "delayMs", 0);
                 cfg.cooldownMs = ConfigJson.getInt(root, "cooldownMs", 250);
-                cfg.range = ConfigJson.getDouble(root, "range", 4.0);
+                cfg.range = Math.min(MAX_RANGE, ConfigJson.getDouble(root, "range", cfg.range));
             } catch (Exception ignored) {
                 // Unreadable file: the per-key readers keep whatever parsed, the rest stay at defaults.
             }

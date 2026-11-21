@@ -31,7 +31,7 @@ public class KickRejoinTab extends BaseTab {
         widgets.add(onOffButton("Kick Rejoin Timer", cfg::isEnabled, cfg::setEnabled, cfg::save,
                 requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabled() && !isSearchScan()) {
             return widgets;
         }
         widgets.add(onOffButton("Rejoin Title", cfg::isReadyTitle, cfg::setReadyTitle, cfg::save,

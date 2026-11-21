@@ -42,7 +42,13 @@ public class StorageOverlayTab extends BaseTab {
         // Amber -> Dark -> Light (killer560, 2026-10-07); Amber is the old Dark look, unchanged.
         widgets.add(SettingsButtonWidget.cycling(themeText(), (btn, dir) -> {
                     StorageOverlayConfig cfg = StorageOverlayConfig.getInstance();
-                    cfg.setTheme(SettingsButtonWidget.step(cfg.getTheme(), dir));
+                    // Menu Theme -> Amber -> Dark -> Light -> Menu Theme
+                    int i = SettingsButtonWidget.step(cfg.isFollowMenu() ? 0 : cfg.getTheme().ordinal() + 1, dir,
+                            PanelTheme.values().length + 1);
+                    cfg.setFollowMenu(i == 0);
+                    if (i > 0) {
+                        cfg.setTheme(PanelTheme.values()[i - 1]);
+                    }
                     cfg.save();
                     btn.setMessage(themeText());
                 }).bounds(contentX, y, 220, 20).build());
@@ -103,6 +109,9 @@ public class StorageOverlayTab extends BaseTab {
     }
 
     private static Component themeText() {
+        if (StorageOverlayConfig.getInstance().isFollowMenu()) {
+            return Component.literal("Overlay Theme: §6Menu Theme");
+        }
         PanelTheme theme = StorageOverlayConfig.getInstance().getTheme();
         String colour = theme == PanelTheme.AMBER ? "§6" : theme == PanelTheme.DARK ? "§8" : "§f";
         return Component.literal("Overlay Theme: " + colour + theme.label);

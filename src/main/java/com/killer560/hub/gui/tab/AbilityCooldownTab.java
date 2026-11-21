@@ -40,7 +40,7 @@ public class AbilityCooldownTab extends BaseTab {
                 requestRebuild, contentX, y[0], contentWidth, 20));
         y[0] += 24;
 
-        if (!cfg.isEnabledRaw()) {
+        if (!cfg.isEnabledRaw() && !isSearchScan()) {
             return w;
         }
 

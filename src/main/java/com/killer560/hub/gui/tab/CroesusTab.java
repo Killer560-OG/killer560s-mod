@@ -59,27 +59,27 @@ public class CroesusTab extends BaseTab {
                     cfg::save, requestRebuild, contentX + half + GAP, y, half, 18));
             y += 20;
             if (cfg.isHighlightFreeChest() || cfg.isHighlightKeyChest()) {
-                widgets.add(colourButton("Free Chest Color", cfg.getChestFreeColor(),
+                widgets.add(colorButton("Free Chest Color", cfg.getChestFreeColor(),
                         CroesusConfig.DEFAULT_CHEST_FREE_COLOR, rgb -> cfg.setChestFreeColor(rgb), contentX, y, half));
-                widgets.add(colourButton("Key Chest Color", cfg.getChestKeyColor(),
+                widgets.add(colorButton("Key Chest Color", cfg.getChestKeyColor(),
                         CroesusConfig.DEFAULT_CHEST_KEY_COLOR, rgb -> cfg.setChestKeyColor(rgb),
                         contentX + half + GAP, y, half));
                 y += 20;
             }
             if (cfg.isHighlightRuns()) {
-                widgets.add(colourButton("Unclaimed Run Color", cfg.getRunUnclaimedColor(),
+                widgets.add(colorButton("Unclaimed Run Color", cfg.getRunUnclaimedColor(),
                         CroesusConfig.DEFAULT_RUN_UNCLAIMED_COLOR, rgb -> cfg.setRunUnclaimedColor(rgb), contentX, y, half));
-                widgets.add(colourButton("Needs Key Color", cfg.getRunKeyColor(),
+                widgets.add(colorButton("Needs Key Color", cfg.getRunKeyColor(),
                         CroesusConfig.DEFAULT_RUN_KEY_COLOR, rgb -> cfg.setRunKeyColor(rgb),
                         contentX + half + GAP, y, half));
                 y += 20;
-                widgets.add(colourButton("Opened Run Color", cfg.getRunOpenedColor(),
+                widgets.add(colorButton("Opened Run Color", cfg.getRunOpenedColor(),
                         CroesusConfig.DEFAULT_RUN_OPENED_COLOR, rgb -> cfg.setRunOpenedColor(rgb), contentX, y, half));
-                widgets.add(colourButton("Key Used Color", cfg.getRunClaimedColor(),
+                widgets.add(colorButton("Key Used Color", cfg.getRunClaimedColor(),
                         CroesusConfig.DEFAULT_RUN_CLAIMED_COLOR, rgb -> cfg.setRunClaimedColor(rgb),
                         contentX + half + GAP, y, half));
                 y += 20;
-                widgets.add(colourButton("Not Looked At Color", cfg.getRunUnknownColor(),
+                widgets.add(colorButton("Not Looked At Color", cfg.getRunUnknownColor(),
                         CroesusConfig.DEFAULT_RUN_UNKNOWN_COLOR, rgb -> cfg.setRunUnknownColor(rgb), contentX, y, half));
                 widgets.add(onOffButton("Color Legend", cfg::isShowRunLegend, cfg::setShowRunLegend, cfg::save,
                         null, contentX + half + GAP, y, half, 18));
@@ -167,7 +167,7 @@ public class CroesusTab extends BaseTab {
         return widgets;
     }
 
-    private static AbstractWidget colourButton(String label, int rgb, int defaultRgb,
+    private static AbstractWidget colorButton(String label, int rgb, int defaultRgb,
                                                java.util.function.IntConsumer set, int x, int y, int w) {
         return SettingsButtonWidget.builder(com.killer560.hub.gui.ColorSwatch.label(label, 0xFF000000 | rgb), btn -> {
                     Minecraft client = Minecraft.getInstance();

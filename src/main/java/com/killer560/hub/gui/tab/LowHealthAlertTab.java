@@ -21,7 +21,7 @@ public class LowHealthAlertTab extends BaseTab {
         int y = contentY;
         w.add(onOffButton("Low Health Alert", cfg::isLowHealthEnabled, cfg::setLowHealthEnabled, cfg::save, requestRebuild, contentX, y, contentWidth, 20));
         y += 24;
-        if (!cfg.isLowHealthEnabled()) {
+        if (!cfg.isLowHealthEnabled() && !isSearchScan()) {
             return w;
         }
         w.add(onOffButton("Only While Healer", cfg::isLowHealthOnlyHealer, cfg::setLowHealthOnlyHealer, cfg::save, null, contentX, y, contentWidth, 18));

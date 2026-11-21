@@ -60,7 +60,6 @@ public final class DoorKeysConfig {
     private float circleLift = 0.0f;
     private int tracerColor = COLOR_AUTO;
     private int circleColor = COLOR_AUTO;
-    private int fillColor = COLOR_AUTO;
 
     private DoorKeysConfig() {
     }
@@ -105,7 +104,6 @@ public final class DoorKeysConfig {
             cfg.setRadius(ConfigJson.getFloat(obj, "radius", RADIUS_PICKUP));
             cfg.tracerColor = ConfigJson.getInt(obj, "tracerColor", COLOR_AUTO);
             cfg.circleColor = ConfigJson.getInt(obj, "circleColor", COLOR_AUTO);
-            cfg.fillColor = ConfigJson.getInt(obj, "fillColor", COLOR_AUTO);
             instance = cfg;
         } catch (Exception e) {
             instance = new DoorKeysConfig();
@@ -126,7 +124,6 @@ public final class DoorKeysConfig {
         obj.addProperty("radius", radius);
         obj.addProperty("tracerColor", tracerColor);
         obj.addProperty("circleColor", circleColor);
-        obj.addProperty("fillColor", fillColor);
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
@@ -240,14 +237,5 @@ public final class DoorKeysConfig {
 
     public void setCircleColor(int argb) {
         circleColor = argb;
-    }
-
-    /** Unused since 2026-11-01 (the sphere is drawn in the Circle Color); kept so an old file and profile still load. */
-    public int getFillColor() {
-        return fillColor;
-    }
-
-    public void setFillColor(int argb) {
-        fillColor = argb;
     }
 }

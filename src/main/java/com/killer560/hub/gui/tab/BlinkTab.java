@@ -89,7 +89,7 @@ public class BlinkTab extends BaseTab implements KeyCaptureTab {
                     requestRebuild.run();
                 }).bounds(contentX, y, contentWidth, ROW).build());
         y += ROW + 6;
-        if (!cfg.isEnabled()) {
+        if (!cfg.isEnabled() && !isSearchScan()) {
             return w;
         }
         y = toggle(w, contentX, y, contentWidth, "Show HUD", cfg::isShowHud, v -> cfg.setShowHud(v), cfg);

@@ -22,11 +22,13 @@ public final class StorageOverlayConfig {
 
     private static StorageOverlayConfig instance;
 
-    private boolean enabled = true;
+    private boolean enabled = false;
     /** killer560 (2026-10-07): Amber, Dark or Light. Replaces the old {@code darkMode} boolean: a saved
      *  {@code darkMode: true} (the only dark look there was) loads as {@link PanelTheme#AMBER} and {@code false} as
      *  {@link PanelTheme#LIGHT}, so nobody's overlay changes on update - see {@link #load()}. */
     private PanelTheme theme = PanelTheme.AMBER;
+    /** True (the default for a new file) = draw in the active menu theme; false = the Amber / Dark / Light above. */
+    private boolean followMenu = true;
     /** Storage key (see {@link StorageOverlayFeature#storageKey}) -> killer560's custom display name. */
     private final Map<String, String> customNames = new HashMap<>();
     /** Uniform scale for the WHOLE feature - both the grid and the relocated Inventory panel - per
@@ -62,7 +64,7 @@ public final class StorageOverlayConfig {
             String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             StorageOverlayConfig cfg = new StorageOverlayConfig();
-            cfg.enabled = ConfigJson.getBool(obj, "enabled", true);
+            cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             // Old files only have darkMode; a file written by this version has both (darkMode kept for an older jar).
             boolean dark = ConfigJson.getBool(obj, "darkMode", true);
             PanelTheme migrated = dark ? PanelTheme.AMBER : PanelTheme.LIGHT;
@@ -72,6 +74,7 @@ public final class StorageOverlayConfig {
             if (dark != (cfg.theme != PanelTheme.LIGHT)) {
                 cfg.theme = migrated;
             }
+            cfg.followMenu = ConfigJson.getBool(obj, "followMenu", !obj.has("theme"));
             cfg.scale = clampScale(ConfigJson.getFloat(obj, "scale", 1.0f));
             cfg.columns = clampColumns(ConfigJson.getInt(obj, "columns", 3));
             JsonObject names = ConfigJson.getObject(obj, "customNames");
@@ -93,6 +96,7 @@ public final class StorageOverlayConfig {
         JsonObject obj = new JsonObject();
         obj.addProperty("enabled", enabled);
         obj.addProperty("theme", theme.name());
+        obj.addProperty("followMenu", followMenu);
         // For a jar from before the themes: it reads only darkMode, and Light is the one it can show as light.
         obj.addProperty("darkMode", theme != PanelTheme.LIGHT);
         obj.addProperty("scale", scale);
@@ -113,10 +117,17 @@ public final class StorageOverlayConfig {
 
     public void setTheme(PanelTheme theme) { this.theme = theme == null ? PanelTheme.AMBER : theme; }
 
+    public boolean isFollowMenu() { return followMenu; }
+
+    public void setFollowMenu(boolean value) { followMenu = value; }
+
     /** What the overlay draws in: the menu theme picked under Menu Theme (killer560, 2026-10-15), or - on Default - the
      *  Overlay Theme's Amber / Dark / Light exactly as before. */
     public com.killer560.hub.gui.PanelColours colours() {
         com.killer560.hub.gui.OverlayPalette menu = com.killer560.hub.gui.OverlayThemes.of(com.killer560.hub.gui.OverlayThemes.STORAGE_OVERLAY);
+        if (menu == null && followMenu) {
+            menu = com.killer560.hub.gui.OverlayThemes.menu();
+        }
         return menu == null ? theme.colours() : com.killer560.hub.gui.PanelColours.fromMenu(menu);
     }
 

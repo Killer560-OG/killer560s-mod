@@ -198,7 +198,7 @@ public final class TerminalSolverConfig {
     // value in that range per click) rather than one fixed interval. Defaults match the
     // proven-safe range.
     private int autoClickMinDelayMs = 120;
-    private int autoClickMaxDelayMs = 200;
+    private int autoClickMaxDelayMs = 160;
     /** Hides the real mouse pointer while auto clicks are landing (screen-share privacy, killer560 2026-10-19). */
     private boolean hideMouseCursor = false;
     /** Stream Safe (killer560, 2026-10-27): Auto Terminals clicks through a drawn human cursor and only when it has
@@ -209,7 +209,7 @@ public final class TerminalSolverConfig {
     /** Queue Terms (cheat): your own clicks on right slots wait for the server's answer to the click before and go one per update. */
     private boolean queueTerms = false;
     /** First Click Delay (killer560, 2026-11-03): ms Auto Terminals waits after a terminal stabilizes before its first click (replaces the old fixed 500 ms settle). */
-    private int firstClickDelayMs = 300;
+    private int firstClickDelayMs = 150;
     /** No First Click Delay In Melody (killer560 2026-11-18): Auto Terminals skips First Click Delay for the Melody terminal only. */
     private boolean noFirstClickDelayMelody = false;
     /** Burst Finish (killer560 2026-11-11): once the clicks left are at most Burst Size, send them all in one tick. */
@@ -347,9 +347,9 @@ public final class TerminalSolverConfig {
             BOOLS.load(cfg, obj);
             cfg.scale = clampScale(ConfigJson.getFloat(obj, "scale", 1.0f));
             cfg.autoClickMinDelayMs = clampAutoClickDelay(ConfigJson.getInt(obj, "autoClickMinDelayMs", 120));
-            cfg.autoClickMaxDelayMs = clampAutoClickDelay(ConfigJson.getInt(obj, "autoClickMaxDelayMs", 200));
+            cfg.autoClickMaxDelayMs = clampAutoClickDelay(ConfigJson.getInt(obj, "autoClickMaxDelayMs", 160));
             // Same min <= max invariant the setters enforce (a hand-edited file could otherwise load min > max).
-            cfg.firstClickDelayMs = clamp(ConfigJson.getInt(obj, "firstClickDelayMs", 300), MIN_FIRST_CLICK_DELAY_MS, MAX_FIRST_CLICK_DELAY_MS);
+            cfg.firstClickDelayMs = clamp(ConfigJson.getInt(obj, "firstClickDelayMs", 150), MIN_FIRST_CLICK_DELAY_MS, MAX_FIRST_CLICK_DELAY_MS);
             cfg.burstSize = clamp(ConfigJson.getInt(obj, "burstSize", DEFAULT_BURST_SIZE), 1, MAX_BURST_SIZE);
             cfg.burstClicks = clamp(ConfigJson.getInt(obj, "burstClicks", DEFAULT_BURST_SIZE), 1, MAX_BURST_SIZE);
             cfg.burstDelayMs = clamp(ConfigJson.getInt(obj, "burstDelayMs", 0), 0, MAX_BURST_DELAY_MS);

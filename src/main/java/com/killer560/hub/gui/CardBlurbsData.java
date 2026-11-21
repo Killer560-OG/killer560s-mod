@@ -10,6 +10,7 @@ final class CardBlurbsData {
 
     static void register(Map<String, String> d) {
         d.put("SecretClickedTab", "Boxes clicked secrets; mutes.");
+        d.put("ZoomTab", "Hold a key to zoom in.");
         d.put("SecretTab", "Secret sound, boxes and HUD.");
         // doc-rng-1101 and doc-mining-1101 cards: their tooltips were cut to fit (testkit 1060, uifix-1102).
         d.put("LuckTab", "Your drops against the odds.");
@@ -190,7 +191,7 @@ final class CardBlurbsData {
         d.put("GifPlayerTab", "Looping GIFs as HUD overlays.");
         d.put("HealthAndManaBarsTab", "Health and mana bars.");
         d.put("HidePlayersTab", "Hides other players by rule.");
-        d.put("ObjectHiderTab", "Hides various clutter.");
+        d.put("ObjectHiderTab", "Hides screen and world clutter.");
         d.put("LagDisplayTab", "TPS, ping, FPS and stutter HUD.");
         d.put("QuiverDisplayTab", "Arrows left, as a HUD.");
         d.put("RealTimeTab", "A HUD clock of real time.");

@@ -37,7 +37,7 @@ public class AutoChocolateFactoryTab extends BaseTab {
         int[] y = {contentY};
 
         toggle(w, contentX, y, "Auto Chocolate Factory", cfg::isChocolateEnabled, cfg::setChocolateEnabled, requestRebuild);
-        if (!cfg.isChocolateEnabled()) {
+        if (!cfg.isChocolateEnabled() && !isSearchScan()) {
             return w;
         }
 

@@ -21,6 +21,9 @@ public class MiningAbilityReadyTab extends BaseTab {
         w.add(onOffButton("Ability Ready Alert", () -> cfg.isAbilityAlertRaw(), cfg::setAbilityAlert, cfg::save, requestRebuild, contentX, y,
                 contentWidth, 20));
         y += MiningQolRows.STEP;
+        if (!cfg.isAbilityAlertRaw() && !isSearchScan()) {
+            return w;
+        }
 
         MiningQolRows.toggle(w, contentX, y, contentWidth, "Cooldown Timer", cfg::isAbilityTimer, cfg::setAbilityTimer,
                 cfg::save);

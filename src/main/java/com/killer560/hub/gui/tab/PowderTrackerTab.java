@@ -24,6 +24,9 @@ public class PowderTrackerTab extends BaseTab {
         w.add(onOffButton("Powder Tracker", cfg::isPowderTrackerRaw, cfg::setPowderTracker, cfg::save,
                 requestRebuild, contentX, y, contentWidth, 20));
         y += MiningQolRows.STEP;
+        if (!cfg.isPowderTrackerRaw() && !isSearchScan()) {
+            return w;
+        }
         y = MiningQolRows.toggles(w, contentX, y, contentWidth, cfg::save,
                 MiningQolRows.t("Show Mithril Powder", cfg::isPowderTrackerMithril, cfg::setPowderTrackerMithril),
                 MiningQolRows.t("Show Top Drops", cfg::isPowderTrackerItems, cfg::setPowderTrackerItems));

@@ -140,9 +140,13 @@ public final class P4PlatformHighlightFeature {
         // blocks it outlines, so depth-tested it z-fights into nothing and is completely hidden the moment
         // you stand on the platform - which is the only time you want to see it. The reference, the mod this was
         // ported from, ships its highlights with the "Depth check" switch off for the same reason.
+        int rgb = cfg.getColor();
+        float r = (rgb >> 16 & 0xFF) / 255f;
+        float g = (rgb >> 8 & 0xFF) / 255f;
+        float b = (rgb & 0xFF) / 255f;
         if (cfg.isFilled()) {
-            SolverEspRender.renderFilledBox(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.P4_PLATFORM, context, PLATFORM_BOX, 0.2f, 1.0f, 1.0f, 0.35f);
+            SolverEspRender.renderFilledBox(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.P4_PLATFORM, context, PLATFORM_BOX, r, g, b, 0.35f);
         }
-        SolverEspRender.renderOutlineBox(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.P4_PLATFORM, context, PLATFORM_BOX, 0.2f, 1.0f, 1.0f, 1.0f, 2f);
+        SolverEspRender.renderOutlineBox(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.P4_PLATFORM, context, PLATFORM_BOX, r, g, b, 1.0f, 2f);
     }
 }
