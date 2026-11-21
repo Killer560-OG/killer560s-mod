@@ -708,12 +708,17 @@ public final class InstaClearTracker {
                 InstaClearStore.VERSION, aside.getFileName());
     }
 
+    /** The snapshot is built here, the disk write runs on the shared writer (a close lands on the client tick). */
     private static void save() {
-        try {
-            STORE.save(path());
-        } catch (Exception e) {
-            LOGGER.warn("[InstaClear] could not save {}", path(), e);
-        }
+        Path target = path();
+        String text = STORE.snapshot();
+        com.killer560.hub.shared.SharedWriter.submit(() -> {
+            try {
+                InstaClearStore.write(target, text);
+            } catch (Exception e) {
+                LOGGER.warn("[InstaClear] could not save {}", target, e);
+            }
+        });
     }
 
     private static List<String> summaryLines() {
@@ -749,6 +754,7 @@ public final class InstaClearTracker {
     /** Points the store at {@code path} (any file) and loads it; null goes back to the real file. */
     public static void testUseFile(String path) {
         file = path == null ? null : Path.of(path);
+        com.killer560.hub.shared.SharedWriter.drain(2000);
         loaded = false;
         PENDING.clear();
         ensureLoaded();
@@ -801,8 +807,14 @@ public final class InstaClearTracker {
         save();
     }
 
+    /** Waits until every queued save is on disk (the testkit reads the file right after a write). */
+    public static void testFlush() {
+        com.killer560.hub.shared.SharedWriter.drain(2000);
+    }
+
     /** Reloads the current file from disk, as a restart would. */
     public static void testReload() {
+        com.killer560.hub.shared.SharedWriter.drain(2000);
         loaded = false;
         ensureLoaded();
     }

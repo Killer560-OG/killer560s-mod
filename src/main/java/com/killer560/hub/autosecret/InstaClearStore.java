@@ -445,7 +445,15 @@ final class InstaClearStore {
 
     /** Written to a temp file beside it and moved over, so a crash mid-write cannot leave half a file. */
     synchronized void save(Path file) throws java.io.IOException {
-        String text = GSON.toJson(toJson());
+        write(file, GSON.toJson(toJson()));
+    }
+
+    /** The JSON text a save would write, taken on the caller's thread so the write itself can run elsewhere. */
+    synchronized String snapshot() {
+        return GSON.toJson(toJson());
+    }
+
+    static void write(Path file, String text) throws java.io.IOException {
         Path parent = file.getParent();
         if (parent != null) {
             Files.createDirectories(parent);

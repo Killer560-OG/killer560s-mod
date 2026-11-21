@@ -10,7 +10,8 @@
      "Fast Leap now works in the dungeon sim even with no Sim Teammate placed (the tab lists the four classes the leap menu offers), and a completed P3 section's Fast Leap goes to the target of the section you are standing in instead of the section that just finished.",
      "Auto Melody's Harp (cheat build only) plays any Melody's Harp song you open, with Auto Detect Lag, Auto Detect Ping and a Click Offset slider.",
      "Dungeon sim: each wardrobe slot is now its own set, as on Hypixel, so a mask you swap in by hand stays with the set you leave and comes back with it, while the helmet it replaced stays in your inventory",
-     "Closing the game while Spotify's media helper is stuck no longer hangs the shutdown and draws a watchdog crash."
+     "Closing the game while Spotify's media helper is stuck no longer hangs the shutdown and draws a watchdog crash.",
+     "Insta Clear tracker: saving its evidence file after a room closes no longer happens on the game tick, so it cannot cause a stutter."
     ]
    }
   ]
