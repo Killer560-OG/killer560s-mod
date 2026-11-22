@@ -21,8 +21,8 @@ import java.util.regex.Pattern;
  */
 public final class MilestoneFeature {
 
-    /** The {@code dungeon.milestone.colorless} shape, with the damage / tank / heal wording of all three classes. The prefix before "Milestone" has no colon or bracket, so a player's chat ("Eve: Milestone...", "[MVP+] Eve:...") never counts. */
-    static final Pattern MILESTONE = Pattern.compile("^[^:\\[]{0,6}Milestone .: You have (?:tanked and )?(?:dealt|healed) .*so far! .*$");
+    /** The {@code dungeon.milestone.colorless} shape, with the damage / tank / heal wording of all three classes. The only prefix is the class word Hypixel prints ("Archer Milestone ❶: ... Ranged Damage so far! 07s", logger 11-18), so a player's chat ("Eve: Milestone...", "[MVP+] Eve:...") never counts. */
+    static final Pattern MILESTONE = Pattern.compile("^(?:(?:Mage|Archer|Berserk|Healer|Tank) )?Milestone .: You have (?:tanked and )?(?:dealt|healed) .*so far! .*$");
 
     public static final HudElement HUD = new MilestoneHud();
 
@@ -95,7 +95,7 @@ public final class MilestoneFeature {
             Minecraft client = Minecraft.getInstance();
             boolean editor = McCompat.screen(client) instanceof HudEditorScreen;
             int n = editor ? 2 : count();
-            if (!editor && (n == 0 || !MilestoneConfig.getInstance().isEnabled())) {
+            if (!editor && (!MilestoneConfig.getInstance().isEnabled() || !DungeonState.isInDungeon())) {
                 return;
             }
             int color = n >= 3 ? 0xFF55FF55 : n == 2 ? 0xFFFFAA00 : 0xFFFF5555;
