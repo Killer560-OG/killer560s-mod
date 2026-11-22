@@ -364,6 +364,21 @@ public final class SimDoors {
             }
             return useDoor(client, player, hand, door);
         });
+        // A LEFT click opens a door too, with any item held (killer560, 2026-11-21). Taken on the server, where every START
+        // arrives (his own and a guest's; Auto Clear's is a raw packet, so the client half never sees it), ahead of
+        // SimItems' left-click items; the rule runs on his client thread like a guest's right click.
+        net.fabricmc.fabric.api.event.player.AttackBlockCallback.EVENT.addPhaseOrdering(DOOR_PHASE,
+                net.fabricmc.fabric.api.event.Event.DEFAULT_PHASE);
+        net.fabricmc.fabric.api.event.player.AttackBlockCallback.EVENT.register(DOOR_PHASE, (player, level, hand, pos, dir) -> {
+            if (!(player instanceof net.minecraft.server.level.ServerPlayer sp) || !SimAbilities.simServer(sp)) {
+                return InteractionResult.PASS;
+            }
+            Door door = BLOCK_INDEX.get(pos);
+            if (door == null || PENDING.containsKey(door)) return InteractionResult.PASS;
+            Minecraft client = Minecraft.getInstance();
+            client.execute(() -> useDoor(client, player, InteractionHand.MAIN_HAND, door));
+            return InteractionResult.SUCCESS;
+        });
         registerServerTick();
     }
 

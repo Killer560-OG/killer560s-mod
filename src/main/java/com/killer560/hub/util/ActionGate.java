@@ -203,6 +203,10 @@ public final class ActionGate {
         MASK_SWAP_ROD(Kind.WORLD),
         /** Auto Door Opener. */
         DOOR_OPENER(Kind.WORLD),
+        /** Auto Secret's LEFT click on a wither or blood door (WitherDoorOpener). Waives the teleport settle like Breaker
+         *  Aura: it re-reads the door's surface from his eye on the tick it clicks, and the landing is the server's. With
+         *  Auto Secret's trips ending on the confirmed landing (acwaits2-1121) the settle held every door click 6 ticks. */
+        DOOR_TAP(Kind.WORLD, null, true),
         SECRET_AURA(Kind.WORLD),
         /** Secret Triggerbot. */
         SECRET_TRIGGER(Kind.WORLD),

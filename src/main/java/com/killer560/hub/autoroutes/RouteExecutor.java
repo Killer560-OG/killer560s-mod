@@ -686,6 +686,19 @@ public final class RouteExecutor {
         return running;
     }
 
+    /** Runs started, ever (only goes up): Auto Secret tells a route that started and stopped on one tick by it. */
+    private static int starts;
+
+    public static int starts() {
+        return starts;
+    }
+
+    /** A path-less run between nodes whose next node is not where he stands: only his own walk can fire it. */
+    public static boolean awaitingWalk() {
+        return running && step == null && route != null && route.path().isEmpty() && plannedNext != null
+                && !plannedInPlace;
+    }
+
     /** The room of the route being played, or null when none is (Auto Trap stops a trap route the moment he leaves). */
     public static String runningRoom() {
         Route r = route;
@@ -865,6 +878,7 @@ public final class RouteExecutor {
         bestTargetDistance = Double.MAX_VALUE;
         cameraGraceTicks = 2;
         stopReason = null;
+        starts++;
         lastLevel = client.level;
         activeNode = null;
         step = null;

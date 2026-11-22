@@ -159,6 +159,10 @@ public final class AutoSecretFeature {
     private static final int TOUR_WAIT_TICKS = 10;
     /** {@link RouteExecutor#completions()} when the trip to the target's start node began. */
     private static int routeCompletionsSeen;
+    /** {@link RouteExecutor#starts()} when the trip began: a start since then with nothing running ended on its own tick. */
+    private static int routeStartsSeen;
+    /** Ticks a path-less route has stood waiting for a walk to its next node, with him still. */
+    private static int walkWaitTicks;
     /** {@link com.killer560.hub.autoroutes.RouteRunMemory#clock()} then, and the room's found count then. */
     private static int routeStartClock;
     private static int routeFoundAtStart;
@@ -2372,7 +2376,8 @@ public final class AutoSecretFeature {
         // un-armed under him (found in 102-sim-autosecret: every room after the first "did not arm").
         AutoRoutesFeature.cancelForInteractiveMap("Auto Secret");
         routeCompletionsSeen = RouteExecutor.completions();
-        routeStartClock = com.killer560.hub.autoroutes.RouteRunMemory.clock();
+        routeStartsSeen = RouteExecutor.starts();
+        routeStartClock =com.killer560.hub.autoroutes.RouteRunMemory.clock();
         routeFoundAtStart = Math.max(0, r.secrets() - r.unfound());
         if (!AutoRoutesFeature.warpToStartNode(layout, r.room())) {
             secreted.add(r.name());
@@ -3118,6 +3123,7 @@ public final class AutoSecretFeature {
         LOGGER.info("[AutoSecret] at the {} door at cell {}", doorBlood ? "blood" : "wither", doorCell);
         setPhase(Phase.DOOR);
         doorLastClickTick = -1000;
+        tickDoor(); // the click is asked for in the arrival tick, not the next (acwaits-1121)
     }
 
     /**
@@ -3248,6 +3254,8 @@ public final class AutoSecretFeature {
         tripQuizStarted = com.killer560.hub.puzzlesolvers.QuizState.started();
         busySeen = false;
         arrivalSeqAtStart = ClearExecutor.arrivalSeq();
+        // Ends on the server's confirmed landing (tickTravel asks finishArrivalEarly), not after the ~9-tick settle.
+        ClearExecutor.endOnLanding();
         setPhase(Phase.TRAVEL);
     }
 
@@ -3277,8 +3285,9 @@ public final class AutoSecretFeature {
             onRouteDone(client);   // it armed and ran to its end before the trip's arrival was seen
             return;
         }
+        busySeen |= ClearExecutor.isBusy();
+        ClearExecutor.finishArrivalEarly(client);
         boolean busy = ClearExecutor.isBusy();
-        busySeen |= busy;
         if (busy && (phaseTicks < TRAVEL_TIMEOUT_TICKS || ClearExecutor.waitingForGate())) {
             // Never timed out while the trip waits for the run to start (the entrance gate, ClearExecutor's pre-run hold):
             // the countdown before a run can be long, and the trip goes the tick the gate opens.
@@ -3400,6 +3409,17 @@ public final class AutoSecretFeature {
             beginRoute();
             return;
         }
+        if (RouteExecutor.starts() != routeStartsSeen) {
+            // It armed and stopped on the same tick (his routes: "BAT_WAND is not in the hotbar"); the arm timeout
+            // below would wait 40 ticks for a start that already came (acwaits-1121: AWAIT_ROUTE 41 t x3).
+            permitLeaveHere();
+            secreted.add(target);
+            String reason = RouteExecutor.stopReason();
+            LOGGER.info("[AutoSecret] route {} started and ended at once: {} - moving on", target, reason);
+            say(ModChat.bad("The route in "), ModChat.value(target), ModChat.dim(" ended: " + reason + " - moving on"));
+            setPhase(Phase.SETTLE);
+            return;
+        }
         if (phaseTicks > ARM_TIMEOUT_TICKS) {
             permitLeaveHere();
             secreted.add(target);
@@ -3409,9 +3429,20 @@ public final class AutoSecretFeature {
         }
     }
 
+    /** Still ticks on the ground before a route that only his walk can go on is given up. */
+    private static final int WALK_WAIT_TICKS = 10;
+
+    /** A path-less route waits for a walk to its next node and he stands still on the ground (knockback drift is not a walk). */
+    private static boolean walkWaiting() {
+        net.minecraft.client.player.LocalPlayer p = Minecraft.getInstance().player;
+        return p != null && RouteExecutor.awaitingWalk() && p.onGround()
+                && p.getDeltaMovement().horizontalDistanceSqr() < 1.0E-4;
+    }
+
     private static void beginRoute() {
         routeActions = RouteExecutor.actionsBegun();
         routeIdleTicks = 0;
+        walkWaitTicks = 0;
         status = "Running the route in " + target;
         LOGGER.info("[AutoSecret] route {} started", target);
         setPhase(Phase.ROUTE);
@@ -3423,11 +3454,18 @@ public final class AutoSecretFeature {
             if (actions != routeActions) {
                 routeActions = actions;
                 routeIdleTicks = 0;
-            } else if (++routeIdleTicks > AutoSecretConfig.getInstance().getRouteStallSeconds() * 20) {
-                // A path-less route waits for him to walk to its next node; he is not going to while this runs it.
-                RouteExecutor.stop("Auto Secret: no node for " + AutoSecretConfig.getInstance().getRouteStallSeconds() + " s");
+                walkWaitTicks = 0;
+            } else if (++routeIdleTicks > AutoSecretConfig.getInstance().getRouteStallSeconds() * 20
+                    || (walkWaitTicks = walkWaiting() ? walkWaitTicks + 1 : 0) >= WALK_WAIT_TICKS) {
+                // A path-less route waits for him to walk to its next node; he is not going to while this runs it
+                // (acwaits-1121: Pipes stood 112 t on "next #13 ETHERWARP (walk to it)" until he pressed S).
+                boolean walk = walkWaitTicks >= WALK_WAIT_TICKS;
+                walkWaitTicks = 0;
+                RouteExecutor.stop(walk ? "Auto Secret: the next node needs a walk"
+                        : "Auto Secret: no node for " + AutoSecretConfig.getInstance().getRouteStallSeconds() + " s");
                 secreted.add(target);
-                LOGGER.info("[AutoSecret] route {} stalled (no node begun) - moving on", target);
+                LOGGER.info("[AutoSecret] route {} {} - moving on", target,
+                        walk ? "waits for a walk to its next node" : "stalled (no node begun)");
                 say(ModChat.bad("The route in "), ModChat.value(target), ModChat.dim(" stalled - moving on"));
                 setPhase(Phase.SETTLE);
             }
@@ -3500,7 +3538,13 @@ public final class AutoSecretFeature {
             if (finished || phaseTicks > Autopilot.puzzleTimeoutSeconds(target) * 20) {
                 LOGGER.info("[AutoSecret] puzzle {}: {} after {} tick(s)", target,
                         finished ? "finished" : "not finished in time - moving on", phaseTicks);
-                setPhase(Phase.SETTLE);
+                if (finished) {
+                    // The map says it is done: the next decision now, as the solved path below (acwaits-1121).
+                    permitLeaveHere();
+                    setPhase(Phase.DECIDE);
+                } else {
+                    setPhase(Phase.SETTLE);
+                }
             }
             return;
         }

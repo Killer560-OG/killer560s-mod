@@ -256,3 +256,40 @@ there); Auto Routes is in [LESSONS-ROUTES.md](LESSONS-ROUTES.md); the sim's side
   count above the one at the last click now starts a new round (`doorClickKeys`). Testkit 1121-sim-acslow-door.
 - A mid-run rejoin hears no Mort line, so ArmedStart armed Auto Clear / Auto Secret until the held map was read:
   `WitherDoorsFeature.runStarted()` also counts `DungeonRun.resumed()`. Testkit 1121-hx-rejoin-runstarted.
+
+## Wait cuts (acwaits-1121)
+
+- A wither or blood door opens on a LEFT click with any held item, not only the right click with the key (killer560
+  2026-11-21). `WitherDoorOpener` taps it (START through the block prediction, ABORT, `McCompat.swingAttack`, gated by
+  `DigWindow`) with no hotbar swap, in the tick Auto Secret reaches the door when the heard look already strikes it, else
+  turn then click the next tick (was click at door start + 3). The sim answers an attack on a door like a use
+  (`SimDoors`, AttackBlockCallback). Testkit 1121-sim-acwaits-doorclick, 1121-hx-acdoor-left-same-* (default and
+  experimental Grim).
+- AWAIT_ROUTE's 41 ticks were the route arming and stopping in the same tick (e.g. "BAT_WAND is not in the hotbar"), so
+  the 40-tick arm timeout ran out: `RouteExecutor.starts()` tells it a route started, and it moves on at once.
+- The 112-tick START_NODE stall was a path-less route waiting for him to walk to its next etherwarp node: Auto Secret now
+  stops it after 10 still, grounded ticks (`RouteExecutor.awaitingWalk()`).
+- A finished pilot puzzle went through a 10-tick SETTLE; it goes to DECIDE now.
+- Kept, with cause: DOOR to open 20 t (blood 42 t) is the server's open delay (sim `SimDoors.OPEN_DELAY_TICKS`); QUIZ 100 t
+  is Oruo's cooldowns; SETTLE after a failed START_NODE or CLEAR is the backoff; long ROUTE stands were his own keys or a
+  puzzle auto's run time.
+
+## Standing after landings (acwaits2-1121)
+
+- Every Auto Secret door, room and secret-spot trip stood ~8 ticks after its last landing (his 11-21 alpha recording
+  224531: landing 19791, DOOR 19799; landing 19837, AUTO_CLEAR 19845): ClearExecutor's arrival settle (`syncDelay` 2..10
+  in `onTickEnd`), which only the fast goals (`etherPathArrive`/`Fast`) skip through `finishArrivalEarly`. Auto Secret's
+  `beginTravel` now calls `ClearExecutor.endOnLanding()` and `tickTravel` asks `finishArrivalEarly` each tick, so the trip
+  ends on the server's confirmed landing. `AutoClearUtils.pathToDoor/pathToRoom` are shared with the map's own clicks and
+  stay unchanged. Testkit 1121-sim-acwaits2-settle (median from last landing to next step <= 2, was ~9).
+- Cutting that settle uncovered the next hold: ActionGate's 6-tick teleport settle (`TELEPORT_SETTLE_TICKS`) held the
+  door's left click (median 6 ticks from reaching the door, 1121-sim-acwaits-doorclick). The left click now goes through
+  `Actor.DOOR_TAP` (freshEachTick, like Breaker Aura: it re-reads the door from his eye on the tick it clicks); the right
+  click keeps `DOOR_OPENER` and its quiet tick after a server position. A wait you remove can unmask the one behind it:
+  rerun every timing case of the flow, not only the new one.
+- His 11-21 "sim" recordings (223131, 223204, 224231, 224531) were made on alpha.hypixel.net (latest.log "Connecting to
+  alpha.hypixel.net"), not the sim: read their stands as real server behavior.
+- Open: on Hypixel a Charged Chain burst of a map path often lands its first warp somewhere else ("off the plan: warp 1
+  put you N blocks", 52 of 75 off-plan lines that night): at 22:32:43 the first landing matched the THIRD hop's look from
+  the start spot, so the server judged that use with a later look. Each correction then replans behind the planner thread
+  (queued 300-800 ms behind RoomTour's room-order search). Not fixed here (Charged Chain / Blink and planner code).

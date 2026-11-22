@@ -10,6 +10,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
+import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import net.minecraft.util.Mth;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.phys.BlockHitResult;
@@ -24,6 +25,8 @@ import org.slf4j.Logger;
  * RotationPlace), at a point on the block's real surface ({@link BlockHits#surface}), within the measured reach, and
  * through {@link ActionGate}. A hotbar Wither Key item (only the dungeon sim has one; Hypixel's key is not an item) is
  * selected first through the game mode's own carried-item send, so the slot reaches the server once, before the use.
+ * With a team key (or the blood door) it is a LEFT click instead, which opens a door with any item (acwaits-1121): no slot
+ * change, and on the tick it is asked for when the look the server already heard strikes the door.
  */
 final class WitherDoorOpener {
 
@@ -37,6 +40,8 @@ final class WitherDoorOpener {
     private static BlockPos lock;
     /** The door is the blood door: no wither key item is selected for it (the blood key is the team's, not an item). */
     private static boolean blood;
+    /** This click is a LEFT click (a dig START): a door opens on one with any item held (killer560, 2026-11-21). */
+    private static boolean left;
     private static String lastResult;
     /** When the world border began refusing the pending click (ms), or -1. */
     private static long borderHeldSinceMs = -1;
@@ -154,25 +159,34 @@ final class WitherDoorOpener {
             return;
         }
         if (step == Step.AIM) {
-            // Tick t: the slot and the body's facing; this tick's movement packet reports the facing.
-            // The key item when there is one (the sim's); otherwise a hand that does nothing on a right click: a held
-            // Aspect of the Void turned the sim's blood-door click into Instant Transmission (141-sim-autopilot,
-            // 2026-10-06), and Hypixel's abilities fire on a block click the same way.
-            int slot = blood ? -1 : keySlot(player);
-            if (slot < 0) {
-                slot = quietSlot(player);
+            // A left click opens the door with whatever is in hand (killer560, 2026-11-21), so it needs no slot change and,
+            // when the look the server already heard strikes the door (util/DigAim, GrimAC RotationBreak), no turn tick:
+            // it goes now. Not with a Dungeonbreaker in hand (its left click digs) or with only the sim's key item.
+            left = (blood || com.killer560.hub.doorkeys.DungeonKeys.witherKeys() > 0)
+                    && !"DUNGEONBREAKER".equals(ItemIdentity.skyblockId(player.getMainHandItem()));
+            if (!left || !com.killer560.hub.util.DigAim.heardLookStrikes(player, lock)) {
+                // Tick t: the slot (right click only) and the body's facing; this tick's movement packet reports it.
+                // The key item when there is one (the sim's); otherwise a hand that does nothing on a right click: a
+                // held Aspect of the Void turned the sim's blood-door click into Instant Transmission (141-sim-autopilot,
+                // 2026-10-06), and Hypixel's abilities fire on a block click the same way.
+                int slot = left ? -1 : blood ? -1 : keySlot(player);
+                if (!left && slot < 0) {
+                    slot = quietSlot(player);
+                }
+                if (slot >= 0) {
+                    com.killer560.hub.util.HotbarSelect.select(client, player, slot);
+                }
+                Vec3 d = hit.getLocation().subtract(eye);
+                float yaw = (float) Math.toDegrees(Math.atan2(-d.x, d.z));
+                float pitch = (float) -Math.toDegrees(Math.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z)));
+                BODY.turnTo(player, yaw, Mth.clamp(pitch, -90f, 90f));
+                step = Step.CLICK;
+                return;
             }
-            if (slot >= 0) {
-                com.killer560.hub.util.HotbarSelect.select(client, player, slot);
-            }
-            Vec3 d = hit.getLocation().subtract(eye);
-            float yaw = (float) Math.toDegrees(Math.atan2(-d.x, d.z));
-            float pitch = (float) -Math.toDegrees(Math.atan2(d.y, Math.sqrt(d.x * d.x + d.z * d.z)));
-            BODY.turnTo(player, yaw, Mth.clamp(pitch, -90f, 90f));
             step = Step.CLICK;
-            return;
         }
-        // Tick t+1: the use, at the START, before this tick's movement packet; the body still faces the point.
+        // Tick t+1 (t for a left click on the heard look): at the START, before this tick's movement packet; the body
+        // still faces the point.
         // A Shadow Assassin's leap puts the door outside the client's world border and vanilla drops the click unsent
         // (util/ShadowAssassinLeap); it used to count as one of Auto Secret's tries, so a leap could spend them all.
         // Held (still busy) until the border lifts, up to HOLD_MAX_MS.
@@ -191,8 +205,28 @@ final class WitherDoorOpener {
             LOGGER.info("[AutoSecret] the world border lifted after {} ms - clicking the door", nowMs - borderHeldSinceMs);
             borderHeldSinceMs = -1;
         }
-        if (!ActionGate.tryAct(ActionGate.Actor.DOOR_OPENER)) {
+        if (!ActionGate.tryAct(left ? ActionGate.Actor.DOOR_TAP : ActionGate.Actor.DOOR_OPENER)) {
             return; // the same click goes on the next tick the gate allows
+        }
+        if (left) {
+            if (!com.killer560.hub.util.DigWindow.mayDigOrHold(lock)) {
+                return; // a dig already went this server tick (GrimAC MultiBreak): next tick
+            }
+            // Vanilla's tap: START through its block prediction (BadPacketsH), the ABORT a released button sends, a swing.
+            if (client.gameMode instanceof com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker invoker) {
+                invoker.killer560smod$invokeStartPrediction(client.level, seq -> new ServerboundPlayerActionPacket(
+                        ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, lock, hit.getDirection(), seq));
+            } else {
+                player.connection.send(new ServerboundPlayerActionPacket(
+                        ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK, lock, hit.getDirection()));
+            }
+            player.connection.send(new ServerboundPlayerActionPacket(
+                    ServerboundPlayerActionPacket.Action.ABORT_DESTROY_BLOCK, lock, net.minecraft.core.Direction.DOWN));
+            com.killer560.hub.compat.McCompat.swingAttack(player);
+            LOGGER.info("[AutoSecret] left-clicked the {} door at {} (face {})", blood ? "blood" : "wither",
+                    lock.toShortString(), hit.getDirection());
+            step = Step.IDLE;
+            return;
         }
         if (client.gameMode.useItemOn(player, InteractionHand.MAIN_HAND, hit) == net.minecraft.world.InteractionResult.FAIL) {
             fail("refused client-side before sending (outside the world border)");

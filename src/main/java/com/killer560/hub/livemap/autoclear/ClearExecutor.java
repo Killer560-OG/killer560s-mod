@@ -437,6 +437,16 @@ public final class ClearExecutor {
     private static boolean goalFastArrival = false;
 
     /**
+     * The goal just started (any {@code etherPath*}, also through AutoClearUtils) ends on its confirmed landing like
+     * {@link #etherPathArrive}, provided the caller asks {@link #finishArrivalEarly} each tick. Auto Secret's door,
+     * room and spot trips: the ~9-tick settle stood him still after every landing the server had already confirmed
+     * (acwaits2-1121). The map's own clicks never call it.
+     */
+    public static void endOnLanding() {
+        goalFastArrival = true;
+    }
+
+    /**
      * A map click on a tile: fewest warps to ANY landing in that tile at its floor height (see
      * {@link EtherwarpPathfinder#findDungeonPathToTile}); {@code to} is the tile's own block, used if none of
      * them can be reached.
