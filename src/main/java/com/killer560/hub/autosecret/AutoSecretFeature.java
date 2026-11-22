@@ -1,6 +1,7 @@
 package com.killer560.hub.autosecret;
 
 import com.killer560.hub.autoclear.AutoClearFeature;
+import com.killer560.hub.autoclear.KeyRooms;
 import com.killer560.hub.autopuzzles.AutoPuzzlesConfig;
 import com.killer560.hub.autopuzzles.AutoPuzzlesFeature;
 import com.killer560.hub.autoroutes.AutoRoutesConfig;
@@ -118,6 +119,8 @@ public final class AutoSecretFeature {
     private static int doorLastClickTick;
     private static String lastDoorSaid;
     private static boolean noKeySaid;
+    /** The wait for the room behind the door to show on the map was logged (KeyRooms.unseenBehind). */
+    private static boolean unseenSaid;
     /** Secret rooms behind a closed door, from the last decision (waited on only when nothing else is left). */
     private static String blockedSecrets;
     private static String instaFrom;
@@ -3316,6 +3319,7 @@ public final class AutoSecretFeature {
         doorClickKeys = Integer.MIN_VALUE;
         doorLastClickTick = -1000;
         noKeySaid = false;
+        unseenSaid = false;
     }
 
     private static void beginDoor() {
@@ -3373,7 +3377,22 @@ public final class AutoSecretFeature {
             doorClicks = 0;
             noKeySaid = false;
         }
+        if (key && doorClicks == 0 && !doorBlood && phaseTicks < KeyRooms.UNSEEN_WAIT_TICKS
+                && KeyRooms.unseenBehind(doorCell)) {
+            // Opened now, the room behind would be insta cleared and its key lost (KeyRooms.unseenBehind).
+            status = "Waiting for the map to show the room behind the wither door";
+            if (!unseenSaid) {
+                unseenSaid = true;
+                LOGGER.info("[AutoSecret] the room behind the wither door at cell {} is not on the map yet - clicking once"
+                        + " it shows (an open door now would insta clear it and lose its key)", doorCell);
+            }
+            return;
+        }
         if (key && doorClicks < DOOR_CLICKS && phaseTicks - doorLastClickTick >= DOOR_CLICK_GAP_TICKS) {
+            if (unseenSaid && doorClicks == 0) {
+                LOGGER.info("[AutoSecret] the room behind the wither door at cell {} {} after {} tick(s) - clicking", doorCell,
+                        KeyRooms.unseenBehind(doorCell) ? "is still not on the map" : "is on the map", phaseTicks);
+            }
             doorClicks++;
             doorClickKeys = keys;
             doorLastClickTick = phaseTicks;

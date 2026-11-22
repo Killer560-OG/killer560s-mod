@@ -477,6 +477,7 @@ public final class SimDoors {
             for (BlockPos p : door.blocks()) {
                 level.setBlockAndUpdate(p, Blocks.BARRIER.defaultBlockState());
             }
+            SimKeyRoom.doorClicked(server, door.blocks());
         });
         // Counted down by the ServerTickEvents listener in register(), not a sleeping thread - a sleeping
         // thread would block whichever thread called this, and would not survive the sim world closing.

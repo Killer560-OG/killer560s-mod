@@ -416,3 +416,14 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   Logic case 1122-logic-acrev-refused-direct.
 - Dungeon Autopilot's "off:" line used to say "the secrets are done" for every Auto Secret stop; it now logs
   `AutoSecretFeature.lastStopReason()` (no key, his keys, trap stop). Logic case 1122-logic-acrev-offreason.
+## Wither doors into a room the map does not show yet (ap-witherkey-1122)
+
+- Problem (his 26.3 run, 11-22 9:00-9:12 AM): keys lost on the way to Blood. Auto Secret etherwarped to a wither door and
+  clicked it ~110 ms after landing, but Hypixel puts the room he stands in on the map 392-756 ms late, so the room BEHIND
+  the door was still undiscovered; a door opened into an undiscovered room makes Hypixel count it cleared at once (map
+  lines `undiscovered->cleared` at five door opens, sidebar +3/+4 tiles at the click), its mobs stand and its key never
+  drops. Every good open showed `unopened->discovered`. Fix: `KeyRooms.unseenBehind(door)` - Auto Secret's `tickDoor` and
+  Auto Clear's `openDoor` hold the first click on a wither door while a side room reads UNDISCOVERED, at most
+  `UNSEEN_WAIT_TICKS` (40), then click anyway. In the sim (no map item) `SimKeyRoom.unseen` answers: a key room armed with
+  its door in counts as shown after `SEEN_TICKS` (8) server ticks in the room before it, and that door opening sooner
+  insta clears it. Testkit 1122-sim-ac-witherkey-unseen / 1122-sim-ap-witherkey-unseen.

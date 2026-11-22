@@ -207,29 +207,63 @@ public final class KeyRooms {
         return g == null ? "no key" : "holds the key to the shut " + (g.blood() ? "blood" : "wither") + " door " + g.door();
     }
 
-    /** The two rooms a door cell joins ({@code -1} for a side with none). */
-    static int[] sides(DungeonLayout layout, int door) {
+    /** The two room cells a door cell joins ({@code -1} for a side off the grid). */
+    private static int[] sideCells(int door) {
         int x = door % DungeonLayout.GRID;
         int z = door / DungeonLayout.GRID;
         boolean alongX = x % 2 != 0;
         int i1 = alongX ? z * DungeonLayout.GRID + (x - 1) : (z - 1) * DungeonLayout.GRID + x;
         int i2 = alongX ? z * DungeonLayout.GRID + (x + 1) : (z + 1) * DungeonLayout.GRID + x;
         int n = DungeonLayout.GRID * DungeonLayout.GRID;
-        return new int[]{i1 >= 0 && i1 < n ? layout.roomOfCell(i1) : -1, i2 >= 0 && i2 < n ? layout.roomOfCell(i2) : -1};
+        return new int[]{i1 >= 0 && i1 < n ? i1 : -1, i2 >= 0 && i2 < n ? i2 : -1};
+    }
+
+    /** The two rooms a door cell joins ({@code -1} for a side with none). */
+    static int[] sides(DungeonLayout layout, int door) {
+        int[] c = sideCells(door);
+        return new int[]{c[0] < 0 ? -1 : layout.roomOfCell(c[0]), c[1] < 0 ? -1 : layout.roomOfCell(c[1])};
     }
 
     /** The cell of {@code door}'s side that belongs to {@code room}, or -1. */
     static int sideCell(DungeonLayout layout, int door, int room) {
-        int x = door % DungeonLayout.GRID;
-        int z = door / DungeonLayout.GRID;
-        boolean alongX = x % 2 != 0;
-        int i1 = alongX ? z * DungeonLayout.GRID + (x - 1) : (z - 1) * DungeonLayout.GRID + x;
-        int i2 = alongX ? z * DungeonLayout.GRID + (x + 1) : (z + 1) * DungeonLayout.GRID + x;
-        int n = DungeonLayout.GRID * DungeonLayout.GRID;
-        if (i1 >= 0 && i1 < n && layout.roomOfCell(i1) == room) {
-            return i1;
+        for (int c : sideCells(door)) {
+            if (c >= 0 && layout.roomOfCell(c) == room) {
+                return c;
+            }
         }
-        return i2 >= 0 && i2 < n && layout.roomOfCell(i2) == room ? i2 : -1;
+        return -1;
+    }
+
+    /** The longest a wither door click waits for {@link #unseenBehind} (2 s; the map showed the room 8-15 ticks late). */
+    public static final int UNSEEN_WAIT_TICKS = 40;
+
+    /**
+     * True while a room {@code door} joins is still UNDISCOVERED on the map (the sim: an armed key room it has not shown
+     * yet). Hypixel counts that room cleared the moment a wither door into it opens, its starred mobs left standing and
+     * its key never dropped (ap-witherkey-1122, his 11-22 runs: an etherwarp to Fairy's far door and a click 110 ms after
+     * landing, before Hypixel had placed him in Fairy - Skull, Catwalk and Slime went "undiscovered->cleared" on the map
+     * and the sidebar's Cleared jumped with him still at the door). The map shows the room once Hypixel has him in the
+     * room he stands in, 8-15 ticks after a warp. Two map reads, no allocation beyond the side pair.
+     */
+    public static boolean unseenBehind(int door) {
+        if (door < 0) {
+            return false;
+        }
+        boolean sim = com.killer560.hub.roomsim.SimState.isActive();
+        for (int c : sideCells(door)) {
+            if (c < 0) {
+                continue;
+            }
+            if (sim) {
+                RoomEntry e = LiveMapFeature.roomEntryAt(c);
+                if (e != null && com.killer560.hub.roomsim.SimKeyRoom.unseen(e.name)) {
+                    return true;
+                }
+            } else if (LiveMapFeature.mapStateAt(c) == LiveMapFeature.MAP_UNDISCOVERED) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** A room whose mobs can drop a key: not the Entrance, a puzzle, the Blood or Fairy room (an unknown one may). */

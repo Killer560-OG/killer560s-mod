@@ -1842,6 +1842,8 @@ public final class AutoClearFeature {
     private static int doorRetrySaid = 0;
     /** Client tick the world border began refusing the door click (Shadow Assassin leap), -1 none. */
     private static long doorBorderSinceTick = -1;
+    /** When the door's click began waiting for the room behind to show on the map (KeyRooms.unseenBehind), or -1. */
+    private static long doorUnseenSinceTick = -1;
     private static long doorStartTick = 0L;
     /** A walk to this door got stuck: etherwarp to it from now on. */
     private static boolean walkOffDoor = false;
@@ -1969,6 +1971,7 @@ public final class AutoClearFeature {
             doorShutSaid = false;
             doorRetrySaid = 0;
             doorBorderSinceTick = -1;
+            doorUnseenSinceTick = -1;
             walkOffDoor = false;
             doorWaitSaid = null;
             doorStartTick = ClearExecutor.clientTick();
@@ -2121,6 +2124,17 @@ public final class AutoClearFeature {
                 LOGGER.info("[AutoClear] at wither door {} with no key - waiting", door);
             }
             return;
+        }
+        if (!blood && doorClicks == 0 && KeyRooms.unseenBehind(door)) {
+            // Opened now, the room behind would be insta cleared and its key lost (KeyRooms.unseenBehind).
+            if (doorUnseenSinceTick < 0) {
+                doorUnseenSinceTick = now;
+                LOGGER.info("[AutoClear] the room behind wither door {} is not on the map yet - clicking once it shows", door);
+            }
+            if (now - doorUnseenSinceTick < KeyRooms.UNSEEN_WAIT_TICKS) {
+                action = "waiting for the map to show the room behind the wither door";
+                return;
+            }
         }
         Vec3 aimAt = Vec3.atCenterOf(target);
         if (!inReach) {

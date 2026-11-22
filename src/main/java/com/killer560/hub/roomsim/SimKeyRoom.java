@@ -37,6 +37,14 @@ public final class SimKeyRoom {
     private static final Logger LOGGER = ModLog.get("killer560smod-sim");
     /** A move longer than this in one server tick is a teleport, not a step (sprint-jumping covers under 1). */
     static final double TELEPORT_BLOCKS = 2.5;
+    /**
+     * Server ticks he stands in the room before a key room until Hypixel shows the key room on its map (his 11-22 runs:
+     * the room he warped into flipped 392-756 ms after the landing). A wither door into the key room opened before that
+     * insta clears it and loses its key (ap-witherkey-1122: Skull, Catwalk, Slime; the sidebar's Cleared rose at the open).
+     */
+    static final int SEEN_TICKS = 8;
+    /** The longest of those flips (756 ms): each armed room draws its own delay in SEEN_TICKS..SEEN_TICKS_MAX. */
+    static final int SEEN_TICKS_MAX = 15;
 
     /** One armed room. */
     private static final class Armed {
@@ -53,6 +61,15 @@ public final class SimKeyRoom {
         int doorIn = -1;
         /** Discovered: he has stood in the room before it with the door between open (the map would show it). */
         volatile boolean discovered;
+        /** Seen: Hypixel has placed him in the room before it ({@link #SEEN_TICKS} there), so its map shows this room. */
+        volatile boolean seen;
+        int beforeTicks;
+        /** The door between read open last tick (null before the first tick). */
+        Boolean doorWasOpen;
+        /** This room's map delay, and the server ticks it showed and its door was first clicked with a key (-1: not yet). */
+        final int seenAfter = java.util.concurrent.ThreadLocalRandom.current().nextInt(SEEN_TICKS, SEEN_TICKS_MAX + 1);
+        volatile long revealTick = -1;
+        volatile long clickTick = -1;
 
         Armed(String name, boolean blood, List<int[]> boxes) {
             this.name = name;
@@ -142,6 +159,24 @@ public final class SimKeyRoom {
 
     public static void disarm() { ARMED.clear(); }
 
+    /**
+     * For tests (ap-witherkey-1122): arms {@code roomName} alone, with {@code beforeRoom} the room before it and
+     * {@code doorIn} the door between. Client thread. @return false when the sim cannot act or a room is not on the map
+     */
+    public static boolean armForTest(Minecraft client, String roomName, String beforeRoom, int doorIn) {
+        ARMED.clear();
+        return arm(client, roomName, false, beforeRoom, doorIn);
+    }
+
+    /**
+     * The client's map read in the sim, which has no map item ({@code KeyRooms.unseenBehind}): true while this armed key
+     * room is not yet shown, so a door into it opened now would insta clear it.
+     */
+    public static boolean unseen(String roomName) {
+        Armed a = roomName == null || ARMED.isEmpty() ? null : ARMED.get(key(roomName));
+        return a != null && a.doorIn >= 0 && !a.seen && !a.entered && !a.lost && !a.dropped;
+    }
+
     /** {@code room|entered|enteredBy|lost|dropped} for tests (the first armed room), or null when none is armed. */
     public static String testState() {
         for (Armed a : ARMED.values()) {
@@ -157,7 +192,23 @@ public final class SimKeyRoom {
     }
 
     private static String state(Armed a) {
-        return a.name + "|" + a.entered + "|" + a.enteredBy + "|" + a.lost + "|" + a.dropped + "|" + (a.blood ? "blood" : "wither");
+        return a.name + "|" + a.entered + "|" + a.enteredBy + "|" + a.lost + "|" + a.dropped + "|" + (a.blood ? "blood" : "wither")
+                + "|" + a.revealTick + "|" + a.clickTick;
+    }
+
+    /**
+     * The door with these blocks was clicked open with a key (SimDoors, server thread): the first click on an armed room's
+     * door is stamped and logged against the tick the map showed that room.
+     */
+    static void doorClicked(MinecraftServer server, List<BlockPos> blocks) {
+        for (Armed a : ARMED.values()) {
+            if (a.doorIn < 0 || a.clickTick >= 0) continue;
+            BlockPos c = DungeonLayout.cellCenter(a.doorIn);
+            if (blocks.stream().noneMatch(p -> p.getX() == c.getX() && p.getZ() == c.getZ())) continue;
+            a.clickTick = server.getTickCount();
+            LOGGER.info("Sim key room: the wither door into {} clicked {} the map showed it (click tick {}, shown tick {})",
+                    a.name, a.revealTick >= 0 ? "after" : "BEFORE", a.clickTick, a.revealTick);
+        }
     }
 
     /** Every armed room's name, for tests and the log. */
@@ -201,6 +252,27 @@ public final class SimKeyRoom {
             lastPos = pos;
             if (before == null) return;
             for (Armed a : ARMED.values()) {
+                if (a.doorIn >= 0 && !a.lost) {
+                    boolean open = SimDoors.isOpenAtCell(server.overworld(), a.doorIn);
+                    if (!a.seen) {
+                        a.beforeTicks = a.insideBefore(pos.x, pos.z) ? a.beforeTicks + 1 : 0;
+                        if (a.beforeTicks >= a.seenAfter) {
+                            a.seen = true;
+                            a.revealTick = server.getTickCount();
+                            LOGGER.info("Sim key room: {} shown on the map (he has been in the room before it {} ticks)",
+                                    a.name, a.seenAfter);
+                        }
+                    }
+                    if (Boolean.FALSE.equals(a.doorWasOpen) && open && !a.seen && !a.entered && !a.dropped) {
+                        a.lost = true;
+                        SimRoomState.markCleared(a.name);
+                        LOGGER.info("Sim key room: {} insta cleared - the wither door into it opened before the map showed"
+                                + " it ({} tick(s) in the room before it); its {} is lost", a.name, a.beforeTicks,
+                                a.blood ? "Blood Key" : "Wither Key");
+                    }
+                    a.doorWasOpen = open;
+                }
+                if (a.lost) continue;
                 if (!a.discovered && a.doorIn >= 0 && a.insideBefore(pos.x, pos.z)
                         && SimDoors.isOpenAtCell(server.overworld(), a.doorIn)) {
                     a.discovered = true;
