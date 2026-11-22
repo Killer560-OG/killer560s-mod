@@ -10,7 +10,8 @@
      "Corpse Locator works again in Mineshafts: an ordinary armor stand nearby no longer switched it (and the Mineshaft HUD and detection) off for the session. New cheat-build Corpse Scan finds every loaded Frozen Corpse at any distance, and \"You've already looted this corpse!\" now marks that corpse looted.",
      "Mining no longer freezes the game for a moment on island changes (Dark Stone redrew the whole block texture atlas twice), a rare drop message no longer stalls the game while Luck rebuilt every row",
      "Lever Aura flicks again while the server keeps teleporting you (a teleport every tick no longer holds every flick back).",
-     "Corpse Locator now boxes a Frozen Corpse only once it has been in your line of sight; after that it stays marked through walls. The cheat build's Corpse Scan still finds every loaded corpse."
+     "Corpse Locator now boxes a Frozen Corpse only once it has been in your line of sight; after that it stays marked through walls. The cheat build's Corpse Scan still finds every loaded corpse.",
+     "Auto Correct now fixes a mistyped /warp destination against every Fast Travel destination, and completes a cut-off one like /warp bas to /warp base when exactly one destination fits."
     ]
    }
   ]

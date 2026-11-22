@@ -616,7 +616,7 @@ final class SettingTooltipsData {
         d.put("hud elements/<- back", "Goes back one step in the DVD setup.");
         d.put("<- back", "Returns to the main settings page for this feature.");
         d.put("auto correct enabled", "Fixes common typos in the chat you send, like teh to the.");
-        d.put("correct commands", "Also fixes typos in command names you type, like /wardorbe to /wardrobe. The corrected command is what is sent.");
+        d.put("correct commands", "Also fixes typos in command names you type, like /wardorbe to /wardrobe, and the destination of /warp, like /warp bas to /warp base. The corrected command is what is sent.");
         d.put("chat emotes enabled", "Turns Hypixel emote codes like <3 or :shrug: into the real emote text, no MVP++ rank needed.");
         d.put("click translate enabled", "Left-click any chat message to translate it. The message is sent to Google Translate (or MyMemory) to be translated.");
         d.put("translate to", "The language clicked chat messages are translated into.");

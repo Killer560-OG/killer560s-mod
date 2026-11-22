@@ -32,9 +32,17 @@ public final class CommandFixer {
 
     /** Destinations after "/warp". */
     private static final Set<String> WARP_DESTINATIONS = Set.of(
-            "hub", "park", "spider", "end", "gold", "deep", "dwarves", "basecamp", "crystals", "barn", "dungeon_hub",
-            "dhub", "dh", "isle", "jerry", "bayou", "moonglade", "lotus", "safari", "torrhus", "base", "desert", "castle",
-            "crypt", "da", "museum", "wizard", "trapper", "forge", "nest", "void", "drag", "howl");
+            "home", "island", "hub", "village", "museum", "da", "castle", "crypts", "crypt", "carnival", "wizard",
+            "tower", "wiz", "wizard_tower", "elizabeth", "stonks", "taylor", "dungeon_hub", "dungeons", "dhub", "dh",
+            "barn", "farming", "desert", "trapper", "trap", "glowing", "park", "trees", "howl", "howling_cave",
+            "wolf_cave", "jungle", "gold", "deep", "dwarves", "dmines", "mines", "deeper", "forge", "basecamp",
+            "base", "camp", "glacite", "tunnel", "tunnels", "gt", "crystals", "hollows", "ch", "nucleus", "cn", "nuc",
+            "spider", "spiders", "mound", "top", "nest", "arachne", "end", "drag", "dragons", "void", "sepulture",
+            "isle", "crimson", "nether", "ci", "skull", "kuudra", "smoldering", "smold", "smoldering_tomb",
+            "wasteland", "dragontail", "scarleton", "garden", "jerry", "winter", "workshop", "rift", "the_rift",
+            "bayou", "backwater", "moonglade", "galatea", "marsh", "murkwater", "murk", "murkwater_loch", "loch",
+            "torrhus", "canyon", "torrhus_canyon", "springs", "torrhus_springs", "safari", "safari_zone", "lotus",
+            "atoll");
 
     private CommandFixer() {
     }
@@ -141,6 +149,43 @@ public final class CommandFixer {
         return r.equals("VALID") ? lower : r.startsWith("FIXED:") ? r.substring(6) : null;
     }
 
+    /** A /warp destination: {@link #resolve}, then for 3 letters the one table name one edit away, then the one name
+     *  that starts with it; never a guess between two. */
+    private static String resolveWarp(String arg) {
+        String lower = arg.toLowerCase(Locale.US);
+        String r = classify(lower, WARP_DESTINATIONS);
+        if (r.equals("VALID")) {
+            return lower;
+        }
+        if (r.startsWith("FIXED:")) {
+            return r.substring(6);
+        }
+        if (!r.equals("NONE") || lower.length() < 3) {
+            return null;
+        }
+        String found = null;
+        for (String c : WARP_DESTINATIONS) {
+            if (lower.length() == 3 && c.length() >= 3 && distance(lower, c) == 1) {
+                if (found != null) {
+                    return null;
+                }
+                found = c;
+            }
+        }
+        if (found != null) {
+            return found;
+        }
+        for (String c : WARP_DESTINATIONS) {
+            if (c.startsWith(lower)) {
+                if (found != null) {
+                    return null;
+                }
+                found = c;
+            }
+        }
+        return found;
+    }
+
     /** {@code rest} is " dest"; several words are tried joined ("d h" -> "dh", "dungeon hub" -> "dungeon_hub"), and
      *  anything that does not resolve stays as typed. */
     private static String fixWarpArgument(String rest) {
@@ -152,9 +197,13 @@ public final class CommandFixer {
         if (words.length > 3 || arg.endsWith(" ") || arg.contains("  ")) {
             return rest;
         }
-        String fix = resolve(arg.replace(' ', '_'), WARP_DESTINATIONS);
+        String fix = resolveWarp(arg.replace(' ', '_'));
         if (fix == null && words.length > 1) {
-            fix = resolve(String.join("", words), WARP_DESTINATIONS);
+            fix = resolveWarp(String.join("", words));
+        }
+        if (fix == null && words.length > 1) {
+            String first = resolveWarp(words[0]);
+            return first == null ? rest : " " + first + arg.substring(words[0].length());
         }
         return fix == null ? rest : " " + fix;
     }
