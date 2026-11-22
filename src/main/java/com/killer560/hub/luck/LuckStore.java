@@ -249,6 +249,44 @@ public final class LuckStore {
     private static String cachedKey;
     private static List<Row> cachedRows = List.of();
 
+    /**
+     * One drop's row, as {@link #rows} would give it, for the drop announce: rebuilding every row (all Croesus claims)
+     * after each counted drop took 44-96 ms on the client thread (gamefreeze-1121). A chest key still goes through rows.
+     */
+    public static synchronized Row row(String profile, String key, LuckConfig.ChestOdds chestOdds, boolean plainOdds) {
+        if (key.startsWith("chest:")) {
+            for (Row r : rows(profile, chestOdds, plainOdds)) {
+                if (r.key().equals(key)) {
+                    return r;
+                }
+            }
+            return null;
+        }
+        ensure();
+        int bar = key.lastIndexOf('|');
+        String activity = bar > 0 ? key.substring(0, bar) : "untracked";
+        long attempts = 0;
+        long got = 0;
+        double exp = 0;
+        double expBase = 0;
+        for (Map.Entry<String, Bucket> e : PROFILES.entrySet()) {
+            if (profile != null && !profile.equals(e.getKey())) {
+                continue;
+            }
+            Bucket b = e.getValue();
+            attempts += b.attempts.getOrDefault(activity, 0L);
+            got += b.got.getOrDefault(key, 0L);
+            expBase += b.exp.getOrDefault(key, 0.0);
+            exp += (plainOdds ? b.exp : b.expMf).getOrDefault(key, 0.0);
+        }
+        if (got == 0 && exp == 0) {
+            return null;
+        }
+        DropTable.Drop d = DropTable.get().byKey(key);
+        String name = d != null ? d.name() : bar > 0 ? key.substring(bar + 1) : key;
+        return new Row(key, name, activity, attempts, exp, expBase, got, d);
+    }
+
     private static List<Row> computeRows(String profile, LuckConfig.ChestOdds chestOdds, boolean plainOdds) {
         DropTable table = DropTable.get();
         Map<String, Long> attempts = new HashMap<>();

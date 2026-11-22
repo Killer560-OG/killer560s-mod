@@ -98,7 +98,8 @@ public final class TickAudit {
                 endWorld();
             }
         });
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> refresh());
+        // off the render thread: this Files.exists stalled his game 1.2 s on a join while the disk was busy (gamefreeze-1121)
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> SharedWriter.submit(TickAudit::refresh));
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> endWorld());
     }
 

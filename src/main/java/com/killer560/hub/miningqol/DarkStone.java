@@ -2,6 +2,7 @@ package com.killer560.hub.miningqol;
 
 import com.killer560.hub.miningqol.mixin.SpriteContentsMipsAccessor;
 import com.killer560.hub.miningqol.mixin.TextureAtlasRedrawInvoker;
+import com.killer560.hub.pathfinding.IslandDetector;
 import com.killer560.hub.util.ModLog;
 import com.mojang.blaze3d.platform.NativeImage;
 import net.minecraft.client.Minecraft;
@@ -54,10 +55,12 @@ public final class DarkStone {
     private static final String[] ORE_NAMES = {"coal", "iron", "gold", "lapis", "redstone", "emerald", "diamond", "copper"};
 
     private static volatile boolean on = false;
-    private static String lastKey = "";
+    private static int lastKey = -1;
     private static volatile boolean forceIsland = false;
     private static int redraws = 0;
     private static long lastApplyNanos = 0;
+    private static final int HOLD_TICKS = 200;
+    private static int unknownTicks = 0;
 
     /** Sprites currently showing a darkened copy: {original images, darkened images}. */
     private static final Map<TextureAtlasSprite, NativeImage[][]> APPLIED = new LinkedHashMap<>();
@@ -69,15 +72,21 @@ public final class DarkStone {
 
     static void tick(Minecraft client) {
         MiningQolConfig cfg = MiningQolConfig.getInstance();
-        boolean en = cfg.isDarkStone() && (MiningState.onMiningIsland() || forceIsland);
+        boolean known = forceIsland || !IslandDetector.islandName().isEmpty();
+        unknownTicks = known ? 0 : unknownTicks + 1;
+        // A world change (lobby swap, Mineshaft) reads no island until the new tab list comes: keep the dark textures
+        // through that gap instead of restoring and re-applying, which redrew the whole block atlas twice (36-71 ms each,
+        // gamefreeze-1121). A gap longer than HOLD_TICKS (another server, no tab) restores as before.
+        boolean en = cfg.isDarkStone() && (MiningState.onMiningIsland() || forceIsland
+                || (on && !known && unknownTicks <= HOLD_TICKS));
         int lv = cfg.getDarkStoneLevel();
         boolean mi = cfg.isDarkStoneMithril();
         if (!APPLIED.isEmpty() && staleAtlas(client)) {
             forget();
-            lastKey = "";
+            lastKey = -1;
         }
-        String key = en + "|" + lv + "|" + mi;
-        if (key.equals(lastKey)) {
+        int key = (en ? 1 : 0) | (mi ? 2 : 0) | (lv << 2);
+        if (key == lastKey) {
             return;
         }
         if (en && client.level == null) {

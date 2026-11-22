@@ -559,10 +559,8 @@ public final class LuckDetector {
         }
         String profile = com.killer560.hub.gui.profit.ProfitScope.currentSkyblockProfile();
         LuckConfig cfg = LuckConfig.getInstance();
-        for (LuckStore.Row r : LuckStore.rows(profile, cfg.getChestOdds(), false)) {
-            if (!r.key().equals(key)) {
-                continue;
-            }
+        LuckStore.Row r = LuckStore.row(profile, key, cfg.getChestOdds(), false);
+        if (r != null) {
             if (r.drop() == null || r.expected() <= 0) {
                 ModChat.send(FEATURE, ModChat.value(r.name()), ModChat.dim(" counted (" + r.got() + " so far)"));
                 return;
