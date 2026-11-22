@@ -6,6 +6,7 @@ import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.PingTracker;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -23,14 +24,17 @@ import java.util.Arrays;
  * moves or turns you, and a server correction changes nothing here.
  *
  * <p>Timing: a click lands on the server one ping after it is sent, and a note stays in the click row for one step of
- * the falling rows. When the ping is longer than half a step the click goes {@code k} rows early, from the wool note
+ * the falling rows. When the lead is over {@link #LATEST_AT_ONCE_MS} the click goes {@code k} rows early, from the wool note
  * {@code k} rows above the click row; the lead is the measured ping (Auto Detect Ping) plus the manual offset. Auto
- * Detect Lag measures the step from how the note rows actually advance (the median of the last few), so a laggy
- * server's slower steps are followed; with it off the step is assumed {@link #NOMINAL_STEP_MS}. A note that reaches
- * the click row is clicked the moment its slot packet is handled (AutoHarpSlotMixin), and a board that moved several
- * rows at once (a server that froze and caught up) is read at once, so a note a short server lag left on screen for
- * only a tick is still reached (harpmiss5-1121). Every click is a
- * note: an early click is counted, and the quartz that note later becomes is not clicked again.
+ * Detect Lag measures the step from how the note rows actually advance (the mean of the last few, a stalled step left
+ * out), so a laggy server's slower steps are followed; with it off the step is assumed {@link #NOMINAL_STEP_MS}. An
+ * early click is timed from when the step's slot packets reached the network thread, to land {@link #AIM_MS} into its
+ * note's step (or at once when that is already past, up to {@link #LATEST_AT_ONCE_MS}), on the first frame it falls
+ * due, never by client ticks: a tick-timed click landed anywhere from the step before to the very end of the note's
+ * step, as the client's ticks fell (harpmiss-1122). A note that reaches the click row is clicked the moment its slot
+ * packet is handled (AutoHarpSlotMixin), and a board that moved several rows at once (a server that froze and caught
+ * up) is read at once, so a note a short server lag left on screen for only a tick is still reached (harpmiss5-1121).
+ * Every click is a note: an early click is counted, and the quartz that note later becomes is not clicked again.
  * Automation: can get you banned; keep it off on the main server.
  */
 public final class AutoHarpFeature {
@@ -46,21 +50,27 @@ public final class AutoHarpFeature {
     static final long NOMINAL_STEP_MS = 250;
     /** Two changes of the note rows closer than this (two client ticks) are one step. */
     private static final long MIN_STEP_MS = 150;
-    private static final int RING = 5;
-    /** Ms a click loses besides the ping: the settle tick, client tick and server tick it waits for. */
-    private static final long TICK_LAG_MS = 100;
+    private static final int RING = 8;
+    /** An early click aims to reach the server this far into its note's step (one server tick of room both ways). */
+    static final long AIM_MS = 50;
+    /** The latest into its step a click sent the moment its board arrives may land; past it the click goes a row earlier
+     *  and waits instead, so a wait never runs within a few frames of the next board (which moves its note on). */
+    private static final long LATEST_AT_ONCE_MS = 140;
+    /** Ms of lead change the early-row count ignores, so a jittering ping does not flip it note to note. */
+    private static final long ROWS_HYSTERESIS_MS = 20;
 
     private static ClientTickEvents.EndTick guardedTick;
-    /** Set while a click-row slot packet runs the tick logic; {@code endTicks} counts real tick ends. */
-    private static boolean slotCall;
-    private static long endTicks;
-    /** The tick end from which early clicks may go for the board decided last. */
-    private static long earlyFrom;
-    /** ...and not sooner than about a tick after the change was seen in ms, as client ticks run back to back after a hitch. */
-    private static long earlyFromMs;
+    /** Network-thread arrival of the last few harp slot packets, looked up by the packet when the render thread handles it. */
+    private static final Object[] NET_PACKETS = new Object[8];
+    private static final long[] NET_MS = new long[8];
+    private static int netNext;
+    /** Arrival (ms) of the first row or click-row slot packet that changed the board since the last tick decision, or 0. */
+    private static long changeMs;
+    /** When the next early click falls due (ms), for the frame check; 0 when none is waiting. */
+    private static long frameDueMs;
     private static int lastHash;
-    private static int lastContainer = -1;
-    private static boolean active;
+    private static volatile int lastContainer = -1;
+    private static volatile boolean active;
     private static boolean settling;
     /** Wool columns of rows 0-3 on the last decided board: d steps on, row r shows row r-d and the click row row 4-d. */
     private static final int[] decidedWool = new int[4];
@@ -68,6 +78,8 @@ public final class AutoHarpFeature {
     private static long lastStepMs;
     private static final long[] gaps = new long[RING];
     private static int gapCount;
+    private static final long[] SORTED = new long[RING];
+    private static long measuredStep = NOMINAL_STEP_MS;
     private static int gapNext;
     private static final boolean[] played = new boolean[COLUMNS];
     /** The quartz now in the click row has been accounted for (a pending early click consumed, or a late click made). */
@@ -85,11 +97,19 @@ public final class AutoHarpFeature {
     public static void register() {
         int bit = FeatureBits.register("Auto Melody's Harp", CFG::isEnabledRaw);
         PingTracker.addDemand(() -> CFG.isEnabledRaw() && CFG.on("detectPing") && active);
-        guardedTick = FeatureGuard.end("AutoHarpFeature.tick", bit, c -> {
-            endTicks += slotCall ? 0 : 1;
-            tick(c);
-        });
+        guardedTick = FeatureGuard.end("AutoHarpFeature.tick", bit, AutoHarpFeature::tick);
         ClientTickEvents.END_CLIENT_TICK.register(guardedTick);
+        // An early click goes on the first frame after it falls due, not up to a client tick later.
+        ScreenEvents.AFTER_INIT.register((client, screen, w, h) -> {
+            if (isHarpTitle(screen.getTitle().getString())) {
+                ScreenEvents.afterExtract(screen).register((x, g, mx, my, delta) -> {
+                    if (frameDueMs != 0 && System.nanoTime() / 1_000_000L >= frameDueMs) {
+                        frameDueMs = 0;
+                        guardedTick.onEndTick(client);
+                    }
+                });
+            }
+        });
     }
 
     static boolean isHarpTitle(String title) {
@@ -111,6 +131,39 @@ public final class AutoHarpFeature {
         return m;
     }
 
+    /** From AutoHarpSlotMixin at the HEAD of every slot packet, which runs first on the network thread (that call records
+     *  when the packet arrived) and again on the render thread before the slot is set (that call notes the arrival of
+     *  the first packet that changes a note slot). */
+    public static void onSlotHead(Object packet, int containerId, int slot, ItemStack item) {
+        if (!active || containerId != lastContainer || slot < 0 || slot >= FIRST_SLOT + COLUMNS) {
+            return;
+        }
+        Minecraft client = Minecraft.getInstance();
+        long now = System.nanoTime() / 1_000_000L;
+        if (!client.isSameThread()) {
+            synchronized (NET_MS) {
+                NET_PACKETS[netNext] = packet;
+                NET_MS[netNext] = now;
+                netNext = (netNext + 1) % NET_MS.length;
+            }
+            return;
+        }
+        AbstractContainerMenu menu = client.player == null ? null : client.player.containerMenu;
+        if (changeMs != 0 || menu == null || menu.containerId != containerId || slot >= menu.slots.size()
+                || menu.slots.get(slot).getItem().getItem() == item.getItem()) {
+            return;
+        }
+        changeMs = now;
+        synchronized (NET_MS) {
+            for (int i = 0; i < NET_MS.length; i++) {
+                if (NET_PACKETS[i] == packet) {
+                    changeMs = NET_MS[i];
+                    NET_PACKETS[i] = null;
+                }
+            }
+        }
+    }
+
     /** From AutoHarpSlotMixin on the render thread: a click-row slot of the playing harp turned to quartz is decided and
      *  clicked at once, up to a client tick sooner than the tick's end would (a short note after a server freeze). */
     public static void onSlot(int containerId, int slot) {
@@ -118,12 +171,7 @@ public final class AutoHarpFeature {
             Minecraft client = Minecraft.getInstance();
             if (com.killer560.hub.compat.McCompat.screen(client) instanceof AbstractContainerScreen<?> s
                     && "quartz_block".equals(path(s.getMenu().getSlot(slot).getItem()))) {
-                slotCall = true;
-                try {
-                    guardedTick.onEndTick(client);
-                } finally {
-                    slotCall = false;
-                }
+                guardedTick.onEndTick(client);
             }
         }
     }
@@ -148,19 +196,22 @@ public final class AutoHarpFeature {
             lastStepMs = now;
             gapCount = 0;
             Arrays.fill(pending, 0);
+            frameDueMs = 0;
             Arrays.fill(played, false);
             Arrays.fill(arrived, false);
             settling = false;
             readWool(menu, decidedWool);
             decidedQuartz = mask(menu, FIRST_SLOT, "quartz_block");
-            lastEarlyRows = 0;
+            lastEarlyRows = rowsFor(lead(), NOMINAL_STEP_MS);
             ModChat.send("Auto Harp", ModChat.good("Started."));
         }
         int hash = rowsHash(menu);
         boolean changed = hash != lastHash;
+        long seen = changeMs != 0 && changeMs <= now ? changeMs : now;
+        changeMs = 0;
         if (changed) {
             lastHash = hash;
-            long gap = now - lastStepMs;
+            long gap = seen - lastStepMs;
             // A step's slot updates can arrive split over client ticks (rows first, the click row after): a change this
             // soon after the last is the same step, and nothing is decided until the click row shows this step's
             // quartz (the last board's row-3 wool) or the board holds still for a tick, or the old quartz still in the
@@ -170,24 +221,23 @@ public final class AutoHarpFeature {
             // and is decided at once whatever the gap (harpmiss5-1121).
             int d = shift(menu, gap < MIN_STEP_MS);
             if (d > 0 || gap >= MIN_STEP_MS) {
-                lastStepMs = now;
+                lastStepMs = seen;
                 if (gap >= MIN_STEP_MS && gap <= 3000) {
                     gaps[gapNext] = gap / Math.max(1, d);
                     gapNext = (gapNext + 1) % RING;
                     gapCount = Math.min(RING, gapCount + 1);
+                    measureStep();
                 }
                 settling = true;
-                earlyFrom = endTicks + (slotCall ? 2 : 1);
-                earlyFromMs = now + 45;
             }
             if (settling && d == 0) {
                 return;
             }
         }
-        // Early clicks keep the settle tick: their lead (TICK_LAG_MS) was measured with it, and without it a click
-        // one row early at a ping near half a step reached the board a step too soon. They go only at a tick end, the
-        // one after the tick end that would have seen the step change first (earlyFrom); a quartz already in the click
-        // row goes at once.
+        // An early click k rows up goes when it will reach the server AIM_MS into its note's step: k steps after this
+        // board arrived, less the lead, plus AIM_MS. Past that by more than the rest of the step less a tick of room it
+        // would land in the next step, so it is not sent (the note is then clicked late from the click row, as before).
+        // A quartz already in the click row goes at once.
         if (settling) {
             settling = false;
             Arrays.fill(played, false);
@@ -196,7 +246,11 @@ public final class AutoHarpFeature {
         readWool(menu, decidedWool);
         decidedQuartz = mask(menu, FIRST_SLOT, "quartz_block");
         int rows = earlyRows();
-        long expire = (MAX_EARLY + 2) * stepMs();
+        long step = stepMs();
+        long due = lastStepMs + rows * step - lead() + AIM_MS;
+        boolean earlyTime = rows > 0 && now >= due && now < due + step - 2 * AIM_MS;
+        long nextDue = 0;
+        long expire = (MAX_EARLY + 2) * step;
         for (int c = 0; c < COLUMNS; c++) {
             if (pending[c] > 0 && now - pendingSince[c] > expire) {
                 pending[c] = 0;
@@ -218,12 +272,14 @@ public final class AutoHarpFeature {
             boolean early = false;
             if (!late) {
                 int above = slot - 9 * rows;
-                early = !slotCall && endTicks >= earlyFrom && now >= earlyFromMs && rows > 0 && above >= 0 && !played[c]
-                        && path(menu.slots.get(above).getItem()).endsWith("_wool");
+                early = rows > 0 && above >= 0 && !played[c] && path(menu.slots.get(above).getItem()).endsWith("_wool");
+                nextDue = early && now < due ? due : nextDue;
+                early &= earlyTime;
                 if (!early) {
                     continue;
                 }
             }
+            frameDueMs = 0; // the next tick end looks again
             if (!ActionGate.tryAct(ActionGate.Actor.ISLAND_HARP, screen)) {
                 arrived[c] &= !late; // a late click the gate refused is tried again next tick
                 return;
@@ -241,27 +297,50 @@ public final class AutoHarpFeature {
             ModChat.log("Auto Harp", ModChat.text("column " + c + (rows > 0 ? " " + rows + " row(s) early" : "")));
             return;
         }
+        frameDueMs = nextDue;
     }
 
-    /** Median ms between observed steps of the note rows, or the nominal step before one is measured / with Auto Detect Lag off. */
+    /** Ms between observed steps of the note rows, or the nominal step before one is measured / with Auto Detect Lag off. */
     static long stepMs() {
-        if (!CFG.on("detectLag") || gapCount == 0) {
-            return NOMINAL_STEP_MS;
-        }
-        long[] s = Arrays.copyOf(gaps, gapCount);
-        Arrays.sort(s);
-        return s[gapCount / 2];
+        return !CFG.on("detectLag") || gapCount == 0 ? NOMINAL_STEP_MS : measuredStep;
     }
 
-    /** How many rows above the click row a note is clicked: the click should reach the server mid-step. */
-    static int earlyRows() {
+    /** The mean of the last gaps less any over 1.5x their median (a stalled step). A median alone swung by a whole
+     *  tick of arrival jitter from one step to the next and moved early clicks with it (harpmiss-1122). */
+    private static void measureStep() {
+        System.arraycopy(gaps, 0, SORTED, 0, gapCount);
+        Arrays.sort(SORTED, 0, gapCount);
+        long cap = SORTED[gapCount / 2] * 3 / 2;
+        long sum = 0;
+        int n = 0;
+        for (int i = 0; i < gapCount; i++) {
+            if (SORTED[i] <= cap) {
+                sum += SORTED[i];
+                n++;
+            }
+        }
+        measuredStep = sum / n;
+    }
+
+    /** The lead in ms: the measured round trip (Auto Detect Ping) plus Click Offset, or the offset alone. */
+    static long lead() {
         int ping = !CFG.on("detectPing") ? 0
                 : CFG.on("detectLag") ? PingTracker.automationMsLagFree() : PingTracker.automationMs();
+        return Math.max(0, ping + CFG.num("offset"));
+    }
+
+    /** Rows early for a lead: the fewest with which a click sent the moment its board arrives lands no later than
+     *  LATEST_AT_ONCE_MS into its note's step ({@code lead - k * step}); it waits until AIM_MS when that would be sooner. */
+    static int rowsFor(long lead, long step) {
+        return (int) Math.min(MAX_EARLY, Math.max(0, Math.ceilDiv(lead - LATEST_AT_ONCE_MS, step)));
+    }
+
+    /** How many rows above the click row a note is clicked; kept while it still fits the lead within the hysteresis. */
+    static int earlyRows() {
+        long lead = lead();
         long step = stepMs();
-        double v = (ping + TICK_LAG_MS + CFG.num("offset") - step / 2) / (double) step;
-        // Hysteresis: a jittering ping or step measure must not flip the lead between two row counts note to note.
-        if (Math.abs(v - lastEarlyRows) >= 0.6) {
-            lastEarlyRows = (int) Math.max(0, Math.min(MAX_EARLY, Math.round(v)));
+        if (lastEarlyRows < rowsFor(lead - ROWS_HYSTERESIS_MS, step) || lastEarlyRows > rowsFor(lead + ROWS_HYSTERESIS_MS, step)) {
+            lastEarlyRows = rowsFor(lead, step);
         }
         return lastEarlyRows;
     }

@@ -311,3 +311,15 @@ The puzzle autos at run time (camera, timing, leaving, each puzzle). Part of the
   retries only from the tile's middle, which the held walk leaves in one tick. A test that drives a feature from an exact
   spot while keys are held waits out the settle (and the item's slot update) before pressing them (tk 44741fb91).
 - Auto Melody's Harp timing (harpmiss-1121): a note shows quartz in the click row for one step (250 ms in the testkit), so every tick before the click counts. Waiting a settle tick after EVERY step (to dodge a step whose click row arrives a tick after its rows) put the shipped jar's latest click 193-241 ms into the step and missed notes under load; the click row is now decided at once when its quartz equals the last board's row-3 wool, and only a mismatch waits. Early (row-ahead) clicks still wait the tick: TICK_LAG_MS was measured with it, and without it the 200 ms ping cases clicked a step too soon. HxHarp click events carry "ms" into their step to see the margin.
+- Auto Melody's Harp early clicks (harpmiss-1122): timing an early click by client ticks (a settle tick + 45 ms, TICK_LAG_MS
+  100) made its landing swing with the client's tick phase, from before the note's step (wrong) to its very end (late), and
+  a 150 ms trip stayed at 0 rows. An early click is now due at the netty arrival of the step's first changed slot packet
+  + k*step - lead + 50 ms, sent on the first frame after that (tick ends alone put clicks ~40 ms late in 50 ms quanta),
+  and the row count keeps every wait under 180 ms (k = ceil((lead - 140) / step)), so a 320 ms trip clicks the moment its
+  board arrives instead of waiting near a whole step and running past the next board (origin: 14/17 with 3 wrong). A
+  fallback that clicked one row lower, with a per-row "done" bitmask, double-clicked notes when a board arrived split
+  over two ticks: keep the pending/played tracking, which counts slot arrivals, not steps.
+  Auto Detect Lag's step is the mean of the last 8 gaps without stalls: the fake server shows steps 100 or 150 ms late by
+  tick phase, and a median of 5 swung 47 ms between them. `handleContainerSetSlot`'s HEAD runs TWICE per packet (netty thread, which re-queues and
+  throws, then the render thread; measured 845/845), so a HEAD hook must tell the threads apart (`isSameThread`) and
+  match the two calls by packet identity, never count calls (rounds 3-4 counted every step twice).
