@@ -24,7 +24,6 @@ public final class MiningQolFeatures {
         AbilityReadyAlert.register();
         FiestaFlask.register();
         PickobulusEstimate.register();
-        AttackHoldProbe.register();
         PowderGhast.register();
         CommissionClaim.register();
         CommissionMenuHighlight.register();
@@ -47,6 +46,7 @@ public final class MiningQolFeatures {
                 JunglePickAlert.reset();
             }
             MiningState.tick(client);
+            HeldBreakResume.tick(client);
             MinesAreaMap.tick();
             CommissionProgress.tick(client);
             CommissionHud.tick(client);

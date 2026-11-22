@@ -7,11 +7,13 @@ import com.killer560.hub.util.MouseButtons;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ServerboundPlayerActionPacket;
 import org.slf4j.Logger;
 
 /**
  * Resume Held Break After Menus (Mining, default ON; killer560 2026-11-03: "something keeps making my left click stop
- * holding break"). His log (AttackHoldProbe, 2026-11-03) showed the cause: a menu the SERVER opens mid-dig (the
+ * holding break"). His 2026-11-03 log showed the cause: a menu the SERVER opens mid-dig (the
  * "Commissions" container, 2-3 s after "X Commission Complete!") goes through Gui.setScreen, which releases every key
  * mapping, and while a screen is open Minecraft.tick holds missTime at 10000. When the menu closes the attack key stays
  * up although his finger never left the button, and vanilla only digs again after a fresh press.
@@ -39,6 +41,30 @@ public final class HeldBreakResume {
 
     private HeldBreakResume() {
     }
+
+    private static int directionDrops = 0;
+    /** Testkit: treat the connection as Hypixel for {@link #dropOnHypixel}. */
+    public static volatile boolean forceHypixelForTest = false;
+
+    /**
+     * On Hypixel, the dig's CHANGE_DESTROY_DIRECTION is not sent (MiningSendTapMixin cancels it). killer560's 2026-11-03
+     * 19:40 log: both real stalls began with it and, one ping later, Hypixel cleared the crack and dropped the dig.
+     */
+    public static boolean dropOnHypixel(Packet<?> packet) {
+        if (!(packet instanceof ServerboundPlayerActionPacket p) || !"CHANGE_DESTROY_DIRECTION".equals(p.getAction().name())) {
+            return false;
+        }
+        net.minecraft.client.multiplayer.ServerData server = Minecraft.getInstance().getCurrentServer();
+        boolean hypixel = forceHypixelForTest || server != null && server.ip != null
+                && server.ip.toLowerCase(java.util.Locale.ROOT).contains("hypixel.net");
+        if (!hypixel) return false;
+        if (directionDrops++ == 0) {
+            LOGGER.info("[HeldBreak] not sending CHANGE_DESTROY_DIRECTION on Hypixel (it reset his digs)");
+        }
+        return true;
+    }
+
+    public static int directionDrops() { return directionDrops; }
 
     static void tick(Minecraft client) {
         Screen screen = McCompat.screen(client);

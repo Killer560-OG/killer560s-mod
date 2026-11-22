@@ -72,7 +72,7 @@ public final class SharingDefaults {
             bridge.setOdin(true);
             bridge.save();
 
-            MelodyHudConfig melody = MelodyHudConfig.getInstance();
+            MelodyHudConfig melody = MelodyHudConfig.ensureLoaded();
             melody.setShareProgress(true);
             melody.save();
 

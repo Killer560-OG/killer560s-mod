@@ -6,7 +6,7 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import java.util.ArrayList;
 import java.util.List;
 
-/** Resume Held Break After Menus (pre-2.0 Mining): see {@code com.killer560.hub.miningqol.AttackHoldProbe}. */
+/** Resume Held Break After Menus (pre-2.0 Mining): see {@link HeldBreakResume}. */
 public class MiningResumeBreakTab extends BaseTab {
 
     public MiningResumeBreakTab() {

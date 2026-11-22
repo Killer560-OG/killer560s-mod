@@ -7,7 +7,6 @@
 		"CommissionMenuSlotMixin",
 		"MiningBlockUpdateMixin",
 		"MiningSendTapMixin",
-		"MiningTitleTapMixin",
 		"SpriteContentsMipsAccessor",
 		"TextureAtlasRedrawInvoker",
 		"MithrilStoneSectionMixin"

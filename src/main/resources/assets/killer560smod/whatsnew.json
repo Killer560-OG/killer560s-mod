@@ -19,7 +19,8 @@
      "Auto Clear is faster: doors open from the blocks, not the map, and a door that ran out of clicks before its key came is clicked again once the key arrives; an Auto Clear queued in the green room starts at the run start; rooms next door hand off at once and a handed-over room is done at its last kill; a path warp the server never answers is sent again one landing time later; Auto Clear and Auto Secret started after a mid-run rejoin start at once",
      "Bug reports now hold what is needed to diagnose a missing HUD or scoreboard line (sidebar, tab info, island, what each stat reader parsed, HUD element states, language, GUI scale, resource packs), and /bugreport <what is wrong> saves your note in the report.",
      "Autopilot no longer stands still for about half a second after the last warp of each trip to a door, room or secret spot: it moves on the tick the server confirms the landing, and left-clicks a door on that tick.",
-     "Dungeons Autopilot: Dungeon Autopilot, Auto Secret, Auto Clear and Auto Blood Rush are now one cheat card with one switch and one keybind. Pick a Mode (Solo 300, Clear Then Secret, Secret Then Clear, Party Secrets), a Blood Rush (None, Clear, Door), Disable After Blood Rush, Clear First, Clear Room Before Secreting, Room Before Blood and the rest in one place; your old start key carries over."
+     "Dungeons Autopilot: Dungeon Autopilot, Auto Secret, Auto Clear and Auto Blood Rush are now one cheat card with one switch and one keybind. Pick a Mode (Solo 300, Clear Then Secret, Secret Then Clear, Party Secrets), a Blood Rush (None, Clear, Door), Disable After Blood Rush, Clear First, Clear Room Before Secreting, Room Before Blood and the rest in one place; your old start key carries over.",
+     "Team Melody's settings no longer load during a frame, which could stall the game for a moment."
     ]
    }
   ]

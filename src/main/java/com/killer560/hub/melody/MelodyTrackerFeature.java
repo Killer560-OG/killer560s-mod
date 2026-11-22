@@ -81,6 +81,7 @@ public final class MelodyTrackerFeature {
     }
 
     public static void register() {
+        MelodyHudConfig.loadInBackground();
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("MelodyTrackerFeature.tick", MelodyTrackerFeature::tick));
         com.killer560.hub.util.ChatObserver.subscribe(message -> onChat(com.killer560.hub.util.ChatObserver.strip(message)));
         HudElementRegistry.register(HUD);

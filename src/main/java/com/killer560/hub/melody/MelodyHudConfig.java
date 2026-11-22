@@ -2,12 +2,9 @@ package com.killer560.hub.melody;
 
 import com.killer560.hub.util.ModPaths;
 import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import com.killer560.hub.partydata.PartyDataConfig;
 import com.killer560.hub.util.ConfigJson;
 
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
@@ -28,7 +25,9 @@ public final class MelodyHudConfig {
     private static final Path CONFIG_PATH =
             ModPaths.config("killer560smod-teammelody.json");
 
-    private static MelodyHudConfig instance;
+    private static volatile MelodyHudConfig instance;
+    /** Testkit: the thread that last read the file. */
+    public static volatile String loadThreadForTest;
 
     private boolean hudEnabled = false;
     private boolean shareProgress;
@@ -36,34 +35,46 @@ public final class MelodyHudConfig {
     private MelodyHudConfig() {
     }
 
+    /**
+     * The settings. The file is read once, off the render thread (started at client start by {@link #loadInBackground()});
+     * until that read lands, the render thread gets plain defaults and no disk (HUD and tick code call this every tick).
+     * Any other thread loads it itself.
+     */
     public static MelodyHudConfig getInstance() {
+        MelodyHudConfig c = instance;
+        if (c != null) {
+            return c;
+        }
+        if (net.minecraft.client.Minecraft.getInstance().isSameThread()) {
+            return new MelodyHudConfig();
+        }
+        return ensureLoaded();
+    }
+
+    /** Reads the file now when nothing has yet (only a caller that must not see defaults, off the frame path). */
+    public static synchronized MelodyHudConfig ensureLoaded() {
         if (instance == null) {
             load();
         }
         return instance;
     }
 
+    public static void loadInBackground() {
+        Thread t = new Thread(MelodyHudConfig::ensureLoaded, "killer560smod-melody-config");
+        t.setDaemon(true);
+        t.start();
+    }
+
     public static void load() {
+        loadThreadForTest = Thread.currentThread().getName();
         // Sharing is OFF by default (killer560, 2026-11-04: Team Melody off), independent of any other setting.
-        boolean defaultShare = false;
-        if (!Files.exists(CONFIG_PATH)) {
-            MelodyHudConfig cfg = new MelodyHudConfig();
-            cfg.shareProgress = defaultShare;
-            instance = cfg;
-            return;
-        }
-        try {
-            String json = Files.readString(CONFIG_PATH, StandardCharsets.UTF_8);
-            JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
-            MelodyHudConfig cfg = new MelodyHudConfig();
+        MelodyHudConfig cfg = new MelodyHudConfig();
+        JsonObject obj = ConfigJson.read(CONFIG_PATH);
+        if (obj != null) {
             cfg.hudEnabled = ConfigJson.getBool(obj, "hudEnabled", false);
-            cfg.shareProgress = ConfigJson.getBool(obj, "shareProgress", defaultShare);
-            instance = cfg;
-        } catch (Exception e) {
-            MelodyHudConfig cfg = new MelodyHudConfig();
-            cfg.shareProgress = defaultShare;
-            instance = cfg;
+            cfg.shareProgress = ConfigJson.getBool(obj, "shareProgress", false);
         }
+        instance = cfg;
     }
 
     public void save() {
