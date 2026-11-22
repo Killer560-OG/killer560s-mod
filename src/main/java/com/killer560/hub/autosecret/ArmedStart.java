@@ -50,6 +50,7 @@ public final class ArmedStart {
         level = client.level;
         LOGGER.info("[ArmedStart] {} armed in the green room - starts when the run does", name);
         ModChat.send(name, ModChat.text("Armed"), ModChat.dim(" - starts when the run does"));
+        GreenRoomStart.arm();
         return true;
     }
 

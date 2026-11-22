@@ -333,6 +333,22 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   rerun every timing case of the flow, not only the new one.
 - His 11-21 "sim" recordings (223131, 223204, 224231, 224531) were made on alpha.hypixel.net (latest.log "Connecting to
   alpha.hypixel.net"), not the sim: read their stands as real server behavior.
+- Open: on Hypixel a Charged Chain burst of a map path often lands its first warp somewhere else ("off the plan: warp 1
+  put you N blocks", 52 of 75 off-plan lines that night): at 22:32:43 the first landing matched the THIRD hop's look from
+  the start spot, so the server judged that use with a later look. Each correction then replans behind the planner thread
+  (queued 300-800 ms behind RoomTour's room-order search). Not fixed here (Charged Chain / Blink and planner code).
+
+## Green room start (acgreenstart-1122)
+
+- From the Entrance spawn every first trip spent two etherwarps reaching the spot 4 blocks in from the Entrance door (his
+  11-22 runs, spawn -56.5,72,-188.5: warp 1 to -57.5,73.1,-183.5, warp 2 to -56.5,69.1,-172.5, warp 3 through). The
+  Entrance has ONE door, so that spot is right for every first trip and is known from the world scan before the map.
+  `autosecret/GreenRoomStart` walks there (ShortWalk) while Dungeons Autopilot or an armed Auto Clear / Auto Secret waits.
+  It walks, not warps: no log shows an etherwarp working before Mort's line. His movement, jump, attack or use key ends it
+  until the next arm; a screen pauses it; the run start ends it. Testkit 1122-sim-ac-greenstart(-keys), 1122-hx-greenstart-same-*.
+- The pre-start window on Hypixel is "X is now ready!" then "Starting in 4..1 seconds"; Mort's line, the map and the gate
+  opening come together at the end. runStarted() once read true at entry from the previous run's calibrated map item
+  (09:04:14, before "map scanner reset"), so the autopilot started 7 s early; ClearExecutor's gate hold covered it.
 - A Charged Chain burst of a map path landed its first warp off the plan on Hypixel ("off the plan: warp 1 put you N
   blocks", 52 of 75 off-plan lines on 11-21). The cause was the sneak, not the look: the burst sent the sneak in the same
   flush as its uses, so the server had not heard it when use 1 was judged. Use 1 became an Instant Transmission, and every

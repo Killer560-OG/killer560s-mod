@@ -50,6 +50,11 @@ public final class DungeonsAutopilot {
         return on;
     }
 
+    /** On and waiting for the run to start (green room). */
+    static boolean isArmed() {
+        return on && phase == Phase.ARMED;
+    }
+
     /** The card's switch and its Toggle Keybind. */
     public static void setOn(boolean v) {
         if (v == on) {
@@ -67,6 +72,7 @@ public final class DungeonsAutopilot {
         phase = Phase.ARMED;
         if (!runGoing()) {
             ModChat.send(CHAT, ModChat.text("Armed"), ModChat.dim(" - starts when the run does"));
+            GreenRoomStart.arm();
         }
         LOGGER.info("[DungeonsAutopilot] on: mode {}, blood rush {}", cfg().getMode(), cfg().getBloodRush());
     }
