@@ -172,6 +172,61 @@ public final class TripCache {
     private static final ConcurrentHashMap<String, ConcurrentHashMap<String, Entry>> TRIPS = new ConcurrentHashMap<>();
     /** want key -> the change epoch its search found nothing at (not tried again until something changes). */
     private static final ConcurrentHashMap<String, Long> FAILED = new ConcurrentHashMap<>();
+    /** goal|from keys of trips that went wrong from that spot: never handed out from there again this world (bounded). */
+    private static final java.util.Set<String> REFUSED = ConcurrentHashMap.newKeySet();
+    private static final int MAX_REFUSED = 256;
+
+    /** A warp the server never answered from a spot: the spot's key, its landing block ({@link EtherSearch#pack}) and its
+     *  ray (eye to the landing block's center, as {@link Entry#corridor}), which {@link #blocksChanged} checks. */
+    private record RefusedHop(String from, long landing, double[] ray) {
+    }
+
+    /** from|landing -> the hop: never the first hop of a plan from that spot until a block near its ray changes or the
+     *  world does (bounded). */
+    private static final ConcurrentHashMap<String, RefusedHop> REFUSED_HOPS = new ConcurrentHashMap<>();
+
+    /**
+     * Client thread: the warp from {@code from} to the landing {@code landing} (feet) never landed. No plan from that spot
+     * starts with it again (WarpGraph.Goal#refusedFirst, {@link #find}, ClearExecutor's planned-ahead check) until a
+     * block near its ray changes: his 11-21 log had a fresh plan send the same refused first warp again.
+     */
+    static void refuseHop(Vec3 from, Vec3 landing) {
+        if (REFUSED_HOPS.size() >= MAX_REFUSED) {
+            REFUSED_HOPS.clear();
+        }
+        BlockPos b = BlockPos.containing(landing.x, landing.y - 1.0, landing.z);
+        String f = fromKey(from);
+        long l = EtherSearch.pack(b.getX(), b.getY(), b.getZ());
+        REFUSED_HOPS.put(f + "|" + l, new RefusedHop(f, l, new double[]{from.x, from.y + EtherSearch.SNEAK_EYE, from.z,
+                b.getX() + 0.5, b.getY() + 0.5, b.getZ() + 0.5}));
+        LOGGER.info("[Path] the warp from {} to {} never landed - no plan from there starts with it again", fmt(from),
+                b.toShortString());
+    }
+
+    /** The landing blocks refused from {@code at}'s spot ({@link #refuseHop}), or null. Any thread. */
+    public static java.util.Set<Long> refusedLandings(Vec3 at) {
+        if (REFUSED_HOPS.isEmpty()) {
+            return null;
+        }
+        String f = fromKey(at);
+        java.util.Set<Long> out = null;
+        for (RefusedHop h : REFUSED_HOPS.values()) {
+            if (h.from().equals(f)) {
+                if (out == null) {
+                    out = new java.util.HashSet<>();
+                }
+                out.add(h.landing());
+            }
+        }
+        return out;
+    }
+
+    /** Whether a path from {@code at} starts with a refused warp: its second node's block, or {@code lastLanding} for a
+     *  one-warp path. */
+    static boolean refusesFirst(java.util.Set<Long> refused, List<EtherwarpPathfinder.Node> path, BlockPos lastLanding) {
+        BlockPos b = path.size() > 1 ? path.get(1).pos : lastLanding;
+        return refused != null && b != null && refused.contains(EtherSearch.pack(b.getX(), b.getY(), b.getZ()));
+    }
     private static final AtomicLong epoch = new AtomicLong();
     private static volatile long lastChangeMs;
     private static final java.util.concurrent.atomic.AtomicInteger SIZE = new java.util.concurrent.atomic.AtomicInteger();
@@ -195,8 +250,14 @@ public final class TripCache {
         double bestD = Double.MAX_VALUE;
         if (byFrom != null) {
             double range = lastRange;   // the client tick's reading of the held item (this may be the planner thread)
+            java.util.Set<Long> hops = refusedLandings(at);
             for (Entry e : byFrom.values()) {
                 if (exact && !e.onGoal || e.range != range) {
+                    continue;
+                }
+                if (!REFUSED.isEmpty() && REFUSED.contains(e.goal.key() + "|" + fromKey(e.from))
+                        || refusesFirst(hops, e.path, e.lastLanding)) {
+                    refusedSkips++;
                     continue;
                 }
                 double dx = e.from.x - at.x;
@@ -237,6 +298,7 @@ public final class TripCache {
     private static volatile int stored;
     private static volatile int failures;
     private static volatile int lookupsHit;
+    private static volatile int refusedSkips;
     private static String lastRejectWhy = "";
 
     /** ClearExecutor ran this trip. */
@@ -258,6 +320,10 @@ public final class TripCache {
     static void reject(Entry e, String why) {
         rejected++;
         lastRejectWhy = why;
+        if (REFUSED.size() >= MAX_REFUSED) {
+            REFUSED.clear();
+        }
+        REFUSED.add(e.goal.key() + "|" + fromKey(e.from));
         Map<String, Entry> byFrom = TRIPS.get(e.goal.key());
         if (byFrom != null && byFrom.remove(fromKey(e.from), e)) {
             SIZE.decrementAndGet();
@@ -268,10 +334,10 @@ public final class TripCache {
 
     /**
      * For the testkit: {hits, misses, rejected, dropped by a block change, searches, stored, failed searches, trips held,
-     * RoomTour costs answered from the cache}.
+     * RoomTour costs answered from the cache, refused trips skipped by a lookup}.
      */
     public static int[] stats() {
-        return new int[]{hits, misses, rejected, dropped, searches, stored, failures, SIZE.get(), lookupsHit};
+        return new int[]{hits, misses, rejected, dropped, searches, stored, failures, SIZE.get(), lookupsHit, refusedSkips};
     }
 
     public static String lastRejectWhy() {
@@ -290,6 +356,10 @@ public final class TripCache {
         epoch.incrementAndGet();
         lastChangeMs = System.currentTimeMillis();
         FAILED.clear();
+        // The block that stopped a refused warp may be what changed: it may land now.
+        if (!REFUSED_HOPS.isEmpty()) {
+            REFUSED_HOPS.values().removeIf(h -> crosses(h.ray(), x0 - 1.0, y0 - 1.0, z0 - 1.0, x1 + 2.0, y1 + 3.0, z1 + 2.0));
+        }
         if (testNoCorridorDrop) {
             return;
         }
@@ -480,6 +550,8 @@ public final class TripCache {
         generation++;
         TRIPS.clear();
         FAILED.clear();
+        REFUSED.clear();
+        REFUSED_HOPS.clear();
         ROOMS.clear();
         SIZE.set(0);
         wants = List.of();
@@ -505,6 +577,8 @@ public final class TripCache {
     private static void tick(Minecraft client) {
         if (client.level != lastLevel) {
             lastLevel = client.level;
+            REFUSED.clear();
+            REFUSED_HOPS.clear();
             if (holding()) {
                 clear();
             }

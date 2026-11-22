@@ -44,6 +44,9 @@ final class RoomTour {
     private static final double FROM_MATCH = 3.0;
     /** The planner-thread budget of all of one request's searches (in slices; the rest is estimated). */
     private static final long TOTAL_BUDGET_NANOS = 3_000_000_000L;
+    /** One room-order search's budget on the floor graph (ms): it shares the planner thread with a correction's replan,
+     *  which waits for it (his 11-21 log: 300-900 ms behind a full search that went on to the room-by-room fallback). */
+    private static final long TOUR_SEARCH_MS = 25;
 
     /**
      * One room to go to.
@@ -292,7 +295,8 @@ final class RoomTour {
             this.travelOnly = travelOnly;
             this.why = why;
             this.layout = layout;
-            this.cfg = cfg;
+            this.cfg = new EtherwarpPathfinder.PathConfig(cfg.yawStep(), cfg.pitchStep(), cfg.hWeight(),
+                    Math.min(cfg.timeout(), TOUR_SEARCH_MS));
             this.range = range;
             this.gen = gen;
             // The trips from here first: the next choice depends on them most.
@@ -371,15 +375,19 @@ final class RoomTour {
                     if (System.nanoTime() > sliceEnd || ClearExecutor.tripSearchWaiting()) {
                         return false;
                     }
-                    List<EtherwarpPathfinder.Node> path = to.tile() >= 0
-                            ? EtherwarpPathfinder.findDungeonPathToTile(start, to.arrive(), to.tile(), cfg, range, layout)
-                            : EtherwarpPathfinder.findDungeonPath(start, to.arrive(), cfg, range, layout, false);
+                    // The floor graph's answer only, in a short budget: no answer leaves the estimate (not stored).
+                    int warps = EtherwarpPathfinder.tourWarps(start, to.arrive(), to.tile(), cfg, range, layout);
                     searches++;
-                    if (path == null) {
+                    if (warps == EtherwarpPathfinder.TOUR_UNKNOWN) {
+                        skipped++;
+                        continue;
+                    }
+                    // No way: the estimate meanwhile, searched again by later requests (FAILS, acplan2-1121).
+                    if (warps == EtherwarpPathfinder.TOUR_NO_WAY) {
                         FAILS.merge(leaveKey(start) + "|" + to.arriveKey(), 1, Integer::sum);
                     }
-                    row.put(to.arriveKey(), path == null ? estimate(start, to.arrive(), layout)
-                            : path.isEmpty() ? 0 : TRIP_FIXED_TICKS + TICKS_PER_WARP * path.size());
+                    row.put(to.arriveKey(), warps == EtherwarpPathfinder.TOUR_NO_WAY ? estimate(start, to.arrive(), layout)
+                            : warps == 0 ? 0 : TRIP_FIXED_TICKS + TICKS_PER_WARP * warps);
                 }
             }
             return true;
@@ -404,9 +412,11 @@ final class RoomTour {
             // The trip precomputed (TripCache) when there is one - read on this thread, it is a concurrent map.
             List<EtherwarpPathfinder.Node> pre = com.killer560.hub.livemap.autoclear.TripCache.pathFor(from, next.arrive(),
                     next.tile(), next.exact());
-            List<EtherwarpPathfinder.Node> path = pre != null ? pre : next.tile() >= 0
-                    ? EtherwarpPathfinder.findDungeonPathToTile(from, next.arrive(), next.tile(), cfg, range, layout)
-                    : EtherwarpPathfinder.findDungeonPath(from, next.arrive(), cfg, range, layout, next.exact());
+            // The floor graph's plan only (in the short budget): with none the trip searches for itself when asked,
+            // and a correction's replan never waits behind a fallback search made for a trip nobody asked for yet.
+            EtherwarpPathfinder.CachePlan ahead = pre != null ? null : EtherwarpPathfinder.planForCache(from,
+                    next.arrive(), next.tile(), cfg, range, layout, next.exact());
+            List<EtherwarpPathfinder.Node> path = pre != null ? pre : ahead == null ? null : ahead.path();
             LOGGER.info(String.format(Locale.US, "[AutoSecret] planned ahead from %.1f %.1f %.1f: next %s (%s), %s warp(s);"
                             + " order %s | %s%s", from.x, from.y, from.z, next.key(), next.arriveKey(),
                     path == null ? "no" : String.valueOf(path.size()), describe(sites, order),

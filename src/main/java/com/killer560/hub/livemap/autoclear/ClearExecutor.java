@@ -200,6 +200,12 @@ public final class ClearExecutor {
         ClientTickEvents.START_CLIENT_TICK.register(TICK_COUNT_PHASE, client -> {
             clientTicks++;
             itemUsesAtTickStart = com.killer560.hub.util.RightClick.itemUsesSent();
+            boolean sneakSent = client.player != null && client.player.getLastSentInput().shift();
+            if (!sneakSent) {
+                sneakSentAt = -1;
+            } else if (sneakSentAt < 0) {
+                sneakSentAt = clientTicks;
+            }
         });
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("ClearExecutor.onTickStart", ClearExecutor::onTickStart));
         // START: this sends the interactions at the end of a walk leg. Named onTickEnd from when it ran at
@@ -358,6 +364,13 @@ public final class ClearExecutor {
         etherPath(to, -1, complete);
     }
 
+    /** A warp from {@code at} onto {@code to} never landed before (TripCache's refused hops): the direct trip would send it
+     *  again, so the planner (which plans around it) takes the trip (acrev-refused-direct: Wizard, 6 sends of one warp). */
+    static boolean directRefused(Vec3 at, BlockPos to) {
+        java.util.Set<Long> refused = TripCache.refusedLandings(at);
+        return refused != null && refused.contains(EtherSearch.pack(to.getX(), to.getY(), to.getZ()));
+    }
+
     /**
      * {@link #etherPathArrive} in one warp with no search, when one sneaking look from where he stands lands on {@code to}
      * (and holds within the planner's margin, {@link TeleportUtils#getEtherwarpDirection}): the queue is that one hop, run
@@ -375,7 +388,7 @@ public final class ClearExecutor {
         Vec3 at = player.position();
         Vec3 eye = new Vec3(at.x, at.y + TeleportUtils.eyeHeight(true), at.z);
         TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, to, hopRange() + 1.0);
-        if (rot == null) {
+        if (rot == null || directRefused(at, to)) {
             return false;
         }
         EtherwarpPathfinder.Node hop = new EtherwarpPathfinder.Node(at.x, at.y, at.z, BlockPos.containing(at).below(),
@@ -530,6 +543,7 @@ public final class ClearExecutor {
         pendingGen = gen;
         pathPendingTicks = 0;
         lastPathFailed = false;
+        tripQueued = true;
         PLANNER.submit(() -> {
             long start = System.currentTimeMillis();
             long queuedNanos = System.nanoTime() - pressAt;
@@ -551,6 +565,7 @@ public final class ClearExecutor {
                 LOGGER.warn("[InteractiveMap] Path search failed: {}", e.toString());
             }
             long took = System.currentTimeMillis() - start;
+            tripQueued = false;   // searched: work that gave way to it may go on while the client thread takes the plan
             List<EtherwarpPathfinder.Node> result = path;
             client.execute(() -> {
                 if (gen == pendingGen) {
@@ -945,8 +960,13 @@ public final class ClearExecutor {
     /** Whether a trip search of the map is queued or running ({@link #etherPath} and its kin): searches planning ahead
      *  for later give way to it. Any thread. */
     public static boolean tripSearchWaiting() {
-        return pathPending && awaiting == null;
+        return tripQueued;
     }
+
+    /** A {@link #plan} search is queued or running on the planner thread. Until its result was handed to the client
+     *  thread {@link #pathPending} stays set, and a room order giving way to it spun (17,216 slices in 953 ms, his 11-21
+     *  log). */
+    private static volatile boolean tripQueued;
 
     /**
      * Runs the path planned ahead for this goal, if there is one and it still starts where he stands: within a third of a
@@ -1014,6 +1034,9 @@ public final class ClearExecutor {
             reaimed = true;
         }
         String impossible = implausible(at, list, hopRange());
+        if (impossible == null && TripCache.refusesFirst(TripCache.refusedLandings(at), path, lastLanding)) {
+            impossible = "its first warp never landed from here before";
+        }
         if (impossible == null && lastLanding != null) {
             ClearNode last = list.get(list.size() - 1);
             Vec3 eye = new Vec3(last.pos.x, last.pos.y + TeleportUtils.eyeHeight(true), last.pos.z);
@@ -1692,7 +1715,7 @@ public final class ClearExecutor {
         }
         // Keep the floor-wide etherwarp graph warm while he is in a dungeon, so a click only has to search it.
         if (cfg.isInteractiveMapEnabled() && client.level != null && DungeonLayout.current().roomCount() > 0) {
-            EtherwarpPathfinder.tickWarm(PLANNER, () -> pathPending || externalPlans.get() > 0, hopRange());
+            EtherwarpPathfinder.tickWarm(PLANNER, () -> pathPending || tripQueued || externalPlans.get() > 0, hopRange());
         }
         // Before this tick's hop: the body is given back once the path has no hop left to send.
         BODY.tick(client.player, aiming());
@@ -1727,7 +1750,10 @@ public final class ClearExecutor {
         }
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && !hasSwappedThisTick
                 && com.killer560.hub.util.RightClick.itemUsesSent() == itemUsesAtTickStart) {
-            chainInOneTick(client);
+            if (chainInOneTick(client)) {
+                waitReason = "the server hearing the sneak before the charged burst";
+                return;
+            }
             if (!canNext() || issued.size() - confirmed >= MAX_LEAD) {
                 return;
             }
@@ -1754,12 +1780,24 @@ public final class ClearExecutor {
      * his move at its look, the tick-end - GrimAC BadPacketsJ), until the path or the bank ends (never past it: GrimAC
      * Timer, mwtick-1111).
      */
-    private static void chainInOneTick(Minecraft client) {
+    private static boolean chainInOneTick(Minecraft client) {
         if (nodes == null || nodes.isEmpty()
                 || !com.killer560.hub.zpew.ZeroPingEtherwarpConfig.getInstance().multiWarpsFor(hopSource())) {
-            return;
+            return false;
         }
+        // The burst's uses all leave in one flush: a sneak sent in the same flush is not yet heard when the first use is
+        // judged, so on Hypixel that use became an Instant Transmission and every landing after it slid one hop (acwaits3-1122,
+        // his 11-21 log). Fire only once the sneak went out SNEAK_HEARD_TICKS ago: one tick was not enough, network jitter or a
+        // late server tick still read both in one server tick (62-argrim-1122-mapchain-sneaklag, 12 of 12 judged unsneaked).
+        // With a bank to spend the normal path waits too (true), so the whole chain still leaves in the one burst; the sneak
+        // goes down now in a tick of its own (forceSneakNow reads active), since only a pending hop pressed it before and
+        // holding the hop then held the sneak too (the 5570371237 deadlock).
         int max = com.killer560.hub.zpew.ZeroPingEtherwarp.chainMax();
+        if ((sneakSentAt < 0 || clientTicks - sneakSentAt < SNEAK_HEARD_TICKS) && nodes.get(0) instanceof ClearNode.EtherNode
+                && max > 1 && com.killer560.hub.blink.BlinkCharge.banked() > 0) {
+            active = true;
+            return true;
+        }
         int spent = 0;
         int fired = 0;
         int idle = 0;
@@ -1774,8 +1812,8 @@ public final class ClearExecutor {
             }
             spent++;
             if (com.killer560.hub.util.RightClick.itemUsesSent() == uses) {
-                // The first hop's sneak reaches the server on this spent tick, its use goes on the next; two in a row
-                // means the hop waits on something else (a click, mana, the item): the rest of the bank stays.
+                // A spent tick with no use (a hop that waits a tick); two in a row means the hop waits on something
+                // else (a click, mana, the item): the rest of the bank stays.
                 if (++idle > 1) {
                     break;
                 }
@@ -1789,6 +1827,7 @@ public final class ClearExecutor {
             LOGGER.info("[Path] Charged Chain: {} warp(s) sent in one tick ({} -> {} banked), {} left",
                     fired, bank0, com.killer560.hub.blink.BlinkCharge.banked(), nodes == null ? 0 : nodes.size());
         }
+        return false;
     }
 
     /** One banked tick's hop (inside {@code BlinkCharge.spendTick}): a whole tick for the server, so its own use. */
@@ -2036,6 +2075,9 @@ public final class ClearExecutor {
         // the old 20 ticks idled a whole second per lost warp (his acslow-1121 log, door 81).
         int deadline = confirmed < issued.size() ? com.killer560.hub.autoroutes.RouteExecutor.lostWarpTicks() : STALL_TICKS;
         if (ticksSinceProgress > deadline + ServerLag.ticksSince(progressLag)) {
+            if (confirmed < issued.size() && lastGood != null) {
+                TripCache.refuseHop(lastGood, issued.get(confirmed));   // the plan from here must not send it again
+            }
             offPath(confirmed < issued.size() ? "warp " + (confirmed + 1) + " never landed"
                     : waitReason != null ? waitReason : "nothing moved for a second", null);
             return false;
@@ -2458,6 +2500,9 @@ public final class ClearExecutor {
      *  the pace with it, beside the packets themselves. */
     private static final List<Long> hopSendTicks = new java.util.ArrayList<>();
     private static long clientTicks;
+    /** {@link #clientTicks} at the start of which the sent input first carried the sneak, -1 while it does not. */
+    private static long sneakSentAt = -1;
+    private static final int SNEAK_HEARD_TICKS = 3;
     /** {@link #clientTicks} when the newest path hop went out: its landing time feeds the refused-warp deadline. */
     private static long lastIssueTick;
     /** {@code RightClick.itemUsesSent()} when this tick began (before every START handler): one hop use per tick. */

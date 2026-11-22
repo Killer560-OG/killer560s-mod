@@ -1110,6 +1110,21 @@ public final class AutoClearFeature {
         return out;
     }
 
+    /** Farthest a tile center of the room may be from him for the last death to end it: a mob beyond (a Long Hall is four
+     *  tiles) may not be loaded on his client yet, so its absence says nothing (acrev-longhall-lastdeath). */
+    static final double LAST_DEATH_SIGHT = 48.0;
+
+    /** Every tile center of the room within {@link #LAST_DEATH_SIGHT} of {@code at}. */
+    static boolean roomInSight(Vec3 at, int[] tiles) {
+        for (int idx : tiles) {
+            BlockPos c = DungeonLayout.cellCenter(idx);
+            if (Math.hypot(c.getX() - at.x, c.getZ() - at.z) > LAST_DEATH_SIGHT) {
+                return false;
+            }
+        }
+        return true;
+    }
+
     /**
      * With no starred mob of the room in sight, none left to a bat, none remembered (lost from view or skipped),
      * at least one seen dying here and the map not saying cleared yet, the room is left now and the next one picked; it
@@ -1123,6 +1138,9 @@ public final class AutoClearFeature {
         if (!LiveMapFeature.hasRoomStates() || roomName == null || MidasAltar.ROOM.equals(roomName)
                 || singleRoom != null && KeyRooms.guardOf(layout, room) != null) {
             return false;
+        }
+        if (client.player == null || !roomInSight(client.player.position(), layout.tiles(room))) {
+            return false;   // a mob at the far end of a long room may not be loaded on his client yet: only the map says it is done
         }
         int leftToBats = 0;
         for (var e : seenMobs.entrySet()) {

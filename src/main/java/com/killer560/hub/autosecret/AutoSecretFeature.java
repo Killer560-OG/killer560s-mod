@@ -393,6 +393,13 @@ public final class AutoSecretFeature {
         return true;
     }
 
+    /** Why it last stopped (Dungeon Autopilot's "off:" line names it). */
+    private static String lastStopReason = "";
+
+    public static String lastStopReason() {
+        return lastStopReason;
+    }
+
     /** Stops it, saying why. {@code cancelOurs}: also stop the warp / route / clear it started. */
     public static void stop(String reason, boolean cancelOurs) {
         if (phase == Phase.IDLE) {
@@ -428,6 +435,7 @@ public final class AutoSecretFeature {
         if (was == Phase.TRAVEL) {
             ClearExecutor.setExternalOwner(false);
         }
+        lastStopReason = reason;
         status = "Stopped: " + reason;
         LOGGER.info("[AutoSecret] stopped: {}", reason);
         if (reason.startsWith("nothing left to do")) {

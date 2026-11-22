@@ -333,7 +333,57 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   rerun every timing case of the flow, not only the new one.
 - His 11-21 "sim" recordings (223131, 223204, 224231, 224531) were made on alpha.hypixel.net (latest.log "Connecting to
   alpha.hypixel.net"), not the sim: read their stands as real server behavior.
-- Open: on Hypixel a Charged Chain burst of a map path often lands its first warp somewhere else ("off the plan: warp 1
-  put you N blocks", 52 of 75 off-plan lines that night): at 22:32:43 the first landing matched the THIRD hop's look from
-  the start spot, so the server judged that use with a later look. Each correction then replans behind the planner thread
-  (queued 300-800 ms behind RoomTour's room-order search). Not fixed here (Charged Chain / Blink and planner code).
+- A Charged Chain burst of a map path landed its first warp off the plan on Hypixel ("off the plan: warp 1 put you N
+  blocks", 52 of 75 off-plan lines on 11-21). The cause was the sneak, not the look: the burst sent the sneak in the same
+  flush as its uses, so the server had not heard it when use 1 was judged. Use 1 became an Instant Transmission, and every
+  landing after it slid one hop (so landing 1 looked like hop 3's look). Fix (acwaits3-1122): while a bank waits, `chainInOneTick` sets
+  `active` so the sneak goes down in ticks of its own (no use), holds the hop, and fires the burst only once the sent input
+  has carried the sneak for 3 ticks (`SNEAK_HEARD_TICKS`). A one-tick gate failed the sneak-lag case about 1 run in 2 on
+  default Grim; holding the hop without pressing the sneak deadlocked the path (the sneak was pressed only by a pending
+  hop, in `handleQueue`). The testkit's `dungeon.sneakLag` knob counts a
+  sneak only once it was seen at a server tick end (case 62-argrim-1122-mapchain-sneaklag).
+- A trip that went wrong from a spot was handed out again from that spot (five times in one room), because the planner
+  stored the same trip again after each `TripCache.reject`. TripCache now keeps a REFUSED goal|from set (at most 256,
+  cleared on world change) that `find` skips (logic case 1122-logic-tripcache-refused). Open: a fresh plan may still pick
+  the same failing first hop, and each correction's replan still waits 300-800 ms behind RoomTour's room-order search on
+  the planner thread (B).
+
+## Correction replans and refused hops (acwaits4-1122)
+
+- A correction's replan queued 300-900 ms on the one planner thread behind RoomTour's room-order search: a single graph
+  search on a re-warming graph ran 300-430 ms (the 670 ms timeout), then the fine and room-by-room fallbacks, and the
+  tour only yields between searches. RoomTour now searches through `EtherwarpPathfinder.tourWarps` (floor graph only,
+  PRECOMPUTE mode, 25 ms budget; an unknown answer is an estimate, never stored) and plans its next trip with
+  `planForCache` in the same budget, so a replan waits at most one short search (sim case 1122-sim-tour-replan, queued
+  <= 40 ms). `tripSearchWaiting` reads `ClearExecutor.tripQueued` (submit to search end); reading `pathPending`, which
+  stays true until the client thread takes the plan, made the tour spin 17,216 empty slices.
+- A warp that never landed is a refused HOP (spot + landing block, its ray kept) in `TripCache.REFUSED_HOPS` (256 max,
+  cleared on world change, dropped when `blocksChanged` touches its ray). `WarpGraph.Goal.refusedFirst` keeps it off a
+  plan's first hop; `find` and `runPlanned` skip trips that start with it (logic case 1122-logic-refused-hop). The
+  fine and room-by-room fallbacks do not check it yet.
+
+## Warm-up slices (acwaits5-1122)
+
+- A correction's replan still queued 656 ms (acwaits4 fixsim6 trial 2) and ran right after "floor graph warm": tickWarm
+  checks clickWaiting only between 10 ms slices, but a slice was not 10 ms. `WarpGraph.warm` ran its last step, the
+  field build (reverse edges + 72 backward BFS over ~1.9M edges), in one go, and a worker batch (8 nodes per worker)
+  ran to its end. Now both stop at the slice's end (at least one node or field per worker; the rest are re-queued or
+  built next call). The fields, reverse edges and `warmComplete` are published together, so a search between steps sees
+  a not-warm graph, never half-built fields; a block change or `reseed` drops a pending build. tickWarm's clickWaiting
+  also reads `tripQueued`. Logic case 1122-logic-warm-yield (field build 323 ms, longest trip queue 14 ms on the fix; a
+  trip waits 308 ms on acwaits4 aa3dacc3e). 1122-sim-tour-replan once ran 0 of 5 trials (the sim refused the first warp
+  from the spot, so the set-back moved nothing) and failed only on "fewer than 2 measured": it now sets him back only
+  after the first warp landed, tries the next room when it did not, and needs all 5 trials measured.
+
+## Last death in a long room, refused direct trips, off reasons (acrev-clear-1122, his 11-22 live clears)
+
+- Long Hall (four tiles) was left at its last death with a starred mob unseen at the far end (5.7 s plus an uncleared room);
+  the room has more mobs than the 2 spawn boxes the table holds, and a mob beyond the client's entity range says nothing by
+  being absent. `moveOnAtLastDeath` now leaves only when every tile center of the room is within
+  `LAST_DEATH_SIGHT` (48) of him (`roomInSight`); otherwise only the map's clear (or the roam/give-up ladder) ends the room.
+  The 48 is a judgment (edge = 64 blocks), not a measured entity range. Logic case 1122-logic-acrev-lastdeath.
+- The direct one-warp trip already met `refusesFirst` in `runPlanned`, after `etherDirectFast` had changed the goal state;
+  `ClearExecutor.directRefused` now refuses it first, so the planner (which plans around the refused hop) takes the trip.
+  Logic case 1122-logic-acrev-refused-direct.
+- Dungeon Autopilot's "off:" line used to say "the secrets are done" for every Auto Secret stop; it now logs
+  `AutoSecretFeature.lastStopReason()` (no key, his keys, trap stop). Logic case 1122-logic-acrev-offreason.

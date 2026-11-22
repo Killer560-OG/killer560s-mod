@@ -120,6 +120,31 @@ public final class EtherwarpPathfinder {
     /** Planner thread, for {@link #planForCache}: the last plan was the full graph's, and it only landed near its goal. */
     private static boolean lastPlanOnFull;
     private static boolean lastPlanNear;
+    /** Planner thread, for {@link #tourWarps}: the last graph-only plan found nothing and the full graph proved no way. */
+    private static boolean lastNoWay;
+
+    /** {@link #tourWarps}: the graph had no answer in its budget (the caller's estimate stands). */
+    public static final int TOUR_UNKNOWN = -1;
+    /** {@link #tourWarps}: the warm full graph proved nothing reaches it. */
+    public static final int TOUR_NO_WAY = -2;
+
+    /**
+     * Planner thread. The warps of a trip for a room order (RoomTour): the floor graph's plan only, as
+     * {@link #planForCache}, never the fallbacks (the room search, room by room), so one search holds the planner thread
+     * for about {@code cfg.timeout()} at most and a trip of the map's own (a correction's replan) never waits long
+     * behind it. {@link #TOUR_UNKNOWN} or {@link #TOUR_NO_WAY} when there is no plan.
+     */
+    public static int tourWarps(Vec3 from, BlockPos to, int tileIdx, PathConfig cfg, double dist, DungeonLayout layout) {
+        boolean[] flag = PRECOMPUTE.get();
+        flag[0] = true;
+        lastNoWay = false;
+        try {
+            List<Node> path = planFloor(from, to, tileIdx, cfg, dist, layout, false, MAP_EXACT_NANOS, false);
+            return path != null ? path.size() : lastNoWay ? TOUR_NO_WAY : TOUR_UNKNOWN;
+        } finally {
+            flag[0] = false;
+        }
+    }
 
     /** The reference {@code PathConfig}. {@code timeout} is milliseconds for the whole search. */
     public record PathConfig(float yawStep, float pitchStep, double hWeight, long timeout) {
@@ -411,6 +436,7 @@ public final class EtherwarpPathfinder {
         goal.y = to.getY();
         goal.z = to.getZ();
         goal.deadEnd = deadEnds(layout);
+        goal.refusedFirst = TripCache.refusedLandings(from);
         int tile6 = tileIdx < 0 ? -1 : ((tileIdx / DungeonLayout.GRID) / 2) * 6 + (tileIdx % DungeonLayout.GRID) / 2;
         String kind;
         WarpGraph.Goal exactFallback = null;
@@ -431,6 +457,7 @@ public final class EtherwarpPathfinder {
                 exactFallback.y = to.getY();
                 exactFallback.z = to.getZ();
                 exactFallback.deadEnd = goal.deadEnd;
+                exactFallback.refusedFirst = goal.refusedFirst;
             }
         } else {
             int room = layout.roomAtWorld(to.getX(), to.getZ());
@@ -461,6 +488,7 @@ public final class EtherwarpPathfinder {
             // none of the fallbacks below - a goal the graph cannot plan is left for the press to plan for itself.
             lastPlanOnFull = graph == graphs.full && graph.warmDone();
             lastPlanNear = path != null && (graph.endedNear || graphs.usedExact);
+            lastNoWay = path == null && graphs.provedNoWay;
             return airy || path == null ? null : toNodes(path);
         }
         if (airy && path != null && !path.isEmpty() && !landsOn(view, path, to, dist)) {
@@ -1076,7 +1104,8 @@ public final class EtherwarpPathfinder {
         return workers;
     }
 
-    /** One warm-up slice: a waiting click gets the planner thread after at most one of these (plus one batch). */
+    /** One warm-up slice: a waiting click gets the planner thread after at most one of these (a batch and the field
+     *  build stop at its end too, WarpGraph.warm). */
     private static final long WARM_SLICE_NANOS = 10_000_000L;
     /** A warm-up task gives the planner thread back after this long even with no click waiting. */
     private static final long WARM_TASK_NANOS = 250_000_000L;
@@ -1123,8 +1152,8 @@ public final class EtherwarpPathfinder {
                             gr.quick.nodeCount(), ms(warmNanos), workerCount);
                 }
                 if (gr.full.warmDone() && !wasDone) {
-                    LOGGER.info("[Path] floor graph warm: {} node(s), {} ms of planner time on {} thread(s)",
-                            gr.full.nodeCount(), ms(warmNanos), workerCount);
+                    LOGGER.info("[Path] floor graph warm: {} node(s), {} ms of planner time on {} thread(s), fields {} ms",
+                            gr.full.nodeCount(), ms(warmNanos), workerCount, ms(gr.full.nanosFields));
                     warmNanos = 0;
                 }
                 warmFailureTraced = false;
@@ -1160,9 +1189,37 @@ public final class EtherwarpPathfinder {
         return legacyDungeonPath(from, to, cfg, dist, layout, null);
     }
 
-    /** {@link #legacyDungeonPath} reading {@code air} (packed blocks, or null) as not there. */
+    /**
+     * {@link #legacyDungeonPath} reading {@code air} (packed blocks, or null) as not there. A plan whose first warp lands
+     * where a warp from this spot never landed (TripCache's refused hops) is planned once more with that landing taken
+     * out, and dropped if it still starts there (acwaits4-1122: the fallbacks picked the lost warp again).
+     */
     private static List<Node> legacyDungeonPath(Vec3 from, BlockPos to, PathConfig cfg, double dist,
                                                 DungeonLayout layout, java.util.Set<Long> air) {
+        return avoidRefused(from, air, a -> legacyLegs(from, to, cfg, dist, layout, a));
+    }
+
+    /** {@code plan} with {@code air}; when its first warp lands on a refused landing, once more with those taken out. */
+    static List<Node> avoidRefused(Vec3 from, java.util.Set<Long> air,
+                                   java.util.function.Function<java.util.Set<Long>, List<Node>> plan) {
+        List<Node> path = plan.apply(air);
+        java.util.Set<Long> refused = TripCache.refusedLandings(from);
+        if (path == null || !TripCache.refusesFirst(refused, path, null)) {
+            return path;
+        }
+        java.util.Set<Long> without = new java.util.HashSet<>(refused);
+        if (air != null) {
+            without.addAll(air);
+        }
+        List<Node> again = plan.apply(without);
+        boolean ok = again != null && !TripCache.refusesFirst(refused, again, null);
+        LOGGER.info("[Path] room by room began with a warp that never landed from here - planned around it: {}",
+                ok ? again.size() + " warp(s)" : "nothing");
+        return ok ? again : null;
+    }
+
+    private static List<Node> legacyLegs(Vec3 from, BlockPos to, PathConfig cfg, double dist,
+                                         DungeonLayout layout, java.util.Set<Long> air) {
         Level level = Minecraft.getInstance().level;
         if (level == null) {
             return null;

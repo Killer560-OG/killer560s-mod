@@ -33,6 +33,8 @@ public final class DungeonsAutopilot {
     /** The next step, run on the next tick (set by a finished part's callback). */
     private static Runnable next;
     private static Object level;
+    /** Why it last switched off (the "off:" log line; read by the testkit). */
+    private static String lastOffReason = "";
 
     private DungeonsAutopilot() {
     }
@@ -106,6 +108,7 @@ public final class DungeonsAutopilot {
 
     private static void stop(String why) {
         boolean was = on;
+        lastOffReason = why;
         on = false;
         phase = Phase.IDLE;
         next = null;
@@ -146,7 +149,7 @@ public final class DungeonsAutopilot {
             }
             case SECRETS -> {
                 if (!AutoSecretFeature.isRunning()) {
-                    stop("the secrets are done");
+                    stop(AutoSecretFeature.lastStopReason());
                 }
             }
             default -> {

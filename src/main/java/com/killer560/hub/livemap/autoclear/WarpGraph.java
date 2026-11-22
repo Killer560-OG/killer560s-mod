@@ -640,11 +640,12 @@ public final class WarpGraph {
         if (dropped > 0) {
             warmComplete = false;
             fieldsValid = false;
+            fieldBuild = null;
             droppedSinceWarm += dropped;
         }
         if (edgesChangedSinceWarm) {
             edgesChangedSinceWarm = false;
-            if (warmComplete && dropped == 0) {
+            if ((warmComplete || fieldBuild != null) && dropped == 0) {
                 // Only edges changed. Every node keeps its edges, so there is nothing to find again from where he
                 // stands: carry on the finished pass with just the nodes the new edges lead to (none, usually),
                 // then rebuild the fields. A re-seed would walk all ~2M edges for nothing.
@@ -652,6 +653,7 @@ public final class WarpGraph {
             }
             warmComplete = false;
             fieldsValid = false;
+            fieldBuild = null;
         }
         if (newSinceWarm.n > 0) {
             if (warmSeeded) {
@@ -1394,106 +1396,162 @@ public final class WarpGraph {
         fieldsValid = false;
     }
 
-    /**
-     * The reverse edges, and breadth first BACKWARD from every tile's click region over them: the exact fewest
-     * warps from any node into that tile, which makes a room click's A* walk straight down its optimal paths.
-     * Built when warming completes, so every node reachable from him has its edges.
-     */
-    /** How long the last {@link #buildFields} took, nanoseconds. */
+    /** How long the last field build took, nanoseconds (all its steps, not the gaps between them). */
     public long nanosFields;
 
-    private void buildFields() {
-        long tf0 = System.nanoTime();
-        try {
-            buildFieldsNow();
-        } finally {
-            nanosFields = System.nanoTime() - tf0;
+    /**
+     * A field build in progress: warming has reached every node and the fields are being worked out a few tiles per
+     * {@link #warm} call, so a search waiting for the planner thread gets it within one step (acwaits5-1122: one
+     * build of 72 fields over ~2M edges held a server correction's replan 656 ms). Nothing is visible until the last
+     * tile is done: the fields, reverse edges and warmComplete are set together in {@link #publishFields}.
+     */
+    private FieldBuild fieldBuild;
+
+    private static final class FieldBuild {
+        final int n;
+        final int[] starts;
+        final int[] r;
+        final int[] tileOfNode;
+        final int[] cellOfNode;
+        final byte[][] out;
+        final int tc;
+        final int[][] queues;
+        int next;
+
+        FieldBuild(int n, int[] starts, int[] r, int[] tileOfNode, int[] cellOfNode, int tc, int threads) {
+            this.n = n;
+            this.starts = starts;
+            this.r = r;
+            this.tileOfNode = tileOfNode;
+            this.cellOfNode = cellOfNode;
+            this.tc = tc;
+            this.out = new byte[2 * tc][];
+            this.queues = new int[threads][];
+        }
+
+        /** Field t: 0..tc-1 into each tile's click region (room clicks), tc..2tc-1 into each cell's whole column
+         *  (lower bounds for exact goals). */
+        void field(int t, int worker) {
+            if (queues[worker] == null) {
+                queues[worker] = new int[n];
+            }
+            out[t] = t < tc ? tileField(t, n, tileOfNode, starts, r, queues[worker])
+                    : tileField(t - tc, n, cellOfNode, starts, r, queues[worker]);
         }
     }
 
-    private void buildFieldsNow() {
-        fieldsValid = false;
-        if (count == 0) {
-            return;
+    /**
+     * One step of the field build (see {@link #fieldBuild}) until {@code end}, at least one unit of work: the reverse
+     * edges (CSR) first, then breadth first BACKWARD from every tile's click region over them - the exact fewest warps
+     * from any node into that tile, which makes a room click's A* walk straight down its optimal paths. Returns true
+     * once the fields are published.
+     */
+    private boolean stepFields(long end) {
+        long tf0 = System.nanoTime();
+        try {
+            return stepFieldsNow(end);
+        } finally {
+            nanosFields += System.nanoTime() - tf0;
         }
-        int n = count;
-        int[] starts = new int[n + 1];
-        for (int u = 0; u < n; u++) {
-            int[] to = eTo[u];
-            if (to != null) {
-                for (int v : to) {
-                    starts[v + 1]++;
-                }
+    }
+
+    private boolean stepFieldsNow(long end) {
+        if (fieldBuild == null) {
+            nanosFields = 0;
+            fieldsValid = false;
+            if (count == 0) {
+                publishFields(null);
+                return true;
             }
-        }
-        for (int i = 0; i < n; i++) {
-            starts[i + 1] += starts[i];
-        }
-        int[] r = new int[starts[n]];
-        int[] fill = Arrays.copyOf(starts, n);
-        for (int u = 0; u < n; u++) {
-            int[] to = eTo[u];
-            if (to != null) {
-                for (int v : to) {
-                    r[fill[v]++] = u;
-                }
-            }
-        }
-        revStart = starts;
-        rev = r;
-        int tc = tiles == null ? 0 : tiles.count();
-        // Fields 0..tc-1: into each tile's click region (room clicks). tc..2tc-1: into each cell's whole column
-        // (lower bounds for exact goals).
-        int[] tileOfNode = new int[n];
-        int[] cellOfNode = new int[n];
-        for (int u = 0; u < n; u++) {
-            tileOfNode[u] = tiles == null ? -1 : tiles.tileOf(nx[u], ny[u], nz[u]);
-            cellOfNode[u] = tiles == null ? -1 : tiles.cellOf(nx[u], nz[u]);
-        }
-        cellOfNodeArr = cellOfNode;
-        int fc = 2 * tc;
-        byte[][] out = new byte[fc][];
-        ExecutorService workers = lastWorkers;
-        if (workers != null && lastThreads > 1 && tc > 1) {
-            // One breadth-first search per tile, independent of each other: spread over the warm-up workers.
-            List<Callable<Void>> jobs = new ArrayList<>();
-            int per = (fc + lastThreads - 1) / lastThreads;
-            for (int t0 = 0; t0 < fc; t0 += per) {
-                int from = t0;
-                int to = Math.min(fc, t0 + per);
-                jobs.add(() -> {
-                    int[] queue = new int[n];
-                    for (int t = from; t < to; t++) {
-                        out[t] = t < tc ? tileField(t, n, tileOfNode, starts, r, queue)
-                                : tileField(t - tc, n, cellOfNode, starts, r, queue);
+            int n = count;
+            int[] starts = new int[n + 1];
+            for (int u = 0; u < n; u++) {
+                int[] to = eTo[u];
+                if (to != null) {
+                    for (int v : to) {
+                        starts[v + 1]++;
                     }
-                    return null;
-                });
-            }
-            try {
-                for (Future<Void> f : workers.invokeAll(jobs)) {
-                    f.get();
                 }
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            } catch (java.util.concurrent.ExecutionException e) {
-                throw new IllegalStateException(e.getCause());
+            }
+            for (int i = 0; i < n; i++) {
+                starts[i + 1] += starts[i];
+            }
+            int[] r = new int[starts[n]];
+            int[] fill = Arrays.copyOf(starts, n);
+            for (int u = 0; u < n; u++) {
+                int[] to = eTo[u];
+                if (to != null) {
+                    for (int v : to) {
+                        r[fill[v]++] = u;
+                    }
+                }
+            }
+            int tc = tiles == null ? 0 : tiles.count();
+            int[] tileOfNode = new int[n];
+            int[] cellOfNode = new int[n];
+            for (int u = 0; u < n; u++) {
+                tileOfNode[u] = tiles == null ? -1 : tiles.tileOf(nx[u], ny[u], nz[u]);
+                cellOfNode[u] = tiles == null ? -1 : tiles.cellOf(nx[u], nz[u]);
+            }
+            fieldBuild = new FieldBuild(n, starts, r, tileOfNode, cellOfNode, tc, Math.max(1, lastThreads));
+            if (System.nanoTime() > end) {
+                return false;
             }
         }
-        int[] queue = null;
-        for (int t = 0; t < fc; t++) {
-            if (out[t] == null) {
-                if (queue == null) {
-                    queue = new int[n];
+        FieldBuild b = fieldBuild;
+        int fc = 2 * b.tc;
+        ExecutorService workers = lastWorkers;
+        boolean parallel = workers != null && lastThreads > 1 && fc > 1;
+        do {
+            if (parallel) {
+                // One breadth-first search per tile, independent of each other: one per warm-up worker each step.
+                List<Callable<Void>> jobs = new ArrayList<>();
+                for (int w = 0; w < Math.min(lastThreads, b.queues.length) && b.next < fc; w++) {
+                    int t = b.next++;
+                    int worker = w;
+                    jobs.add(() -> {
+                        b.field(t, worker);
+                        return null;
+                    });
                 }
-                out[t] = t < tc ? tileField(t, n, tileOfNode, starts, r, queue)
-                        : tileField(t - tc, n, cellOfNode, starts, r, queue);
+                try {
+                    for (Future<Void> f : workers.invokeAll(jobs)) {
+                        f.get();
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    fieldBuild = null;
+                    return false;
+                } catch (java.util.concurrent.ExecutionException e) {
+                    fieldBuild = null;
+                    throw new IllegalStateException(e.getCause());
+                }
+            } else if (b.next < fc) {
+                b.field(b.next++, 0);
             }
+        } while (b.next < fc && System.nanoTime() <= end);
+        if (b.next < fc) {
+            return false;
         }
-        fields = out;
-        tileFieldCount = tc;
-        fieldNodes = n;
-        fieldsValid = true;
+        publishFields(b);
+        return true;
+    }
+
+    /** The finished build (null: an empty graph, no fields) and the end of the warm-up pass, all at once. */
+    private void publishFields(FieldBuild b) {
+        fieldBuild = null;
+        if (b != null) {
+            revStart = b.starts;
+            rev = b.r;
+            cellOfNodeArr = b.cellOfNode;
+            fields = b.out;
+            tileFieldCount = b.tc;
+            fieldNodes = b.n;
+            fieldsValid = true;
+        }
+        warmComplete = true;
+        warmedOnce = true;
+        warmedNodes = b == null ? 0 : b.n;
     }
 
     /** Breadth first backward from tile {@code t}'s nodes over the reverse edges: fewest warps into the tile. */
@@ -1548,6 +1606,13 @@ public final class WarpGraph {
         public EtherSearch.CellTest near;
         /** Non-null: nodes he may land on but never warp FROM (abilities refused there). */
         public EtherSearch.CellTest deadEnd;
+        /** Non-null: landing blocks ({@link EtherSearch#pack}) the server refused a warp to from this start (TripCache):
+         *  never the first hop. */
+        public java.util.Set<Long> refusedFirst;
+
+        boolean refusedFirst(int x, int y, int z) {
+            return refusedFirst != null && refusedFirst.contains(EtherSearch.pack(x, y, z));
+        }
     }
 
     // Per-search node state, stamped.
@@ -2239,7 +2304,7 @@ public final class WarpGraph {
                 return new ArrayList<>();   // already there: no warp, wherever in the tile (the count is sacred)
             }
         }
-        if (exact != null && !directBanned
+        if (exact != null && !directBanned && !goal.refusedFirst(exact.x, exact.y, exact.z)
                 && search.aim(sx, sy + EtherSearch.SNEAK_EYE, sz, exact.x, exact.y, exact.z, range)) {
             List<EtherSearch.Hop> one = new ArrayList<>(1);
             one.add(new EtherSearch.Hop(sx, sy, sz, start.bx, start.by, start.bz, search.aimYaw, search.aimPitch));
@@ -2331,8 +2396,8 @@ public final class WarpGraph {
         for (int k = 0; k < startN; k++) {
             int t = node(startPos[k]);
             if ((!bannedFromStart.isEmpty() && bannedFromStart.contains(t))
-                    || (startFromNode >= 0 && edgeBanned(startFromNode, t))) {
-                continue;   // no aim at it from here holds (firmUp)
+                    || (startFromNode >= 0 && edgeBanned(startFromNode, t)) || goal.refusedFirst(nx[t], ny[t], nz[t])) {
+                continue;   // no aim at it from here holds (firmUp), or the server refused that warp from here
             }
             double dx = nx[t] + 0.5 - sx;
             double dy = ny[t] + standOffset - sy;
@@ -2598,7 +2663,8 @@ public final class WarpGraph {
     /**
      * Works out edges ahead of time, breadth first from where he stands, for about {@code budgetNanos}, and when
      * everything reachable is known builds the tile fields. Returns true while there is more to do. Same thread
-     * as {@link #plan}.
+     * as {@link #plan}. Keeps to the budget (plus one node or one field per worker): a worker batch and the field build
+     * stop at its end and go on from there next call, so a search queued behind a warm-up waits at most one slice.
      *
      * @param grids    makes a grid for a worker (each worker reads through its own); null with no workers
      * @param workers  worker threads, or null to do it all on this thread
@@ -2615,6 +2681,9 @@ public final class WarpGraph {
             return false;
         }
         long end = System.nanoTime() + budgetNanos;
+        if (fieldBuild != null) {
+            return !stepFields(end);
+        }
         if (!warmSeeded) {
             // Seed (again) from where he is. Anything already known is passed over cheaply, and anything a change
             // dropped since is found again.
@@ -2682,7 +2751,9 @@ public final class WarpGraph {
                     Expander x = new Expander();
                     x.inner = grids.get();
                     List<Result> out = new ArrayList<>(selves.length);
-                    for (int k = 0; k < selves.length; k++) {
+                    // Up to the slice's end (at least one node): the rest go back on the queue, so a whole batch never
+                    // holds a waiting search past the slice.
+                    for (int k = 0; k < selves.length && (k == 0 || System.nanoTime() <= end); k++) {
                         x.expandFrom(pos[3 * k], pos[3 * k + 1], pos[3 * k + 2], selves[k], true);
                         out.add(capture(x, selves[k]));
                     }
@@ -2725,6 +2796,12 @@ public final class WarpGraph {
                     warmPush(v);
                 }
             }
+            for (int u : batch) {
+                if (eTo[u] == null) {   // cut off at the slice's end: next slice
+                    warmQueued[u] = false;
+                    warmPush(u);
+                }
+            }
         }
         warmSeeded = false;
         // Something dropped while this pass ran (behind the queue head): go round again.
@@ -2737,11 +2814,8 @@ public final class WarpGraph {
             }
         }
         droppedSinceWarm = 0;
-        warmComplete = true;
-        warmedOnce = true;
-        warmedNodes = count;
-        buildFields();
-        return false;
+        // Every reachable node has its edges: the fields next, a step at a time (warmComplete once they are published).
+        return !stepFields(end);
     }
 
     private boolean warmedOnce;
@@ -2783,6 +2857,7 @@ public final class WarpGraph {
         warmSeeded = false;
         warmComplete = false;
         fieldsValid = false;
+        fieldBuild = null;
     }
 
     /** How many nodes the graph had when warming last completed (0 before it ever has). */
