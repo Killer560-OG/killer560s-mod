@@ -123,6 +123,13 @@ public final class ModuleKeybinds {
         }
         binds = m;
         wasDown.clear();
+        // apmenu-1121: the old Dungeon Autopilot / Auto Secret / Auto Clear / Blood Rush keys become Dungeons Autopilot's.
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && !m.containsKey("AutoClearTab")) {
+            int old = com.killer560.hub.autosecret.DungeonsAutopilot.takeOldBind();
+            if (old != KeyUtil.NONE) {
+                set("AutoClearTab", old);
+            }
+        }
     }
 
     public static void save() {

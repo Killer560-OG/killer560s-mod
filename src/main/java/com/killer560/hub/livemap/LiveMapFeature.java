@@ -311,7 +311,6 @@ public final class LiveMapFeature {
         // Teleport Pathing folded into Interactive Map itself (killer560: "the entire portion of interactive
         // map is the teleport pathing") - no separate flag left to report here.
         if (LiveMapConfig.getInstance().isInteractiveMapEnabled()) sb.append("InteractiveMap,");
-        if (LiveMapConfig.getInstance().isBloodRushEnabled()) sb.append("BloodRush,");
         // The insta-clear recorder reads room states off the dungeon map, which is only sampled while scanning.
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED
                 && com.killer560.hub.autosecret.InstaClearTracker.wantsMapScan()) sb.append("InstaClear,");

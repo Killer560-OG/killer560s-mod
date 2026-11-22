@@ -37,8 +37,74 @@ public final class AutoSecretConfig {
     private int routeStallSeconds = 20;
     private boolean chatFeedback = true;
 
+    // ---- Dungeons Autopilot (apmenu-1121, killer560 2026-11-21: one switch, one key, a few modes) ----
+    /** The one feature's mode. Replaces Run Mode + Room Plan + the three separate starts. */
+    public enum Mode {
+        /** The planner: the fastest way for this one player to reach score 300. */
+        SOLO_300("Solo 300"),
+        /** Every mob room cleared first, then the secrets. */
+        CLEAR_THEN_SECRET("Clear Then Secret"),
+        /** Every room's secrets first, then the rooms left uncleared. */
+        SECRET_THEN_CLEAR("Secret Then Clear"),
+        /** The planner, going for the party's secrets. */
+        PARTY_SECRETS("Party Secrets");
+
+        private final String label;
+
+        Mode(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+    }
+
+    /** What happens before the mode starts: nothing, a rush to the Blood door clearing the rooms on the way, or doors only. */
+    public enum BloodRush {
+        NONE("None"), CLEAR("Clear"), DOOR("Door");
+
+        private final String label;
+
+        BloodRush(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+    }
+
+    /** The room right before the Blood room (the one whose door opens into it), for secrets. */
+    public enum RoomBeforeBlood {
+        /** Its secrets are done last (what the planner has always done). */
+        SAVE_FOR_LAST("Save For Last"),
+        /** Its secrets are left out. */
+        SKIP("Skip");
+
+        private final String label;
+
+        RoomBeforeBlood(String label) {
+            this.label = label;
+        }
+
+        public String label() {
+            return label;
+        }
+    }
+
+    private Mode mode = Mode.SOLO_300;
+    private BloodRush bloodRush = BloodRush.NONE;
+    private RoomBeforeBlood roomBeforeBlood = RoomBeforeBlood.SAVE_FOR_LAST;
+    /** Switch the feature off once the Blood Rush part is done. */
+    private boolean disableAfterBloodRush = false;
+    /** Clear a room in the same visit before doing its secrets (killer560, 2026-11-21 ~11:15 PM). */
+    private boolean clearBeforeSecret = false;
+    /** Clear every room of the dungeon before any secrets (killer560, 2026-11-21: a separate option). */
+    private boolean clearFirst = false;
+
     // ---- Dungeon Autopilot (Auto Secret + Auto Clear + Auto Puzzles under one planner) ----
-    /** What the autopilot optimizes for. */
+    /** What the autopilot optimizes for (derived from {@link #getMode()} since apmenu-1121). */
     public enum RunMode {
         SOLO("Solo (300 score)"), PARTY("Party (secrets)");
 
@@ -212,8 +278,44 @@ public final class AutoSecretConfig {
             cfg.statusHud = ConfigJson.getBool(o, "statusHud", ConfigJson.getBool(o, "autopilotHud", cfg.statusHud));
             // getDouble drops a non-finite value (a hand-edited NaN made key pickup never reach).
             cfg.setKeyBaseRange(ConfigJson.getDouble(o, "keyBaseRange", cfg.keyBaseRange));
+            cfg.roomBeforeBlood = ConfigJson.getEnum(o, "roomBeforeBlood", RoomBeforeBlood.class, cfg.roomBeforeBlood);
+            cfg.disableAfterBloodRush = ConfigJson.getBool(o, "disableAfterBloodRush", cfg.disableAfterBloodRush);
+            cfg.clearBeforeSecret = ConfigJson.getBool(o, "clearBeforeSecret", cfg.clearBeforeSecret);
+            cfg.clearFirst = ConfigJson.getBool(o, "clearFirst", cfg.clearFirst);
         }
+        // A file from before the one feature (no "mode") takes its mode from Run Mode / Room Plan.
+        cfg.mode = o != null && o.has("mode") ? ConfigJson.getEnum(o, "mode", Mode.class, cfg.mode)
+                : cfg.runMode == RunMode.PARTY ? Mode.PARTY_SECRETS
+                : cfg.roomPlan == RoomPlan.SECRETS_THEN_CLEARS ? Mode.SECRET_THEN_CLEAR : Mode.SOLO_300;
+        cfg.bloodRush = o != null && o.has("bloodRush") ? ConfigJson.getEnum(o, "bloodRush", BloodRush.class, cfg.bloodRush)
+                : migratedBloodRush(cfg);
         instance = cfg;
+    }
+
+    /**
+     * Blood Rush for a file from before it existed: the old Auto Blood Rush switch (doors only) or Auto Clear's Door Only
+     * gives Door, Auto Clear's Blood Rush Split mode gives Clear, else Auto Secret's own Blood First (Door Camp = Door,
+     * Full Blood Rush = Clear). The old files are read raw: no other config class is loaded from here.
+     */
+    private static BloodRush migratedBloodRush(AutoSecretConfig cfg) {
+        JsonObject map = ConfigJson.read(ModPaths.config("killer560smod-livemap.json"));
+        JsonObject clear = ConfigJson.read(ModPaths.config("killer560smod-autoclear.json"));
+        if ((map != null && ConfigJson.getBool(map, "bloodRushEnabled", false))
+                || (clear != null && ConfigJson.getBool(clear, "doorOnly", false))) {
+            return BloodRush.DOOR;
+        }
+        if (clear != null && "BLOOD_RUSH_SPLIT".equals(ConfigJson.getString(clear, "mode", ""))) {
+            return BloodRush.CLEAR;
+        }
+        if (cfg.secretBloodFirstOn) {
+            return cfg.secretBloodFirst == SecretBloodFirst.FULL_BLOOD_RUSH ? BloodRush.CLEAR : BloodRush.DOOR;
+        }
+        return BloodRush.NONE;
+    }
+
+    /** The first bound of the old start keys (Dungeon Autopilot's, then Auto Secret's), or NONE; for the one key. */
+    public int oldStartKey() {
+        return autopilotKey != KeyUtil.NONE ? autopilotKey : toggleKey;
     }
 
     public void save() {
@@ -227,16 +329,22 @@ public final class AutoSecretConfig {
         o.addProperty("routeStallSeconds", routeStallSeconds);
         o.addProperty("chatFeedback", chatFeedback);
         o.addProperty("autopilotKey", autopilotKey);
-        o.addProperty("runMode", runMode.name());
+        o.addProperty("runMode", getRunMode().name());
         o.addProperty("bloodFirst", bloodFirst);
         o.addProperty("secretBloodFirst", secretBloodFirst.name());
         o.addProperty("secretBloodFirstOn", secretBloodFirstOn);
         o.addProperty("secretOrder", secretOrder.name());
-        o.addProperty("roomPlan", roomPlan.name());
+        o.addProperty("roomPlan", getRoomPlan().name());
         o.addProperty("skipUnneededSecrets", skipUnneededSecrets);
         o.addProperty("doPuzzles", doPuzzles);
         o.addProperty("statusHud", statusHud);
         o.addProperty("keyBaseRange", keyBaseRange);
+        o.addProperty("mode", mode.name());
+        o.addProperty("bloodRush", bloodRush.name());
+        o.addProperty("roomBeforeBlood", roomBeforeBlood.name());
+        o.addProperty("disableAfterBloodRush", disableAfterBloodRush);
+        o.addProperty("clearBeforeSecret", clearBeforeSecret);
+        o.addProperty("clearFirst", clearFirst);
         ConfigJson.write(CONFIG_PATH, o);
     }
 
@@ -245,7 +353,9 @@ public final class AutoSecretConfig {
         return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && com.killer560.hub.util.SkyblockGate.allows();
     }
 
-    public int getToggleKey() { return toggleKey; }
+    /** NONE since apmenu-1121: the one Dungeons Autopilot key (ModuleKeybinds) starts everything; the saved value only
+     *  migrates into it ({@link #oldStartKey}). */
+    public int getToggleKey() { return KeyUtil.NONE; }
     public void setToggleKey(int v) { toggleKey = KeyUtil.sanitizeBind(v); }
 
     public boolean isInstaClear() { return instaClear; }
@@ -269,17 +379,27 @@ public final class AutoSecretConfig {
     public boolean isChatFeedback() { return chatFeedback; }
     public void setChatFeedback(boolean v) { chatFeedback = v; }
 
-    public int getAutopilotKey() { return autopilotKey; }
+    /** NONE since apmenu-1121 (see {@link #getToggleKey}). */
+    public int getAutopilotKey() { return KeyUtil.NONE; }
     public void setAutopilotKey(int v) { autopilotKey = KeyUtil.sanitizeBind(v); }
 
-    public RunMode getRunMode() { return runMode; }
-    public void setRunMode(RunMode v) { runMode = v == null ? RunMode.SOLO : v; }
+    /** Derived from {@link #getMode()}: Party for Party Secrets. */
+    public RunMode getRunMode() { return mode == Mode.PARTY_SECRETS ? RunMode.PARTY : RunMode.SOLO; }
+    public void setRunMode(RunMode v) {
+        runMode = v == null ? RunMode.SOLO : v;
+        if (runMode == RunMode.PARTY) {
+            mode = Mode.PARTY_SECRETS;
+        } else if (mode == Mode.PARTY_SECRETS) {
+            mode = Mode.SOLO_300;
+        }
+    }
 
     public boolean isBloodFirst() { return bloodFirst; }
     public void setBloodFirst(boolean v) { bloodFirst = v; }
 
     /** What the run uses: OFF while the switch is off. */
-    public SecretBloodFirst getSecretBloodFirst() { return secretBloodFirstOn ? secretBloodFirst : SecretBloodFirst.OFF; }
+    /** OFF since apmenu-1121: the rush to the Blood door is the one feature's Blood Rush part, done before the mode starts. */
+    public SecretBloodFirst getSecretBloodFirst() { return SecretBloodFirst.OFF; }
     public void setSecretBloodFirst(SecretBloodFirst v) {
         secretBloodFirstOn = v != null && v != SecretBloodFirst.OFF;
         if (secretBloodFirstOn) {
@@ -298,8 +418,24 @@ public final class AutoSecretConfig {
     public SecretOrder getSecretOrder() { return secretOrder; }
     public void setSecretOrder(SecretOrder v) { secretOrder = v == null ? SecretOrder.LEAST_ETHERWARPS : v; }
 
-    public RoomPlan getRoomPlan() { return roomPlan; }
+    /** Derived from {@link #getMode()}: Secrets Then Clears for Secret Then Clear. */
+    public RoomPlan getRoomPlan() { return mode == Mode.SECRET_THEN_CLEAR ? RoomPlan.SECRETS_THEN_CLEARS : RoomPlan.FASTEST_TOTAL; }
     public void setRoomPlan(RoomPlan v) { roomPlan = v == null ? RoomPlan.FASTEST_TOTAL : v; }
+
+    public Mode getMode() { return mode; }
+    public void setMode(Mode v) { mode = v == null ? Mode.SOLO_300 : v; }
+    public BloodRush getBloodRush() { return bloodRush; }
+    public void setBloodRush(BloodRush v) { bloodRush = v == null ? BloodRush.NONE : v; }
+    public RoomBeforeBlood getRoomBeforeBlood() { return roomBeforeBlood; }
+    public void setRoomBeforeBlood(RoomBeforeBlood v) { roomBeforeBlood = v == null ? RoomBeforeBlood.SAVE_FOR_LAST : v; }
+    public boolean isDisableAfterBloodRush() { return disableAfterBloodRush; }
+    public void setDisableAfterBloodRush(boolean v) { disableAfterBloodRush = v; }
+    public boolean isClearBeforeSecret() { return clearBeforeSecret; }
+    public void setClearBeforeSecret(boolean v) { clearBeforeSecret = v; }
+    public boolean isClearFirst() { return clearFirst; }
+    /** Clear First, or the Clear Then Secret mode: every clear room before any secrets (the planner's clears-only phase). */
+    public boolean clearsFirst() { return clearFirst || mode == Mode.CLEAR_THEN_SECRET; }
+    public void setClearFirst(boolean v) { clearFirst = v; }
 
     public boolean isSkipUnneededSecrets() { return skipUnneededSecrets; }
     public void setSkipUnneededSecrets(boolean v) { skipUnneededSecrets = v; }

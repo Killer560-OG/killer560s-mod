@@ -9,8 +9,8 @@ import java.nio.file.Path;
 
 /**
  * Persisted Auto Clear settings - see {@link AutoClearFeature}. Cheat build only and off by default: {@link #isEnabled()}
- * can never be true on the legit jar, even from a copied cheat config. Read by the shared "Auto Clear" tab (owned by
- * Auto Secret) through these getters and {@link AutoClearSettings#addSettings}.
+ * can never be true on the legit jar, even from a copied cheat config. Its rows are on the Dungeons Autopilot tab
+ * (gui/tab/AutoClearTab), which starts and stops it.
  */
 public final class AutoClearConfig {
 
@@ -103,7 +103,6 @@ public final class AutoClearConfig {
         AutoClearConfig cfg = new AutoClearConfig();
         JsonObject o = ConfigJson.read(CONFIG_PATH);
         if (o != null) {
-            cfg.enabled = ConfigJson.getBool(o, "enabled", cfg.enabled);
             cfg.mode = ConfigJson.getEnum(o, "mode", Mode.class, cfg.mode);
             cfg.weapon = ConfigJson.getEnum(o, "weapon", Weapon.class, cfg.weapon);
             cfg.keybind = KeyUtil.sanitize(ConfigJson.getInt(o, "keybind", cfg.keybind));
@@ -122,7 +121,6 @@ public final class AutoClearConfig {
 
     public void save() {
         JsonObject o = new JsonObject();
-        o.addProperty("enabled", enabled);
         o.addProperty("mode", mode.name());
         o.addProperty("weapon", weapon.name());
         o.addProperty("keybind", keybind);
@@ -136,22 +134,35 @@ public final class AutoClearConfig {
         ConfigJson.write(CONFIG_PATH, o);
     }
 
-    /** The feature switch the tab shows. The legit jar can never report true, even from a copied cheat config. */
+    /** On while the Dungeons Autopilot switch is (apmenu-1121), or {@link #setEnabled} (testkit). The legit jar can never
+     *  report true. */
     public boolean isEnabled() {
-        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && enabled
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && isEnabledRaw()
                 && com.killer560.hub.util.SkyblockGate.allows();
     }
 
-    public boolean isEnabledRaw() { return enabled; }
+    public boolean isEnabledRaw() { return enabled || com.killer560.hub.autosecret.DungeonsAutopilot.isOn(); }
+    /** Not saved and not in the menu since apmenu-1121: the one switch is Dungeons Autopilot's. Tests turn Auto Clear on here. */
     public void setEnabled(boolean v) { enabled = v; }
 
-    public Mode getMode() { return mode; }
+    /** What one Dungeons Autopilot step runs ({@code AutoClearFeature.startRun}); null = the saved values. */
+    private Mode runMode;
+    private Boolean runDoorOnly;
+
+    public void setRunOverride(Mode m, Boolean doorOnlyRun) {
+        runMode = m;
+        runDoorOnly = doorOnlyRun;
+    }
+
+    public Mode getMode() { return runMode != null ? runMode : mode; }
     public void setMode(Mode v) { mode = v == null ? Mode.ANY_MOB_ROOM : v; }
 
     public Weapon getWeapon() { return weapon; }
     public void setWeapon(Weapon v) { weapon = v == null ? Weapon.HYPERION : v; }
 
-    public int getKeybind() { return keybind; }
+    /** The old Clear Toggle Key, only read to migrate it into the Dungeons Autopilot bind; nothing polls it. */
+    public int getKeybindRaw() { return keybind; }
+    public int getKeybind() { return KeyUtil.NONE; }
     public void setKeybind(int v) { keybind = KeyUtil.sanitize(v); }
 
     public boolean isHyperionHops() { return hyperionHops; }
@@ -166,7 +177,7 @@ public final class AutoClearConfig {
     public boolean isPredictiveBats() { return predictiveBats; }
     public void setPredictiveBats(boolean v) { predictiveBats = v; }
 
-    public boolean isDoorOnly() { return doorOnly; }
+    public boolean isDoorOnly() { return runDoorOnly != null ? runDoorOnly : doorOnly; }
     public void setDoorOnly(boolean v) { doorOnly = v; }
 
     public OneTap getOneTap() { return oneTap; }

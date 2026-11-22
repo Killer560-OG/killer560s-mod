@@ -21,6 +21,13 @@ public final class SearchAliases {
             Map.entry("harp progress", "melody's harp helper"),
             Map.entry("time lost", "melody lost"),
             Map.entry("lost to melody", "melody lost"),
+            // apmenu-1121: Auto Clear, Auto Secret, Dungeon Autopilot and Auto Blood Rush became Dungeons Autopilot.
+            Map.entry("auto clear", "dungeons autopilot"),
+            Map.entry("auto secret", "dungeons autopilot"),
+            Map.entry("dungeon autopilot", "dungeons autopilot"),
+            Map.entry("auto blood rush", "dungeons autopilot"),
+            Map.entry("blood rush", "dungeons autopilot"),
+            Map.entry("clear first", "dungeons autopilot"),
             // espname-1118: Dungeon ESP / Mob ESP became Dungeon Mob Highlight.
             Map.entry("dungeon esp", "dungeon mob highlight"),
             Map.entry("mob esp", "dungeon mob highlight"),

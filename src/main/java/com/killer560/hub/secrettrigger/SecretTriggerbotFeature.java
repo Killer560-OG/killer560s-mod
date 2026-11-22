@@ -192,7 +192,6 @@ public final class SecretTriggerbotFeature {
 
     private static boolean standsDown() {
         return com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()
-                || com.killer560.hub.livemap.autoclear.BloodRush.isRunning()
                 // Nor while Auto Clear kills (killer560, 2026-10-20): its held use sets the crosshair's block to the body's
                 // look, and a secret taken then is one the route through the room later waits for.
                 || com.killer560.hub.autoclear.AutoClearFeature.holdsSecretClicks();

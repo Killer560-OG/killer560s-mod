@@ -174,8 +174,6 @@ public final class AutoSecretFeature {
     private static int leaveWaitTicks;
     private static int tourWaitTicks;
 
-    private static boolean toggleWasDown;
-    private static boolean pilotKeyWasDown;
     /** Movement keys held when it started stay ignored until released: only a fresh press is him taking over. */
     private static final boolean[] latchedKeys = new boolean[5];
     private static final boolean[] keyWasDown = new boolean[5];
@@ -438,7 +436,6 @@ public final class AutoSecretFeature {
     }
 
     private static void tick(Minecraft client) {
-        pollToggleKey(client);
         if (phase == Phase.IDLE || stopChecks(client) || playerTookOver(client)) {
             return;
         }
@@ -799,23 +796,6 @@ public final class AutoSecretFeature {
             LOGGER.info("[AutoSecret] waiting: Kill Mimic is working (phase {})", phase);
         }
         return true;
-    }
-
-    private static void pollToggleKey(Minecraft client) {
-        int key = AutoSecretConfig.getInstance().getToggleKey();
-        boolean down = key != KeyUtil.NONE && client.getWindow() != null && McCompat.screen(client) == null
-                && KeyUtil.isBindDown(client.getWindow(), key);
-        if (down && !toggleWasDown) {
-            toggle();
-        }
-        toggleWasDown = down;
-        int pkey = AutoSecretConfig.getInstance().getAutopilotKey();
-        boolean pdown = pkey != KeyUtil.NONE && client.getWindow() != null && McCompat.screen(client) == null
-                && KeyUtil.isBindDown(client.getWindow(), pkey);
-        if (pdown && !pilotKeyWasDown) {
-            toggleAutopilot();
-        }
-        pilotKeyWasDown = pdown;
     }
 
     /** @return true when it stopped */

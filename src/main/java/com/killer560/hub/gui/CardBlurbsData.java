@@ -152,7 +152,7 @@ final class CardBlurbsData {
         d.put("WitherDragonsTab", "Dragon timers and boxes.");
         d.put("Ap3Tab", "Node chains through F7/M7 phases.");
         d.put("AutoBloodCampTab", "Auto attacks for Blood Camp.");
-        d.put("AutoClearTab", "Clears mob rooms at range.");
+        d.put("AutoClearTab", "Plays the run for you.");
         d.put("AutoCloseChestTab", "Closes chests on a key.");
         d.put("ItemQualityTab", "Quality and floor on dungeon drops.");
         d.put("IcedMobsTab", "Boxes frozen mobs.");

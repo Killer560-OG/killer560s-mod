@@ -3,7 +3,6 @@ package com.killer560.hub.livemap;
 import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.gui.ThemeAccent;
-import com.killer560.hub.livemap.autoclear.BloodRush;
 import com.killer560.hub.roomdatabase.RoomEntry;
 import com.killer560.hub.scorecalc.ScoreCalculatorFeature;
 import com.killer560.hub.util.KeyUtil;
@@ -589,9 +588,6 @@ public class InteractiveMapScreen extends Screen implements com.killer560.hub.gu
             if (g != null) {
                 resetViewRect = new int[]{x, rowY - 1, x + LEGEND_W, ty - 1};
             }
-        }
-        if (BloodRush.isRunning()) {
-            ty = text(g, "Blood Rush", x + PAD, ty + 2, MenuStyle.RED);
         }
         // killer560, 2026-09-27: "the extra info ... s+ secrets". Since 2026-10-07 the estimate is tracked whenever
         // this toggle is on (ScoreCalculatorFeature.estimateWanted), Score Calculator or not - it used to draw only

@@ -1687,7 +1687,7 @@ public final class ClearExecutor {
         LiveMapConfig cfg = LiveMapConfig.getInstance();
         // killer560: "the entire portion of interactive map is the teleport pathing" - there is no separate
         // pathing toggle any more, so Interactive Map itself being on is what keeps a queued path alive.
-        if (!externalOwner && !cfg.isInteractiveMapEnabled() && !cfg.isBloodRushEnabled() && (nodes != null || pathPending)) {
+        if (!externalOwner && !cfg.isInteractiveMapEnabled() && (nodes != null || pathPending)) {
             cancel();
         }
         // Keep the floor-wide etherwarp graph warm while he is in a dungeon, so a click only has to search it.

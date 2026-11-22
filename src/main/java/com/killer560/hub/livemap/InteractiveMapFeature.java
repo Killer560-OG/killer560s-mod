@@ -5,7 +5,6 @@ import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.leapmenu.LeapMenuFeature;
 import com.killer560.hub.leapmenu.PartyTracker;
 import com.killer560.hub.livemap.autoclear.AutoClearUtils;
-import com.killer560.hub.livemap.autoclear.BloodRush;
 import com.killer560.hub.livemap.autoclear.ClearExecutor;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ModChat;
@@ -35,7 +34,6 @@ public final class InteractiveMapFeature {
     private static boolean startWasDown = false;
     private static boolean lockedWasDown = false;
     private static boolean goSecretWasDown = false;
-    private static boolean bloodRushWasDown = false;
     private static boolean peeking = false;
 
     /** Per-room (group main tile) last map state, for cleared-by tracking. */
@@ -51,7 +49,6 @@ public final class InteractiveMapFeature {
     static void register() {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("InteractiveMapFeature.tick", InteractiveMapFeature::tick));
         ClearExecutor.register();
-        BloodRush.register();
     }
 
     private static void tick(Minecraft client) {
@@ -125,12 +122,6 @@ public final class InteractiveMapFeature {
         }
         goSecretWasDown = goSecretDown;
         tickPendingGoal(client);
-
-        boolean bloodDown = bindDown(client, hasWindow, cfg.getBloodRushKeyCode(), true);
-        if (bloodDown && !bloodRushWasDown && (McCompat.screen(client) == null || mapOpen) && cfg.isBloodRushEnabled()) {
-            BloodRush.toggle();
-        }
-        bloodRushWasDown = bloodDown;
 
         trackClears(client);
     }
@@ -334,7 +325,7 @@ public final class InteractiveMapFeature {
         // below about whether it can run now, since a route left playing would steer against either answer.
         // No setting: he asked for the map to win.
         com.killer560.hub.autoroutes.AutoRoutesFeature.cancelForInteractiveMap("Interactive Map");
-        boolean busy = ClearExecutor.isBusy() || BloodRush.isRunning() || pendingGoal != null;
+        boolean busy = ClearExecutor.isBusy() || pendingGoal != null;
         if (!busy) {
             DungeonLayout layout = DungeonLayout.capture();
             quietPath();
@@ -344,11 +335,6 @@ public final class InteractiveMapFeature {
         if (!cfg.isMapRetargetMidPath()) {
             ModChat.send(CHAT, ModChat.dim("Already pathing - turn on Retarget Mid-Path to change the goal."));
             return;
-        }
-        if (BloodRush.isRunning()) {
-            // It re-paths to its own next door the moment the queue empties, so leaving it running would
-            // simply undo the retarget a tick later.
-            BloodRush.stop("Stopped (new map goal)");
         }
         ClearExecutor.cancel();
         pendingGoal = goal;

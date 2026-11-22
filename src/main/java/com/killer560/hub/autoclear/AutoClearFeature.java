@@ -158,7 +158,6 @@ public final class AutoClearFeature {
     private static final BodyAim BODY = new BodyAim(() -> { });
 
     private static final boolean[] wasDown = new boolean[6];
-    private static boolean toggleKeyWasDown = false;
 
     private static volatile int positionPackets = 0;
     private static volatile Vec3 posBeforePacket = null;
@@ -209,20 +208,7 @@ public final class AutoClearFeature {
         ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("AutoClearFeature.tick", AutoClearFeature::tick));
         // Escape, the chat key and the Emergency Cancel Key stop it too (killer560, 2026-11-01); a click no longer does.
         com.killer560.hub.macrostop.MacroStop.register("Auto Clear", com.killer560.hub.macrostop.MacroStop.Kind.MOVEMENT, () -> running, why -> stop("you pressed " + why));
-        ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AutoClearSettings.capture", AutoClearSettings::pollCapture));
-        // /autoclear was removed (killer560, 2026-11-01): the Clear Toggle Key starts and stops it.
-        // Auto Clear's rows in the shared Auto Clear tab (Auto Secret's tab): its switch is the tab's first row, the rest
-        // go below Auto Secret's section.
-        com.killer560.hub.gui.tab.AutoClearTab.addMaster((widgets, x, y, width, rebuild) -> {
-            int[] at = {y};
-            AutoClearSettings.addMaster(widgets, x, at, width, rebuild);
-            return at[0];
-        });
-        com.killer560.hub.gui.tab.AutoClearTab.addSection((widgets, x, y, width, rebuild) -> {
-            int[] at = {y};
-            AutoClearSettings.addSettings(widgets, x, at, width, rebuild);
-            return at[0];
-        });
+        // Started and stopped by Dungeons Autopilot (its one switch and keybind, apmenu-1121).
     }
 
     // =========================================================================================== public API (Auto Secret)
@@ -277,6 +263,22 @@ public final class AutoClearFeature {
         }
     }
 
+    /**
+     * Dungeons Autopilot's step: one whole-map run in {@code mode} (door only or not), then {@code done}, or
+     * {@code giveUp(reason)}. False when it did not start (the Blood door already open for a door run, not in a clear).
+     */
+    public static boolean startRun(AutoClearConfig.Mode mode, boolean doorOnlyRun, Runnable done, Consumer<String> giveUp) {
+        AutoClearConfig.getInstance().setRunOverride(mode, doorOnlyRun);
+        start();
+        if (!running) {
+            AutoClearConfig.getInstance().setRunOverride(null, null);
+            return false;
+        }
+        onDone = done;
+        onGiveUp = giveUp;
+        return true;
+    }
+
     public static void toggle() {
         if (running) {
             stop("stopped");
@@ -290,7 +292,7 @@ public final class AutoClearFeature {
             return;
         }
         if (!AutoClearConfig.getInstance().isEnabled()) {
-            say(ModChat.bad("Switch Auto Clear on first (Auto Clear tab)"));
+            say(ModChat.bad("Switch Dungeons Autopilot on first"));
             return;
         }
         if (!DungeonState.isInDungeon() || LiveMapFeature.isInBoss()) {
@@ -305,7 +307,7 @@ public final class AutoClearFeature {
         onGiveUp = null;
         boolean only = AutoClearConfig.getInstance().isDoorOnly();
         Minecraft mc = Minecraft.getInstance();
-        if (only && doorOnlyDone.get() == mc.level && mc.level != null) {
+        if (only && doorOnlyDone.get() == mc.level && mc.level != null && !bloodLocked()) {
             say(ModChat.dim("The Blood door is already open"));
             return;
         }
@@ -316,6 +318,13 @@ public final class AutoClearFeature {
     /** Door Only (killer560, 2026-11-15): no rooms, mobs or secrets; wither doors toward Blood, then it ends for the run. */
     private static boolean doorOnly = false;
     private static java.lang.ref.WeakReference<Object> doorOnlyDone = new java.lang.ref.WeakReference<>(null);
+
+    /** A new floor in the same world (the sim) locks the Blood door again: "already open" no longer holds. */
+    private static boolean bloodLocked() {
+        DungeonLayout layout = DungeonLayout.capture();
+        int blood = layout.bloodDoor();
+        return blood >= 0 && layout.isLocked(blood);
+    }
 
     /** The testkit's Grim server has no dungeon map: the door cell Door Only goes for (-1 = the map's next door). */
     private static volatile int forcedDoor = -1;
@@ -468,6 +477,7 @@ public final class AutoClearFeature {
         singleRoom = null;
         onDone = null;
         onGiveUp = null;
+        AutoClearConfig.getInstance().setRunOverride(null, null);
         com.killer560.hub.autoroutes.RunPlan.clear(com.killer560.hub.autoroutes.RunPlan.Source.AUTO_CLEAR);
     }
 
@@ -481,7 +491,6 @@ public final class AutoClearFeature {
             }
         }
         LocalPlayer player = client.player;
-        pollToggleKey(client);
         if (player == null) {
             return;
         }
@@ -5453,16 +5462,6 @@ public final class AutoClearFeature {
             wasDown[i] = down;
         }
         return pressed;
-    }
-
-    private static void pollToggleKey(Minecraft client) {
-        int key = AutoClearConfig.getInstance().getKeybind();
-        boolean down = key != KeyUtil.NONE && McCompat.screen(client) == null && client.getWindow() != null
-                && KeyUtil.isBindDown(client.getWindow(), key);
-        if (down && !toggleKeyWasDown && client.player != null) {
-            toggle();
-        }
-        toggleKeyWasDown = down;
     }
 
     private static void say(net.minecraft.network.chat.Component... parts) {

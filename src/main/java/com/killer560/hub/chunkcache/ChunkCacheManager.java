@@ -151,7 +151,7 @@ public final class ChunkCacheManager {
 
     private static boolean keepChunksLoadedRaw() {
         LiveMapConfig live = LiveMapConfig.getInstance();
-        return live.isKeepChunksLoadedRaw() && (live.isInteractiveMapEnabledRaw() || live.isBloodRushEnabledRaw());
+        return live.isKeepChunksLoadedRaw() && live.isInteractiveMapEnabledRaw();
     }
 
     private static void onClientTick(Minecraft client) {

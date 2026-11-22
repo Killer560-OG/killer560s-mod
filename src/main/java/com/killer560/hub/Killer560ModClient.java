@@ -363,6 +363,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.autoclear.BatLog.register();
         com.killer560.hub.util.CommandTreeRefresh.watch(() -> com.killer560.hub.autoclear.AutoClearConfig.getInstance().isEnabledRaw());
         com.killer560.hub.autosecret.AutoSecretFeature.register();
+        com.killer560.hub.autosecret.DungeonsAutopilot.register();
         com.killer560.hub.autotrap.AutoTrap.register();
         // Insta-clear recorder for Auto Secret: passive, cheat build only (register() is a no-op in legit), idempotent.
         com.killer560.hub.autosecret.InstaClearTracker.register();

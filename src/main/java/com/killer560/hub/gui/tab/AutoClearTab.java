@@ -1,10 +1,11 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.autoclear.AutoClearConfig;
 import com.killer560.hub.autosecret.AutoSecretConfig;
 import com.killer560.hub.autosecret.AutoSecretFeature;
+import com.killer560.hub.autosecret.DungeonsAutopilot;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import com.killer560.hub.util.KeyUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.StringWidget;
@@ -12,122 +13,31 @@ import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.Locale;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 import java.util.function.DoubleConsumer;
 import java.util.function.Supplier;
 
 /**
- * "Auto Clear" - CHEAT BUILD ONLY (killer560, 2026-10-06): Auto Secret's settings, then Auto Clear's.
- *
- * <p>Auto Clear is another feature, built separately; it adds its own rows through {@link #addSection}, so neither
- * feature edits the other's code and this class is the only one that lays the tab out. A section is told where to
- * start and returns where the next one starts, so rows never share a rectangle (testkit 386 walks every tab for
- * overlaps). Until a section is registered the tab says Auto Clear is not in the build.
+ * "Dungeons Autopilot" - CHEAT BUILD ONLY (apmenu-1121, killer560 2026-11-21: "one button with a couple of different
+ * modes ... it should all just be under one keybind"): the one card over Auto Clear, Auto Secret, the Dungeon Autopilot
+ * planner and the old Auto Blood Rush. The first row is {@link DungeonsAutopilot}'s switch (never saved, so a restart
+ * never starts a run); its Toggle Keybind is the drawer's ModuleKeybinds row (id "AutoClearTab", kept so old binds and
+ * profiles carry over). Every other row is a saved setting of AutoSecretConfig or AutoClearConfig.
  */
-public class AutoClearTab extends BaseTab implements KeyCaptureTab {
+public class AutoClearTab extends BaseTab {
 
     private static final int GAP = 6;
     private static final int ROW = 24;
 
-    /** One feature's block of rows in this tab. */
-    @FunctionalInterface
-    public interface Section {
-        /**
-         * Adds this section's widgets starting at {@code y}.
-         * @return the y the next section starts at (below the last row this one added)
-         */
-        int build(List<AbstractWidget> widgets, int x, int y, int width, Runnable requestRebuild);
-    }
-
-    private static final List<Section> SECTIONS = new CopyOnWriteArrayList<>();
-
-    /** For Auto Clear (or anything else that belongs in this tab): its rows go below Auto Secret's. */
-    public static void addSection(Section section) {
-        if (section != null) {
-            SECTIONS.add(section);
-        }
-    }
-
-    /** The tab's first row(s): Auto Clear's ON/OFF switch, which is the tab's saved switch and its card's. */
-    private static final List<Section> MASTERS = new CopyOnWriteArrayList<>();
-
-    /** For Auto Clear: its ON/OFF row, drawn as the tab's first row (above the Autopilot's start/stop rows). */
-    public static void addMaster(Section section) {
-        if (section != null) {
-            MASTERS.add(section);
-        }
-    }
-
-    private boolean capturing;
-    /** The key being captured is the Autopilot's, not Auto Secret's. */
-    private boolean capturingPilot;
-
     public AutoClearTab() {
-        super("Auto Clear");
+        super("Dungeons Autopilot");
     }
 
     @Override
     public boolean isCheatOnly() {
         return true;
-    }
-
-    @Override
-    public boolean isListeningForKey() {
-        return capturing || com.killer560.hub.autoclear.AutoClearSettings.isCapturing();
-    }
-
-    @Override
-    public void cancelKeyCapture() {
-        capturing = false;
-        capturingPilot = false;
-        com.killer560.hub.autoclear.AutoClearSettings.cancelCapture();
-    }
-
-    @Override
-    public void onKeyCaptured(int keyCode) {
-        if (com.killer560.hub.autoclear.AutoClearSettings.isCapturing()) {
-            com.killer560.hub.autoclear.AutoClearSettings.finishCapture(keyCode);
-            return;
-        }
-        if (!capturing) {
-            return;
-        }
-        AutoSecretConfig cfg = AutoSecretConfig.getInstance();
-        int key = keyCode == com.killer560.hub.util.Keys.ESCAPE ? KeyUtil.NONE : KeyUtil.sanitize(keyCode);
-        if (capturingPilot) {
-            cfg.setAutopilotKey(key);
-        } else {
-            cfg.setToggleKey(key);
-        }
-        cfg.save();
-        capturing = false;
-        capturingPilot = false;
-    }
-
-    @Override
-    public boolean supportsMouseCapture() {
-        return true;
-    }
-
-    @Override
-    public void onMouseCaptured(int button) {
-        if (com.killer560.hub.autoclear.AutoClearSettings.isCapturing()) {
-            com.killer560.hub.autoclear.AutoClearSettings.finishCapture(KeyUtil.codeForMouseButton(button));
-            return;
-        }
-        if (!capturing) {
-            return;
-        }
-        AutoSecretConfig cfg = AutoSecretConfig.getInstance();
-        if (capturingPilot) {
-            cfg.setAutopilotKey(KeyUtil.codeForMouseButton(button));
-        } else {
-            cfg.setToggleKey(KeyUtil.codeForMouseButton(button));
-        }
-        cfg.save();
-        capturing = false;
-        capturingPilot = false;
     }
 
     @Override
@@ -137,142 +47,94 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
             return w;
         }
         AutoSecretConfig cfg = AutoSecretConfig.getInstance();
+        AutoClearConfig clear = AutoClearConfig.getInstance();
+        Runnable save = cfg::save;
+        Runnable saveClear = clear::save;
         int half = (contentWidth - GAP) / 2;
+        int colB = contentX + half + GAP;
         int right = Math.max(1, contentWidth - half - GAP);
         int[] y = {contentY};
 
-        // The tab's switch first (Auto Clear's, the one saved ON/OFF here). The Autopilot and Auto Secret rows below it
-        // start and stop a run; they are actions, not settings, so they keep their Running / Stopped buttons.
-        for (Section s : MASTERS) {
-            y[0] = s.build(w, contentX, y[0], contentWidth, requestRebuild);
-        }
-        // Dungeon Autopilot: Auto Secret, Auto Clear and Auto Puzzles under one planner (its rows next - it drives the rest).
-        header(w, contentX, y, contentWidth, "Dungeon Autopilot");
-        w.add(SettingsButtonWidget.builder(pilotRunText(), btn -> {
-            AutoSecretFeature.toggleAutopilot();
-            requestRebuild.run();
-        }).bounds(contentX, y[0], half, 20).build());
-        w.add(SettingsButtonWidget.builder(pilotKeyText(cfg), btn -> {
-            capturing = true;
-            capturingPilot = true;
-            btn.setMessage(Component.literal("Autopilot Key: §ePress any key..."));
-        }).bounds(contentX + half + GAP, y[0], right, 20).build());
-        y[0] += ROW;
-        w.add(SettingsButtonWidget.cycleEnum(() -> runModeText(cfg), cfg::getRunMode, cfg::setRunMode, cfg::save).bounds(contentX, y[0], half, 20).build());
-        toggle(w, contentX + half + GAP, y[0], right, "Blood First", cfg::isBloodFirst, cfg::setBloodFirst);
-        y[0] += ROW;
-        toggle(w, contentX, y[0], half, "Do Puzzles", cfg::isDoPuzzles, cfg::setDoPuzzles);
-        toggle(w, contentX + half + GAP, y[0], right, "Status HUD", cfg::isStatusHud, cfg::setStatusHud);
-        y[0] += ROW;
-        double kSpan = AutoSecretConfig.MAX_KEY_BASE - AutoSecretConfig.MIN_KEY_BASE;
-        slider(w, contentX, y[0], contentWidth, () -> String.format(java.util.Locale.US,
-                        "Key Base Range: %.1f (-> %.1f)", cfg.getKeyBaseRange(), cfg.keyPickupRange()),
-                (cfg.getKeyBaseRange() - AutoSecretConfig.MIN_KEY_BASE) / kSpan,
-                v -> cfg.setKeyBaseRange(Math.round((AutoSecretConfig.MIN_KEY_BASE + v * kSpan) * 10) / 10.0));
-        y[0] += ROW;
-
-        header(w, contentX, y, contentWidth, "Auto Secret");
-        w.add(SettingsButtonWidget.builder(runText(), btn -> {
-            AutoSecretFeature.toggle();
-            requestRebuild.run();
-        }).bounds(contentX, y[0], half, 20).build());
-        w.add(SettingsButtonWidget.builder(keyText(cfg), btn -> {
-            capturing = true;
-            capturingPilot = false;
-            btn.setMessage(Component.literal("Auto Secret Key: §ePress any key..."));
-        }).bounds(contentX + half + GAP, y[0], right, 20).build());
-        y[0] += ROW;
-        // Its own label: the Autopilot's "Blood First" switch is in this tab too, and a tooltip is keyed by label.
-        w.add(onOffButton("Secret Blood First", cfg::isSecretBloodFirstOn, cfg::setSecretBloodFirstOn, cfg::save,
+        w.add(onOffButton("Dungeons Autopilot", DungeonsAutopilot::isOn, DungeonsAutopilot::setOn, () -> { },
                 requestRebuild, contentX, y[0], contentWidth, 20));
-        y[0] += ROW;
-        if (cfg.isSecretBloodFirstOn() || isSearchScan()) {
-            w.add(SettingsButtonWidget.cycling(secretBloodFirstText(cfg), (btn, dir) -> {
-                cfg.setSecretBloodFirstMode(cfg.getSecretBloodFirstMode() == AutoSecretConfig.SecretBloodFirst.DOOR_CAMP
-                        ? AutoSecretConfig.SecretBloodFirst.FULL_BLOOD_RUSH : AutoSecretConfig.SecretBloodFirst.DOOR_CAMP);
-                cfg.save();
-                btn.setMessage(secretBloodFirstText(cfg));
-            }).bounds(contentX, y[0], contentWidth, 20).build());
-            y[0] += ROW;
-        }
-        w.add(SettingsButtonWidget.cycleEnum(() -> secretOrderText(cfg), cfg::getSecretOrder, cfg::setSecretOrder, cfg::save).bounds(contentX, y[0], contentWidth, 20).build());
-        y[0] += ROW;
-        w.add(SettingsButtonWidget.cycleEnum(() -> roomPlanText(cfg), cfg::getRoomPlan, cfg::setRoomPlan, cfg::save).bounds(contentX, y[0], half, 20).build());
-        toggle(w, contentX + half + GAP, y[0], right, "Skip Unneeded Secrets", cfg::isSkipUnneededSecrets,
-                cfg::setSkipUnneededSecrets);
-        y[0] += ROW;
-
-        toggle(w, contentX, y[0], half, "Insta Clear First", cfg::isInstaClear, cfg::setInstaClear);
-        toggle(w, contentX + half + GAP, y[0], right, "Ice Fill First", cfg::isIceFillFirst, cfg::setIceFillFirst);
-        y[0] += ROW;
-        // "Auto Clear Rooms" row removed (killer560, 2026-10-17): Auto Secret always hands uncleared rooms to Auto Clear.
-        toggle(w, contentX, y[0], half, "Quiz First", cfg::isQuizFirst, cfg::setQuizFirst);
-        toggle(w, contentX + half + GAP, y[0], right, "Chat Feedback", cfg::isChatFeedback, cfg::setChatFeedback);
-        y[0] += ROW;
-        int pSpan = AutoSecretConfig.MAX_PUZZLE_WAIT_S - AutoSecretConfig.MIN_PUZZLE_WAIT_S;
-        slider(w, contentX, y[0], half, () -> "Puzzle Wait: " + cfg.getPuzzleWaitSeconds() + " s",
-                (cfg.getPuzzleWaitSeconds() - AutoSecretConfig.MIN_PUZZLE_WAIT_S) / (double) pSpan,
-                v -> cfg.setPuzzleWaitSeconds((int) Math.round(AutoSecretConfig.MIN_PUZZLE_WAIT_S + v * pSpan)));
-        int sSpan = AutoSecretConfig.MAX_STALL_S - AutoSecretConfig.MIN_STALL_S;
-        slider(w, contentX + half + GAP, y[0], right, () -> "Route Stall: " + cfg.getRouteStallSeconds() + " s",
-                (cfg.getRouteStallSeconds() - AutoSecretConfig.MIN_STALL_S) / (double) sSpan,
-                v -> cfg.setRouteStallSeconds((int) Math.round(AutoSecretConfig.MIN_STALL_S + v * sSpan)));
         y[0] += ROW;
         w.add(new StringWidget(contentX, y[0], contentWidth, 12, Component.literal("§7" + AutoSecretFeature.statusText()),
                 Minecraft.getInstance().font));
-        y[0] += 16;
+        y[0] += 14;
 
-        if (SECTIONS.isEmpty()) {
-            header(w, contentX, y, contentWidth, "Auto Clear");
-            w.add(new StringWidget(contentX, y[0], contentWidth, 12, Component.literal("§7Auto Clear is not in this build yet."),
-                    Minecraft.getInstance().font));
-            y[0] += 16;
-        } else {
-            for (Section s : SECTIONS) {
-                y[0] = s.build(w, contentX, y[0] + GAP, contentWidth, requestRebuild);
-            }
-        }
+        header(w, contentX, y, contentWidth, "Mode");
+        w.add(SettingsButtonWidget.cycleEnum(() -> value("Mode", cfg.getMode().label()), cfg::getMode, cfg::setMode, save)
+                .bounds(contentX, y[0], contentWidth, 20).build());
+        y[0] += ROW;
+        w.add(SettingsButtonWidget.cycleEnum(() -> value("Blood Rush", cfg.getBloodRush().label()), cfg::getBloodRush,
+                cfg::setBloodRush, save).bounds(contentX, y[0], half, 20).build());
+        toggle(w, colB, y[0], right, "Disable After Blood Rush", cfg::isDisableAfterBloodRush, cfg::setDisableAfterBloodRush, save);
+        y[0] += ROW;
+
+        header(w, contentX, y, contentWidth, "Order");
+        toggle(w, contentX, y[0], half, "Blood First", cfg::isBloodFirst, cfg::setBloodFirst, save);
+        toggle(w, colB, y[0], right, "Clear First", cfg::isClearFirst, cfg::setClearFirst, save);
+        y[0] += ROW;
+        toggle(w, contentX, y[0], half, "Clear Room Before Secreting", cfg::isClearBeforeSecret, cfg::setClearBeforeSecret, save);
+        toggle(w, colB, y[0], right, "Do Puzzles", cfg::isDoPuzzles, cfg::setDoPuzzles, save);
+        y[0] += ROW;
+        toggle(w, contentX, y[0], half, "Insta Clear First", cfg::isInstaClear, cfg::setInstaClear, save);
+        toggle(w, colB, y[0], right, "Ice Fill First", cfg::isIceFillFirst, cfg::setIceFillFirst, save);
+        y[0] += ROW;
+        toggle(w, contentX, y[0], half, "Quiz First", cfg::isQuizFirst, cfg::setQuizFirst, save);
+        toggle(w, colB, y[0], right, "Skip Unnecessary Secrets", cfg::isSkipUnneededSecrets, cfg::setSkipUnneededSecrets, save);
+        y[0] += ROW;
+        w.add(SettingsButtonWidget.cycleEnum(() -> value("Room Before Blood", cfg.getRoomBeforeBlood().label()),
+                cfg::getRoomBeforeBlood, cfg::setRoomBeforeBlood, save).bounds(contentX, y[0], contentWidth, 20).build());
+        y[0] += ROW;
+        w.add(SettingsButtonWidget.cycleEnum(() -> value("Room Order", cfg.getSecretOrder().label()), cfg::getSecretOrder,
+                cfg::setSecretOrder, save).bounds(contentX, y[0], contentWidth, 20).build());
+        y[0] += ROW;
+
+        header(w, contentX, y, contentWidth, "Timing");
+        int pSpan = AutoSecretConfig.MAX_PUZZLE_WAIT_S - AutoSecretConfig.MIN_PUZZLE_WAIT_S;
+        slider(w, contentX, y[0], half, () -> "Puzzle Wait: " + cfg.getPuzzleWaitSeconds() + " s",
+                (cfg.getPuzzleWaitSeconds() - AutoSecretConfig.MIN_PUZZLE_WAIT_S) / (double) pSpan,
+                v -> cfg.setPuzzleWaitSeconds((int) Math.round(AutoSecretConfig.MIN_PUZZLE_WAIT_S + v * pSpan)), save);
+        int sSpan = AutoSecretConfig.MAX_STALL_S - AutoSecretConfig.MIN_STALL_S;
+        slider(w, colB, y[0], right, () -> "Route Stall: " + cfg.getRouteStallSeconds() + " s",
+                (cfg.getRouteStallSeconds() - AutoSecretConfig.MIN_STALL_S) / (double) sSpan,
+                v -> cfg.setRouteStallSeconds((int) Math.round(AutoSecretConfig.MIN_STALL_S + v * sSpan)), save);
+        y[0] += ROW;
+        double kSpan = AutoSecretConfig.MAX_KEY_BASE - AutoSecretConfig.MIN_KEY_BASE;
+        slider(w, contentX, y[0], contentWidth, () -> String.format(Locale.US, "Key Range: %.1f (-> %.1f)",
+                        cfg.getKeyBaseRange(), cfg.keyPickupRange()),
+                (cfg.getKeyBaseRange() - AutoSecretConfig.MIN_KEY_BASE) / kSpan,
+                v -> cfg.setKeyBaseRange(Math.round((AutoSecretConfig.MIN_KEY_BASE + v * kSpan) * 10) / 10.0), save);
+        y[0] += ROW;
+
+        header(w, contentX, y, contentWidth, "Clearing");
+        w.add(SettingsButtonWidget.cycleEnum(() -> value("Clear Weapon", clear.getWeapon().label()), clear::getWeapon,
+                clear::setWeapon, saveClear).bounds(contentX, y[0], half, 20).build());
+        w.add(SettingsButtonWidget.cycleEnum(() -> value("One-Tap Warp", clear.getOneTap().label()), clear::getOneTap,
+                clear::setOneTap, saveClear).bounds(colB, y[0], right, 20).build());
+        y[0] += ROW;
+        toggle(w, contentX, y[0], half, "Hyperion Hops", clear::isHyperionHops, clear::setHyperionHops, saveClear);
+        toggle(w, colB, y[0], right, "Pick Up Wither Keys", clear::isPickUpKeys, clear::setPickUpKeys, saveClear);
+        y[0] += ROW;
+        toggle(w, contentX, y[0], half, "Walk When Faster", clear::isWalkWhenFaster, clear::setWalkWhenFaster, saveClear);
+        toggle(w, colB, y[0], right, "Predictive Bats", clear::isPredictiveBats, clear::setPredictiveBats, saveClear);
+        y[0] += ROW;
+        int mSpan = AutoClearConfig.MAX_MOB_TIMEOUT_TICKS - AutoClearConfig.MIN_MOB_TIMEOUT_TICKS;
+        slider(w, contentX, y[0], contentWidth, () -> String.format(Locale.US, "Mob Timeout: %.1fs", clear.getMobTimeoutTicks() / 20.0),
+                (clear.getMobTimeoutTicks() - AutoClearConfig.MIN_MOB_TIMEOUT_TICKS) / (double) mSpan,
+                v -> clear.setMobTimeoutTicks((int) Math.round(AutoClearConfig.MIN_MOB_TIMEOUT_TICKS + v * mSpan)), saveClear);
+        y[0] += ROW;
+
+        header(w, contentX, y, contentWidth, "Display");
+        toggle(w, contentX, y[0], half, "Status HUD", cfg::isStatusHud, cfg::setStatusHud, save);
+        toggle(w, colB, y[0], right, "Chat Feedback", cfg::isChatFeedback, cfg::setChatFeedback, save);
+        y[0] += ROW;
         return w;
     }
 
-    private static Component pilotRunText() {
-        return Component.literal(AutoSecretFeature.isAutopilot() ? "§cStop Autopilot" : "§aStart Autopilot");
-    }
-
-    private Component pilotKeyText(AutoSecretConfig cfg) {
-        if (capturing && capturingPilot) {
-            return Component.literal("Autopilot Key: §ePress any key...");
-        }
-        int key = cfg.getAutopilotKey();
-        return Component.literal("Autopilot Key: " + (key == KeyUtil.NONE ? "§7Not Set" : "§e" + KeyUtil.bindDisplayName(key)));
-    }
-
-    private static Component runModeText(AutoSecretConfig cfg) {
-        return Component.literal("Run Mode: §e" + cfg.getRunMode().label());
-    }
-
-    private static Component secretBloodFirstText(AutoSecretConfig cfg) {
-        return Component.literal("Blood First Mode: §e" + cfg.getSecretBloodFirstMode().label());
-    }
-
-    private static Component secretOrderText(AutoSecretConfig cfg) {
-        return Component.literal("Room Order: §e" + cfg.getSecretOrder().label());
-    }
-
-    private static Component roomPlanText(AutoSecretConfig cfg) {
-        return Component.literal("Room Plan: §e" + cfg.getRoomPlan().label());
-    }
-
-    private static Component runText() {
-        return Component.literal(AutoSecretFeature.isRunning() ? "§cStop Auto Secret" : "§aStart Auto Secret");
-    }
-
-    private Component keyText(AutoSecretConfig cfg) {
-        if (capturing && !capturingPilot) {
-            return Component.literal("Auto Secret Key: §ePress any key...");
-        }
-        int key = cfg.getToggleKey();
-        return Component.literal("Auto Secret Key: " + (key == KeyUtil.NONE ? "§7Not Set" : "§e" + KeyUtil.bindDisplayName(key)));
+    private static Component value(String label, String value) {
+        return Component.literal(label + ": §e" + value);
     }
 
     private static void header(List<AbstractWidget> w, int x, int[] y, int width, String text) {
@@ -281,14 +143,13 @@ public class AutoClearTab extends BaseTab implements KeyCaptureTab {
         y[0] += 16;
     }
 
-    private static void toggle(List<AbstractWidget> w, int x, int y, int width, String name, Supplier<Boolean> getter,
-                               Consumer<Boolean> setter) {
-        w.add(onOffButton(name,
-                getter::get, setter, () -> AutoSecretConfig.getInstance().save(), null, x, y, Math.max(1, width), 20));
+    private static void toggle(List<AbstractWidget> w, int x, int y, int width, String name, BooleanSupplier getter,
+                               Consumer<Boolean> setter, Runnable save) {
+        w.add(onOffButton(name, getter, setter, save, null, x, y, Math.max(1, width), 20));
     }
 
     private static void slider(List<AbstractWidget> w, int x, int y, int width, Supplier<String> text, double normalized,
-                               DoubleConsumer apply) {
-        w.add(normSlider(x, y, Math.max(1, width), 20, text, normalized, apply, () -> AutoSecretConfig.getInstance().save()));
+                               DoubleConsumer apply, Runnable save) {
+        w.add(normSlider(x, y, Math.max(1, width), 20, text, normalized, apply, save));
     }
 }

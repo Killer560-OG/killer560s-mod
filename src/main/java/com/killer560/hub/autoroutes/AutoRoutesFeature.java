@@ -5,7 +5,6 @@ import com.killer560.hub.livemap.DungeonLayout;
 import com.killer560.hub.livemap.InteractiveMapFeature;
 import com.killer560.hub.livemap.InteractiveMapScreen;
 import com.killer560.hub.livemap.LiveMapFeature;
-import com.killer560.hub.livemap.autoclear.BloodRush;
 import com.killer560.hub.livemap.autoclear.ClearExecutor;
 import com.killer560.hub.livemap.autoclear.TeleportUtils;
 import com.killer560.hub.secrets.DungeonState;
@@ -524,9 +523,8 @@ public final class AutoRoutesFeature {
             chatBad("Stop recording first (/ar stop record) - a warp would be recorded into the route.");
             return false;
         }
-        if (ClearExecutor.isBusy() || BloodRush.isRunning()) {
-            LOGGER.info("[AutoRoutes] Go To #{} refused: map warp busy={} bloodRush={}", number, ClearExecutor.isBusy(),
-                    BloodRush.isRunning());
+        if (ClearExecutor.isBusy()) {
+            LOGGER.info("[AutoRoutes] Go To #{} refused: map warp busy", number);
             chatBad("An Interactive Map warp is already running - let it finish, then press Go To again.");
             return false;
         }
@@ -1004,11 +1002,10 @@ public final class AutoRoutesFeature {
         // false by design and a node underfoot would otherwise arm in the gap and steer against the warp that
         // is about to start (killer560, 2026-09-29: "it'll use the interactive map portion instead of the
         // secret route portion").
-        if (BloodRush.isRunning() || ClearExecutor.isBusy() || InteractiveMapFeature.isSteering()) {
-            gate("inert: " + (BloodRush.isRunning() ? "Auto Blood Rush" : ClearExecutor.isBusy()
-                    ? "Interactive Map teleport in flight" : "Interactive Map steering"));
+        if (ClearExecutor.isBusy() || InteractiveMapFeature.isSteering()) {
+            gate("inert: " + (ClearExecutor.isBusy() ? "Interactive Map teleport in flight" : "Interactive Map steering"));
             if (RouteExecutor.isRunning()) {
-                RouteExecutor.stop(BloodRush.isRunning() ? "Auto Blood Rush" : "Interactive Map teleport");
+                RouteExecutor.stop("Interactive Map teleport");
             }
             mapArrivalGuard = true;
             addedToFire = null;

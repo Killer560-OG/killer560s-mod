@@ -425,11 +425,8 @@ public final class SecretAuraFeature {
         // A trip held at its start (Auto Secret's last-node wait) has not moved him: he is still in the room whose
         // last secret is being waited for, and standing down here is what made that wait never end (2026-10-15).
         if (com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy()
-                && !com.killer560.hub.livemap.autoclear.ClearExecutor.heldAtStart()
-                || com.killer560.hub.livemap.autoclear.BloodRush.isRunning()) {
-            logHeld("mapTravel", "interactive map trip or Blood Rush running (clearBusy="
-                    + com.killer560.hub.livemap.autoclear.ClearExecutor.isBusy() + " bloodRush="
-                    + com.killer560.hub.livemap.autoclear.BloodRush.isRunning() + ") target=" + bestKind + "@" + xyz(bestPos));
+                && !com.killer560.hub.livemap.autoclear.ClearExecutor.heldAtStart()) {
+            logHeld("mapTravel", "interactive map trip running target=" + bestKind + "@" + xyz(bestPos));
             return;
         }
         // Nor while Auto Routes' Kill Mimic is at work: it aims the camera straight down, and the aura's own turn (and

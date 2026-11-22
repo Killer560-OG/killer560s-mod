@@ -52,7 +52,7 @@ final class FeatureDescriptions {
         BY_TAB.put("HidePotionEffectsTab", "Hides the potion effects panel beside your inventory, and the effect icons in the HUD's top right.");
         BY_TAB.put("AutoBloodCampTab", "Cheat build: Trigger Bot and Aura for the Blood Camp mobs.");
         BY_TAB.put("AutoTerminalTab", "Cheat build: clicks Floor 7 terminals for you, and Hover Terminals clicks the one you point at.");
-        BY_TAB.put("InteractiveMapTab", "Cheat build: the full-screen map that paths to a room, and Auto Blood Rush.");
+        BY_TAB.put("InteractiveMapTab", "Cheat build: the full-screen map that paths to a room.");
         BY_TAB.put("I4SensorsTab", "Sharp Shooter (i4): the solver, and the cheat build's Auto i4 and I4 Leap.");
     }
 

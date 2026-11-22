@@ -30,7 +30,7 @@ import java.util.List;
  */
 public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
 
-    private enum KeyTarget { OPEN, START, LOCKED_DOOR, GO_SECRET, BLOOD_RUSH }
+    private enum KeyTarget { OPEN, START, LOCKED_DOOR, GO_SECRET }
 
     private KeyTarget capturing = null;
 
@@ -42,12 +42,6 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
     @Override
     public boolean isCheatOnly() {
         return true;
-    }
-
-    /** The card is ON while any of its features is, OFF only when all are (killer560, 2026-10-14): the Interactive Map and Auto Blood Rush are separate features. */
-    @Override
-    public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
-        return switchRows(built, "Interactive Map", "Auto Blood Rush");
     }
 
     @Override
@@ -148,24 +142,6 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
             y += 24;
         }
 
-        // ---------------------------------------------------------------- auto blood rush (killer560: "Move auto
-        // blood rush into its own section")
-        widgets.add(SectionHeaders.row(contentX, y, contentWidth, "Auto Blood Rush", true));
-        y += 16;
-        widgets.add(SettingsButtonWidget.builder(LiveMapTab.onOff("Auto Blood Rush", cfg.isBloodRushEnabledRaw()), btn -> {
-                    cfg.setBloodRushEnabled(!cfg.isBloodRushEnabledRaw());
-                    cfg.save();
-                    requestRebuild.run();
-                }).bounds(contentX, y, contentWidth, 20).build());
-        y += 24;
-        if (cfg.isBloodRushEnabledRaw()) {
-            widgets.add(keyButton("Blood Rush Key", KeyTarget.BLOOD_RUSH, cfg.getBloodRushKeyCode(), contentX, y, colW));
-            // "Click Door on Arrival" removed (killer560: "remove the click door on arrival setting from auto
-            // blood rush") - opening the door is Auto Door Opener's job now, so Door Timeout takes the full row.
-            widgets.add(LiveMapTab.slider("Door Timeout", cfg::getBloodRushDoorTimeoutSec,
-                    v -> cfg.setBloodRushDoorTimeoutSec((int) Math.round(v)), 5, 60, " s", cfg, colB, y, colW));
-            y += 20;
-        }
         com.killer560.hub.gui.ScreenThemes.append(widgets, com.killer560.hub.livemap.InteractiveMapScreen.THEME_ID,
                 contentX, contentWidth, y);
         return widgets;
@@ -230,7 +206,6 @@ public class InteractiveMapTab extends BaseTab implements KeyCaptureTab {
                 case START -> cfg.setStartKeyCode(code);
                 case LOCKED_DOOR -> cfg.setLockedDoorKeyCode(code);
                 case GO_SECRET -> cfg.setGoSecretKeyCode(code);
-                case BLOOD_RUSH -> cfg.setBloodRushKeyCode(code);
             }
         }
         capturing = null;

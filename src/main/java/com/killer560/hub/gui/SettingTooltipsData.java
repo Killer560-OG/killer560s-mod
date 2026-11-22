@@ -476,34 +476,39 @@ final class SettingTooltipsData {
     }
 
     private static void autoSecret(Map<String, String> d) {
-        d.put("auto trap/auto trap", "Cheat build: plays your New Trap and Old Trap routes through Auto Routes. Dungeon Autopilot uses trap rooms only with this on.");
-        d.put("auto trap/mode", "Shown once you captured your own Full Trap route. Full Trap: your route that does the whole trap. Just Cleared: the route that only gets the room cleared (built in, or your own capture). This picks which one plays (Dungeon Autopilot Solo picks per score itself).");
+        d.put("auto trap/auto trap", "Cheat build: plays your New Trap and Old Trap routes through Auto Routes. Dungeons Autopilot uses trap rooms only with this on.");
+        d.put("auto trap/mode", "Shown once you captured your own Full Trap route. Full Trap: your route that does the whole trap. Just Cleared: the route that only gets the room cleared (built in, or your own capture). This picks which one plays (Dungeons Autopilot Solo picks per score itself).");
         d.put("auto trap/capture full trap", "Copies your Auto Routes route for this trap room into its Full Trap slot. Full Trap has no built-in route: it exists only once you capture your own.");
         d.put("auto trap/capture just cleared", "Copies your Auto Routes route for this trap room into its Just Cleared slot, used instead of the built-in one.");
         d.put("auto trap/clear full trap", "Deletes this trap room's saved Full Trap route.");
         d.put("auto trap/clear just cleared", "Deletes this trap room's saved Just Cleared route.");
-        d.put("auto clear/key base range", "Pickup range for dungeon keys, in blocks. The range used (shown after the arrow) adds 5 to this.");
-        d.put("auto clear/autopilot", "Cheat build: Dungeon Autopilot runs Auto Secret, Auto Clear and Auto Puzzles under one planner; any movement key takes over.");
-        d.put("auto clear/autopilot key", "Starts or stops Dungeon Autopilot (Backspace clears it). Works only in a dungeon, outside the boss.");
-        d.put("auto clear/run mode", "Solo plays for the best score per second toward 300 with the blood door last; Party does your routes first and never opens the blood door.");
-        d.put("auto clear/blood first", "First clear the Blood Rush Split path and open its doors (wither doors with a key, then the blood door), then the rest of the floor by the Run Mode. Without the key it does the rest meanwhile.");
-        d.put("auto clear/do puzzles", "Treat puzzles like rooms: go to one and let Auto Puzzles solve it. Only puzzles whose auto is switched on.");
-        d.put("auto clear/status hud", "One small HUD showing what Auto Clear, Auto Secret and Dungeon Autopilot are doing, hidden while nothing runs; move it in the HUD editor.");
-        d.put("auto clear/auto secret", "Cheat build: secrets the floor with your Auto Routes - the reachable room with the most unfound secrets first, warping to its route's start node. Any movement key takes over. Needs Auto Routes on.");
-        d.put("auto clear/auto secret key", "Starts or stops Auto Secret (Backspace clears it). Works only in a dungeon, outside the boss.");
-        for (String k : new String[]{"autopilot", "auto secret"}) { // the run buttons read "Start X" / "Stop X"
-            d.put("auto clear/start " + k, d.get("auto clear/" + k));
-            d.put("auto clear/stop " + k, d.get("auto clear/" + k));
-        }
-        d.put("auto clear/secret blood first","Auto Secret only: when ON, it does blood first. Off starts on secrets.");
-        d.put("auto clear/blood first mode","Door Camp first opens the way to the blood door so the Watcher starts. Full Blood Rush also has Auto Clear clear the Blood Rush rooms first.");
-        d.put("auto clear/room plan", "How Auto Secret fits Auto Clear in: Fastest Total clears each room on the same visit as its secrets, Secrets Then Clears does every secret room first and the uncleared rooms after.");
-        d.put("auto clear/skip unneeded secrets", "Fastest Total only, off by default: once the Score Calculator says S+ needs no more secrets, the slowest rooms are only cleared and their secrets left.");
-        d.put("auto clear/insta clear first","Before secreting, warp into uncleared rooms through entries the Insta Clear tracker KNOWS clear them. Never a guessed entry.");
-        d.put("auto clear/ice fill first", "When the floor has Ice Fill and Auto Ice Fill is on, go there first and let Auto Ice Fill do it.");
-        d.put("auto clear/chat feedback", "Chat lines for each room Auto Secret goes to or skips. Stops and server corrections are always said.");
-        d.put("auto clear/puzzle wait", "At the end, how long to stand in an unfinished puzzle for it to be done before moving on.");
-        d.put("auto clear/route stall", "A route with no node fired for this long is waiting for a walk nobody will make: stopped, and the next room taken.");
+        d.put("dungeons autopilot", "Cheat build: one switch for the whole dungeon run: the Blood Rush part first (if picked), then rooms, secrets and puzzles by the Mode and the order settings below. Starts when the run does if switched on in the green room; switching off, Escape or the Emergency Cancel Key stops it. Never on after a restart.");
+        d.put("dungeons autopilot/dungeons autopilot", d.get("dungeons autopilot"));
+        d.put("dungeons autopilot/mode", "Solo 300: the fastest way for one player to reach score 300 (blood door last). Clear Then Secret: every mob room cleared first, then the secrets. Secret Then Clear: the secrets first, then the rooms left uncleared. Party Secrets: your routes for the party, never opening the blood door.");
+        d.put("dungeons autopilot/blood rush", "What it does first: None starts on the rooms at once. Clear clears the mob rooms on the shortest way from the Entrance to Blood, then opens the doors. Door goes door to door toward Blood, clicking each wither door once a key is held, until the Blood door is open.");
+        d.put("dungeons autopilot/disable after blood rush", "Switches Dungeons Autopilot off once the Blood Rush part is done (the Blood door open), so you take over from there.");
+        d.put("dungeons autopilot/blood first", "First clear the Blood Rush path and open its doors (wither doors with a key, then the blood door), then the rest of the floor by the Mode. Without the key it does the rest meanwhile.");
+        d.put("dungeons autopilot/clear first", "Prioritizes clearing every single room in the dungeon before it starts secreting.");
+        d.put("dungeons autopilot/clear room before secreting", "Whenever it enters a room, it kills all of the mobs in that room first to clear it; once the room is cleared, it secrets that room.");
+        d.put("dungeons autopilot/do puzzles", "Treat puzzles like rooms: go to one and let Auto Puzzles solve it. Only puzzles whose auto is switched on.");
+        d.put("dungeons autopilot/insta clear first", "Before secreting, warp into uncleared rooms through entries the Insta Clear tracker KNOWS clear them. Never a guessed entry.");
+        d.put("dungeons autopilot/ice fill first", "When the floor has Ice Fill and Auto Ice Fill is on, go there first and let Auto Ice Fill do it.");
+        d.put("dungeons autopilot/quiz first", "Go to the Quiz first (opening a wither door on the way), doing Ice Fill and rooms that fit between the answers and coming back for each one (needs Auto Quiz).");
+        d.put("dungeons autopilot/skip unnecessary secrets", "Once the Score Calculator says S+ needs no more secrets, the slowest rooms are only cleared and their secrets left. Off by default.");
+        d.put("dungeons autopilot/room before blood", "The room whose door opens into the Blood room: Save For Last secrets it after every other room, Skip leaves its secrets out.");
+        d.put("dungeons autopilot/room order", "The order rooms are taken in: Largest To Smallest (most secrets left first, nearer first on a tie) or Least Etherwarps (fewest warps in all). Left click goes forward, right click back.");
+        d.put("dungeons autopilot/puzzle wait", "At the end, how long to stand in an unfinished puzzle for it to be done before moving on.");
+        d.put("dungeons autopilot/route stall", "A route with no node fired for this long is waiting for a walk nobody will make: stopped, and the next room taken.");
+        d.put("dungeons autopilot/key range", "Pickup range for dungeon keys, in blocks. The range used (shown after the arrow) adds 5 to this. 1 by default.");
+        d.put("dungeons autopilot/clear weapon", "What kills the mobs: the Hyperion's Wither Impact where you land, or the Spirit Sceptre's bat, which also reaches a mob inside a wall.");
+        d.put("dungeons autopilot/one-tap warp", "When one bat is sure to kill its mob, At Once moves on as the bat leaves, After Impact moves on when it should land, Off stays on the mob.");
+        d.put("dungeons autopilot/hyperion hops", "ON reaches near mobs with Wither Impact hops (each hop that lands in reach also kills) and far ones by etherwarp; needs a Hyperion in the hotbar.");
+        d.put("dungeons autopilot/pick up wither keys", "ON: a Wither Key dropped during a clear (within 40 blocks) is fetched before clearing goes on, so the wither door can be opened.");
+        d.put("dungeons autopilot/walk when faster", "Walks short ground distances instead of etherwarping, when the walk is possible.");
+        d.put("dungeons autopilot/predictive bats", "ON aims a Spirit Sceptre bat where a moving mob will be when the bat reaches it; OFF aims at the mob as it stands.");
+        d.put("dungeons autopilot/mob timeout", "How long one starred mob is attacked without dying before it is skipped.");
+        d.put("dungeons autopilot/status hud", "One small HUD showing what Dungeons Autopilot is doing, hidden while nothing runs; move it in the HUD editor.");
+        d.put("dungeons autopilot/chat feedback", "Chat lines for each room it goes to or skips. Stops and server corrections are always said.");
     }
 
     private static void part1(Map<String, String> d) {
@@ -898,17 +903,7 @@ final class SettingTooltipsData {
         d.put("auto routes/replan for my range", "Saved path warps are planned with Transmission Tuners. On: any warp longer than your etherwarp reaches is planned again for your range.");
         d.put("auto routes/master mode", "In a Master Mode floor, each crypt, Mimic and Prince kill step uses its weapon once and the route moves on, dead or not. Skip Kills (shown while One Try is on) skips those steps with no use at all. Other floors are unchanged.");
         d.put("auto routes/kill mimic", "After you click a trapped chest, kills the mimic straight down: the Hyperion once, the Spirit Sceptre until it dies (5 s at most).");
-        // Auto Clear (cheat build; its rows are built by autoclear.AutoClearSettings inside the shared Auto Clear tab).
-        d.put("auto clear", "Cheat build: kills the starred mobs of the dungeon's mob rooms with your Hyperion or Spirit Sceptre; start and stop it with the Clear Toggle Key.");
-        d.put("clear mode", "Any Mob Room clears every uncleared mob room; Blood Rush Split clears only the mob rooms on the shortest path from the Entrance to the Blood door.");
-        d.put("clear weapon", "What kills the mobs: the Hyperion's Wither Impact where you land, or the Spirit Sceptre's bat, which also reaches a mob inside a wall.");
-        d.put("predictive bats", "ON aims a Spirit Sceptre bat where a moving mob will be when the bat reaches it; OFF aims at the mob as it stands.");
-        d.put("one-tap warp", "When one bat is sure to kill its mob, At Once moves on as the bat leaves, After Impact moves on when it should land, Off stays on the mob.");
-        d.put("pick up wither keys", "ON: a Wither Key dropped during a clear (within 40 blocks) is fetched before Auto Clear goes on, so the wither door can be opened.");
-        d.put("door only", "ON: Auto Clear clears no rooms and gets no secrets. It goes to each wither door on the way to Blood, waits there and clicks it whenever a key is held, and stops once the Blood door is open.");
-        d.put("hyperion hops", "ON reaches near mobs with Wither Impact hops (each hop that lands in reach also kills) and far ones by etherwarp; needs a Hyperion in the hotbar.");
-        d.put("mob timeout", "How long one starred mob is attacked without dying before Auto Clear skips it.");
-        d.put("clear toggle key", "Starts and stops Auto Clear. Click, then press a key; Backspace clears it.");
+        // Auto Clear's rows are on the Dungeons Autopilot tab (dungeons autopilot/ keys).
         d.put("auto routes/bat weapon", "What a bat node (/ar add bat) uses straight down, again and again, until a secret bat dies near you after one of your uses.");
         d.put("auto routes/bat attack time", "How long a bat node keeps using the Bat Weapon without a bat kill before the route moves on.");
         d.put("auto routes/crypt weapon", "What a crypt node (/ar add crypt) uses straight down until a crypt or prince of yours dies.");
@@ -1410,7 +1405,7 @@ final class SettingTooltipsData {
         d.put("item browser", "Shows a panel listing every Skyblock item beside your inventory. It filters by the Inventory Search bar at the bottom middle of the screen.");
         d.put("refresh item catalog","Downloads the Skyblock item list again from Hypixel.");
         d.put("auto quiz", "Talks to Oruo, then clicks the correct answer in the Quiz room the moment its cooldown ends (cheat build only).");
-        d.put("quiz first", "Auto Secret, Dungeon Autopilot and Auto Clear go to the Quiz first (opening a wither door on the way), Auto Secret doing Ice Fill and rooms that fit between the answers and back for each one (needs Auto Quiz).");
+        d.put("quiz first", "Dungeons Autopilot goes to the Quiz first (opening a wither door on the way), doing Ice Fill and rooms that fit between the answers and back for each one (needs Auto Quiz).");
         d.put("quiz click delay", "Delay before Auto Quiz clicks the answer, 0-2000 ms.");
         d.put("auto three weirdos", "Opens the correct Three Weirdos chest for you (cheat build only).");
         d.put("chest open delay", "Delay before Auto Three Weirdos opens the chest, 0-2000 ms. Default 0: the chest is clicked the tick it is known and in reach.");
@@ -1475,7 +1470,7 @@ final class SettingTooltipsData {
         d.put("this build", "The commit this jar was built from, and its Minecraft version and variant. Auto Update compares the commit with the release's.");
         d.put("open menu key", "Key that opens this menu in game, when no screen is open and you are not typing. Click, then press a key; Backspace unbinds.");
         d.put("superpairs overview", "A panel beside the Superpairs board: every reward found (green once claimed, gray with only one tile seen), the powerups turned over, the pairs still to find (half-found ones plus up to how many wholly unseen) and the powerups still covered (exact when the board allows, otherwise an upper bound). Needs the solver or Auto E-Table on. Move it in Edit HUD Positions.");
-        d.put("emergency cancel key", "Stops everything automatic at once: every macro, Auto Routes, AP3, Mimic Killer, the Interactive Map's warps, and holds every aura, triggerbot, Auto Terminals, the auto puzzles and Auto I4 until you press it again, change worlds or start a macro yourself (your Slot Binds, Pet Wheel and Loadout Keybinds still work). Click macros (Auto E-Table, Bazaar Flip, Auto Croesus, Auto Sell, Auto Anvil, Inventory Sorter, Storage Scan All) otherwise stop only on Escape; movement macros (Auto Fairy Souls, Auto Secret, Auto Clear, Blood Rush) also on a movement key or opening chat. Not counted while you type in chat or a menu. A key or a mouse button; click, then press it; Backspace unbinds.");
+        d.put("emergency cancel key", "Stops everything automatic at once: every macro, Auto Routes, AP3, Mimic Killer, the Interactive Map's warps, and holds every aura, triggerbot, Auto Terminals, the auto puzzles and Auto I4 until you press it again, change worlds or start a macro yourself (your Slot Binds, Pet Wheel and Loadout Keybinds still work). Click macros (Auto E-Table, Bazaar Flip, Auto Croesus, Auto Sell, Auto Anvil, Inventory Sorter, Storage Scan All) otherwise stop only on Escape; movement macros (Auto Fairy Souls, Dungeons Autopilot) also on a movement key or opening chat. Not counted while you type in chat or a menu. A key or a mouse button; click, then press it; Backspace unbinds.");
         d.put("edit hud keybind", "Key that opens the HUD editor, over any screen (a chest, Croesus, this menu) so its overlays can be placed where they sit. It does nothing while you are typing: chat, a rename, a sign or book, any search box.");
         d.put("correction alarm", "Plays a siren when the server corrects your position during an automation. Nothing is stopped; the mod carries on from the corrected position.");
         d.put("alarm volume", "How loud the Correction Alarm plays, 0-100%.");
@@ -1853,11 +1848,11 @@ final class SettingTooltipsData {
         d.put("etherwarp/warps per tick", "Cheat build: how many etherwarps go in one real tick. Each of your own etherwarps becomes this many, at the same look, each from where the last one lands; an Auto Routes or Interactive Map chain sends up to this many of its warps a tick. 1 = off, up to 20. Each costs mana.");
         d.put("etherwarp/aimed warps", "Cheat build: clicks inside one tick at different looks each warp their own way, all in that tick. Each extra look spends one banked Blink Charge tick.");
         d.put("etherwarp/left click etherwarp", "Cheat build: with an etherwarp item in hand, a left click etherwarps. Sneak goes down, the warp goes the next tick (at once if you already sneak), then sneak comes back up. No attack or swing.");
-        d.put("etherwarp/auto routes", "Cheat build: Zero Ping Etherwarp for Auto Routes and everything that runs it (Auto Secret, Autopilot, Auto Clear, Pathfinding). Consecutive etherwarp nodes go one a tick, each from where the last one will land.");
-        d.put("etherwarp/interactive map", "Cheat build: predicts the Interactive Map's warps: map presses, Go + Secret, Auto Blood Rush and Auto Routes' Go To.");
+        d.put("etherwarp/auto routes", "Cheat build: Zero Ping Etherwarp for Auto Routes and everything that runs it (Dungeons Autopilot, Pathfinding). Consecutive etherwarp nodes go one a tick, each from where the last one will land.");
+        d.put("etherwarp/interactive map", "Cheat build: predicts the Interactive Map's warps: map presses, Go + Secret and Auto Routes' Go To.");
         d.put("etherwarp/auto puzzles", "Cheat build: predicts Auto Puzzles' etherwarps (Ice Path's Etherwarp Reposition and the like).");
         d.put("etherwarp/manual", "Cheat build: predicts your own etherwarps, by right click and by Left Click Etherwarp.");
-        d.put("multi warps/auto routes", "Cheat build: with Blink Charge banked, a run of Auto Routes etherwarp nodes all go out in one tick, one banked tick each. Also Auto Secret, Auto Clear and Pathfinding trips.");
+        d.put("multi warps/auto routes", "Cheat build: with Blink Charge banked, a run of Auto Routes etherwarp nodes all go out in one tick, one banked tick each. Also Dungeons Autopilot and Pathfinding trips.");
         d.put("multi warps/interactive map", "Cheat build: with Blink Charge banked, the Interactive Map's path warps all go out in one tick, one banked tick each.");
         d.put("multi warps/manual", "Cheat build: Warps Per Tick and Aimed Warps act on your own etherwarps.");
         d.put("path timeout", "Cheat build: how long the pathfinder may search before giving up, 0.2-1 s.");
@@ -1865,9 +1860,6 @@ final class SettingTooltipsData {
         d.put("double-press secrets", "Cheat build: pressing the Start Key twice quickly paths to the room's Auto Routes start node.");
         d.put("double-press window", "How long a second press on the same room still counts as a double press, 150-1000 ms.");
         d.put("interactive map/show etherwarp path", "Cheat build: draws a circle at each etherwarp hop of your queued path, joined by lines.");
-        d.put("auto blood rush", "Cheat build: etherwarp-rushes you door to door toward blood once toggled on.");
-        d.put("blood rush key", "Cheat build: toggles Auto Blood Rush on and off.");
-        d.put("door timeout", "Cheat build: how long Blood Rush waits on one door before trying another, 5-60 seconds.");
 
         // ---- Auto Puzzles (cheat build) ----
         d.put("enable auto puzzles", "Cheat build: master switch for the Auto Puzzles section; each auto also needs its own toggle.");
@@ -2596,7 +2588,7 @@ final class SettingTooltipsData {
         d.put("chat keybinds/delete", "Removes this row.");
         d.put("chat keybinds/command or message", "The line to send; start it with / to run it as a command.");
         d.put("door keys/pickup shape", "How the range you pick a key up from is drawn: Circle, a flat circle at the key's height; Sphere, a see-through ball around it - step inside and the key is yours.");
-        d.put("door keys/radius", "Radius of the circle or the sphere, in blocks. Far left follows the key pickup range (Auto Clear's Key Base Range + 5).");
+        d.put("door keys/radius", "Radius of the circle or the sphere, in blocks. Far left follows the key pickup range (Dungeons Autopilot's Key Range + 5).");
         d.put("door keys/circle color", "Color of the pickup circle. Auto: black for a Wither Key, red for a Blood Key, at 50% alpha. Right-click resets to Auto.");
         d.put("door keys/sphere color", "Color of the whole sphere. Auto: black for a Wither Key, red for a Blood Key, at 50% alpha. Right-click resets to Auto.");
         d.put("door keys/tracer color", "Color of the tracer line. Auto matches the circle or sphere color. Right-click resets to Auto.");
@@ -2954,7 +2946,7 @@ final class SettingTooltipsData {
         d.put("ribbon trail/middle color", "The ribbon's color halfway along.");
         d.put("ribbon trail/tail color", "The ribbon's color at its far end, where it fades out.");
         d.put("auto routes/breaker style", "How a route breaks the blocks of its breaker nodes, linger and re-digs, apart from the Breaker Aura card. Breaker Aura: whatever that card is set to. Legit Multi Break: one aimed dig every tick, clean on both GrimAC configs. Burst Multi Break: every block in reach in one tick, up to your charges; newest GrimAC flags it (MultiBreak, RotationBreak), by design.");
-        d.put("auto routes/progress hud", "A movable HUD with the current room's route progress, or the plan of a running Auto Clear, Auto Secret or Autopilot; move it in the HUD editor.");
+        d.put("auto routes/progress hud", "A movable HUD with the current room's route progress, or the plan of a running Dungeons Autopilot; move it in the HUD editor.");
         d.put("auto routes/progress rooms", "How many upcoming rooms the Progress HUD lists after the one under way. Any more show as a +N more line.");
         d.put("ribbon trail/on teleport", "What the ribbon does when you teleport: Break leaves a gap, Connect draws a straight band between the two spots, Arc a rising curve.");
         d.put("ribbon trail/show in first person", "Whether the ribbon is drawn while you are in first person. Third person always shows it.");
@@ -3365,8 +3357,6 @@ final class SettingTooltipsData {
         d.put("add crypt node key", "Keybind for /ar add crypt: a node that kills the crypt you look at with the Crypt Weapon.");
         d.put("add bat node key", "Keybind for /ar add bat: a node that uses the Bat Weapon straight down until a secret bat near you dies.");
         d.put("add jump node key", "Keybind for /ar add jump <n>: a node that jumps once.");
-        d.put("auto clear/walk when faster", "Cheat build: walks short ground distances instead of etherwarping, when the walk is possible.");
-        d.put("auto clear/room order", "The order Auto Secret takes rooms in: Largest To Smallest (most secrets left first, nearer first on a tie) or Least Etherwarps (fewest warps in all). Left click goes forward, right click back.");
         d.put("auto puzzle pathing", "Cheat build: lets Auto Blaze etherwarp straight to a spot it can see by the chest before falling back to the Interactive Map's planned path.");
         d.put("breaker aura/edit mode", "ON: Breaker Aura breaks nothing, so you can change its picked blocks without it swinging (cheat build only).");
         d.put("breaker aura/legit multi break", "Every picked block in reach is broken back to back, one each tick with no gap and no cooldown between them, each on a look the server already has, and Auto Routes breaker nodes do the same. Flags no GrimAC check. OFF: one block per break cycle (Cooldown, or the Interact Delay in legit mode). Turning it on turns Burst Multi Break off.");
