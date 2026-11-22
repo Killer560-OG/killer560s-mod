@@ -15,7 +15,8 @@ import java.util.List;
 
 /**
  * "Auto Trap" - CHEAT BUILD ONLY (killer560, 2026-10-06). The switch, then per trap room: what each of its two route slots
- * (Full Trap, Just Cleared) holds - captured or bundled, node count, when saved - the selected mode, Capture (copies his
+ * (Just Cleared, and Full Trap only once he captured his own) holds - captured or bundled, node count, when saved - the
+ * selected mode (only with his own Full Trap; else a Capture Full Trap button in its place), Capture (copies his
  * Auto Routes route for that room into the selected mode's slot) and Clear (that slot). See {@link AutoTrap}.
  */
 public class AutoTrapTab extends BaseTab {
@@ -59,7 +60,12 @@ public class AutoTrapTab extends BaseTab {
             y += 6;
             w.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal("§f" + trap), font));
             y += 14;
+            // Full Trap exists only once he captured his own (newtrap-1121): no row, no mode, no Clear for it until then.
+            boolean ownFull = AutoTrap.hasOwnFull(trap);
             for (AutoTrap.Mode mode : AutoTrap.Mode.values()) {
+                if (mode == AutoTrap.Mode.FULL && !ownFull) {
+                    continue;
+                }
                 AutoTrap.Entry e = AutoTrap.entry(trap, mode);
                 String state = e == null ? "§cno route" : "§a" + e.source() + "§7, " + e.route().nodes().size() + " nodes"
                         + (e.savedMs() > 0 ? ", " + when.format(new Date(e.savedMs())) : "");
@@ -69,14 +75,16 @@ public class AutoTrapTab extends BaseTab {
             }
             y += 2;
             AutoTrap.Mode mode = AutoTrap.selectedMode(trap);
-            w.add(SettingsButtonWidget.cycling(Component.literal("Mode: §e" + mode.label()), (btn, dir) -> {
-                AutoTrap.setSelectedMode(trap, mode == AutoTrap.Mode.FULL ? AutoTrap.Mode.CLEARED : AutoTrap.Mode.FULL);
-                requestRebuild.run();
-            }).bounds(contentX, y, third, 20).build());
-            w.add(SettingsButtonWidget.builder(Component.literal("Capture " + mode.label()), btn -> {
-                lastMessage = AutoTrap.capture(trap, mode);
-                requestRebuild.run();
-            }).bounds(contentX + third + GAP, y, third, 20).build());
+            if (ownFull) {
+                w.add(SettingsButtonWidget.cycling(Component.literal("Mode: §e" + mode.label()), (btn, dir) -> {
+                    AutoTrap.setSelectedMode(trap, mode == AutoTrap.Mode.FULL ? AutoTrap.Mode.CLEARED : AutoTrap.Mode.FULL);
+                    requestRebuild.run();
+                }).bounds(contentX, y, third, 20).build());
+            } else {
+                // Just Cleared is the only mode: the first button captures his own Full Trap instead of picking a mode.
+                w.add(captureButton(trap, AutoTrap.Mode.FULL, requestRebuild).bounds(contentX, y, third, 20).build());
+            }
+            w.add(captureButton(trap, mode, requestRebuild).bounds(contentX + third + GAP, y, third, 20).build());
             w.add(SettingsButtonWidget.builder(Component.literal("Clear " + mode.label()), btn -> {
                 lastMessage = AutoTrap.clear(trap, mode);
                 requestRebuild.run();
@@ -90,5 +98,12 @@ public class AutoTrapTab extends BaseTab {
         w.add(new StringWidget(contentX, y, contentWidth, 12, Component.literal(
                 "§8Saved in " + AutoTrap.file().getFileName() + "; bundled: " + AutoTrap.BUNDLED), font));
         return w;
+    }
+
+    private static SettingsButtonWidget.Builder captureButton(String trap, AutoTrap.Mode mode, Runnable requestRebuild) {
+        return SettingsButtonWidget.builder(Component.literal("Capture " + mode.label()), btn -> {
+            lastMessage = AutoTrap.capture(trap, mode);
+            requestRebuild.run();
+        });
     }
 }

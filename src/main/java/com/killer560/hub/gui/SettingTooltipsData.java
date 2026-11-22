@@ -477,9 +477,9 @@ final class SettingTooltipsData {
 
     private static void autoSecret(Map<String, String> d) {
         d.put("auto trap/auto trap", "Cheat build: plays your New Trap and Old Trap routes through Auto Routes. Dungeon Autopilot uses trap rooms only with this on.");
-        d.put("auto trap/mode", "Full Trap: the route that does the whole trap. Just Cleared: the route that only gets the room cleared. Each has its own captured route; this picks which one plays (Dungeon Autopilot Solo picks per score itself).");
-        d.put("auto trap/capture full trap", "Copies your Auto Routes route for this trap room into its Full Trap slot.");
-        d.put("auto trap/capture just cleared", "Copies your Auto Routes route for this trap room into its Just Cleared slot.");
+        d.put("auto trap/mode", "Shown once you captured your own Full Trap route. Full Trap: your route that does the whole trap. Just Cleared: the route that only gets the room cleared (built in, or your own capture). This picks which one plays (Dungeon Autopilot Solo picks per score itself).");
+        d.put("auto trap/capture full trap", "Copies your Auto Routes route for this trap room into its Full Trap slot. Full Trap has no built-in route: it exists only once you capture your own.");
+        d.put("auto trap/capture just cleared", "Copies your Auto Routes route for this trap room into its Just Cleared slot, used instead of the built-in one.");
         d.put("auto trap/clear full trap", "Deletes this trap room's saved Full Trap route.");
         d.put("auto trap/clear just cleared", "Deletes this trap room's saved Just Cleared route.");
         d.put("auto clear/key base range", "Pickup range for dungeon keys, in blocks. The range used (shown after the arrow) adds 5 to this.");

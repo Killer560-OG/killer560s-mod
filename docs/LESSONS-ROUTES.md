@@ -108,6 +108,23 @@ and Auto Clear are in [LESSONS-AUTOCLEAR.md](LESSONS-AUTOCLEAR.md). Problem, the
 
 ## Refused and dropped warps
 
+- **No planner may stop inside a trap room on the way in** (newtrap-1121, his 26.3 log 2026-11-21 23:00:37, 23:00:59,
+  23:02:06): every bad New Trap entry was the start-node warp falling back to `EtherwarpPathfinder.legacyDungeonPath`
+  ("the floor graph only lands near ... - room by room: N warp(s)"). Its door leg counted ANY landing inside the next room
+  as done, so a hop landed inside New Trap and the next had to go from there: "You cannot use abilities in this room!",
+  "not warping from inside New Trap", the trip stopped. The floor graph and the exact search already refused dead-end
+  rooms (`deadEnds`: trap, Teleport Maze, Boulder); the room-by-room planner now does too (only the trip's last landing
+  may lie in one). Any new planner leg must take `deadEnds`. Testkit 1121-sim-trap-routes calls the legacy planner from
+  five spots next to each trap, all four rotations, and fails on a firing spot inside the trap.
+  Two more leaks (newtrap-1121-fix): `EtherSearch` let a leg's GOAL BLOCK skip `landingOk` and the blacklist even when the
+  leg's own `isGoal` refused it (the door leg's door-minus-one block can lie in the trap); the exemption now holds only
+  when `isGoal` takes the goal. And `deadEnds` tested the block's corner, so the doorway block (the map's room edge splits
+  it) passed while the server counts it as the trap (its edge lies half a block past the map's, like AutoTrap's
+  LEAVE_MARGIN): the sim refused the warp from (-120.5,-40,-136.5). `deadEnds` now probes the block's center and half a
+  block either way on each axis. Reading a path: every `EtherwarpPathfinder.Node` is a FIRING spot (the block he stands on
+  and the aim used from it); `smooth` leaves the final landing out, so the last landing is the last node's warp cast
+  (`TeleportUtils.getEtherPos`), never the last node's `pos`.
+
 - **Hypixel acks block clicks but not a bare item use** (Mod Only Test log 2026-10-19): the refused-warp retry gated on
   `ChestWindows.acked(warpUseSeq)` fired only when one of HIS later block clicks brought an ack in, and never in six Slime
   #9 refusals, each of which sat the 60-tick timeout and re-fired #5's whole stack from the same spot. The retry now also

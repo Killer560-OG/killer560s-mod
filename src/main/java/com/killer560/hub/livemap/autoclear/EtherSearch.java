@@ -886,8 +886,11 @@ public final class EtherSearch {
         // the whole floor until the deadline. killer560's log (2026-10-04): "No single-room path ... within
         // 57.0 blocks a hop" for a Tic Tac Toe chest 14 blocks from him, ten times in a row, 670 ms each. The
         // aim is the same verified one directHop uses (the real float yaw/pitch is cast and must land on it).
-        boolean goalAimable = etherwarpable(leg.goalX, leg.goalY, leg.goalZ)
-                && leg.isGoal.test(leg.goalX, leg.goalY, leg.goalZ);
+        // The goal block skips the blacklist and landingOk only while the leg's own goal test takes it: a door leg whose
+        // aim block lies in a trap room has it refused (newtrap-1121), and landing there anyway made the next warp go
+        // from inside the trap.
+        boolean goalOk = leg.isGoal.test(leg.goalX, leg.goalY, leg.goalZ);
+        boolean goalAimable = goalOk && etherwarpable(leg.goalX, leg.goalY, leg.goalZ);
         while (heapSize > 0) {
             int cur = pop();
             if (nclosed[cur]) {
@@ -952,7 +955,7 @@ public final class EtherSearch {
                 int hx = hitX;
                 int hy = hitY;
                 int hz = hitZ;
-                boolean isGoalBlock = hx == leg.goalX && hy == leg.goalY && hz == leg.goalZ;
+                boolean isGoalBlock = goalOk && hx == leg.goalX && hy == leg.goalY && hz == leg.goalZ;
                 if (!isGoalBlock && (hitFlags & BLACKLIST) != 0) {
                     continue;
                 }
@@ -1011,6 +1014,7 @@ public final class EtherSearch {
         int n = 0;
         long[] cand = new long[(2 * r + 1) * (2 * r + 1) * (2 * r + 1)];
         int[] candD = new int[cand.length];
+        boolean goalExempt = leg.isGoal.test(leg.goalX, leg.goalY, leg.goalZ);   // see searchLeg's goalOk
         for (int dy = -r; dy <= r; dy++) {
             for (int dx = -r; dx <= r; dx++) {
                 for (int dz = -r; dz <= r; dz++) {
@@ -1024,7 +1028,7 @@ public final class EtherSearch {
                     if (!etherwarpable(x, y, z)) {
                         continue;
                     }
-                    if (d != 0 && (((grid.flags(x, y, z) & BLACKLIST) != 0)
+                    if ((d != 0 || !goalExempt) && (((grid.flags(x, y, z) & BLACKLIST) != 0)
                             || (leg.landingOk != null && !leg.landingOk.test(x, y, z)))) {
                         continue;
                     }

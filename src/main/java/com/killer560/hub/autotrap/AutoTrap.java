@@ -54,8 +54,12 @@ import java.util.Map;
  * <p>Where the routes come from, first wins: his captures ({@code config/killer560/dungeons/autotrap/killer560smod-autotrap.json};
  * the tab's Capture copies his Auto Routes route for that room into the selected mode's slot), then the BUNDLED defaults in
  * the jar at {@value #BUNDLED} ({@code src/main/resources/assets/killer560smod/autotrap/routes.json}, shaped
- * {@code {"routes": {"Old Trap": {"FULL": <route>, "CLEARED": <route>}}}} with each route in the routes file's own
- * format) - none yet; his recordings go there once made.
+ * {@code {"routes": {"Old Trap": {"CLEARED": <route>}}}} with each route in the routes file's own format, room-relative):
+ * his own New Trap and Old Trap routes as of 2026-11-21 (newtrap-1121).
+ *
+ * <p>Just Cleared is the default and the only mode a player has out of the box (killer560, 2026-11-21): nothing Full Trap
+ * is bundled (a bundled FULL is ignored), Full Trap exists for a room only once he captured his own, and a selected or
+ * saved FULL without his own capture reads as CLEARED.
  */
 public final class AutoTrap {
 
@@ -143,12 +147,20 @@ public final class AutoTrap {
 
     public static Mode selectedMode(String room) {
         ensureLoaded();
-        return selected.getOrDefault(room, Mode.FULL);
+        Mode m = selected.getOrDefault(room, Mode.CLEARED);
+        return m == Mode.FULL && !hasOwnFull(room) ? Mode.CLEARED : m;
+    }
+
+    /** He captured his own Full Trap route for this room: the only way Full Trap exists. */
+    public static boolean hasOwnFull(String room) {
+        ensureLoaded();
+        Map<Mode, Entry> c = captured.get(room);
+        return c != null && c.containsKey(Mode.FULL);
     }
 
     public static void setSelectedMode(String room, Mode mode) {
         ensureLoaded();
-        selected.put(room, mode == null ? Mode.FULL : mode);
+        selected.put(room, mode == null ? Mode.CLEARED : mode);
         save();
     }
 
@@ -358,10 +370,13 @@ public final class AutoTrap {
                 JsonObject modes = ConfigJson.getObject(root, "modes");
                 if (modes != null) {
                     for (String room : modes.keySet()) {
-                        selected.put(room, parseMode(ConfigJson.getString(modes, room, "FULL")));
+                        selected.put(room, parseMode(ConfigJson.getString(modes, room, "CLEARED")));
                     }
                 }
                 readInto(captured, ConfigJson.getObject(root, "routes"), true);
+                // A saved FULL from before Full Trap needed his own capture (no route behind it now) becomes CLEARED.
+                selected.replaceAll((room, m) -> m == Mode.FULL && !captured.getOrDefault(room, Map.of())
+                        .containsKey(Mode.FULL) ? Mode.CLEARED : m);
             }
         } catch (Exception e) {
             LOGGER.warn("[AutoTrap] could not read {}: {}", FILE, e.toString());
@@ -395,6 +410,9 @@ public final class AutoTrap {
                     LOGGER.warn("[AutoTrap] {} route for {} {} refused: {}", entries ? "saved" : "bundled", room, m, bad);
                     continue;
                 }
+                if (!entries && parseMode(m) == Mode.FULL) {
+                    continue; // Full Trap is only ever his own capture
+                }
                 long saved = entries && o.has("savedMs") ? o.get("savedMs").getAsLong() : 0L;
                 into.computeIfAbsent(room, k -> new LinkedHashMap<>()).put(parseMode(m),
                         new Entry(route, saved, entries ? "captured" : "bundled"));
@@ -406,7 +424,7 @@ public final class AutoTrap {
         try {
             return Mode.valueOf(s.toUpperCase(Locale.ROOT));
         } catch (Exception e) {
-            return Mode.FULL;
+            return Mode.CLEARED;
         }
     }
 

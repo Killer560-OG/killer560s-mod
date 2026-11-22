@@ -847,9 +847,19 @@ public final class EtherwarpPathfinder {
         if (!any) {
             return null;
         }
+        // He stands in the middle of the block, and the server's room edge lies half a block past the map's (AutoTrap's
+        // LEAVE_MARGIN note): a doorway block counted to the north room from its corner was the trap's to the server,
+        // and the warp fired from it was refused (newtrap-1121, New Trap at rotation 180).
         return (x, y, z) -> {
-            int r = layout.roomAtWorld(x, z);
-            return r >= 0 && r < dead.length && dead[r];
+            for (int i = 0; i < 5; i++) {
+                double px = x + 0.5 + (i == 1 ? 0.5 : i == 2 ? -0.5 : 0);
+                double pz = z + 0.5 + (i == 3 ? 0.5 : i == 4 ? -0.5 : 0);
+                int r = layout.roomAtWorld(px, pz);
+                if (r >= 0 && r < dead.length && dead[r]) {
+                    return true;
+                }
+            }
+            return false;
         };
     }
 
@@ -1199,6 +1209,7 @@ public final class EtherwarpPathfinder {
         }
         long deadline = searchStart + cfg.timeout() * 1_000_000L;
         EtherSearch.CellTest cover = coverTest(view, level);
+        EtherSearch.CellTest dead = deadEnds(layout);
         List<EtherSearch.Hop> path = new ArrayList<>();
         EtherSearch.Hop cur = startHop(from);
         path.add(cur);
@@ -1243,14 +1254,24 @@ public final class EtherwarpPathfinder {
             // a search faster, never make one fail that used to work.
             int boundA = room;
             int boundB = nextRoom;
+            // NO STOP IN A DEAD-END ROOM but the trip's own last landing (newtrap-1121): no ability works inside a
+            // trap room, so a door leg that ended inside New Trap left the final warp to go from in there and Hypixel
+            // refused it ("You cannot use abilities in this room!"). Only the floor graph honored this before.
+            if (dead != null && step.door() >= 0) {
+                EtherSearch.CellTest doorGoal = leg.isGoal;
+                leg.isGoal = (x, y, z) -> !dead.test(x, y, z) && doorGoal.test(x, y, z);
+            }
+            EtherSearch.Leg thisLeg = leg;
+            EtherSearch.CellTest alive = dead == null ? cover
+                    : (x, y, z) -> cover.test(x, y, z) && (!dead.test(x, y, z) || thisLeg.isGoal.test(x, y, z));
             leg.landingOk = (x, y, z) -> {
                 int r = layout.roomAtWorld(x, z);
-                return (r == boundA || r == boundB) && cover.test(x, y, z);
+                return (r == boundA || r == boundB) && alive.test(x, y, z);
             };
             List<EtherSearch.Hop> seg = search.searchLeg(cur, leg);
             expanded += search.expanded;
             if (seg == null && System.nanoTime() < deadline) {
-                leg.landingOk = cover;
+                leg.landingOk = alive;
                 seg = search.searchLeg(cur, leg);
                 expanded += search.expanded;
                 widenedLegs++;

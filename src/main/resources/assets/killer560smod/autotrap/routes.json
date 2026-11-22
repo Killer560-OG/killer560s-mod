@@ -1,4 +1,163 @@
 {
-  "_note": "Auto Trap bundled trap routes: {\"routes\": {\"Old Trap\": {\"FULL\": <route>, \"CLEARED\": <route>}}}, each route in the Auto Routes file format. Copy from config/killer560/dungeons/autotrap/killer560smod-autotrap.json (the \"route\" objects) once recorded.",
-  "routes": {}
+  "_note": "Auto Trap bundled Just Cleared routes: {\"routes\": {\"<trap room>\": {\"CLEARED\": <route>}}}, each route in the Auto Routes file format (room-relative). Full Trap is never bundled: it exists only as the player's own capture.",
+  "routes": {
+    "New Trap": {
+      "CLEARED": {
+        "nodes": [
+          {
+            "type": "PATH",
+            "x": 16.5,
+            "y": 69.0,
+            "z": 28.5,
+            "yaw": -104.382965,
+            "pitch": -32.891003,
+            "at": 0,
+            "start": true,
+            "walkFrom": "16.500000 69.050000 28.500000 0.000000 0.000000 0.000000 1",
+            "walkSrc": "16.500000 69.000000 28.500000",
+            "walkTo": "26.500000 75.000000 28.500000",
+            "walk": "1 0 0 -112.500000 0 1;1 0 0 -67.500000 0 1;1 1 0 -67.500000 0 1;1 0 0 -67.500000 0 1;1 1 0 -67.500000 0 1;1 1 0 -67.500000 0 1;1 1 0 -67.500000 0 1;1 0 0 -67.500000 0 1;1 0 0 -67.500000 0 1;1 1 0 -67.500000 0 1;1 0 0 -67.500000 0 1;1 1 0 -67.500000 0 1;1 1 0 -67.500000 0 1;1 0 0 -67.500000 0 1;1 0 0 -67.500000 0 1;1 0 0 -67.500000 0 1;1 0 0 -67.500000 0 1;1 1 0 -67.500000 0 1"
+          },
+          {
+            "type": "PATH",
+            "x": 26.5,
+            "y": 75.0,
+            "z": 28.5,
+            "yaw": -178.544373,
+            "pitch": -72.366096,
+            "at": 0
+          },
+          {
+            "type": "USE_ITEM",
+            "x": 26.5,
+            "y": 75.0,
+            "z": 28.5,
+            "yaw": -177.573593,
+            "pitch": -72.883835,
+            "at": 0,
+            "item": "ENDER_PEARL"
+          },
+          {
+            "type": "DUNGEON_BREAKER",
+            "x": 26.5,
+            "y": 89.0,
+            "z": 23.5,
+            "yaw": 175.003418,
+            "pitch": 12.942594,
+            "at": 0,
+            "blocks": [
+              "26 90 21",
+              "26 89 21",
+              "27 89 21",
+              "27 90 21"
+            ],
+            "box": true,
+            "width": 2.0,
+            "length": 2.0
+          },
+          {
+            "type": "WALK",
+            "x": 26.5,
+            "y": 89.0,
+            "z": 23.5,
+            "yaw": -174.900879,
+            "pitch": -2.588662,
+            "at": 0
+          },
+          {
+            "type": "DUNGEON_BREAKER",
+            "x": 27.5,
+            "y": 90.0,
+            "z": 14.5,
+            "yaw": 179.333984,
+            "pitch": 89.352875,
+            "at": 0,
+            "blocks": [
+              "27 89 14",
+              "27 77 14",
+              "27 76 14",
+              "27 75 14",
+              "27 74 14",
+              "27 73 14",
+              "27 72 14",
+              "27 71 14"
+            ]
+          },
+          {
+            "type": "WALK",
+            "x": 27.5,
+            "y": 65.0,
+            "z": 14.5,
+            "yaw": 153.220703,
+            "pitch": -29.655224,
+            "at": 0
+          },
+          {
+            "type": "WALK",
+            "x": 24.5,
+            "y": 69.0,
+            "z": 7.5,
+            "yaw": 122.223145,
+            "pitch": 0.436561,
+            "at": 0
+          }
+        ],
+        "pathNote": "recorded movement - edit the nodes above, not this",
+        "path": ""
+      }
+    },
+    "Old Trap": {
+      "CLEARED": {
+        "nodes": [
+          {
+            "type": "BOOM",
+            "x": 12.5,
+            "y": 69.0,
+            "z": 4.5,
+            "yaw": 56.186279,
+            "pitch": 50.395336,
+            "at": 0,
+            "start": true
+          },
+          {
+            "type": "PATH",
+            "x": 12.5,
+            "y": 69.0,
+            "z": 4.5,
+            "yaw": 27.954781,
+            "pitch": 22.956795,
+            "at": 0,
+            "walkFrom": "12.500000 69.050000 4.500000 0.000000 -0.078400 0.000000 0",
+            "walkSrc": "12.500000 69.000000 4.500000",
+            "walkTo": "7.500000 69.000000 5.500000",
+            "walk": "0 0 0 24.200012 0 1;1 0 0 90.000000 0 1;1 1 0 112.500000 0 1;1 1 0 112.500000 0 1;1 1 0 112.500000 0 1"
+          },
+          {
+            "type": "PATH",
+            "x": 7.5,
+            "y": 69.0,
+            "z": 5.5,
+            "yaw": 27.954781,
+            "pitch": 22.956795,
+            "at": 0
+          },
+          {
+            "type": "USE_ITEM",
+            "x": 7.5,
+            "y": 69.0,
+            "z": 5.5,
+            "yaw": -101.242493,
+            "pitch": -44.798309,
+            "at": 0,
+            "awaitEnabled": true,
+            "await": "SECRET",
+            "amount": 1,
+            "item": "ENDER_PEARL"
+          }
+        ],
+        "pathNote": "recorded movement - edit the nodes above, not this",
+        "path": ""
+      }
+    }
+  }
 }

@@ -12,7 +12,8 @@
      "Lever Aura flicks again while the server keeps teleporting you (a teleport every tick no longer holds every flick back).",
      "Corpse Locator now boxes a Frozen Corpse only once it has been in your line of sight; after that it stays marked through walls. The cheat build's Corpse Scan still finds every loaded corpse.",
      "Auto Correct now fixes a mistyped /warp destination against every Fast Travel destination, and completes a cut-off one like /warp bas to /warp base when exactly one destination fits.",
-     "Auto Routes: a secret bat that was already standing there when a node began waiting (or that spawned far off and was then walked up to) now counts toward the node's secret await, so the route no longer stalls on it"
+     "Auto Routes: a secret bat that was already standing there when a node began waiting (or that spawned far off and was then walked up to) now counts toward the node's secret await, so the route no longer stalls on it",
+     "Auto Trap: New Trap and Old Trap have bundled Just Cleared routes and the mode defaults to Just Cleared (Full Trap only with your own capture), and a start-node warp into a trap room now lands on the route's start block instead of firing from the trap's doorway and being refused (\"You cannot use abilities in this room!\")."
     ]
    }
   ]
