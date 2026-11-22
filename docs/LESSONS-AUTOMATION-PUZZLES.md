@@ -113,6 +113,13 @@ The puzzle autos at run time (camera, timing, leaving, each puzzle). Part of the
 
 ## Per puzzle
 
+- **Simon Says: a frozen client lost lantern steps** (flake-ss-auto-only-1120). The wall was polled once per client tick, but
+  after a freeze the client applies the whole packet backlog before its next tick, so a step that lit and went dark inside
+  it was never seen (Auto Solve waited forever for it) and two steps of one backlog were recorded in grid order (a wrong
+  press broke the device). `SimonSaysGridMixin` (HEAD of `ClientLevel.setServerVerifiedBlockState`) queues every server
+  change on the wall and button grid while the device is watched, and `detectGridChanges` replays it in arrival order,
+  buttons and the grid-reset edge included (`buttonSeen` keeps the reset edge, as a reset clears `lastGridStates`); the poll
+  stays as a net. Testkit 1120-boss-ss-auto-freeze (2 s freezes at rounds 2 and 3) fails on the old jar.
 - **Blaze: a miss waited a fixed "arrow flight + 4 ticks".** A volley that killed already ended the wait (the target's label
   stand removed), but a miss held the next volley the simulated flight plus 4 ticks (93-solve-blazemiss-*-timing: 5 to 6
   ticks after the arrows had ended; the chest after a missed final volley up to 16). `AutoBlaze.VolleyWatch` takes the

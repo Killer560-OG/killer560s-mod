@@ -125,6 +125,16 @@ public final class SimonSaysFeature {
     private static int lastLanternChangeTick = -1;
     private static BlockState lastStartButtonState = null;
     private static final Map<BlockPos, BlockState> lastGridStates = new HashMap<>();
+    /** Every server change to the lantern wall or the button grid since the last tick, in arrival order (flake-ss-1120).
+     *  A frozen client applies a whole backlog of block packets before its next tick, so a light that went on and off
+     *  inside it never showed in the per-tick poll (the round stuck waiting for a missing step) and two lights of one
+     *  backlog were read in grid order (a wrong press broke the device). Filled by SimonSaysGridMixin only while the
+     *  device is being watched; bounded. */
+    private record GridEvent(BlockPos pos, BlockState old, BlockState now) {}
+    private static final java.util.ArrayDeque<GridEvent> gridEvents = new java.util.ArrayDeque<>();
+    private static boolean gridEventsWanted;
+    /** The button grid as last seen, for the reset edge; unlike lastGridStates a reset does not clear it. */
+    private static final BlockState[] buttonSeen = new BlockState[16];
     private static boolean wasActive = false;
     private static boolean wasGridReset = false;
 
@@ -873,6 +883,9 @@ public final class SimonSaysFeature {
             breakArmed = false;
             blankGridTicks = 0;
             roundVerdictPending = false;
+            gridEventsWanted = false;
+            gridEvents.clear();
+            java.util.Arrays.fill(buttonSeen, null);
             wasActive = false;
             return;
         }
@@ -1086,10 +1099,85 @@ public final class SimonSaysFeature {
      *  successfully, and the real remaining sequence to click is only the LAST two of those three - the
      *  first is stale history from the round the skip already satisfied, not something to click again. */
     private static void detectGridChanges(Minecraft client, SimonSaysConfig cfg) {
+        // The server's own changes first, in the order they came: a backlog applied in one frame loses nothing.
+        gridEventsWanted = true;
+        for (GridEvent e; (e = gridEvents.pollFirst()) != null; ) {
+            lastGridStates.put(e.pos(), e.now());
+            if (e.pos().getX() == LANTERN_X) {
+                lanternChanged(e.pos(), e.old(), e.now(), cfg);
+            } else {
+                buttonSeen[buttonIndex(e.pos())] = e.now();
+                buttonChanged(e.pos(), e.old(), e.now(), cfg, client);
+                gridResetEdge(cfg, buttonAirSeen());
+            }
+        }
+        // The poll stays as a net for a change that came some other way.
         for (BlockPos pos : GRID_LANTERNS) {
             BlockState now = client.level.getBlockState(pos);
             BlockState old = lastGridStates.put(pos, now);
-            if (old == null) continue;
+            if (old != null) {
+                lanternChanged(pos, old, now, cfg);
+            }
+        }
+        int stoneButtonCount = 0;
+        for (BlockPos pos : GRID_BUTTONS) {
+            BlockState now = client.level.getBlockState(pos);
+            BlockState old = lastGridStates.put(pos, now);
+            buttonSeen[buttonIndex(pos)] = now;
+            if (now.is(Blocks.STONE_BUTTON)) {
+                stoneButtonCount++;
+            }
+            if (old != null) {
+                buttonChanged(pos, old, now, cfg, client);
+            }
+        }
+        settleAndReset(cfg, stoneButtonCount, buttonAirSeen());
+    }
+
+    private static final int LANTERN_X = 111;
+
+    /** Called by SimonSaysGridMixin for every block the server sets, before it is applied; cheap for every other block. */
+    public static void onServerBlock(net.minecraft.client.multiplayer.ClientLevel level, BlockPos pos, BlockState now) {
+        int x = pos.getX();
+        if (!gridEventsWanted || (x != LANTERN_X && x != LANTERN_X - 1)) {
+            return;
+        }
+        int y = pos.getY();
+        int z = pos.getZ();
+        BlockState old;
+        if (y < 120 || y > 123 || z < 92 || z > 95 || (old = level.getBlockState(pos)) == now) {
+            return;
+        }
+        if (gridEvents.size() >= 256) {
+            gridEvents.pollFirst();
+        }
+        gridEvents.addLast(new GridEvent(pos.immutable(), old, now));
+    }
+
+    private static int buttonIndex(BlockPos pos) {
+        return (pos.getY() - 120) * 4 + (pos.getZ() - 92);
+    }
+
+    private static int buttonAirSeen() {
+        int n = 0;
+        for (BlockState s : buttonSeen) {
+            if (s != null && s.isAir()) {
+                n++;
+            }
+        }
+        return n;
+    }
+
+    private static void buttonChanged(BlockPos pos, BlockState old, BlockState now, SimonSaysConfig cfg, Minecraft client) {
+        boolean nowPowered = now.is(Blocks.STONE_BUTTON) && now.getValue(BlockStateProperties.POWERED);
+        boolean oldPowered = old.is(Blocks.STONE_BUTTON) && old.getValue(BlockStateProperties.POWERED);
+        if (nowPowered && !oldPowered) {
+            onButtonPressed(pos, cfg, client);
+        }
+    }
+
+    private static void lanternChanged(BlockPos pos, BlockState old, BlockState now, SimonSaysConfig cfg) {
+        {
             if (now.is(Blocks.SEA_LANTERN) && old.is(Blocks.OBSIDIAN) && clickInOrder.contains(pos) && firstPhase
                     && clickNeeded == 0 && autoStartClickedThisPhase && !skipDropped && clickInOrder.size() >= 2) {
                 // killer560, 2026-11-01 (manual solves): "sometimes it'll do the first button a second button then
@@ -1172,24 +1260,9 @@ public final class SimonSaysFeature {
             }
         }
 
-        int airCount = 0;
-        int stoneButtonCount = 0;
-        for (BlockPos pos : GRID_BUTTONS) {
-            BlockState now = client.level.getBlockState(pos);
-            BlockState old = lastGridStates.put(pos, now);
-            if (now.isAir()) {
-                airCount++;
-            }
-            if (now.is(Blocks.STONE_BUTTON)) {
-                stoneButtonCount++;
-            }
-            if (old == null) continue;
-            boolean nowPowered = now.is(Blocks.STONE_BUTTON) && now.getValue(BlockStateProperties.POWERED);
-            boolean oldPowered = old.is(Blocks.STONE_BUTTON) && old.getValue(BlockStateProperties.POWERED);
-            if (nowPowered && !oldPowered) {
-                onButtonPressed(pos, cfg, client);
-            }
-        }
+    }
+
+    private static void settleAndReset(SimonSaysConfig cfg, int stoneButtonCount, int airCount) {
         // Real timeout own TickEvent.Server check (see this class's firstPhase field
         // doc comment) - the reveal-order quirk only ever applies during the initial flash; 10 ticks
         // after the last real lantern change, once the grid has settled back to mostly real buttons,
@@ -1223,6 +1296,10 @@ public final class SimonSaysFeature {
                 LOGGER.info("[SimonSays] Reveal flash settled - firstPhase quirk correction now off for this device.");
             }
         }
+        gridResetEdge(cfg, airCount);
+    }
+
+    private static void gridResetEdge(SimonSaysConfig cfg, int airCount) {
         boolean gridReset = airCount > 8;
         // THE real bug behind "Simon Says does nothing on p3sim.net" (2026-09-14) - not just noisy
         // logging. This used to call resetSolveState() every single tick for as long as the grid
