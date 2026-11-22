@@ -121,6 +121,10 @@ public final class AutoSecretFeature {
     private static boolean noKeySaid;
     /** The wait for the room behind the door to show on the map was logged (KeyRooms.unseenBehind). */
     private static boolean unseenSaid;
+    /** The door's lock block (read every DOOR tick for Hypixel's barriers), or null. */
+    private static BlockPos doorCenter;
+    /** The phase tick the door's blocks turned to barriers after our click (Hypixel took it), or -1. */
+    private static int doorOpeningTick = -1;
     /** Secret rooms behind a closed door, from the last decision (waited on only when nothing else is left). */
     private static String blockedSecrets;
     private static String instaFrom;
@@ -3320,6 +3324,8 @@ public final class AutoSecretFeature {
         doorLastClickTick = -1000;
         noKeySaid = false;
         unseenSaid = false;
+        doorCenter = null;
+        doorOpeningTick = -1;
     }
 
     private static void beginDoor() {
@@ -3347,25 +3353,53 @@ public final class AutoSecretFeature {
         // The door's own blocks, not a whole layout built every tick; open = the whole opening is clear, so the next
         // trip goes the same tick with nothing left to settle (acslow-1121: the 10-tick SETTLE after every door).
         if (doorCell < 0 || !DungeonLayout.doorShut(doorCell, doorBlood)) {
-            LOGGER.info("[AutoSecret] the {} door at cell {} is open ({} click(s) of ours, {} tick(s) at it) - carrying on",
-                    doorBlood ? "blood" : "wither", doorCell, doorClicks, phaseTicks);
+            LOGGER.info("[AutoSecret] the {} door at cell {} is open ({} click(s) of ours, {} tick(s) at it) - carrying on{}",
+                    doorBlood ? "blood" : "wither", doorCell, doorClicks, phaseTicks,
+                    doorOpeningTick < 0 ? "" : " (barriers from tick " + doorOpeningTick + ")");
             note(ModChat.good(doorBlood ? "Blood door open" : "Wither door open"), ModChat.dim(" - carrying on"));
             if (doorBlood) {
                 Autopilot.onBloodDoorOpened();
             }
+            boolean opened = doorOpeningTick >= 0;
             resetDoor();
             lastDoorSaid = null;
             setPhase(Phase.DECIDE);
+            if (opened) {
+                // acrev-door-1122: the next trip is planned on the tick the barriers go, not a tick later, and its first
+                // warp (AOTV in hand, sneak heard while the door opened) goes on the next.
+                if (!clickComing(client)) {
+                    ClearExecutor.primeNextWarp();
+                }
+                decide(client);
+            }
             return;
+        }
+        if (doorCenter == null) {
+            doorCenter = DungeonLayout.doorBlock(doorCell);
         }
         if (WitherDoorOpener.isBusy()) {
             doorLastClickTick = phaseTicks; // the gap to the next try runs from the click going, not from asking for it
             return;
         }
+        String kind = doorBlood ? "blood" : "wither";
+        if (doorClicks > 0 && phaseTicks - doorLastClickTick < DOOR_OPENING_TICKS && client.level != null
+                && client.level.getBlockState(doorCenter).is(net.minecraft.world.level.block.Blocks.BARRIER)) {
+            // Hypixel took our click: the door's blocks are barriers for ~14 ticks before they go (his log 11-22: click,
+            // barriers 3 ticks on, air 14 after that). No second click; the next warp is made ready meanwhile.
+            if (doorOpeningTick < 0) {
+                doorOpeningTick = phaseTicks;
+                LOGGER.info("[AutoSecret] the {} door at cell {} is opening ({} tick(s) after our click) - the next warp"
+                        + " goes the tick it clears", kind, doorCell, phaseTicks - doorLastClickTick);
+            }
+            status = "Opening the " + kind + " door";
+            if (!clickComing(client)) {
+                ClearExecutor.primeNextWarp();
+            }
+            return;
+        }
         // The blood key is the team's sidebar tick; with no Keys line to read, one click is how to find out.
         boolean key = doorBlood ? com.killer560.hub.doorkeys.DungeonKeys.bloodKey() != 0
                 : WitherDoorOpener.haveKey(client.player);
-        String kind = doorBlood ? "blood" : "wither";
         // An unknown blood key count (-1) spends a round of clicks to find out; a key picked up after that round
         // (acgaps2-1121-fix: the Blood Key came after 12 clicks at the door, which then waited to the end of the run)
         // starts a new round.

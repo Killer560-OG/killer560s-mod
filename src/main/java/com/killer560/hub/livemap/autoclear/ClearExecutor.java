@@ -1681,7 +1681,37 @@ public final class ClearExecutor {
         return forceSneakNow();
     }
 
+    /** The client tick {@link #primeNextWarp} last asked on: the sneak stays down through the tick after it. */
+    private static long primedTick = Long.MIN_VALUE;
+    /** The last client tick the sneak was asked for under an open screen. */
+    private static long screenTick = Long.MIN_VALUE;
+
+    /**
+     * Auto Secret at a door Hypixel is opening (acrev-door-1122): the AOTV in hand and the sneak down while the door's
+     * barriers stand, so the next trip's first warp goes the tick it is planned instead of spending a tick on each.
+     * Asked again every tick it should last (an END handler: the swap goes with the next tick, as in {@link #runPlanned}).
+     */
+    public static void primeNextWarp() {
+        if (com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()) != null || screenTick >= clientTicks - 1) {
+            return;   // never under his open container, nor the tick after (primeFirstWarp's rule: a swap or sneak beside his click there)
+        }
+        primedTick = clientTicks;
+        if (!holdingAny(AOTV) && !hasSwappedThisTick) {
+            boolean now = com.killer560.hub.util.HotbarSelect.inTick();
+            if (swapById(AOTV)) {
+                swappedOnTick = now ? clientTicks : clientTicks + 1;
+            }
+        }
+    }
+
     private static boolean forceSneakNow() {
+        // Not under a screen, nor in the tick it closed (his last click there may have gone this tick): a click while the
+        // server hears the sneak is GrimAC MultiActionsC (testkit 1122-hx-doorprime-same-click).
+        if (com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()) != null) {
+            screenTick = clientTicks;
+        } else if (primedTick >= clientTicks - 1 && screenTick < clientTicks - 1) {
+            return true;
+        }
         if (!active) {
             return false;
         }

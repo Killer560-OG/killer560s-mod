@@ -427,3 +427,22 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   `UNSEEN_WAIT_TICKS` (40), then click anyway. In the sim (no map item) `SimKeyRoom.unseen` answers: a key room armed with
   its door in counts as shown after `SEEN_TICKS` (8) server ticks in the room before it, and that door opening sooner
   insta clears it. Testkit 1122-sim-ac-witherkey-unseen / 1122-sim-ap-witherkey-unseen.
+
+## Standing at an opening wither door (acrev-door-1122)
+
+- Problem (his 26.3 runs, 11-22 morning: 22 doors at 18-23 ticks each): the time at a door is mostly Hypixel's. From his
+  logger session (Skull door, client ticks): our left click t2117, "opened a WITHER door!" and every door block turned
+  to BARRIER t2120 (the 3-tick round trip), the barriers turned to AIR t2134 (Hypixel's 14-tick opening, the same on the
+  blood door: 7555 / 7558 / 7572). Those 17 ticks cannot be saved: barriers are solid to walking and to an etherwarp's
+  ray. What was ours: `tickDoor` saw the air at t2135, set DECIDE, decided on t2136, then the trip spent t2137 on the
+  sneak and the AOTV swap and sent the first use at t2138; a key still read as held could also click the door again
+  while it stood as barriers. Fix: barrier on the lock block after our click = Hypixel took it: no second click, and
+  `ClearExecutor.primeNextWarp()` every tick (AOTV in hand, sneak down; not under a screen or with a Secret Aura click
+  due); the tick the blocks read air, `decide()` runs at once. The first warp then goes the next tick (the plan is
+  searched on the planner thread, so one tick stays). Its floors are random, so the first use's time is the planner's
+  (branch 2, 3 and 6 ticks after the air, origin 4; the 6 was Auto Clear's first warp queued behind a 291 ms room-order
+  search): testkit 1122-sim-ap-door-go judges the door part instead, the trip decided in the tick the door reads open
+  (origin: the tick after) and the sneak already heard as the blocks go, and
+  1122-hx-doorprime-same-* run the prime with his own action in its ticks on GrimAC. The primed sneak is never held
+  under an open screen: his container click while the server hears sneaking is GrimAC MultiActionsC (56 flags in the
+  first run of the click row).
