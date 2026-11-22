@@ -363,6 +363,8 @@ public final class ActionGate {
     private static long settleUntilTick = Long.MIN_VALUE;
     private static long teleportSettleUntilTick = Long.MIN_VALUE;
     private static int prevPackets;
+    /** The one quiet tick after any server position packet, kept apart from the jump settle (see tryActInternal). */
+    private static long positionQuietUntilTick = Long.MIN_VALUE;
     /** The screen-transition settle, kept apart from {@link #settleUntilTick} so a fresh-each-tick world actor can waive it. */
     private static long screenSettleUntilTick = Long.MIN_VALUE;
     private static Actor selfTeleportActor = null;
@@ -513,7 +515,7 @@ public final class ActionGate {
         int packets = ServerCorrections.packetCount();
         if (packets != prevPackets) {
             prevPackets = packets;
-            teleportSettleUntilTick = Math.max(teleportSettleUntilTick, tick + 1);
+            positionQuietUntilTick = tick + 1;
         }
         prevPos = pos;
     }
@@ -697,6 +699,13 @@ public final class ActionGate {
                 && !(actor == selfTeleportActor && tick <= selfTeleportUntilTick)) {
             return deny(actor, "settling after a teleport");
         }
+        // Lever Aura waives the position-packet quiet (leverflake-1121): it picks its lever from this tick's eye, and the
+        // accept's own move already carried the body look its click is judged on; with a teleport every tick the quiet
+        // left it no tick at all (1117-leverfreeze-tp-dense, 1117-leverplace-pitch-tp failed from 35c61b6b9 on).
+        if (armed && tick < positionQuietUntilTick && actor.kind != Kind.HOTBAR && !actor.freshEachTick
+                && actor != Actor.LEVER_AURA && !(actor == selfTeleportActor && tick <= selfTeleportUntilTick)) {
+            return deny(actor, "a server position packet this tick");
+        }
         if (armed && claimedTick == tick) return deny(actor, "this tick is already taken by " + claimant);
         long now = System.nanoTime();
         if (now - lastActionNanos < spacingNanos) return deny(actor, "min spacing");
@@ -758,6 +767,7 @@ public final class ActionGate {
         lastWorldActor = null;
         lastScreenActor = null;
         teleportSettleUntilTick = Long.MIN_VALUE;
+        positionQuietUntilTick = Long.MIN_VALUE;
         selfTeleportActor = null;
         selfTeleportUntilTick = Long.MIN_VALUE;
         Arrays.fill(WANTED_THIS_TICK, false);
