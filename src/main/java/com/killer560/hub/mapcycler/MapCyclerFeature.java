@@ -34,7 +34,9 @@ import java.util.regex.Pattern;
  * either. A map whose most is at or under Max Rooms Before Blood is kept (sound, one line, the cycler turns off); one whose
  * least is over it is re-rolled; an unsure map waits for more of the map until Hypixel's 30 s creation cooldown ends and
  * then is re-rolled (mapcycler-keep-1121, mapcycler-unsure-1121: killer560 2026-11-21: "it should decide by the time that the reque timer
- * is done. at that point it then reques 1s after the timer ends no matter what"). A re-roll is the command he types
+ * is done. at that point it then reques 1s after the timer ends no matter what"), unless on F7 {@link RushOdds} makes
+ * it at least Keep Chance likely to be within the limit (mapcycler-history-1121: "let the user use a probability
+ * slider"; 100% keeps only proven maps). A re-roll is the command he types
  * himself, {@code /joininstance <this floor>} from inside the run (seen 7 times 11-17, 32-50 s apart), sent 1 s after the
  * cooldown ends (fixed, nothing to set: killer560 11-21 "it should be a fixed 1s after the cooldown is off"), through {@link ActionGate}, and only by the player who made the
  * instance (the name in its "entered" line): anyone else gets "Only the instance creator can re-queue!". It acts only in
@@ -255,7 +257,9 @@ public final class MapCyclerFeature {
             lastLayout = layout;
             int[] b = boundsForTest != null ? boundsForTest : RushBounds.of(layout, floor);
             if (b[0] != bounds[0] || b[1] != bounds[1]) {
-                LOGGER.info("[MapCycler] rooms before Blood: {}..{}", b[0], b[1] == RushBounds.NO_MAX ? "?" : b[1]);
+                bounds = b;
+                LOGGER.info("[MapCycler] rooms before Blood: {}..{} ({}% likely within {})", b[0], b[1] == RushBounds.NO_MAX ? "?" : b[1],
+                        chance(cfg), cfg.getMaxRooms());
             }
             bounds = b;
         }
@@ -301,13 +305,25 @@ public final class MapCyclerFeature {
             } else if (now < decideBy) {
                 return;
             } else {
-                // Not proven within the limit by the cooldown's end: always re-rolled (killer560 11-21, never kept on a guess).
-                reason = "unsure (" + bounds[0] + "-" + (bounds[1] == RushBounds.NO_MAX ? "?" : bounds[1]) + " room(s))";
+                // Not proven within the limit by the cooldown's end: kept only when history makes it at least Keep Chance
+                // likely (F7), else re-rolled.
+                int pct = chance(cfg);
+                if (pct >= cfg.getKeepChance()) {
+                    found("Kept: ", pct, "% likely that Blood is at most " + n + " room(s) away.");
+                    return;
+                }
+                reason = "unsure (" + bounds[0] + "-" + (bounds[1] == RushBounds.NO_MAX ? "?" : bounds[1]) + " room(s)"
+                        + (pct >= 0 ? ", " + pct + "% likely within " + n : "") + ")";
             }
             phase = Phase.REROLL;
             LOGGER.info("[MapCycler] re-roll wanted: {}", reason);
         }
         reroll(now, decideBy + 1_000L);
+    }
+
+    /** The chance in percent that this map is within the limit (RushOdds, F7 only), or -1 when there is no estimate. */
+    private static int chance(MapCyclerConfig cfg) {
+        return RushOdds.percent(floor, bounds[0], bounds[1], bounds.length > 2 ? bounds[2] : -1, cfg.getMaxRooms());
     }
 
     private static void found(String what, int rooms, String tail) {

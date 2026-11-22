@@ -15,12 +15,17 @@ public final class MapCyclerConfig {
     public static final int MAX_ROOMS = 10;
     /** Hypixel makes no new instance for 30 s after the last one (CreationCooldownFeature.COOLDOWN_MS). */
     public static final int MAX_REROLLS_CAP = 100;
+    /** Keep Chance: 100 keeps only proven maps; below 50 a guess would be wrong more often than right. */
+    public static final int MIN_KEEP_CHANCE = 50;
+    public static final int MAX_KEEP_CHANCE = 100;
+    public static final int DEFAULT_KEEP_CHANCE = 90;
 
     private static MapCyclerConfig instance;
 
     private boolean enabled = false;
     private int maxRooms = 5;
     private int maxRerolls = 20;
+    private int keepChance = DEFAULT_KEEP_CHANCE;
 
     private MapCyclerConfig() {
     }
@@ -39,6 +44,7 @@ public final class MapCyclerConfig {
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.maxRooms = clamp(ConfigJson.getInt(obj, "maxRooms", 5), MIN_ROOMS, MAX_ROOMS);
             cfg.maxRerolls = clamp(ConfigJson.getInt(obj, "maxRerolls", 20), 0, MAX_REROLLS_CAP);
+            cfg.keepChance = clamp(ConfigJson.getInt(obj, "keepChance", DEFAULT_KEEP_CHANCE), MIN_KEEP_CHANCE, MAX_KEEP_CHANCE);
         }
         instance = cfg;
     }
@@ -48,6 +54,7 @@ public final class MapCyclerConfig {
         obj.addProperty("enabled", enabled);
         obj.addProperty("maxRooms", maxRooms);
         obj.addProperty("maxRerolls", maxRerolls);
+        obj.addProperty("keepChance", keepChance);
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
@@ -85,5 +92,14 @@ public final class MapCyclerConfig {
 
     public void setMaxRerolls(int value) {
         maxRerolls = clamp(value, 0, MAX_REROLLS_CAP);
+    }
+
+    /** Percent: an unproven F7 map at least this likely to be within Max Rooms Before Blood is kept (RushOdds). */
+    public int getKeepChance() {
+        return keepChance;
+    }
+
+    public void setKeepChance(int value) {
+        keepChance = clamp(value, MIN_KEEP_CHANCE, MAX_KEEP_CHANCE);
     }
 }

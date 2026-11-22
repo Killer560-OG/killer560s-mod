@@ -46,6 +46,9 @@ public class MapCyclerTab extends BaseTab {
         w.add(valueSlider(contentX, y, contentWidth, "Max Rooms Before Blood", " rooms", MapCyclerConfig.MIN_ROOMS,
                 MapCyclerConfig.MAX_ROOMS, 1, 0, cfg::getMaxRooms, v -> cfg.setMaxRooms((int) Math.round(v)), cfg::save));
         y += 22;
+        w.add(valueSlider(contentX, y, contentWidth, "Keep Chance (F7)", "%", MapCyclerConfig.MIN_KEEP_CHANCE,
+                MapCyclerConfig.MAX_KEEP_CHANCE, 1, 0, cfg::getKeepChance, v -> cfg.setKeepChance((int) Math.round(v)), cfg::save));
+        y += 22;
         w.add(valueSlider(contentX, y, contentWidth, "Max Re-rolls (0 = no limit)", "", 0, MapCyclerConfig.MAX_REROLLS_CAP,
                 1, 0, cfg::getMaxRerolls, v -> cfg.setMaxRerolls((int) Math.round(v)), cfg::save));
         y += 22;

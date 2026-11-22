@@ -66,6 +66,24 @@ public final class RushBounds {
      *  be proven ({@link #proven}). */
     public static int[] bounds(int across, int down, int[] slots, byte[] gaps, String[] names, String[] shapes,
                                boolean[] complete, int entrance, int blood, int fairy) {
+        return bounds(across, down, slots, gaps, names, shapes, null, complete, entrance, blood, fairy);
+    }
+
+    /** {@link #bounds} for a real Hypixel floor, with the rules that held on all 454 of his real F7 floors
+     *  (mapcycler-history-1121): the rooms in {@code offPath} (puzzles and the trap) are never on the path and count as no
+     *  room at all, the Entrance has one door, never to the Fairy ({@link #entranceWalls}), and the way passes the Fairy
+     *  (killer560 2026-11-21: "fairy is always on the path to blood"; puzzles always dead ends, doors always a tree). A generated test floor
+     *  that breaks them passes null and gets plain {@link #bounds}. */
+    public static int[] bounds(int across, int down, int[] slots, byte[] gaps, String[] names, String[] shapes,
+                               boolean[] offPath, boolean[] complete, int entrance, int blood, int fairy) {
+        if (offPath != null) {
+            slots = slots.clone();
+            for (int s = 0; s < slots.length; s++) {
+                if (slots[s] >= 0 && offPath[slots[s]] && slots[s] != entrance && slots[s] != blood && slots[s] != fairy) {
+                    slots[s] = EMPTY;
+                }
+            }
+        }
         int start = -1;
         boolean bloodSeen = false;
         for (int s = 0; s < across * down; s++) {
@@ -81,6 +99,9 @@ public final class RushBounds {
         if (start < 0) {
             return new int[]{0, NO_MAX};
         }
+        if (offPath != null) {
+            gaps = entranceWalls(across, down, slots, gaps, start, fairy);
+        }
         int exact = blood < 0 ? -1 : walk(across, down, slots, gaps, names, complete, start, blood, fairy, true, false);
         if (exact >= 0) {
             // Unknown Fairy: it could be one of the chain's unidentified rooms.
@@ -91,14 +112,50 @@ public final class RushBounds {
         // An unseen slot the walk pays for may be the Fairy (unknown, or known but with cells still unseen).
         int min = Math.max(0, walk(across, down, slots, gaps, names, complete, start, blood, fairy, false, false)
                 - (fairy < 0 || !complete[fairy] ? 1 : 0));
+        int fairyAt = -1;
+        for (int s = 0; offPath != null && fairy >= 0 && complete[fairy] && s < slots.length; s++) {
+            fairyAt = slots[s] == fairy ? s : fairyAt;
+        }
+        if (fairyAt >= 0) {
+            // The Fairy is on the path: Entrance to Fairy (the walk does not pay for the Fairy) plus Fairy to Blood.
+            int in = walk(across, down, slots, gaps, names, complete, start, fairy, fairy, false, false);
+            int out = walk(across, down, slots, gaps, names, complete, fairyAt, blood, fairy, false, false);
+            min = in >= 0 && out >= 0 ? Math.max(min, in + 1 + out) : min;
+        }
         int max = upper(across, down, slots, gaps, names, entrance, blood, fairy);
         int proof = max <= min ? NO_MAX : proven(across, down, slots, gaps, names, shapes, complete, start, blood, fairy,
-                Math.min(max, PROOF_CAP));
+                fairyAt >= 0, Math.min(max, PROOF_CAP));
         return new int[]{min, proof >= min && proof < max ? proof : max};
     }
 
     private static boolean door(byte g) {
         return g == DOOR || g == KEY;
+    }
+
+    /** The Entrance is one cell with one door, and that door never leads to the Fairy (all 454 of his real F7 floors,
+     *  mapcycler-history-1121): once its door shows, its other unknown gaps are walls, and so is an unknown gap to the
+     *  Fairy. A copy when anything changes. */
+    private static byte[] entranceWalls(int across, int down, int[] slots, byte[] gaps, int start, int fairy) {
+        int x = start % across;
+        int z = start / across;
+        // East, west, south, north: the gap index and the neighbor slot.
+        int[] gap = {x + 1 < across ? 2 * start : -1, x > 0 ? 2 * (start - 1) : -1,
+                z + 1 < down ? 2 * start + 1 : -1, z > 0 ? 2 * (start - across) + 1 : -1};
+        int[] next = {start + 1, start - 1, start + across, start - across};
+        boolean hasDoor = false;
+        for (int g : gap) {
+            hasDoor |= g >= 0 && door(gaps[g]);
+        }
+        byte[] out = gaps;
+        for (int d = 0; d < 4; d++) {
+            if (gap[d] >= 0 && gaps[gap[d]] == UNKNOWN && (hasDoor || fairy >= 0 && slots[next[d]] == fairy)) {
+                if (out == gaps) {
+                    out = gaps.clone();
+                }
+                out[gap[d]] = WALL;
+            }
+        }
+        return out;
     }
 
     /**
@@ -117,7 +174,7 @@ public final class RushBounds {
      * search reaches {@code cap} or its budget, or finds no way (the map breaks a rule: prove nothing).
      */
     static int proven(int across, int down, int[] slotsIn, byte[] gaps, String[] names, String[] shapes, boolean[] completeIn,
-                      int start, int blood, int fairy, int cap) {
+                      int start, int blood, int fairy, boolean viaFairy, int cap) {
         int n = across * down;
         int rooms = names.length;
         int[] slots = slotsIn.clone();
@@ -188,6 +245,7 @@ public final class RushBounds {
         }
         q.cap = cap;
         q.bloodKnown = blood >= 0;
+        q.via = viaFairy ? fairy : -1;
         int from = node[start];
         q.visited[from] = true;
         q.entered[q.comp[from]] = true;
@@ -208,6 +266,8 @@ public final class RushBounds {
         int reqLeft;
         /** Blood known by id: it has one door, so a way ends there. */
         boolean bloodKnown;
+        /** A room every way must pass first (the Fairy on a real floor), or -1. */
+        int via = -1;
         int cap;
         int steps;
         int best = -1;
@@ -229,7 +289,7 @@ public final class RushBounds {
                 aborted = true;
                 return;
             }
-            if (pred >= 0 && target[v] && reqLeft == 0) {
+            if (pred >= 0 && target[v] && reqLeft == 0 && (via < 0 || visited[via])) {
                 best = Math.max(best, rooms - weight[v]);
                 if (best >= cap) {
                     aborted = true;
@@ -512,7 +572,8 @@ public final class RushBounds {
         return maybeBlood ? left - 1 : left;
     }
 
-    /** The bounds of the floor as the live map knows it now ({@link DungeonLayout#current()}), for floor {@code floor}. */
+    /** The bounds of the floor as the live map knows it now ({@link DungeonLayout#current()}), for floor {@code floor},
+     *  and the wither and blood doors it shows ({@link RushOdds}): {@code {least, most, key doors}}. */
     public static int[] of(DungeonLayout layout, String floor) {
         int[] size = com.killer560.hub.livemap.MapPainter.floorRooms(floor);
         int across = size[0];
@@ -522,6 +583,7 @@ public final class RushBounds {
         String[] names = new String[rooms + 1];
         boolean[] complete = new boolean[rooms + 1];
         String[] shapes = new String[rooms + 1];
+        boolean[] offPath = new boolean[rooms + 1];
         int entrance = -1;
         int blood = -1;
         int fairy = -1;
@@ -542,6 +604,7 @@ public final class RushBounds {
             } else if ("FAIRY".equalsIgnoreCase(type)) {
                 fairy = r;
             }
+            offPath[r] = "PUZZLE".equalsIgnoreCase(type) || "TRAP".equalsIgnoreCase(type);
             if (names[r] == null && type != null && (r == entrance || r == blood || r == fairy)) {
                 names[r] = type;
             }
@@ -562,7 +625,12 @@ public final class RushBounds {
         if (blood < 0) {
             blood = behindBloodDoor(layout, across, down, slots, names, rooms);
         }
-        return bounds(across, down, slots, gaps, names, shapes, complete, entrance, blood, fairy);
+        int[] b = bounds(across, down, slots, gaps, names, shapes, offPath, complete, entrance, blood, fairy);
+        int keyDoors = 0;
+        for (byte g : gaps) {
+            keyDoors += g == KEY ? 1 : 0;
+        }
+        return new int[]{b[0], b[1], keyDoors};
     }
 
     /** Blood is the unopened side of the blood door once the map shows that door (SpecialRoomGuess.behindBloodDoor's
