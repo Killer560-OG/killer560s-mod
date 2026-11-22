@@ -352,6 +352,9 @@ public final class AutoSecretFeature {
         iceFillTried = false;
         QuizPlan.reset();
         quizIdleTicks = 0;
+        quizGapCuts = 0;
+        quizGapClear = false;
+        java.util.Arrays.fill(QUIZ_IDLE_BY_QUESTION, 0);
         lastWaiting = null;
         leaveWaitRoom = null;
         tourWaitTicks = 0;
@@ -473,6 +476,11 @@ public final class AutoSecretFeature {
                 if (RouteExecutor.isRunning()) {
                     LOGGER.info("[AutoSecret] a route started under him while Auto Clear clears {} - stopping it", target);
                     AutoRoutesFeature.cancelForInteractiveMap("Auto Secret");
+                }
+                if (quizGapCutDue()) {
+                    runId++;   // its callbacks are for the clear just cut
+                    AutoClearFeature.cancel();
+                    setPhase(Phase.DECIDE);
                 }
             }
             default -> {
@@ -946,6 +954,7 @@ public final class AutoSecretFeature {
 
     private static void decide(Minecraft client) {
         blockedSecrets = null;
+        quizGapClear = false;
         // killer560, 2026-10-14: "if i have already used auto routes in a room during auto clear then it should treat
         // it as though I got every secret in the room even if it is missing one, since some rooms auto routes will
         // leave it missing a secret because it is so unoptimal to do." A room whose route ran to its end this run -
@@ -1262,10 +1271,16 @@ public final class AutoSecretFeature {
             if (pick != null && goSecret(layout, pick, dist, "-", "-")) {
                 return true;
             }
-            if (quizGapMobClear(layout, rooms, dist, quiz, left)) {
+            if (quizGapMobClear(layout, rooms, dist, quiz, left) || quizGapDoor(layout, rooms, dist, left)) {
                 return true;
             }
         }
+        quizWorkLeft = false;
+        for (RoomStatus.Room r : rooms) {
+            quizWorkLeft |= r.room() != quiz.room() && dist.containsKey(r.room())
+                    && (needsClear(layout, r) || eligibleForSecrets(r) && r.unfound() > 0);
+        }
+        quizWorkLeft |= WitherDoorOpener.haveKey(Minecraft.getInstance().player) && witherDoorPick(layout, rooms, dist, 0) != null;
         target = quiz.name();
         targetRoomId = quiz.room();
         status = "At the Quiz: " + com.killer560.hub.puzzlesolvers.QuizState.describe();
@@ -1332,6 +1347,46 @@ public final class AutoSecretFeature {
 
     /** Ticks kept in hand when a clear fills a Quiz gap (the clear's estimate is a straight-line one). */
     public static final int QUIZ_GAP_CLEAR_SPARE_TICKS = 20;
+    /** A clear that does not fit whole is started only with this much of the countdown left (else the cut comes at once). */
+    private static final int QUIZ_GAP_PART_MIN_LEFT = 100;
+    /** Ticks kept in hand when a Quiz-gap clear is cut for the trip back: a full second, so a warp leg that fails once is not late (acplan2-1121 r11: 10 left it 32 late). */
+    private static final int QUIZ_GAP_CUT_SPARE_TICKS = QUIZ_GAP_CLEAR_SPARE_TICKS;
+    /** The Auto Clear now running was sent by a Quiz countdown: it is cut when only the trip back is left. */
+    private static boolean quizGapClear;
+
+    /**
+     * killer560, 2026-11-21: "come back essentially the second that it's ready for me to come back". The clear estimates
+     * miss by seconds either way (sim: a clear priced "back in time" came back 120 ticks late), so a Quiz-gap clear is
+     * cut as soon as the countdown is down to the trip back onto the answer spot (with {@link #QUIZ_GAP_CUT_SPARE_TICKS}):
+     * Auto Clear stops, the room is planned again later (its dead mobs stay dead) and the next decision goes back.
+     * Every tick of a Quiz-gap clear only: one distance.
+     */
+    private static boolean quizGapCutDue() {
+        BlockPos spot = AutoPuzzlesFeature.quizAnswerSpot();
+        Minecraft client = Minecraft.getInstance();
+        if (!quizGapClear || spot == null || client.player == null
+                || !com.killer560.hub.puzzlesolvers.QuizState.inProgress()) {
+            return false;
+        }
+        long left = com.killer560.hub.puzzlesolvers.QuizState.ticksUntilAnswerable();
+        double back = AutoClearFeature.etherTicks(client.player.position(),
+                net.minecraft.world.phys.Vec3.atBottomCenterOf(spot.above()));
+        if (left > back + QUIZ_GAP_CUT_SPARE_TICKS) {
+            return false;
+        }
+        LOGGER.info("[AutoSecret] Quiz: {} tick(s) until question {} opens, the trip back ~{} - cutting the clear of {}",
+                left, com.killer560.hub.puzzlesolvers.QuizState.nextQuestion(), Math.round(back), target);
+        quizGapCuts++;
+        clearsDone.remove(target);
+        return true;
+    }
+
+    /** Quiz-gap clears cut for the trip back, this run (testkit). */
+    private static int quizGapCuts;
+
+    public static int quizGapCuts() {
+        return quizGapCuts;
+    }
 
     /**
      * Fastest Total between two Quiz answers: the room he just secreted in a gap, still uncleared, is cleared now when
@@ -1375,6 +1430,7 @@ public final class AutoSecretFeature {
         targetRoomId = r.room();
         status = "Clearing " + r.name() + " (Quiz gap)";
         arrived(Trip.CLEAR);
+        quizGapClear = true;
         return true;
     }
 
@@ -1450,9 +1506,11 @@ public final class AutoSecretFeature {
         for (int i = 0; i < q; i++) {
             double total = m.fromHere()[i] + m.work()[i] + m.between()[i][q];
             RoomStatus.Room r = cands.get(i);
+            // The same second in hand as a gap clear: back about a second early, never late (acplan2-1121).
+            boolean fits = total + QUIZ_GAP_CLEAR_SPARE_TICKS <= left;
             why.append(String.format(Locale.US, "%s %.0f+%.0f+%.0f=%.0f%s; ", r.name(), m.fromHere()[i], m.work()[i],
-                    m.between()[i][q], total, total <= left ? "" : " (too long)"));
-            if (total > left) {
+                    m.between()[i][q], total, fits ? "" : " (too long)"));
+            if (!fits) {
                 continue;
             }
             if (best == null || r.unfound() > best.unfound() || r.unfound() == best.unfound() && total < bestTotal) {
@@ -1471,7 +1529,7 @@ public final class AutoSecretFeature {
      * Quiz while Multicolored, a 25-tick clear next door, and others were uncleared): an uncleared mob room with no secrets
      * to route is cleared meanwhile when the trip, the clear (a room out of sight priced by
      * {@link AutoClearFeature#estimateClearOrGuess}) and the trip back fit in {@code left} with the spare in hand; the longest
-     * that fits, else the least late within {@link AutoClearFeature#QUIZ_GAP_LATE_TICKS}. Re-decided after each clear, so
+     * that fits, else one up to {@link AutoClearFeature#QUIZ_GAP_LATE_TICKS} over, cut short for the trip back. Re-decided after each clear, so
      * the countdown keeps being filled and he is back just in time.
      */
     private static boolean quizGapMobClear(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist,
@@ -1488,11 +1546,17 @@ public final class AutoSecretFeature {
         }
         RoomStatus.Room best = null;
         RoomStatus.Room late = null;
+        RoomStatus.Room team = null;
         double bestTicks = 0;
+        double teamOver = AutoClearFeature.QUIZ_GAP_LATE_TICKS;
         double lateBy = AutoClearFeature.QUIZ_GAP_LATE_TICKS;
+        // No whole route fitted (quizGapRoom ran first), so a room with a secret route may still be cleared now: its
+        // clear is score too, and standing at the Quiz is worth nothing (acplan-1121, audit S3). Party without Clear Room
+        // Before Secreting leaves its route rooms' clears to the team, as before.
+        AutoSecretConfig cfg = AutoSecretConfig.getInstance();
+        boolean routeRooms = cfg.getRunMode() != AutoSecretConfig.RunMode.PARTY || cfg.isClearBeforeSecret();
         for (RoomStatus.Room r : rooms) {
-            if (r.room() == quiz.room() || !dist.containsKey(r.room()) || !needsClear(layout, r)
-                    || eligibleForSecrets(r) && RouteStore.getInstance().forRoom(r.name()) != null) {
+            if (r.room() == quiz.room() || !dist.containsKey(r.room()) || !needsClear(layout, r)) {
                 continue;
             }
             double[] est = AutoClearFeature.estimateClearOrGuess(client.player.position(), r.name(), layout);
@@ -1501,22 +1565,62 @@ public final class AutoSecretFeature {
             }
             double over = est[0] + AutoClearFeature.etherTicks(new net.minecraft.world.phys.Vec3(est[1], est[2], est[3]),
                     back) + QUIZ_GAP_CLEAR_SPARE_TICKS - left;
+            if (!routeRooms && eligibleForSecrets(r) && RouteStore.getInstance().forRoom(r.name()) != null) {
+                // The team's route room: only when no other room is left to clear meanwhile, cut short for the trip
+                // back, rather than standing at the Quiz (his 'never late' and no idle; acplan2-1121 round 9: 83 ticks).
+                if (over <= teamOver && (over <= 0 || left >= QUIZ_GAP_PART_MIN_LEFT)) {
+                    team = r;
+                    teamOver = over;
+                }
+                continue;
+            }
+            // One that does not fit whole is still started while the countdown holds real work time: the clear is cut when
+            // only the trip back is left (tickQuizGapClear), so he is never late, and its dead mobs stay dead.
             if (over <= 0 && est[0] > bestTicks) {
                 best = r;
                 bestTicks = est[0];
-            } else if (over > 0 && over <= lateBy && best == null) {
+            } else if (over > 0 && over <= lateBy && best == null && left >= QUIZ_GAP_PART_MIN_LEFT) {
                 late = r;
                 lateBy = over;
             }
         }
-        RoomStatus.Room pick = best != null ? best : late;
+        RoomStatus.Room pick = best != null ? best : late != null ? late : team;
         if (pick == null) {
             return false;
         }
         LOGGER.info("[AutoSecret] Quiz: {} tick(s) until question {} opens; clearing {} meanwhile ({})", left,
                 com.killer560.hub.puzzlesolvers.QuizState.nextQuestion(), pick.name(),
-                best != null ? "back in time" : "back about " + Math.round(lateBy) + " ticks late");
+                pick == best || pick == team && teamOver <= 0 ? "back in time" : "cut short to be back in time");
         goClear(layout, pick, dist, "Quiz gap: ");
+        quizGapClear = true;
+        return true;
+    }
+
+    /**
+     * Nothing on this side fills the countdown and a Wither Key is in hand: the wither door with work behind it is opened
+     * meanwhile when the trip there and back fits with the spare in hand, so the next decision can fill the rest beyond it
+     * (acplan2-1121 round 10: 84 ticks stood before answer 3 with 13 rooms behind a door two rooms away).
+     */
+    private static boolean quizGapDoor(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist,
+                                       long left) {
+        Minecraft client = Minecraft.getInstance();
+        BlockPos spot = AutoPuzzlesFeature.quizAnswerSpot();
+        DoorPick pick = client.player == null || spot == null || !WitherDoorOpener.haveKey(client.player) ? null
+                : witherDoorPick(layout, rooms, dist, 0);
+        if (pick == null) {
+            return false;
+        }
+        net.minecraft.world.phys.Vec3 door = net.minecraft.world.phys.Vec3.atBottomCenterOf(
+                DungeonMapPathfinder.getDoorPos(layout, layout.currentRoom(), pick.cell()));
+        double trip = AutoClearFeature.etherTicks(client.player.position(), door) + AutoClearFeature.etherTicks(door,
+                net.minecraft.world.phys.Vec3.atBottomCenterOf(spot.above())) + 2 * AutoClearFeature.ETHER_FIXED_TICKS;
+        if (trip + QUIZ_GAP_CLEAR_SPARE_TICKS > left) {
+            return false;
+        }
+        LOGGER.info(String.format(Locale.US, "[AutoSecret] Quiz: %d tick(s) until question %d opens; opening the wither door at"
+                + " cell %d meanwhile (%s beyond it, ~%.0f ticks there and back)", left,
+                com.killer560.hub.puzzlesolvers.QuizState.nextQuestion(), pick.cell(), pick.what(), trip));
+        goToDoor(layout, pick.cell(), false, null);
         return true;
     }
 
@@ -1538,8 +1642,23 @@ public final class AutoSecretFeature {
     private static int quizWaitAnswered;
     private static boolean quizWaitStarted;
     private static long quizWaitLag;
-    /** Ticks at the Quiz waiting for its cooldown with nothing to do, this run (for the testkit's idle bound). */
+    /** The last Quiz wait was decided with work still reachable (a room to clear or secret, or a door a held key opens). */
+    private static boolean quizWorkLeft;
+    /** Ticks at the Quiz waiting for its cooldown with work still reachable, this run (for the testkit's idle bound). */
     private static int quizIdleTicks;
+    /** The same by countdown: [0] before the first answer, [1] the second, [2] the third. */
+    private static final int[] QUIZ_IDLE_BY_QUESTION = new int[3];
+    /** {@link RoomTour#finished()} when the wait began: new trip costs re-decide it. */
+    private static int quizWaitSearches;
+    /**
+     * While he waits at the Quiz with this much of the countdown left, the wait is decided again every
+     * {@link #QUIZ_RECHECK_TICKS} (or {@link #QUIZ_RECHECK_SOONEST} after new trip costs came in): the decision that sent
+     * him back was made on estimates, and the searches that would have sent him out again landed after he arrived (his
+     * 11-21 run: back with about 9 s left, then stood there). Less than a trip out, any work and the trip back never fits.
+     */
+    private static final int QUIZ_RECHECK_MIN_LEFT = 2 * (int) RoomTour.TRIP_FIXED_TICKS + QUIZ_GAP_CLEAR_SPARE_TICKS;
+    private static final int QUIZ_RECHECK_TICKS = 40;
+    private static final int QUIZ_RECHECK_SOONEST = 10;
     /** Without Oruo's first line this long after walking in (his logs: 0-1 s), the start is tried again. */
     private static final int QUIZ_START_WAIT_TICKS = 5 * 20;
 
@@ -1548,6 +1667,7 @@ public final class AutoSecretFeature {
         quizWaitAnswered = com.killer560.hub.puzzlesolvers.QuizState.answeredCount();
         quizWaitStarted = com.killer560.hub.puzzlesolvers.QuizState.started();
         quizWaitLag = com.killer560.hub.util.ServerLag.mark();
+        quizWaitSearches = RoomTour.finished();
         status = "At the Quiz: " + com.killer560.hub.puzzlesolvers.QuizState.describe();
         LOGGER.info("[AutoSecret] at the Quiz ({})", com.killer560.hub.puzzlesolvers.QuizState.describe());
         setPhase(Phase.QUIZ);
@@ -1580,8 +1700,15 @@ public final class AutoSecretFeature {
             return;
         }
         if (com.killer560.hub.puzzlesolvers.QuizState.awaitingAnswer()
-                && !com.killer560.hub.puzzlesolvers.QuizState.answerable()) {
+                && !com.killer560.hub.puzzlesolvers.QuizState.answerable() && quizWorkLeft) {
             quizIdleTicks++;
+            QUIZ_IDLE_BY_QUESTION[Math.min(2, com.killer560.hub.puzzlesolvers.QuizState.answeredCount())]++;
+        }
+        if (quizWaitStarted && com.killer560.hub.puzzlesolvers.QuizState.ticksUntilAnswerable() > QUIZ_RECHECK_MIN_LEFT
+                && (phaseTicks >= QUIZ_RECHECK_TICKS
+                || phaseTicks >= QUIZ_RECHECK_SOONEST && RoomTour.finished() != quizWaitSearches)) {
+            setPhase(Phase.DECIDE);
+            return;
         }
         if (!quizWaitStarted && phaseTicks > QUIZ_START_WAIT_TICKS + com.killer560.hub.util.ServerLag.ticksSince(quizWaitLag)) {
             LOGGER.info("[AutoSecret] Quiz: Oruo has not begun in {} s here - trying again", QUIZ_START_WAIT_TICKS / 20);
@@ -1592,6 +1719,11 @@ public final class AutoSecretFeature {
     /** For the testkit: ticks this run stood at the Quiz waiting out a cooldown. */
     public static int quizIdleTicks() {
         return quizIdleTicks;
+    }
+
+    /** For the testkit: {@link #quizIdleTicks()} by countdown (before answers 1, 2 and 3). */
+    public static int[] quizIdleByQuestion() {
+        return QUIZ_IDLE_BY_QUESTION.clone();
     }
 
     /**
@@ -1682,8 +1814,11 @@ public final class AutoSecretFeature {
         // The room in front of the blood door is ALWAYS the last room secreted (killer560, 2026-10-18: "never have it
         // secret the room before blood until very last under any circumstance"). It joins the lists only when no other
         // room with secrets is left, open or behind a door; until then it is held, and the endgame takes it only when the
-        // one thing left would be waiting on a teammate for a door (decideEndgame).
-        if (preBloodRoom != null) {
+        // one thing left would be waiting on a teammate for a door (decideEndgame). Room Before Blood: Skip leaves its
+        // secrets out altogether (apmenu-1121).
+        if (preBloodRoom != null && skipPreBlood()) {
+            saySkipped(preBloodRoom.name());
+        } else if (preBloodRoom != null) {
             if (open.isEmpty() && blocked.isEmpty()) {
                 (dist.containsKey(preBloodRoom.room()) ? open : blocked).add(preBloodRoom);
             } else {
@@ -2405,13 +2540,27 @@ public final class AutoSecretFeature {
         }
         // The room before blood is never planned ahead for while another room is left (decideSecrets holds it last).
         int preBlood = preBloodRoom(DungeonLayout.capture(), rooms);
-        if (out.size() > 1) {
+        if (out.size() > 1 || skipPreBlood()) {
             out.removeIf(r -> r.room() == preBlood);
         }
         return out;
     }
 
-    /** Ticks a route takes, travel excluded, before Dungeon Autopilot has learned better: 1 s plus 1 s a node. */
+    /** Room Before Blood is Skip: the room in front of the blood door gets no secrets. */
+    static boolean skipPreBlood() {
+        return AutoSecretConfig.getInstance().getRoomBeforeBlood() == AutoSecretConfig.RoomBeforeBlood.SKIP;
+    }
+
+    /** Says once per room that Room Before Blood: Skip leaves its secrets out. */
+    static void saySkipped(String room) {
+        if (!room.equals(preBloodSaid)) {
+            preBloodSaid = room;
+            LOGGER.info("[AutoSecret] {} is the room in front of the blood door - its secrets are skipped (Room Before"
+                    + " Blood: Skip)", room);
+        }
+    }
+
+    /** Ticks a route takes, travel excluded, at Dungeon Autopilot's learned seconds a node (kept across runs). */
     static double routeWorkTicks(Route route) {
         return 20.0 * (1.0 + Autopilot.routeSecondsPerNode() * (route == null ? 0 : route.nodes().size()));
     }
@@ -2458,6 +2607,12 @@ public final class AutoSecretFeature {
             return;
         }
         Autopilot.Order o = Autopilot.decide(layout, rooms, dist, secreted, clearsDone, puzzlesDone);
+        if (o.type() == Autopilot.Type.DOOR_FIRST) {
+            if (doorFirst(layout, rooms, dist, o.why())) {
+                return;
+            }
+            o = Autopilot.beginDeferred();
+        }
         if (comeBackFirst(layout, rooms, dist, here, o)) {
             return;
         }
@@ -2532,10 +2687,47 @@ public final class AutoSecretFeature {
         return true;
     }
 
+    /**
+     * Clear First with no mob room left on this side, or Party with no secret left on it (Autopilot.wantsBehindDoor): the
+     * wither door with that work behind it goes before the held-back pick. With no key in hand or lying, a held-back CLEAR
+     * runs (its room may drop the key), else a key room still standing on this side is cleared first; otherwise
+     * decideWitherDoor fetches or waits for the key (a key room just cleared drops it a moment later).
+     *
+     * @return true when it went for a key room or a door; false = begin the held-back pick
+     */
+    private static boolean doorFirst(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist,
+                                     String pick) {
+        int want = Autopilot.wantsBehindDoor();
+        String what = want == Autopilot.DOOR_FOR_CLEARS ? "mob clears" : "secrets";
+        Minecraft mc = Minecraft.getInstance();
+        if (!WitherDoorOpener.haveKey(mc.player) && lyingWitherKey(mc, layout, dist) == null) {
+            if (Autopilot.deferredKind() == AutopilotPlanner.Kind.CLEAR) {
+                LOGGER.info("[AutoSecret] autopilot: no Wither Key for the door to the {} left - {} first (its room may"
+                        + " drop one)", what, pick);
+                return false;
+            }
+            for (com.killer560.hub.autoclear.KeyRooms.Guard g : com.killer560.hub.autoclear.KeyRooms.guards(layout)) {
+                for (RoomStatus.Room k : rooms) {
+                    if (!g.blood() && k.room() == g.room() && dist.containsKey(k.room()) && !clearsDone.contains(k.name())) {
+                        LOGGER.info("[AutoSecret] autopilot: the {} left wait behind a wither door - clearing key room {}"
+                                + " first (instead of {})", what, k.name(), pick);
+                        goClear(layout, k, dist);
+                        return true;
+                    }
+                }
+            }
+        }
+        if (decideWitherDoor(layout, rooms, dist, want)) {
+            LOGGER.info("[AutoSecret] autopilot: the {} left wait behind a wither door - opening it before {}", what, pick);
+            return true;
+        }
+        return false;
+    }
+
     /** Nothing left the planner wants: a wither door with something behind it, then (Solo) the blood door, then hand back. */
     private static void finishPilot(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist,
                                     Autopilot.Order o) {
-        if (o.tryWither() && decideWitherDoor(layout, rooms, dist)) {
+        if (o.tryWither() && decideWitherDoor(layout, rooms, dist, 0)) {
             return;
         }
         int blood = layout.bloodDoor();
@@ -2804,7 +2996,7 @@ public final class AutoSecretFeature {
         boolean handOffRooms = cfg.isAutoClearRooms() && AutoClearFeature.isAvailable();
         if (!handOffRooms || uncleared.isEmpty()) {
             // Nothing left on this side but a closed door: open it (killer560, 2026-10-06).
-            if (decideWitherDoor(layout, rooms, dist)) {
+            if (decideWitherDoor(layout, rooms, dist, 0)) {
                 return;
             }
             // The room before blood, held back for last: everything else is done or waits on a teammate's door, so it
@@ -2908,9 +3100,17 @@ public final class AutoSecretFeature {
      * the one whose far side holds the most: unfound secrets of identified rooms beyond it, plus one per unidentified or
      * uncleared room there, plus one when the map shows nothing past it yet; nearest first on a tie.
      *
+     * {@code want} (Autopilot.DOOR_FOR_*) counts only that work beyond a door: mob rooms to clear, or unfound secrets
+     * (an unidentified room counts for either); 0 counts both.
+     *
      * @return true when it is going to a door or is at one
      */
-    private static boolean decideWitherDoor(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist) {
+    /** The shut wither door with the most work behind it ({@code want} as in decideWitherDoor), or null. */
+    private record DoorPick(int cell, int rooms, String what) {
+    }
+
+    private static DoorPick witherDoorPick(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist,
+                                           int want) {
         int here = layout.currentRoom();
         int best = -1;
         int bestScore = 0;
@@ -2942,8 +3142,9 @@ public final class AutoSecretFeature {
                     if ("Unknown".equals(r.name())) {
                         others++;
                     } else {
-                        unfound += r.unfound();
-                        others += r.cleared() ? 0 : 1;
+                        unfound += want == Autopilot.DOOR_FOR_CLEARS ? 0 : r.unfound();
+                        others += r.cleared() || want == Autopilot.DOOR_FOR_SECRETS || want != 0
+                                && (r.isType("PUZZLE") || r.isType("FAIRY") || r.isType("TRAP")) ? 0 : 1;
                     }
                 }
             }
@@ -2955,9 +3156,19 @@ public final class AutoSecretFeature {
                 bestWhat = unfound + " unfound secret(s), " + others + " room(s) to explore or clear";
             }
         }
-        if (best < 0 || DungeonMapPathfinder.getDoorPos(layout, here, best) == null) {
+        return best < 0 || DungeonMapPathfinder.getDoorPos(layout, here, best) == null ? null
+                : new DoorPick(best, bestDist, bestWhat);
+    }
+
+    private static boolean decideWitherDoor(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist,
+                                            int want) {
+        DoorPick pick = witherDoorPick(layout, rooms, dist, want);
+        if (pick == null) {
             return false;
         }
+        int best = pick.cell();
+        int bestDist = pick.rooms();
+        String bestWhat = pick.what();
         // A shut wither door and no key, while a Wither Key lies in a room it can reach: the key first (simmobs2-1101, a sim
         // floor with mobs: Auto Clear handed Multicolored back the tick its last mob died, before the key's stand reached
         // the client, and Auto Secret then waited at the door it opens for the rest of the run, 12 minutes).

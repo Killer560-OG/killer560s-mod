@@ -54,7 +54,8 @@ final class Autopilot {
     private static final Logger LOGGER = ModLog.get("killer560smod-autosecret");
 
     /** What Auto Secret should do next. */
-    enum Type { SECRET, CLEAR, PUZZLE, EXPLORE, DOOR, FINISH, KEY }
+    /** DOOR_FIRST: a wither door (or the key room for it) may go before the pick, which waits unbegun ({@link #beginDeferred}). */
+    enum Type { SECRET, CLEAR, PUZZLE, EXPLORE, DOOR, FINISH, KEY, DOOR_FIRST }
 
     /**
      * @param room       the target room (SECRET, CLEAR, PUZZLE, EXPLORE)
@@ -70,11 +71,12 @@ final class Autopilot {
         }
     }
 
-    // ---- learned this run (estimates are logged beside what really happened, for calibrating on Hypixel) ----
-    /** Seconds an Auto Clear of one room takes, travel excluded. Starting guess; then a running average of this run. */
-    private static final double CLEAR_SECONDS_START = 12.0;
+    // ---- learned over every run of this session (estimates are logged beside what really happened, for calibrating on Hypixel) ----
+    /** Seconds an Auto Clear of one room takes, travel excluded. Starting guess; then a running average kept across runs
+     * (acplan-1121: a reset every run priced the first Quiz gap at the guess). */
+    private static final double CLEAR_SECONDS_START = 5.0;
     /** Seconds a route takes per node, travel excluded. */
-    private static final double ROUTE_SECONDS_PER_NODE_START = 1.0;
+    private static final double ROUTE_SECONDS_PER_NODE_START = 0.45;
     private static final double LEARN = 0.4;
 
     private static double clearSeconds = CLEAR_SECONDS_START;
@@ -98,13 +100,15 @@ final class Autopilot {
     private static String hudAction = "-";
     private static String hudWhy = "";
     private static String hudScore = "";
+    /** What the last decide still wants behind a closed wither door: 0 nothing, DOOR_FOR_CLEARS, DOOR_FOR_SECRETS. */
+    private static int wantsBehindDoor;
+    static final int DOOR_FOR_CLEARS = 1;
+    static final int DOOR_FOR_SECRETS = 2;
 
     private Autopilot() {
     }
 
     static void reset() {
-        clearSeconds = CLEAR_SECONDS_START;
-        routeSecondsPerNode = ROUTE_SECONDS_PER_NODE_START;
         bloodOpened = false;
         explored.clear();
         keysGivenUp.clear();
@@ -121,6 +125,28 @@ final class Autopilot {
         hudAction = "Starting";
         hudWhy = "";
         hudScore = "";
+    }
+
+    private static AutopilotPlanner.Choice deferred;
+    private static String deferredHead;
+    private static DungeonLayout deferredLayout;
+    private static List<RoomStatus.Room> deferredRooms;
+
+    /** The kind of the pick a DOOR_FIRST order holds back, or null. */
+    static AutopilotPlanner.Kind deferredKind() {
+        return deferred == null ? null : deferred.pick().kind();
+    }
+
+    /** No door goes first after all: the held-back pick is begun now (its pick line, its timing). */
+    static Order beginDeferred() {
+        AutopilotPlanner.Choice c = deferred;
+        deferred = null;
+        return begin(deferredLayout, deferredHead, c, deferredRooms);
+    }
+
+    /** @return what the last decide still wants behind a closed wither door (0 = nothing) */
+    static int wantsBehindDoor() {
+        return wantsBehindDoor;
     }
 
     static double routeSecondsPerNode() {
@@ -228,10 +254,23 @@ final class Autopilot {
             return finish(false, "300 score reached");
         }
 
-        AutopilotPlanner.Choice c = AutopilotPlanner.chooseTour(party, cands, tourTravel(), 3_000_000L);
-        // Solo: a mob room is cleared before its secrets are taken, then secreted next (AutopilotPlanner.clearFirst).
-        // Party keeps routes first (its clears are the team's, after every route).
-        AutopilotPlanner.Choice cf = party ? c : AutopilotPlanner.clearFirst(c, cands, clearedFirst);
+        // Solo 300 / Party Secrets: fastest to 300 / to the secret need, one visit per room, least travel; Clear Then
+        // Secret / Secret Then Clear: that fixed order, each phase one visit per room (acplan-1121). Clear First: every
+        // room is cleared before any secret, whatever the mode; the mode plans what is left.
+        AutoSecretConfig.Mode mode = cfg.getMode();
+        boolean clearsPhase = cfg.clearsFirst() && AutopilotPlanner.clearsLeft(cands);
+        boolean ordered = clearsPhase || mode == AutoSecretConfig.Mode.CLEAR_THEN_SECRET
+                || mode == AutoSecretConfig.Mode.SECRET_THEN_CLEAR;
+        AutopilotPlanner.Choice c = ordered
+                ? AutopilotPlanner.chooseOrdered(clearsPhase || mode == AutoSecretConfig.Mode.CLEAR_THEN_SECRET,
+                        clearsPhase ? cands.stream().filter(k -> k.kind() == AutopilotPlanner.Kind.CLEAR
+                                || k.kind() == AutopilotPlanner.Kind.KEY).toList() : cands, tourTravel(),
+                        cfg.isClearBeforeSecret(), 3_000_000L)
+                : AutopilotPlanner.chooseFastest(party, cands, tourTravel(),
+                        AutopilotScore.usefulSecrets(s) * AutopilotScore.secretValue(s), cfg.isClearBeforeSecret(), 3_000_000L);
+        // Solo 300: a mob room is cleared before its secrets are taken, then secreted next (AutopilotPlanner.clearFirst).
+        // Party keeps routes first (its clears are the team's, after every route); the fixed orders keep theirs.
+        AutopilotPlanner.Choice cf = party || ordered ? c : AutopilotPlanner.clearFirst(c, cands, clearedFirst);
         if (cf != c) {
             LOGGER.info("[Autopilot] {} {}: {}", cf.pick().kind(), cf.pick().room(), cf.why());
         }
@@ -241,6 +280,22 @@ final class Autopilot {
             clearedFirst = null;
         }
         c = cf;
+        // Clear First with no mob room left on this side, or Party with no secret left on it: a wither door with that work
+        // behind it goes before the other phase (acplan2-1121: it secreted, or cleared, while clears or routes waited
+        // behind a door).
+        AutopilotPlanner.Kind picked = c == null ? null : c.pick().kind();
+        wantsBehindDoor = cfg.clearsFirst() && !clearsPhase && picked != AutopilotPlanner.Kind.KEY ? DOOR_FOR_CLEARS
+                : party && !cfg.clearsFirst() && picked == AutopilotPlanner.Kind.CLEAR && cands.stream().noneMatch(k
+                        -> k.gain() > 0 && (k.kind() == AutopilotPlanner.Kind.SECRET || k.kind() == AutopilotPlanner.Kind.KEY))
+                ? DOOR_FOR_SECRETS : 0;
+        if (c != null && wantsBehindDoor != 0 && c.pick().kind() != AutopilotPlanner.Kind.KEY) {
+            // Not begun (no pick line, nothing timed or credited) until Auto Secret says no door goes first.
+            deferred = c;
+            deferredHead = head;
+            deferredLayout = layout;
+            deferredRooms = rooms;
+            return new Order(Type.DOOR_FIRST, null, -1, false, false, false, c.pick().describe(), null);
+        }
         if (c != null) {
             if (!c.tour().isEmpty()) {
                 List<String> t = new ArrayList<>();
@@ -649,6 +704,8 @@ final class Autopilot {
         }
         List<Integer> rush = AutoClearFeature.bloodRushRooms(layout);
         realTravel = realTravel(layout, rooms, dist);
+        // Room Before Blood: Skip leaves the secrets of the room in front of the blood door out.
+        int skipSecrets = AutoSecretFeature.skipPreBlood() ? AutoSecretFeature.preBloodRoom(layout, rooms) : -2;
         for (RoomStatus.Room r : rooms) {
             Integer steps = dist.get(r.room());
             if (steps == null) {
@@ -677,7 +734,10 @@ final class Autopilot {
                 trapCandidate(out, r, key, travel, s, party, routes, secreted, mate, rushIndex);
                 continue;
             }
-            if (routes && r.unfound() > 0 && !secreted.contains(r.name()) && !r.isType("PUZZLE")
+            if (r.room() == skipSecrets && r.unfound() > 0) {
+                AutoSecretFeature.saySkipped(r.name());
+            }
+            if (routes && r.unfound() > 0 && r.room() != skipSecrets && !secreted.contains(r.name()) && !r.isType("PUZZLE")
                     && !r.isType("BLOOD") && !r.isType("ENTRANCE")) {
                 Route route = RouteStore.getInstance().forRoom(r.name());
                 if (route != null && route.startNode() != null) {

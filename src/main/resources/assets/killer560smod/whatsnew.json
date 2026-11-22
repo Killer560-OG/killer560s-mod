@@ -20,7 +20,8 @@
      "Bug reports now hold what is needed to diagnose a missing HUD or scoreboard line (sidebar, tab info, island, what each stat reader parsed, HUD element states, language, GUI scale, resource packs), and /bugreport <what is wrong> saves your note in the report.",
      "Autopilot no longer stands still for about half a second after the last warp of each trip to a door, room or secret spot: it moves on the tick the server confirms the landing, and left-clicks a door on that tick.",
      "Dungeons Autopilot: Dungeon Autopilot, Auto Secret, Auto Clear and Auto Blood Rush are now one cheat card with one switch and one keybind. Pick a Mode (Solo 300, Clear Then Secret, Secret Then Clear, Party Secrets), a Blood Rush (None, Clear, Door), Disable After Blood Rush, Clear First, Clear Room Before Secreting, Room Before Blood and the rest in one place; your old start key carries over.",
-     "Team Melody's settings no longer load during a frame, which could stall the game for a moment."
+     "Team Melody's settings no longer load during a frame, which could stall the game for a moment.",
+     "Dungeon Autopilot on the Solo 300 goal plans each room once (clear it or do the secrets the score still needs, least travel first); Clear First and the Clear Then Secret mode clear every room's mobs before any secret, opening a wither door to reach more; Party Secrets opens a door to more secrets before clearing; Clear Room Before Secreting and Room Before Blood: Skip are followed. Auto Secret and the Autopilot come back to the Quiz just as the next question opens: the countdown is filled with a route or a room's mob clear and decided again while it waits, a clear started in it is cut when only the trip back is left, and a trip it could not find a way for once is looked for again; with nothing else left on this side it clears a route room cut short or, with a Wither Key in hand, opens the wither door meanwhile"
     ]
    }
   ]

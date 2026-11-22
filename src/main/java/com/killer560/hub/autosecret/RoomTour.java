@@ -40,8 +40,6 @@ final class RoomTour {
     static final double TRIP_FIXED_TICKS = 14;
     /** Ticks per warp once a chain is going (Auto Clear's ETHER_TICKS_PER_WARP). */
     static final double TICKS_PER_WARP = 2;
-    /** A trip the planner found no way for: far worse than any real one, but finite (so orders still compare). */
-    static final double UNREACHABLE_TICKS = 2000;
     /** A trip's from-row is looked up from a searched start within this many blocks of where he stands. */
     private static final double FROM_MATCH = 3.0;
     /** The planner-thread budget of all of one request's searches (in slices; the rest is estimated). */
@@ -68,6 +66,12 @@ final class RoomTour {
     /** The leave points searched from, by key. */
     private static final Map<String, Vec3> LEAVES = new ConcurrentHashMap<>();
     private static volatile int generation;
+    /** Searches that found no way, by leave key + "|" + arrive key: how many times (acplan2-1121, audit S2). */
+    private static final Map<String, Integer> FAILS = new ConcurrentHashMap<>();
+    /** A trip with no way found is searched again by later requests up to this many times in all. */
+    private static final int MAX_FAILED_SEARCHES = 3;
+    /** Requests finished this run (a waiting decision re-decides when it changes). */
+    private static volatile int finished;
     /** A request is on the planner thread now. */
     private static volatile boolean busy;
     /** The site the last plan-ahead picked for the trip from its leave point, and that point. */
@@ -86,6 +90,7 @@ final class RoomTour {
         generation++;
         COST.clear();
         LEAVES.clear();
+        FAILS.clear();
         aheadPick = null;
         aheadFrom = null;
         ClearExecutor.dropPreplan();
@@ -93,6 +98,11 @@ final class RoomTour {
 
     static boolean isBusy() {
         return busy;
+    }
+
+    /** Requests finished this run: new trip costs may be in. */
+    static int finished() {
+        return finished;
     }
 
     private static String leaveKey(Vec3 v) {
@@ -145,7 +155,7 @@ final class RoomTour {
 
     /** A trip's ticks less the part every trip pays alike. */
     static double variable(double ticks) {
-        return ticks >= UNREACHABLE_TICKS ? ticks : Math.max(0, ticks - TRIP_FIXED_TICKS);
+        return Math.max(0, ticks - TRIP_FIXED_TICKS);
     }
 
     /** A precomputed trip's ticks from {@code start} into {@code s} (the Interactive Map's TripCache), or null. */
@@ -292,6 +302,18 @@ final class RoomTour {
                 LEAVES.putIfAbsent(leaveKey(s.leave()), s.leave());
                 starts.add(s.leave());
             }
+            // A trip whose search found no way holds the estimate meanwhile and is searched again (a door may have opened),
+            // up to MAX_FAILED_SEARCHES times: it was cached as 2000 ticks for the run, so a Quiz trip back that failed once
+            // ruled out every room near the Quiz (audit S2).
+            for (Map.Entry<String, Integer> e : FAILS.entrySet()) {
+                if (e.getValue() < MAX_FAILED_SEARCHES) {
+                    int bar = e.getKey().indexOf('|');
+                    Map<String, Double> row = COST.get(e.getKey().substring(0, bar));
+                    if (row != null) {
+                        row.remove(e.getKey().substring(bar + 1));
+                    }
+                }
+            }
         }
 
         void submit() {
@@ -303,6 +325,7 @@ final class RoomTour {
             try {
                 if (step()) {
                     finish();
+                    finished++;
                     busy = false;
                 } else {
                     submit();   // the rest after whatever was queued meanwhile (a trip of the map's own first)
@@ -352,7 +375,10 @@ final class RoomTour {
                             ? EtherwarpPathfinder.findDungeonPathToTile(start, to.arrive(), to.tile(), cfg, range, layout)
                             : EtherwarpPathfinder.findDungeonPath(start, to.arrive(), cfg, range, layout, false);
                     searches++;
-                    row.put(to.arriveKey(), path == null ? UNREACHABLE_TICKS
+                    if (path == null) {
+                        FAILS.merge(leaveKey(start) + "|" + to.arriveKey(), 1, Integer::sum);
+                    }
+                    row.put(to.arriveKey(), path == null ? estimate(start, to.arrive(), layout)
                             : path.isEmpty() ? 0 : TRIP_FIXED_TICKS + TICKS_PER_WARP * path.size());
                 }
             }

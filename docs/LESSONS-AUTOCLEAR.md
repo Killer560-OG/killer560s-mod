@@ -197,7 +197,9 @@ there); Auto Routes is in [LESSONS-ROUTES.md](LESSONS-ROUTES.md); the sim's side
 - Dungeon Mob Highlight's Fel Skulls took only a player head or a plain skull; the sim's sleeping Fels wear a wither skeleton skull
   (his "black fel skulls"), so none was drawn. It takes all three now (1102-sim-felskulls).
 - Hyperion casts across (achype-1117, killer560: "it only hyped straight down never across to other boxes"): a Wither Impact is planned once per plan key over a fan of looks (`WeaponReach.hyperionBest`, 24 yaws x 6 pitches, each landing predicted like the sim's dash, blast radius 6 less a 1 block margin) and the landing that reaches the target and the most other live mobs wins; unseen known spawn spots (`BloodRushData.worldBoxes`, each box's bottom center; the shared table, else the jar's fallback boxes) only break ties. An across cast must be held as Phase.HOP (ATTACK presses again every 2 ticks and would dash twice). Where a straight-down cast already reaches the target, the across one is used only when its mob set is a superset with strictly more mobs, so it never costs a kill the old plan had. A chain cast replaces only a TRIP (swap, etherwarp, swap): the old hop still goes first where it keeps the plan, a chain link must land in reach of the target with every live mob of the plan's block for it in the blast, and it is taken only when its measured time beats the trip: 1 turn tick + the cast as timed on this run (use tick to standing again, less the predicted fall; EMA, prior 3) + the fall (`WeaponReach.fallTicks`, vanilla gravity under the box corners) <= trip + 2 (a tie goes to the chain: the trip price leaves out its swap ticks, and a tied 1-warp trip cleared at last death 9 where the chain did at 7). A flat ~2 tick link price (new5) ignored the turn, the cast and the fall and lost 1124 -> 1283 ticks; between casts reaching the same mobs, the one that falls least wins. Measured on two replayed floors (31 rooms, -PacsCodes): chains placed before hops, or with no plan rule, left the tour (Museum 6 -> 11 warp uses, Crypt 65 -> 90 ticks, the floor 1124 -> 1206 ticks); one per-room tick difference of under ~10% is load noise (Bridges 81 -> 91 with every decision line identical). The final rule, A/B alternating on one checkout under load: origin 1077 and 1079 ticks, new 1142 and 1045 (the 1142 run made every decision the origin did; its trips alone ran slower), 0 chains on those floors, every room cleared. In the owner's layout (1117-ac-hype-chain) origin casts, swaps, etherwarps, swaps, casts; the new rule casts twice with no hotbar change. A test that counts hotbar changes "between casts" must count one only once a later cast lands (the swap back after the room is not between casts). A room with neither shared nor fallback boxes (the mob rooms Buttons, Cathedral, Museum, Well and others, 2026-11-17) has no spot weighting: its casts plan on live mobs only.
-- Auto Clear alone (Quiz First, no Auto Secret) used to stand at the Quiz through all three locks (220, then 100 ticks). acquiz-1117: `quizGapPick` runs at each pick and once per countdown at the Quiz (keyed on `QuizState.answerAtTick()`), never per tick; it prices a room with `estimateClear` (mobs in sight only, its trips included) plus `etherTicks` back onto Auto Quiz's answer spot. The owner allows a late return while work remains ("It doesn't need to be back tick perfect"), so a room up to `QUIZ_GAP_LATE_TICKS` (100) late is taken when none fits; it stops starting gaps once the trip back alone fills what is left. Testkit 1117-sim-acquiz-gap / -wait (a mob F7 with the Quiz pinned; -PmobfloorCode replays it).
+- Auto Clear alone (Quiz First, no Auto Secret) used to stand at the Quiz through all three locks (220, then 100 ticks). acquiz-1117: `quizGapPick` runs at each pick and once per countdown at the Quiz (keyed on `QuizState.answerAtTick()`), never per tick; it prices a room with `estimateClear` (mobs in sight only, its trips included) plus `etherTicks` back onto Auto Quiz's answer spot. The owner allows a late return while work remains ("It doesn't need to be back tick perfect"), so a room up to `QUIZ_GAP_LATE_TICKS` (100) late is taken when none fits
+(SUPERSEDED 11-21 ~11:00 PM, his newest words: back "the second that it's ready for me to come back", never LATE; a late
+pick is now cut when only the trip back is left, see "Quiz return" below); it stops starting gaps once the trip back alone fills what is left. Testkit 1117-sim-acquiz-gap / -wait (a mob F7 with the Quiz pinned; -PmobfloorCode replays it).
 - Landing pre-aim and stale trip state (achype6-1117): while the last etherwarp of a trip is in flight Auto Clear already swaps to the Hyperion and looks down (`aimForLanding`, "Hyperion ready for the landing"), so the first cast goes the tick he stands. Two statics survived from one clear to the next and made rows order-dependent: `lastTripGoal`/`sameGoalTrips` (a goal the last clear reached counted as a repeat, so the next clear skipped a starred mob "no trip lands on" and left it alive; now cleared in `begin` and when a trip lands on its goal) and the learned chain link time `linkMean` (kept on purpose; the testkit puts it back to 3.0 per case). On the local test server the last landing confirms within one tick of the last warp, which leaves the pre-aim no tick: same-tick rows run with 100 ms latency. The room-time "kills" count and the run total count only the targeted mob and doomed bat flights, not splash/chain deaths: compare runs on the "every starred mob seen here is dead (N deaths)" lines (killer560s-mod-logs/achype/a6-deaths.py), which matched per room on origin and branch.
 - acquiz2-1118 (his 11-18 Hypixel run, Untested Cheat): the Quiz gap above is Auto Clear ALONE. With Auto Secret driving (Auto Clear Rooms) `AutoSecretFeature.decideQuiz` fills a countdown only with SECRET rooms whose round trip fits; with none (no route, or too long: 176/138/138 ticks left each time) it went back and stood 405 ticks while Multicolored (a 25-tick clear next door) and Chains were uncleared. Real countdowns: question 1 answerable 220 ticks after Oruo's intro, 2 and 3 exactly 100 after the previous question line (about 140 after the answer click), so the sim's 220/100 is right. Both gap pickers priced a room only from starred mobs IN SIGHT (`estimateClear`, null otherwise), so a room not seen yet was never a candidate: `estimateClearOrGuess` prices it as the trip to its middle plus `UNSEEN_CLEAR_TICKS` (60). New `quizGapMobClear` in Auto Secret chains mob-only rooms the same way (longest that is back in time, else least late within 100). Testkit 1118-sim-acquiz-secret.
 - Blood First detoured after every key room (acbloodfirst-1118, his 11-18 runs): Hypixel redraws the sidebar Keys line about once
@@ -256,6 +258,48 @@ there); Auto Routes is in [LESSONS-ROUTES.md](LESSONS-ROUTES.md); the sim's side
   count above the one at the last click now starts a new round (`doorClickKeys`). Testkit 1121-sim-acslow-door.
 - A mid-run rejoin hears no Mort line, so ArmedStart armed Auto Clear / Auto Secret until the held map was read:
   `WitherDoorsFeature.runStarted()` also counts `DungeonRun.resumed()`. Testkit 1121-hx-rejoin-runstarted.
+- Solo 300 planning (acplan-1121): Dungeon Autopilot planned clears and secrets as two passes, so a room was often
+  visited twice (once to clear, once for secrets). `AutopilotPlanner.chooseFastest` picks per room the one visit the
+  score still needs, least travel first, priced with the persisted per-room times (S1). `clearsLeft` counts CLEAR only;
+  the clears phase takes CLEAR+KEY candidates. `clearsFirst() = isClearFirst() || getMode() == CLEAR_THEN_SECRET` is the
+  one gate for the planner's clears phase (mob clears only; puzzles keep their own toggles). Testkit 1121-logic-acplan-fastest,
+  1121-sim-acplan-*.
+- Quiz gap filler (acplan-1121 S3): `quizGapMobClear` refused every route room, so with no whole route fitting in the
+  Quiz countdown the gap was idle. A route room's clear is allowed when no whole route fits (solo, or Clear Room Before
+  Secreting in a party). Testkit 1121-sim-acquiz-routes, 1118-sim-acquiz-secret.
+- Quiz return (acplan2-1121, his 11-21 "come back ... the second that it's ready for me to come back, not a minute
+  earlier"): `tickQuiz` decided again only on an answer, so a wait begun on ESTIMATES (the RoomTour searches it had just
+  asked for land a second later) stood out the whole countdown. It now re-decides every 40 ticks, or 10 ticks after
+  `RoomTour.finished()` changes, while more than 48 ticks are left. A gap route needs the same 20-tick spare as a gap
+  clear. Clear estimates miss by seconds both ways (sim: a clear priced "back in time" came back 120 ticks late; refusing
+  late picks left 95 idle ticks a countdown), so a Quiz-gap clear is CUT when only the trip back (+10) is left
+  (`quizGapCutDue` in the AUTO_CLEAR phase, `runId++` so the cut clear's callbacks are ignored, `clearsDone` dropped so it
+  is planned again); a clear that does not fit whole may start while 100+ ticks are left.
+  Testkit 1121-sim-acquiz-return / -return-party (per-countdown idle from `quizIdleByQuestion()`).
+- A trip search that found no way was cached as 2000 ticks for the whole run (audit S2), which ruled out every room whose
+  trip back to the Quiz spot failed once. `RoomTour` now stores the estimate for it and searches it again on the next
+  requests, up to 3 tries (`FAILS`); `UNREACHABLE_TICKS` is gone.
+- Audit items that were not planner bugs (acplan2-1121): S5 "Gravel cleared twice" in 224231 was one TRAVEL/CLEAR stuck
+  175 ticks at -191.5,69.3,-115.5 in Three Weirdos (never reached Gravel; trip failed, `clearsDone` dropped it, cleared
+  later) - a travel problem. S8: Solo already values secrets past the S+ need at 0 (`usefulSecrets`) and drops zero-gain
+  candidates, so it stops secreting once the need is met. S7 (blood last): the documented design; Blood First opens it early.
+- Clear First touring for clears without secrets (acplan2-1121 round 3): with every reachable mob room cleared but more
+  behind a closed wither door, `clearsLeft` went false and Clear First / Clear Then Secret secreted this side first; Party
+  with no route left on this side cleared rooms while routes waited behind a door. `Autopilot.wantsBehindDoor()` now says
+  which work the decide still wants, and decidePilot opens a door with that work behind it (`decideWitherDoor(.., want)`)
+  before the other phase, with no key in hand needed (round 4: that guard let the key room's key, dropping just after its
+  clear, slip by, and it secreted first), and drops the set-aside order (`Autopilot.dropCurrent`), or it was counted done.
+  Round 5: Party picked a clear because of Clear Room Before Secreting (secrets still on this side) and was sent to a
+  keyless door, re-picking forever; Party now goes for a door only with no secret candidate left, and with no key in hand
+  or lying, a key room still standing on this side is cleared first (its key opens that door). The party-secrets case
+  allows a wither key room's clear before routes (no teammate opens the door in the sim).
+  Round 7: diverting AFTER Autopilot.decide left a "pick SECRET X" line for a pick never done (the case counted it, the
+  sim credited its secrets). The pick is now held back unbegun (Order type DOOR_FIRST, `Autopilot.beginDeferred()` when no
+  door goes first), and with no key a held-back CLEAR runs (its room may drop the key; Party looped 83 picks at a keyless
+  door while the pick was the key room's clear).
+  Round 8: a keyless held-back CLEAR now logs "no Wither Key for the door to the ... left - <pick> first"; the
+  party-secrets case allows exactly those clears before routes (the key room by the map heuristic, Gold, is not always
+  the sim's listed key room).
 
 ## Wait cuts (acwaits-1121)
 

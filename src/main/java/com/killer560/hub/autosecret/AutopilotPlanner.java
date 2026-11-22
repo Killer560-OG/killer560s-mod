@@ -157,6 +157,208 @@ public final class AutopilotPlanner {
     }
 
     /**
+     * Fastest to 300 (acplan-1121, killer560 2026-11-21: "plan clear vs secrets per room to reach score 300 fastest", not a
+     * tour of the map clearing and a second one for secrets). Solo: every clear, puzzle and unexplored room is needed (300
+     * needs every room), plus the cheapest secrets that cover what S+ still needs ({@code secretScoreNeeded}): a secret in
+     * a room already being visited costs only its route, any other also the detour there and back. Each room is then ONE
+     * visit (clear, puzzle, then its route) and the visits go in the order with the least travel, because the work is the
+     * same in any order, so least travel is soonest 300. Party (secrets first): the secret rooms covering the need, in
+     * least-travel order, then the rest of its secrets the same way; clears stay the team's ({@link #choose}'s tiers).
+     * A dropped key that is best by rate is still taken first. Exact up to {@link #EXACT_SITES} rooms, else the best order
+     * the least-travel search finds within {@code budgetNanos}.
+     */
+    public static Choice chooseFastest(boolean party, List<Candidate> all, Travel travel, double secretScoreNeeded,
+                                       boolean clearBeforeSecret, long budgetNanos) {
+        Choice byRate = choose(party, all);
+        if (byRate == null || byRate.pick().kind() == Kind.KEY || travel == null) {
+            return byRate;
+        }
+        List<Candidate> needed = new ArrayList<>();
+        List<Candidate> secrets = new ArrayList<>();
+        for (Candidate c : byRate.ranked()) {
+            if (c.gain() <= 0 || c.kind() == Kind.KEY) {
+                continue;
+            }
+            if (c.kind() == Kind.SECRET) {
+                secrets.add(c);
+            } else if (!party) {
+                needed.add(c);
+            }
+        }
+        if (party && secrets.isEmpty()) {
+            return chooseTour(true, all, travel, budgetNanos);
+        }
+        java.util.Set<String> visited = new java.util.HashSet<>();
+        for (Candidate c : needed) {
+            visited.add(c.room());
+        }
+        // Cheapest secrets first by seconds per score: a visited room's route alone, any other also its detour.
+        List<Candidate> bySecond = new ArrayList<>(secrets);
+        bySecond.sort(Comparator.comparingDouble((Candidate c) -> secretCost(c, visited, travel) / c.gain())
+                .thenComparing(Candidate::room));
+        double covered = 0;
+        List<Candidate> chosen = new ArrayList<>();
+        for (Candidate c : bySecond) {
+            if (covered >= secretScoreNeeded - 1e-9) {
+                break;
+            }
+            chosen.add(c);
+            covered += c.gain();
+        }
+        if (party && chosen.isEmpty()) {
+            chosen.addAll(secrets);   // the need is met: Party keeps going for the spare ones
+        }
+        needed.addAll(chosen);
+        if (party && clearBeforeSecret) {
+            needed.addAll(clearsOf(chosen, byRate.ranked()));
+        }
+        if (needed.isEmpty()) {
+            return byRate;
+        }
+        Visits v = visits(needed, travel, budgetNanos);
+        String why = String.format(Locale.US, "%s: fastest to %s - %d room visit(s), %d route(s) for %.1f of %.1f secret"
+                        + " score, travel %.1f s, all in %.1f s", party ? "Party, secrets first" : "Solo",
+                party ? "the secret need" : "300", v.rooms(), chosen.size(), covered, secretScoreNeeded, v.travel(),
+                v.travel() + v.work());
+        return new Choice(v.tour().get(0), why, byRate.ranked(), v.tour());
+    }
+
+    /**
+     * A mob clear is still worth something and no teammate stands in it (Clear First: mob clears only; puzzles keep their
+     * own switches, killer560 2026-11-21).
+     */
+    public static boolean clearsLeft(List<Candidate> all) {
+        for (Candidate c : all) {
+            if (c.gain() > 0 && c.kind() == Kind.CLEAR && !c.teammateInside()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * A fixed order for the Run Mode switch (killer560 2026-11-21, one Dungeons Autopilot with Clear Then Secret and Secret
+     * Then Clear beside Solo 300): {@code clearsFirst} takes every clear, puzzle and unexplored room before any secret,
+     * else every secret first; each phase is one visit per room in the least-travel order. A dropped key best by rate is
+     * still taken first. Clears in a room a teammate is in stay out, as in {@link #choose}.
+     */
+    public static Choice chooseOrdered(boolean clearsFirst, List<Candidate> all, Travel travel, boolean clearBeforeSecret,
+                                       long budgetNanos) {
+        Choice byRate = choose(false, all);
+        if (byRate == null || byRate.pick().kind() == Kind.KEY || travel == null) {
+            return byRate;
+        }
+        List<Candidate> clears = new ArrayList<>();
+        List<Candidate> secrets = new ArrayList<>();
+        for (Candidate c : byRate.ranked()) {
+            if (c.gain() <= 0 || c.kind() == Kind.KEY) {
+                continue;
+            }
+            if (c.kind() == Kind.SECRET) {
+                secrets.add(c);
+            } else if (!c.teammateInside()) {
+                clears.add(c);
+            }
+        }
+        List<Candidate> phase = clearsFirst ? (clears.isEmpty() ? secrets : clears) : (secrets.isEmpty() ? clears : secrets);
+        if (phase.isEmpty()) {
+            return byRate;
+        }
+        if (phase == secrets && clearBeforeSecret) {
+            phase = new ArrayList<>(secrets);
+            phase.addAll(clearsOf(secrets, byRate.ranked()));
+        }
+        Visits v = visits(phase, travel, budgetNanos);
+        String why = String.format(Locale.US, "%s: %s - %d room visit(s), travel %.1f s, all in %.1f s",
+                clearsFirst ? "Clear Then Secret" : "Secret Then Clear", phase == clears ? "clears" : "secrets", v.rooms(),
+                v.travel(), v.travel() + v.work());
+        return new Choice(v.tour().get(0), why, byRate.ranked(), v.tour());
+    }
+
+    /**
+     * Clear Room Before Secreting (killer560 2026-11-21: "add an option to clear room before secreting it"): the clears of
+     * the rooms {@code secrets} visits, so each is cleared in the same visit before its route. A room a teammate is in is
+     * left to him.
+     */
+    static List<Candidate> clearsOf(List<Candidate> secrets, List<Candidate> ranked) {
+        java.util.Set<String> rooms = new java.util.HashSet<>();
+        for (Candidate c : secrets) {
+            rooms.add(c.room());
+        }
+        List<Candidate> out = new ArrayList<>();
+        for (Candidate c : ranked) {
+            if (c.kind() == Kind.CLEAR && c.gain() > 0 && !c.teammateInside() && rooms.contains(c.room())) {
+                out.add(c);
+            }
+        }
+        return out;
+    }
+
+    /** A plan of room visits: candidates in visit order, rooms visited, seconds of travel and of work. */
+    record Visits(List<Candidate> tour, int rooms, double travel, double work) {
+    }
+
+    /** One visit per room (its clear and puzzle, then its route), the visits in the order with the least travel. */
+    static Visits visits(List<Candidate> needed, Travel travel, long budgetNanos) {
+        java.util.Map<String, List<Candidate>> rooms = new java.util.LinkedHashMap<>();
+        for (Candidate c : needed) {
+            rooms.computeIfAbsent(c.room(), k -> new ArrayList<>()).add(c);
+        }
+        List<String> keys = new ArrayList<>(rooms.keySet());
+        int n = keys.size();
+        double[] fromHere = new double[n];
+        double[][] between = new double[n][n];
+        double work = 0;
+        for (int i = 0; i < n; i++) {
+            fromHere[i] = Math.max(0, travel.fromHere(keys.get(i)));
+            for (int j = 0; j < n; j++) {
+                between[i][j] = i == j ? 0 : Math.max(0, travel.between(keys.get(i), keys.get(j)));
+            }
+            for (Candidate c : rooms.get(keys.get(i))) {
+                work += Math.max(0, c.seconds() - fromHere[i]);
+            }
+        }
+        int[] order = leastTravel(fromHere, between, budgetNanos);
+        List<Candidate> tour = new ArrayList<>();
+        for (int i : order) {
+            List<Candidate> here = rooms.get(keys.get(i));
+            here.sort(Comparator.comparingInt((Candidate c) -> c.kind() == Kind.SECRET ? 1 : 0));
+            tour.addAll(here);
+        }
+        return new Visits(tour, n, TourPlanner.travel(order, fromHere, between), work);
+    }
+
+    /** Rooms the least-travel order is exact for (Held-Karp, about a millisecond at 12). */
+    static final int EXACT_SITES = 12;
+
+    /** The order through every site with the least travel, open-ended (exact up to {@link #EXACT_SITES}). */
+    static int[] leastTravel(double[] fromHere, double[][] between, long budgetNanos) {
+        int n = fromHere.length;
+        if (n <= 1) {
+            return n == 0 ? new int[0] : new int[]{0};
+        }
+        if (n <= EXACT_SITES) {
+            return TourPlanner.heldKarp(fromHere, between).order();
+        }
+        long deadline = System.nanoTime() + Math.max(0, budgetNanos);
+        return LeastWarpSearch.branchAndBound(fromHere, between, () -> System.nanoTime() > deadline).order();
+    }
+
+    /** What taking {@code c} adds: its route, and when its room is not visited anyway, the trip there and back. */
+    private static double secretCost(Candidate c, java.util.Set<String> visited, Travel travel) {
+        double in = Math.max(0, travel.fromHere(c.room()));
+        double work = Math.max(0, c.seconds() - in);
+        if (visited.contains(c.room())) {
+            return work;
+        }
+        double near = in;
+        for (String v : visited) {
+            near = Math.min(near, Math.max(0, travel.between(v, c.room())));
+        }
+        return work + 2 * near;
+    }
+
+    /**
      * Seconds everything this choice still wants takes (killer560, 2026-10-18: an estimated time till completion "based
      * off the auto routes it has left and the pathfinding and puzzles"): the tour in its order - the trip from here to
      * the first, each candidate's own work, the trips between them - and then every other ranked candidate worth score
