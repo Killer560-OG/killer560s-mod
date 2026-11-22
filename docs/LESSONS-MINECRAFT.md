@@ -151,6 +151,10 @@ API names that differ between 26.1.2 and 26.2 are in [COMPILING.md](COMPILING.md
 - `IslandDetector.graphIsland()` is null off any known island (sim, lobby, singleplayer), and `Set.of(...).contains(null)`
   throws. MiningProfitTracker (shelved since 2026-10-07) did that every tick once trackers went on by default; null-check
   before any `Set.of` lookup.
+  Again with `Map.of(...).get(null)` (corpsescan-1121, his 26.3 log 2026-11-21): the Corpse Locator looked up every armor
+  stand's helmet `ItemIdentity.skyblockId` (null for nearly every stand) in a `Map.of`, threw, and FeatureGuard switched all of
+  Mineshaft.tick off for the session (corpses, detection, HUD). Its test placed only corpse stands, so it never met an ordinary
+  one; a test of an entity scanner puts ordinary look-alikes beside the targets (testkit 1121-mineshaft-corpse-scan).
 - **Match a sound packet's sound by id, not by object.** A `ClientboundSoundPacket` whose holder was sent inline (a direct
   holder, which is what the testkit's Hx `sound` sends) decodes to a NEW `SoundEvent`, so `value() == SoundEvents.CHEST_OPEN`
   is false for it. Mute Chest/Lever Sounds compares `value().location()` (2026-10-25); Spring Boots already did.

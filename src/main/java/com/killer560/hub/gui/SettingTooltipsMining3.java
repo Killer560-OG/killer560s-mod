@@ -14,7 +14,7 @@ final class SettingTooltipsMining3 {
         d.put("glacite mineshafts/mineshaft detection", "Tells you when a Mineshaft portal spawns for you (a title, a sound and a chat line) and which kind of Mineshaft you entered.");
         d.put("glacite mineshafts/share type in party chat", "When you enter a Mineshaft, tells your party its type. Needs a party.");
         d.put("glacite mineshafts/mineshaft waypoints", "Inside a Mineshaft, labels where you arrived (the way out) and any ladders the game has loaded near you.");
-        d.put("glacite mineshafts/corpse locator", "Boxes and names each Frozen Corpse (Lapis, Umber, Tungsten, Vanguard) the game shows you. A corpse is marked looted once its loot message arrives.");
+        d.put("glacite mineshafts/corpse locator", "Boxes and names each Frozen Corpse (Lapis, Umber, Tungsten, Vanguard) once you have had it in your line of sight; after that it stays marked, drawn through walls. A corpse is marked looted once its loot message arrives.");
         d.put("glacite mineshafts/corpse scan", "Cheat build. With Corpse Locator on, checks every entity the game has loaded for Frozen Corpses, at any distance and through walls, so corpses show before you could see them. Display only.");
         d.put("glacite mineshafts/share corpses in party chat", "When you stand next to a corpse, tells your party its coordinates and type. Needs a party.");
         d.put("glacite mineshafts/profit per corpse", "After you loot a corpse, prints what the loot is worth at current prices. Items with no known price are left out and counted.");

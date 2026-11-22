@@ -30,9 +30,11 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.decoration.ArmorStand;
+import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.HitResult;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -310,7 +312,8 @@ public final class Mineshaft {
             // Most stands carry no Skyblock id: Map.of throws on a null key, which switched the whole feature off in a mineshaft.
             String id = ItemIdentity.skyblockId(s.getItemBySlot(EquipmentSlot.HEAD));
             String t = id == null ? null : HELMETS.get(id.toUpperCase(Locale.ROOT));
-            if (t == null || known(t, s)) {
+            // Without Corpse Scan a corpse counts only once it has been in sight; once listed it stays, drawn through walls.
+            if (t == null || known(t, s) || !scanOn() && !inSight(mc, s)) {
                 continue;
             }
             CORPSES.add(new Corpse(t, s));
@@ -325,6 +328,11 @@ public final class Mineshaft {
                 }
             }
         }
+    }
+
+    private static boolean inSight(Minecraft mc, ArmorStand s) {
+        return mc.level.clip(new ClipContext(mc.player.getEyePosition(), s.getEyePosition(), ClipContext.Block.COLLIDER,
+                ClipContext.Fluid.NONE, mc.player)).getType() == HitResult.Type.MISS;
     }
 
     private static boolean known(String t, ArmorStand s) {
