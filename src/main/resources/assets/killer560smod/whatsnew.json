@@ -25,7 +25,8 @@
      "Dungeon sim: with Real Mob Looks on, a miniboss room's miniboss now stands where one was seen on Hypixel in that room (turned with the room) instead of a random spot; Blood Rush Helper now remembers where a miniboss first stood, so rooms you visit fill in over time.",
      "Auto Teleport Maze now sprints on every walk, about 30% faster from pad to pad, to the start pad and out to the exit. Auto Ice Fill no longer loses about 3 ticks on a hop whose landing arrives late.",
      "Map Cycler: new Keep Chance (F7) setting keeps an F7 map that is not proven close enough when it is at least that likely to have Blood within Max Rooms Before Blood, counted from 454 real F7 floors (default 90%, 100% keeps only proven maps), and the proof now knows puzzles and the trap are never on the way to Blood, the way always passes the Fairy and the Entrance has one door.",
-     "Auto Simon Says no longer loses or misorders steps when the game freezes for a moment during a reveal, so it no longer waits forever on a missed step or presses a wrong button."
+     "Auto Simon Says no longer loses or misorders steps when the game freezes for a moment during a reveal, so it no longer waits forever on a missed step or presses a wrong button.",
+     "A short server stall no longer makes Auto Terminals and timers fall back to client ticks, which could put a terminal click over Hypixel's click limit."
     ]
    }
   ]

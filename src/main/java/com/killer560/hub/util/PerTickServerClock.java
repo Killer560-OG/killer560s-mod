@@ -77,6 +77,9 @@ public final class PerTickServerClock {
     private static int windowTicks;
     private static int windowPings;
     private static int windowTicksWithPing;
+    /** This window's runs of ticks without a ping (a run open from the last window counts here too): one run is a stall. */
+    private static int windowGaps;
+    private static boolean lastTickPinged = true;
     private static int pingsThisTick;
     private static int goodWindows;
     private static int shortWindows;
@@ -432,7 +435,10 @@ public final class PerTickServerClock {
         }
         if (pingsThisTick > 0) {
             windowTicksWithPing++;
+        } else if (lastTickPinged || windowTicks == 0) {
+            windowGaps++;
         }
+        lastTickPinged = pingsThisTick > 0;
         pingsThisTick = 0;
         if (++windowTicks >= WINDOW_TICKS) {
             lastWindowPings = windowPings;
@@ -442,6 +448,7 @@ public final class PerTickServerClock {
             windowPings = 0;
             windowTicks = 0;
             windowTicksWithPing = 0;
+            windowGaps = 0;
         }
         return clock - before;
     }
@@ -457,6 +464,9 @@ public final class PerTickServerClock {
                 }
                 trusted = true;
             }
+        } else if (windowGaps == 1 && windowTicksWithPing >= WINDOW_TICKS / 2) {
+            // One stall (a 359 ms one split by the window boundary failed two windows and ended the trust, so the clock ran on
+            // client ticks while the server's catch-up ticks came in: oldflakes-1121): neither a good window nor a failing one.
         } else {
             goodWindows = 0;
             if (trusted && ++shortWindows >= 2) {
