@@ -67,6 +67,8 @@ final class DungeonMapScanner {
     private static int startCornerX = 5;
     private static int startCornerZ = 5;
     private static long nextCalibrationAttemptMs = 0;
+    /** The world the map was calibrated in: a run held for a rejoin keeps it past the world change (runstart-stale-1122). */
+    private static Object calibratedLevel;
 
     static {
         reset();
@@ -103,6 +105,11 @@ final class DungeonMapScanner {
 
     static boolean isCalibrated() {
         return calibrated;
+    }
+
+    /** Whether the map was calibrated in the world he is in now (false for a held run's map in the next world). */
+    static boolean isCalibratedInThisWorld() {
+        return calibrated && calibratedLevel == Minecraft.getInstance().level;
     }
 
     /** Whether he holds a dungeon map in hotbar slot 9 (as of the last read, at most a quarter second old). */
@@ -434,6 +441,7 @@ final class DungeonMapScanner {
             startCornerZ = measuredZ;
         }
         calibrated = true;
+        calibratedLevel = Minecraft.getInstance().level;
         sampled = false;
         LOGGER.info("[LiveMap] Dungeon map calibrated: roomSize={} startCorner=({},{}) floor={}",
                 mapRoomSize, startCornerX, startCornerZ, DungeonState.getFloor());
@@ -462,6 +470,7 @@ final class DungeonMapScanner {
             return;
         }
         calibrated = true;
+        calibratedLevel = Minecraft.getInstance().level;
         for (int gz = 0; gz < rows.length; gz++) {
             for (int gx = 0; gx < rows[gz].length(); gx++) {
                 int idx = gx + gz * GRID;

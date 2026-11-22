@@ -592,6 +592,12 @@ public final class TeleportUtils {
         return null;
     }
 
+    /** {@link #nearestEtherwarpable(BlockPos)} read through the planner's view of the level (see the overload below). */
+    public static BlockPos nearestEtherwarpablePlanned(BlockPos center) {
+        Level level = level();
+        return level == null ? null : nearestEtherwarpable(center, new EtherSearch(new LevelEtherGrid(level)));
+    }
+
     /**
      * {@link #nearestEtherwarpable(BlockPos)} read through the planner's own view of the world ({@code search}'s grid)
      * instead of the client's chunks - for a spot in a chunk the client does not have, which the client reads as air.

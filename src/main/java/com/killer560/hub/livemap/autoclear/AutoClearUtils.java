@@ -306,7 +306,7 @@ public final class AutoClearUtils {
             // 10 blocks from its start, and Auto Ice Fill would not begin there (fullclear-1016 run 038). The planner
             // reads the floor through LevelEtherGrid (the sim's server mirror covers the columns the client lacks), so
             // judge the spot the way it will. On Hypixel an unsent chunk is air to both, and this changes nothing.
-            BlockPos near = TeleportUtils.nearestEtherwarpable(goal, new EtherSearch(new LevelEtherGrid(client.level)));
+            BlockPos near = TeleportUtils.nearestEtherwarpablePlanned(goal);
             if (near != null && near.distSqr(goal) <= NEAR_OVERRIDE_SQ) {
                 if (!quiet) {
                     LOGGER.info("[Path] {}'s recorded spot {} is in a chunk the client does not have - using {} (the "

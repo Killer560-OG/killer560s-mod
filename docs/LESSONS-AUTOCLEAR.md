@@ -216,6 +216,19 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
 - Flaky sim door cases (acdoorflake-1121): 1115-ac-dooronly-sim failed on some random floors with "no block to stand on at the wither door" (or an endless "not etherwarpable" trip). The testkit client's view distance is 5 chunks (80 blocks); the Blood door's approach can be 160 blocks from the first door, its chunk is not loaded, the client reads air there, and TeleportUtils.landable / nearestEtherwarpable find nothing: the case was wrong, not the mod. Any sim case that sends Auto Clear to a far door sets renderDistance 16 first (as 1118/1117 do) and restores it; the case logs its floor seed (`-PdoorPin=SEED:RD` pins it, RD 0 = old distance). Auto Clear is cheat-only, so 1020-sim-ac-keyroom is in Scenario.CHEAT_ONLY (it failed "no use-item packet" on every legit jar: nothing automated to watch).
 
 - Insta Clear's `testUseFile` must drain SharedWriter AFTER `ensureLoaded()` too: loading a v1 file migrates it and saves on SharedWriter asynchronously, so testkit 361-logic-insta-clear-v2 read the file before the v2 write landed ("the file itself is now version 2") on a loaded PC, in the run and the alone recheck (acpuzzles2-1121 lane, 2026-11-21; origin passed only by timing).
+- A run held for a rejoin (secrets.DungeonRun.holding) keeps LiveMap's grid AND the calibrated map item past the world
+  change, so in the next dungeon `WitherDoorsFeature.runStarted()` read the OLD map as "the run has started" until
+  DungeonRun dropped the hold and LiveMap reset (his 26.3 log 2026-11-22 09:04:14: Dungeons Autopilot armed, then started
+  ~7 s before the gate). Fixed at the source (acstart-1122): `DungeonMapScanner` stamps the world it calibrated in and
+  `LiveMapReads.mapItemCalibrated()` counts it only in that world or on `DungeonRun.resumed()`; Mort's line is a world stamp
+  too (`mortLevel`), so no tick order can read a stale flag. Testkit 1122-hx-runstart-heldmap.
+- Door Only at GO from the Entrance spawn of a seeded sim F7 logged "only a wither door (67) stands before Blood" and then
+  stood still: the door was 157 blocks off, its chunks were not loaded, `nearestEtherwarpable(approach)` read air, and
+  openDoor waited silently ("no block to stand on") for chunks that only come once he moves. Now the stand is read
+  through the planner's view (`TeleportUtils.nearestEtherwarpablePlanned`, the sim's server mirror), else a trip goes into
+  the farthest room on the map's way there whose chunk he has (its door is planned again on landing), and every openDoor
+  wait is logged once (`doorWait`). Testkit 1122-sim-ac-dooronly-start.
+
 
 ## Slowdowns from his 11-21 Untested runs (acslow-1121)
 

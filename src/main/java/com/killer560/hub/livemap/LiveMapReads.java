@@ -33,9 +33,11 @@ public final class LiveMapReads {
         return out;
     }
 
-    /** Whether the dungeon map item has been read (false in the sim, p3sim, boss and before the run starts). */
+    /** Whether the dungeon map item has been read in this run (false in the sim, p3sim, boss and before the run starts).
+     *  A run held for a rejoin keeps its map past the world change; it counts only once this world is that run. */
     public static boolean mapItemCalibrated() {
-        return DungeonMapScanner.isCalibrated();
+        return DungeonMapScanner.isCalibratedInThisWorld()
+                || DungeonMapScanner.isCalibrated() && com.killer560.hub.secrets.DungeonRun.resumed();
     }
 
     /** The map item's state for a cell (lower = further on; {@link #STATE_UNOPENED} and above = not opened). */

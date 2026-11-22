@@ -1880,6 +1880,58 @@ public final class AutoClearFeature {
         return new AABB(target).distanceToSqr(eye) <= reach * reach;
     }
 
+    /** openDoor's last logged wait, so each is said once until it changes (they set only the HUD action before 1122). */
+    private static String doorWaitSaid = null;
+
+    private static void doorWait(int door, String why) {
+        action = why;
+        if (!why.equals(doorWaitSaid)) {
+            doorWaitSaid = why;
+            LOGGER.info("[AutoClear] wither door {}: {} - deciding again every tick", door, why);
+        }
+    }
+
+    /** A block to stand on at a door's approach; in a chunk the client lacks, read through the planner's view (the sim's
+     *  server mirror; on Hypixel an unsent chunk is air to both), as AutoClearUtils does for a room's spot. */
+    private static BlockPos doorStand(Minecraft client, BlockPos approach) {
+        if (TeleportUtils.landable(approach)) {
+            return approach;
+        }
+        BlockPos near = TeleportUtils.nearestEtherwarpable(approach);
+        if (near == null && !com.killer560.hub.util.ClientChunks.isLoadedAt(client.level, approach.getX(), approach.getZ())) {
+            near = TeleportUtils.nearestEtherwarpablePlanned(approach);
+        }
+        return near;
+    }
+
+    /** The farthest room on the map's way to a door's near side with a tile whose middle chunk he has: {room, that tile
+     *  nearest the door}, or null. */
+    private static int[] loadedRoomToward(Minecraft client, DungeonLayout layout, int cur, int door) {
+        int[] r = cur < 0 ? null : DungeonMapPathfinder.resolve(layout, cur, door, false);
+        List<DungeonMapPathfinder.RoomStep> path = r == null ? null
+                : DungeonMapPathfinder.findPath(layout, cur, layout.roomOfCell(r[1]), false);
+        if (path == null) {
+            return null;
+        }
+        BlockPos lock = DungeonLayout.doorBlock(door);
+        for (int i = path.size() - 1; i >= 0; i--) {
+            int room = path.get(i).room();
+            int best = -1;
+            double bestD = Double.MAX_VALUE;
+            for (int t : room == cur ? new int[0] : layout.tiles(room)) {
+                BlockPos c = DungeonLayout.cellCenter(t);
+                if (com.killer560.hub.util.ClientChunks.isLoadedAt(client.level, c.getX(), c.getZ()) && c.distSqr(lock) < bestD) {
+                    bestD = c.distSqr(lock);
+                    best = t;
+                }
+            }
+            if (best >= 0) {
+                return new int[]{room, best};
+            }
+        }
+        return null;
+    }
+
     /** The first block of the door's column that is still there (the click goes on it), or null once it has gone. */
     private static BlockPos doorClickBlock(Minecraft client, int door) {
         BlockPos lock = DungeonLayout.doorBlock(door);
@@ -1918,6 +1970,7 @@ public final class AutoClearFeature {
             doorRetrySaid = 0;
             doorBorderSinceTick = -1;
             walkOffDoor = false;
+            doorWaitSaid = null;
             doorStartTick = ClearExecutor.clientTick();
             LOGGER.info("[AutoClear] only a wither door ({}) stands before {} - going to it", door, behind);
         }
@@ -1927,7 +1980,7 @@ public final class AutoClearFeature {
             target = DungeonLayout.doorBlock(door).above();   // a door rooms away is not loaded yet: go toward it
         }
         if (target == null) {
-            action = "waiting for the wither door to finish opening";
+            doorWait(door, "waiting for the wither door to finish opening");
             return;
         }
         Vec3 eye = player.getEyePosition();
@@ -1935,7 +1988,7 @@ public final class AutoClearFeature {
         int cur = layout.currentRoom();
         BlockPos approach = cur < 0 ? null : DungeonMapPathfinder.getDoorPos(layout, cur, door);
         if (approach == null && !inReach) {
-            action = "no way to the wither door";
+            doorWait(door, "no way to the wither door");
             return;
         }
         // Once a trip there has finished he is as close as the map takes him: its planner calls anything within five
@@ -1953,9 +2006,23 @@ public final class AutoClearFeature {
                 action = "waiting to land before the trip to the wither door";
                 return;
             }
-            BlockPos goal = TeleportUtils.landable(approach) ? approach : TeleportUtils.nearestEtherwarpable(approach);
+            BlockPos goal = doorStand(client, approach);
             if (goal == null) {
-                action = "no block to stand on at the wither door";
+                // He does not have the door's chunks yet (rooms away): into the farthest room on the map's way there whose
+                // chunk he has, and the door is planned again on landing. It used to wait here for chunks that come only
+                // once he moves (acdooronly-stall-1122: Door Only stood at the Entrance spawn).
+                int[] step = loadedRoomToward(client, layout, cur, door);
+                if (step == null) {
+                    doorWait(door, "no block to stand on at the wither door");
+                    return;
+                }
+                action = "etherwarp toward the wither door (" + layout.name(step[0]) + ")";
+                startTrip(client, player, () -> AutoClearUtils.pathToRoom(layout, step[0], step[1], 0));
+                if (phase == Phase.TRAVEL) {
+                    keyRoomTrip = true;   // not the trip to the door: openDoor's "arrived" stays unset
+                    LOGGER.info("[AutoClear] wither door {}: its chunks are not loaded here - trip toward it into {} (tile {})",
+                            door, layout.name(step[0]), step[1]);
+                }
                 return;
             }
             final BlockPos stand = goal;
@@ -4247,7 +4314,8 @@ public final class AutoClearFeature {
     static final int KEY_WALK_TRIES = 4;
     /** The walk running goes into this key room, -1 when the walk is not one. */
     private static int walkForKeyRoom = -1;
-    /** The trip under way is to a key room's door (keyRoomEntry), not to a wither door. */
+    /** The trip under way is to a key room's door (keyRoomEntry) or a room on the way to a far wither door, not to the
+     *  wither door itself. */
     private static boolean keyRoomTrip = false;
     /** Key rooms the "walking in" line was logged for this run. */
     private static final Set<String> keyEntrySaid = new HashSet<>();

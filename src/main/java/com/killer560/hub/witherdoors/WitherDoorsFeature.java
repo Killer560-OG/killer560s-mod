@@ -148,7 +148,7 @@ public final class WitherDoorsFeature {
         if (msg == null) return;
         msg = msg.trim();
         if (msg.startsWith("[NPC] Mort: ") && MORT_START.matcher(msg).matches()) {
-            mortSeen = true;
+            mortLevel = Minecraft.getInstance().level;
             invalidateCache();
             return;
         }
@@ -187,9 +187,6 @@ public final class WitherDoorsFeature {
     private static void tick(Minecraft client) {
         int generation = com.killer560.hub.livemap.LiveMapFeature.resetGeneration();
         if (client.level != lastLevel || generation != lastGeneration) {
-            if (client.level != lastLevel) {
-                mortSeen = false; // a new world is a new run; a sim rebuild in the same world keeps Hypixel's flag
-            }
             lastLevel = client.level;
             lastGeneration = generation;
             WitherDoorScanner.reset();
@@ -380,7 +377,9 @@ public final class WitherDoorsFeature {
     /** "[NPC] Mort: ..." - the run's first line, sent when his countdown ends (Split Timers' RUN_START, anchored). */
     private static final java.util.regex.Pattern MORT_START = java.util.regex.Pattern.compile(
             "^\\[NPC\\] Mort: (?:Here, I found this map when I first entered the dungeon\\.|Right-click the Orb for spells, and Left-click \\(or Drop\\) to use your Ultimate!)$");
-    private static boolean mortSeen = false;
+    /** The world Mort's opening line came in: a new world is a new run whichever tick reads it first; a sim rebuild in
+     *  the same world keeps it. */
+    private static Object mortLevel;
 
     /**
      * Whether the run has started, so there is a map he could be looking at. killer560, 2026-10-15: "the mod should not
@@ -393,7 +392,7 @@ public final class WitherDoorsFeature {
         if (com.killer560.hub.roomsim.SimState.isActive()) {
             return com.killer560.hub.roomsim.SimRun.hasStarted() || !com.killer560.hub.roomsim.SimState.isGeneratedFloor();
         }
-        return mortSeen || com.killer560.hub.secrets.DungeonRun.resumed() || com.killer560.hub.livemap.LiveMapReads.mapItemCalibrated();
+        return mortLevel != null && mortLevel == Minecraft.getInstance().level || com.killer560.hub.secrets.DungeonRun.resumed() || com.killer560.hub.livemap.LiveMapReads.mapItemCalibrated();
     }
 
     private static String status = "idle";
