@@ -14,7 +14,9 @@
      "Auto Correct now fixes a mistyped /warp destination against every Fast Travel destination, and completes a cut-off one like /warp bas to /warp base when exactly one destination fits.",
      "Auto Routes: a secret bat that was already standing there when a node began waiting (or that spawned far off and was then walked up to) now counts toward the node's secret await, so the route no longer stalls on it",
      "Auto Trap: New Trap and Old Trap have bundled Just Cleared routes and the mode defaults to Just Cleared (Full Trap only with your own capture), and a start-node warp into a trap room now lands on the route's start block instead of firing from the trap's doorway and being refused (\"You cannot use abilities in this room!\").",
-     "Multi Warp Mode: Tick Split now says in chat, once, when it cannot split because Blink Charge is off or has no covered bank, and its tooltip says it needs Blink Charge on."
+     "Multi Warp Mode: Tick Split now says in chat, once, when it cannot split because Blink Charge is off or has no covered bank, and its tooltip says it needs Blink Charge on.",
+     "Auto Clear is faster: doors open from the blocks, not the map, and a door that ran out of clicks before its key came is clicked again once the key arrives; an Auto Clear queued in the green room starts at the run start; rooms next door hand off at once and a handed-over room is done at its last kill; a path warp the server never answers is sent again one landing time later; Auto Clear and Auto Secret started after a mid-run rejoin start at once DROPPED superseded by acgaps2-1121-b",
+     "Auto Clear is faster: doors open from the blocks, not the map, and a door that ran out of clicks before its key came is clicked again once the key arrives; an Auto Clear queued in the green room starts at the run start; rooms next door hand off at once and a handed-over room is done at its last kill; a path warp the server never answers is sent again one landing time later; Auto Clear and Auto Secret started after a mid-run rejoin start at once"
     ]
    }
   ]

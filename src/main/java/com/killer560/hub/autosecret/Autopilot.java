@@ -200,7 +200,7 @@ final class Autopilot {
             AutopilotPlanner.Choice rush = AutopilotPlanner.chooseBloodFirst(cands);
             if (rush != null) {
                 AutopilotPlanner.Choice byRate = AutopilotPlanner.choose(party, cands);
-                return begin(head + (byRate == null ? "" : " | by rate alone: " + byRate.pick().describe()), rush, rooms);
+                return begin(layout, head + (byRate == null ? "" : " | by rate alone: " + byRate.pick().describe()), rush, rooms);
             }
             Order door = bloodFirstDoor(layout, blood, bloodLocked);
             if (door != null && secreted.contains(AutoSecretFeature.doorName(door.door()))) {
@@ -250,7 +250,7 @@ final class Autopilot {
                 LOGGER.info("[Autopilot] tour: {} | {} | trips: {} searched, {} estimated", String.join(" > ", t), c.why(),
                         lastMatrix == null ? 0 : lastMatrix.searched(), lastMatrix == null ? 0 : lastMatrix.estimated());
             }
-            return begin(head, c, rooms);
+            return begin(layout, head, c, rooms);
         }
         LOGGER.info("{} | nothing left it can reach ({} candidate(s), none worth score)", head, cands.size());
         return finish(!party || !AutopilotScore.reached300(s), "nothing left it can reach");
@@ -311,6 +311,8 @@ final class Autopilot {
 
     private static final long KEY_DROP_WAIT_MS = 1500;
     private static long clearEndedMs;
+    /** Whether the CLEAR now running is of a room {@link com.killer560.hub.autoclear.KeyRooms} says holds a key. */
+    private static boolean clearHoldsKey;
     private static boolean bloodFirstWantsKey;
 
     private static Order bloodFirstDoor(DungeonLayout layout, int blood, boolean bloodLocked) {
@@ -483,7 +485,7 @@ final class Autopilot {
         }
     }
 
-    private static Order begin(String head, AutopilotPlanner.Choice c, List<RoomStatus.Room> rooms) {
+    private static Order begin(DungeonLayout layout, String head, AutopilotPlanner.Choice c, List<RoomStatus.Room> rooms) {
         AutopilotPlanner.Candidate p = c.pick();
         List<String> ranked = new ArrayList<>();
         for (AutopilotPlanner.Candidate k : c.ranked()) {
@@ -498,6 +500,9 @@ final class Autopilot {
             }
         }
         current = p;
+        // Only a room holding a shut door's key drops one at its last death; any other clear has nothing to wait for.
+        clearHoldsKey = p.kind() == AutopilotPlanner.Kind.CLEAR && room != null
+                && com.killer560.hub.autoclear.KeyRooms.guardOf(layout, room.room()) != null;
         // A failure noted while no action was open (after closeAction, say) belongs to no action, not to this one.
         currentFailed = false;
         currentStartMs = System.currentTimeMillis();
@@ -595,7 +600,7 @@ final class Autopilot {
             LOGGER.info("[Autopilot] (that trip failed - not learned from)");
         } else if (current.kind() == AutopilotPlanner.Kind.CLEAR) {
             clearSeconds = clearSeconds * (1 - LEARN) + work * LEARN;
-            clearEndedMs = System.currentTimeMillis();
+            clearEndedMs = clearHoldsKey ? System.currentTimeMillis() : 0;
         } else if (current.kind() == AutopilotPlanner.Kind.SECRET && currentNodes > 0) {
             routeSecondsPerNode = routeSecondsPerNode * (1 - LEARN) + (work / currentNodes) * LEARN;
         }

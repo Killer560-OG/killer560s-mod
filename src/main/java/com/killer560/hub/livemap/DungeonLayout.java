@@ -230,6 +230,25 @@ public final class DungeonLayout {
         return type == DOOR_BLOOD || DungeonMapScanner.doorTileAt(idx) == LiveMapFeature.Tile.DOOR_WITHER;
     }
 
+    /**
+     * Whether a wither or blood door still stands, read straight off the blocks without building a layout: shut while any
+     * block of the door's center column (its lower three layers) is there, so the way through is clear the tick this says
+     * open. Out of render distance the map decides, as in {@link #isLocked}.
+     */
+    public static boolean doorShut(int idx, boolean blood) {
+        Minecraft client = Minecraft.getInstance();
+        BlockPos c = doorBlock(idx);
+        if (client.level == null || !ChunkCacheManager.isLoadedOrCached(client.level, c)) {
+            return lockedAt(client, idx, blood ? DOOR_BLOOD : DOOR_WITHER);
+        }
+        for (int dy = 0; dy < 3; dy++) {
+            if (!client.level.getBlockState(c.above(dy)).isAir()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** Must be called on the client thread. */
     public static DungeonLayout capture() {
         Minecraft client = Minecraft.getInstance();

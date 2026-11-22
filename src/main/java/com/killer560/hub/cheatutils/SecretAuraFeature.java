@@ -775,7 +775,16 @@ public final class SecretAuraFeature {
      * the momentary ones (a container, sneaking, the map's warp held at the start) do not: they pass.
      */
     public static String takingInReach(Minecraft client, boolean clickedOnly) {
-        return scanTaking(client, clickedOnly ? Taking.CLICKED : Taking.ANY);
+        return scanTaking(client, clickedOnly ? Taking.CLICKED : Taking.ANY, false);
+    }
+
+    /**
+     * {@link #takingInReach} for a room he is about to leave: an essence already clicked is not waited for. Hypixel takes
+     * the skull about 1.1 s after the click wherever he stands then (acgaps2-1121, his 11-21 log: 1093-1247 ms, after Auto
+     * Secret had waited its 20 ticks for nothing), so the count catches up on its own.
+     */
+    public static String takingBeforeLeaving(Minecraft client, boolean clickedOnly) {
+        return scanTaking(client, clickedOnly ? Taking.CLICKED : Taking.ANY, true);
     }
 
     /**
@@ -784,7 +793,7 @@ public final class SecretAuraFeature {
      * START of a tick, before that tick's input packet, so it is the sneak already sent that it would be made with.
      */
     public static boolean clickDue(Minecraft client) {
-        return scanTaking(client, Taking.DUE) != null;
+        return scanTaking(client, Taking.DUE, false) != null;
     }
 
     private enum Taking { ANY, CLICKED, DUE }
@@ -792,7 +801,7 @@ public final class SecretAuraFeature {
     /** How long before a re-try {@link #clickDue} counts it as coming: two ticks for the sneak to be let up first. */
     private static final long RETRY_SOON_MS = 150;
 
-    private static String scanTaking(Minecraft client, Taking mode) {
+    private static String scanTaking(Minecraft client, Taking mode, boolean clickedEssenceTaken) {
         CheatUtilsConfig cfg = CheatUtilsConfig.getInstance();
         if (!cfg.isSecretAuraEnabled() || client.level == null || client.player == null
                 || !DungeonState.isInDungeon() || LiveMapFeature.isInBoss()
@@ -837,7 +846,7 @@ public final class SecretAuraFeature {
                 continue;   // clicked, and no re-try coming soon
             }
             String kind = classify(client, cfg, pos, state, false, leversAllowed, chestsAllowed);
-            if (kind == null) {
+            if (kind == null || clickedEssenceTaken && a != null && "essence".equals(kind)) {
                 continue;
             }
             if (client.level.getBlockEntity(pos) instanceof ChestBlockEntity chest && chest.getOpenNess(1f) > 0f

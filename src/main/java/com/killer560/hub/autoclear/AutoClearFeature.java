@@ -297,6 +297,9 @@ public final class AutoClearFeature {
             say(ModChat.bad("Only in a dungeon's clear (not outside one, not in the boss)"));
             return;
         }
+        if (com.killer560.hub.autosecret.ArmedStart.defer(CHAT, AutoClearFeature::start)) {
+            return;   // the green room: armed (or disarmed), started by the run's own start
+        }
         singleRoom = null;
         onDone = null;
         onGiveUp = null;
@@ -472,6 +475,7 @@ public final class AutoClearFeature {
         if (client.level != lastLevel) {
             lastLevel = client.level;
             homeRooms.clear();
+            handedBack.clear();
             if (running) {
                 stop("the world changed");
             }
@@ -1066,16 +1070,49 @@ public final class AutoClearFeature {
     private static long emptyLag = 0L;
 
     /**
-     * Standalone runs only (a room handed over by Auto Secret or Autopilot ends on the map's own clear, as their plans
-     * expect): with no starred mob of the room in sight, none left to a bat, none remembered (lost from view or skipped),
+     * Rooms a handed-over clear ended at their last death whose clear the map has not shown yet: name -> {tick, ServerLag
+     * mark}. Auto Secret takes back ({@link #drainHandBackReturns}) the ones still not cleared after
+     * {@link #PENDING_CLEAR_TICKS}, so a mob never seen is gone back for. Emptied on a world change.
+     */
+    private static final java.util.Map<String, long[]> handedBack = new java.util.LinkedHashMap<>();
+
+    /**
+     * Rooms a handed-over clear ended at their last death that the map still does not show cleared
+     * {@link #PENDING_CLEAR_TICKS} (plus server lag) on: each returned once, so the caller may send Auto Clear back.
+     */
+    public static List<String> drainHandBackReturns() {
+        if (handedBack.isEmpty()) {
+            return List.of();
+        }
+        DungeonLayout layout = DungeonLayout.capture();
+        List<String> out = new java.util.ArrayList<>();
+        for (var it = handedBack.entrySet().iterator(); it.hasNext(); ) {
+            var e = it.next();
+            int r = AutoClearTargets.roomByName(layout, e.getKey());
+            long waited = ClearExecutor.clientTick() - e.getValue()[0];
+            if (r >= 0 && AutoClearTargets.isCleared(layout, r)) {
+                LOGGER.info("[AutoClear] {}: cleared on the map {} ticks after its last death", e.getKey(), waited);
+                it.remove();
+            } else if (waited > PENDING_CLEAR_TICKS + com.killer560.hub.util.ServerLag.ticksSince(e.getValue()[1])) {
+                it.remove();
+                out.add(e.getKey());
+            }
+        }
+        return out;
+    }
+
+    /**
+     * With no starred mob of the room in sight, none left to a bat, none remembered (lost from view or skipped),
      * at least one seen dying here and the map not saying cleared yet, the room is left now and the next one picked; it
      * counts when the map clears it, and is picked again (a mob that was never seen) if the map has not after
-     * {@link #PENDING_CLEAR_TICKS}.
+     * {@link #PENDING_CLEAR_TICKS}. A room handed over by Auto Secret or Autopilot ends the same way (acgaps2-1121: the
+     * map's checkmark came 4-5 ticks after the last death, stood through in every room), but only with no mob left to a
+     * bat and not in a key room, whose key drops at that death and is picked up before the hand-back.
      * @return true when the room was left
      */
     private static boolean moveOnAtLastDeath(Minecraft client, DungeonLayout layout, int room) {
-        if (singleRoom != null || !LiveMapFeature.hasRoomStates() || roomName == null
-                || MidasAltar.ROOM.equals(roomName)) {
+        if (!LiveMapFeature.hasRoomStates() || roomName == null || MidasAltar.ROOM.equals(roomName)
+                || singleRoom != null && KeyRooms.guardOf(layout, room) != null) {
             return false;
         }
         int leftToBats = 0;
@@ -1095,8 +1132,19 @@ public final class AutoClearFeature {
             }
             return false;   // one alive somewhere (in view without its tag, or lost from view)
         }
-        if (deathsInRoom == 0 && leftToBats == 0 || !knownMobs(client, layout, room).isEmpty()) {
+        if (deathsInRoom == 0 && leftToBats == 0 || !knownMobs(client, layout, room).isEmpty()
+                || singleRoom != null && (leftToBats > 0 || deathsInRoom == 0)) {
             return false;
+        }
+        if (singleRoom != null) {
+            handedBack.put(roomName, new long[]{ClearExecutor.clientTick(), com.killer560.hub.util.ServerLag.mark()});
+            roomsCleared++;
+            LOGGER.info("[AutoClear] {}: every starred mob seen here is dead ({} death(s)) and none is known left - done"
+                    + " now; the room is handed back again if the map has not cleared it in {} ticks", roomName,
+                    deathsInRoom, PENDING_CLEAR_TICKS);
+            RoomClock.end("cleared at its last death");
+            finish(roomName + " cleared");
+            return true;
         }
         pendingClears.put(roomName, new long[]{ClearExecutor.clientTick(), com.killer560.hub.util.ServerLag.mark()});
         LOGGER.info("[AutoClear] {}: every starred mob seen here is dead ({} death(s)) or has a trusted bat on its way ({})"
@@ -2484,8 +2532,20 @@ public final class AutoClearFeature {
                 out.add(new Known(e.getName().getString(), e.position(), -1, "skipped as out of reach"));
             }
         }
+        // Then the room's spawn spots no mob has been seen at (acslow-1121, killer560 2026-11-21: "you can assume they are
+        // going to be in their blood rush waypoints by default"): a mob out of sight is most likely still on its spot, so
+        // those are gone to after the short known-mob look, not after the 40-tick blind look and the quadrant spots.
+        noteSpawnSpots(layout, room, List.of());
+        for (Vec3 s : roomSpots) {
+            if (!spotsSeen.contains(s)) {
+                out.add(new Known("spawn spot", s, SPAWN_SPOT, "no mob seen there yet"));
+            }
+        }
         return out;
     }
+
+    /** {@link Known#lostId} of a spawn spot (not a mob). */
+    private static final int SPAWN_SPOT = -2;
 
     /**
      * Takes the next roam spot: of the room's spots (one per quadrant of each of its tiles,
@@ -2604,7 +2664,9 @@ public final class AutoClearFeature {
                                        List<Known> known) {
         List<Known> byDistance = new java.util.ArrayList<>(known);
         Vec3 feet = player.position();
-        byDistance.sort(java.util.Comparator.comparingDouble(k -> k.pos().distanceToSqr(feet)));
+        // Mobs known to be there before spawn spots that only might hold one; nearest first in each.
+        byDistance.sort(java.util.Comparator.<Known>comparingInt(k -> k.lostId() == SPAWN_SPOT ? 1 : 0)
+                .thenComparingDouble(k -> k.pos().distanceToSqr(feet)));
         AutoClearConfig.Weapon weapon = AutoClearConfig.getInstance().getWeapon();
         for (Known k : byDistance) {
             Vec3 p = k.pos();
@@ -2616,6 +2678,9 @@ public final class AutoClearFeature {
             double d = stand == null ? 0.0
                     : feet.distanceTo(new Vec3(stand.getX() + 0.5, stand.getY() + 1.0, stand.getZ() + 0.5));
             if (stand == null || d < KNOWN_THERE || layout.roomAtWorld(stand.getX() + 0.5, stand.getZ() + 0.5) != room) {
+                if (k.lostId() == SPAWN_SPOT) {
+                    spotsSeen.add(p);   // in reach from here with nothing on it (or nowhere to reach it from): spent
+                }
                 if (k.lostId() >= 0) {
                     seenMobs.remove(k.lostId());
                     LOGGER.info("[AutoClear] {} last seen at {} is not there ({}) - forgotten", k.name(),
@@ -2643,6 +2708,8 @@ public final class AutoClearFeature {
             roamKnownTried++;
             if (k.lostId() >= 0) {
                 seenMobs.remove(k.lostId());   // once: in view again it is seen afresh, not there it is not gone for again
+            } else if (k.lostId() == SPAWN_SPOT) {
+                spotsSeen.add(p);   // reached once is looked at once
             }
             roamLookedFrom.add(new Vec3(spot.getX() + 0.5, spot.getY() + 1.0, spot.getZ() + 0.5));
             int freed = freeSkipped(client, layout, room);

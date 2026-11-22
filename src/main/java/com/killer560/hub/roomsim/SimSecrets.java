@@ -107,27 +107,55 @@ public final class SimSecrets {
                 return net.minecraft.world.InteractionResult.PASS;
             }
             BlockPos at = hit.getBlockPos().immutable();
+            if (TAKING.containsKey(at)) return net.minecraft.world.InteractionResult.SUCCESS;   // already on its way
             if (!PLACED_WITHER.remove(at)) return net.minecraft.world.InteractionResult.PASS;
-            level.setBlockAndUpdate(at, Blocks.AIR.defaultBlockState());
-            SimScore.secretFound(at);
-            SimScore.creditSecret(sp.getUUID());
-            if (!SimCoop.isHost(sp)) {
-                // A co-op guest's own pickup line goes to him (coopsim-p5); the host's waypoint still marks it.
-                sp.sendSystemMessage(net.minecraft.network.chat.Component.literal("Wither essence collected")
-                        .withStyle(net.minecraft.ChatFormatting.GREEN));
-                net.minecraft.client.Minecraft.getInstance().execute(() ->
-                        com.killer560.hub.secretwaypoints.SecretWaypointsFeature.markSimEssenceCollected(at));
-                return net.minecraft.world.InteractionResult.SUCCESS;
-            }
-            net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
-            client.execute(() -> {
-                // Secret Waypoints marks a click on the waypoint's exact block itself; a buried essence is placed
-                // up to two blocks above its database position, so the sim says where it really was.
-                com.killer560.hub.secretwaypoints.SecretWaypointsFeature.markSimEssenceCollected(at);
-                ModChat.send("Sim", ModChat.good("Wither essence collected"));
-            });
-            // SUCCESS, not PASS: the held item's own vanilla use (a Superboom is a reskinned TNT) must not run on it.
+            TAKING.put(at, new Object[]{sp, level, ESSENCE_TAKE_TICKS});
             return net.minecraft.world.InteractionResult.SUCCESS;
+        });
+        net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents.END_SERVER_TICK.register(server -> {
+            if (TAKING.isEmpty()) return;
+            var it = TAKING.entrySet().iterator();
+            while (it.hasNext()) {
+                var e = it.next();
+                Object[] t = e.getValue();
+                int left = (Integer) t[2] - 1;
+                t[2] = left;
+                if (left <= 0) {
+                    it.remove();
+                    take((net.minecraft.server.level.ServerPlayer) t[0], (ServerLevel) t[1], e.getKey());
+                }
+            }
+        });
+    }
+
+    /**
+     * Server ticks from an essence click to its pickup: Hypixel takes the skull about 1.1 s after the click, wherever
+     * the player is by then (killer560's 26.3 log of 2026-11-21, all four essences Secret Aura clicked: 1093-1247 ms
+     * from the click to the skull going, acgaps2-1121). The sim took it the same tick, so a leave-wait that held for
+     * the pickup looked free here and cost 20 ticks on Hypixel.
+     */
+    static final int ESSENCE_TAKE_TICKS = 22;
+    /** Clicked essences not taken yet: position -> {player, level, ticks left}; emptied with the floor. */
+    private static final java.util.Map<BlockPos, Object[]> TAKING = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private static void take(net.minecraft.server.level.ServerPlayer sp, ServerLevel level, BlockPos at) {
+        level.setBlockAndUpdate(at, Blocks.AIR.defaultBlockState());
+        SimScore.secretFound(at);
+        SimScore.creditSecret(sp.getUUID());
+        if (!SimCoop.isHost(sp)) {
+            // A co-op guest's own pickup line goes to him (coopsim-p5); the host's waypoint still marks it.
+            sp.sendSystemMessage(net.minecraft.network.chat.Component.literal("Wither essence collected")
+                    .withStyle(net.minecraft.ChatFormatting.GREEN));
+            net.minecraft.client.Minecraft.getInstance().execute(() ->
+                    com.killer560.hub.secretwaypoints.SecretWaypointsFeature.markSimEssenceCollected(at));
+            return;
+        }
+        net.minecraft.client.Minecraft client = net.minecraft.client.Minecraft.getInstance();
+        client.execute(() -> {
+            // Secret Waypoints marks a click on the waypoint's exact block itself; a buried essence is placed
+            // up to two blocks above its database position, so the sim says where it really was.
+            com.killer560.hub.secretwaypoints.SecretWaypointsFeature.markSimEssenceCollected(at);
+            ModChat.send("Sim", ModChat.good("Wither essence collected"));
         });
     }
 
@@ -341,6 +369,7 @@ public final class SimSecrets {
         // The last floor's essences are gone with it, and a stale position would make a click on some unrelated
         // block on the new floor count a secret.
         PLACED_WITHER.clear();
+        TAKING.clear();
         SimRedstoneKey.clearKeys();
     }
 

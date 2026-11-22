@@ -320,7 +320,8 @@ public final class RouteExecutor {
     private static int recentLandingCount;
     private static int recentLandingNext;
 
-    private static void noteLandingTicks(int ticks) {
+    /** Also fed by Auto Clear's own path warps (ClearExecutor), so both judge a missing landing by the same ring. */
+    public static void noteLandingTicks(int ticks) {
         recentLandings[recentLandingNext] = ticks;
         recentLandingNext = (recentLandingNext + 1) % recentLandings.length;
         recentLandingCount = Math.min(recentLandings.length, recentLandingCount + 1);
@@ -334,9 +335,20 @@ public final class RouteExecutor {
      * never landed, each sent again only 13-22 ticks later while every landing in that run took 2-4 ticks - the route
      * "really slow after collecting secrets". Callers add server lag on top.
      */
-    static int refusedRetryTicks() {
+    public static int refusedRetryTicks() {
         int travel = recentLandingCount > 0 ? slowestRecentLanding() : 4;
         return Math.max(com.killer560.hub.util.RightClick.eatenRetryTicks(), 2 * travel + 2);
+    }
+
+    /**
+     * Auto Clear's lost path warp (acgaps2-1121-fix): the slowest of the last few landings plus 3 ticks (150 ms of jitter).
+     * A landing is the whole round trip (use out, server tick, position back), measured, so no answer by then means the
+     * use was dropped. Before any landing, {@link #refusedRetryTicks}. Not the eaten-use wait: with no ping measured it
+     * guesses 300 ms (11 ticks), and that plus the doubled rule retried 14 ticks after a 2-tick flight (testkit
+     * 1121-sim-acgaps2-warp-lost; origin 23). Callers add server lag on top.
+     */
+    public static int lostWarpTicks() {
+        return recentLandingCount > 0 ? slowestRecentLanding() + 3 : refusedRetryTicks();
     }
 
     private static int slowestRecentLanding() {

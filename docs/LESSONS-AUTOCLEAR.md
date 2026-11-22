@@ -214,3 +214,45 @@ there); Auto Routes is in [LESSONS-ROUTES.md](LESSONS-ROUTES.md); the sim's side
 - Flaky sim door cases (acdoorflake-1121): 1115-ac-dooronly-sim failed on some random floors with "no block to stand on at the wither door" (or an endless "not etherwarpable" trip). The testkit client's view distance is 5 chunks (80 blocks); the Blood door's approach can be 160 blocks from the first door, its chunk is not loaded, the client reads air there, and TeleportUtils.landable / nearestEtherwarpable find nothing: the case was wrong, not the mod. Any sim case that sends Auto Clear to a far door sets renderDistance 16 first (as 1118/1117 do) and restores it; the case logs its floor seed (`-PdoorPin=SEED:RD` pins it, RD 0 = old distance). Auto Clear is cheat-only, so 1020-sim-ac-keyroom is in Scenario.CHEAT_ONLY (it failed "no use-item packet" on every legit jar: nothing automated to watch).
 
 - Insta Clear's `testUseFile` must drain SharedWriter AFTER `ensureLoaded()` too: loading a v1 file migrates it and saves on SharedWriter asynchronously, so testkit 361-logic-insta-clear-v2 read the file before the v2 write landed ("the file itself is now version 2") on a loaded PC, in the run and the alone recheck (acpuzzles2-1121 lane, 2026-11-21; origin passed only by timing).
+
+## Slowdowns from his 11-21 Untested runs (acslow-1121)
+
+- A wither/blood door is open when its center column (y+0..2) is air, and the client sees that the tick the server sends
+  the block change: `DungeonLayout.doorShut(idx, blood)` reads the blocks (map lock only for an unloaded chunk). Waiting for
+  the map tile to flip plus a fixed 10-tick SETTLE cost about 1 s a door; DOOR now leaves straight to DECIDE.
+- A CLEAR trip to a room next door walked to the door before handing off to Auto Clear; a room at most one step away (or
+  the current one, or a key room on the way) is handed off at once, so Auto Clear starts on the mobs it can already see.
+- Auto Clear treats Blood Rush spawn boxes (`BloodRushData`, the starred mobs' default spots) as known mobs ("spawn spot",
+  lostId -2), so with nothing seen it roams after 5 ticks instead of 40 and visits real sightings first, then the spots;
+  a visited spot goes into `spotsSeen`.
+- Started in the green room, Auto Clear, Auto Secret and Autopilot only ARM (`autosecret/ArmedStart`, one slot): nothing
+  plans or gives up on a room before `WitherDoorsFeature.runStarted()`; the same key, Escape or the Emergency Cancel Key
+  disarm it, a world change drops it. Testkit 1121-sim-acslow-{green-queue,door,firstmob,unseen} (one Autopilot run on a
+  fixed floor; bounds from the origin vs branch run, see killer560s-mod-logs/acslow-1121-state.md).
+
+## Remaining idle gaps (acgaps2-1121)
+
+- Hypixel takes a Wither Essence 1093-1247 ms after the click (all four aura clicks in his 11-21 log), so the end-of-route
+  wait for "secrets still being taken" (20 ticks) held for every clicked essence and gained nothing: it now skips a
+  clicked essence (`SecretAuraFeature.takingBeforeLeaving`). The sim took essences the same tick and hid this; it now
+  takes them `SimSecrets.ESSENCE_TAKE_TICKS` (22) after the click.
+- Blood First waited up to 1500 ms after every CLEAR for "the cleared room's key", also in rooms with no key (King Midas):
+  it waits only when the room is a key room (`KeyRooms.guardOf`), the same rule the sim uses to place keys.
+- A room handed over to Auto Clear finished only when the map's checkmark came (~4 ticks after the last death); it now
+  finishes on the last death when no known mob (spawn spots included) is left, as standalone runs already did. A mob not
+  yet seen comes back: a room still not cleared on the map 60 ticks (+ server lag) later goes back into Auto Secret's to-do
+  list (`AutoClearFeature.drainHandBackReturns`). Key rooms and King Midas still wait for the checkmark.
+- A path warp Hypixel never answers (door 81: use seq 15, no teleport) idled the full 20-tick stall deadline before the
+  replan. Now a hop in flight with no answer is judged like Auto Routes' refused warp (`RouteExecutor.refusedRetryTicks()`,
+  fed by Auto Clear's own landing times through `noteLandingTicks`), plus server lag; testkit 1121-sim-acgaps2-warp-lost
+  drops one use on the sim server. Not code faults: a server stall (door 71, PerTickServerClock 15 behind; the deadline
+  grows by ServerLag, so the retry went 0-2 ticks after recovery) and puzzle work before the blood door (door 109); the
+  room order runs on the etherplanner thread in slices. Testkit 1121-sim-acgaps2-{lastdeath,keywait,essence}.
+  That deadline (2 x slowest landing + 2, then the eaten-use floor) still read 14 ticks after a 2-tick flight: with no
+  ping measured `RightClick.eatenRetryTicks` guesses 300 ms (11 ticks). `RouteExecutor.lostWarpTicks()` (Auto Clear only)
+  is now the slowest of the last 5 landings + 3 ticks: one round trip has passed, so no double warp (origin 23, now 10).
+- A door that used up its 12 clicks while the key count read -1 (unknown, so the clicks were also the probe) waited there
+  until the 360 s cap once the key came (acslow-door's 99-tick rows, origin too): `doorClicks` survives `beginDoor`. A key
+  count above the one at the last click now starts a new round (`doorClickKeys`). Testkit 1121-sim-acslow-door.
+- A mid-run rejoin hears no Mort line, so ArmedStart armed Auto Clear / Auto Secret until the held map was read:
+  `WitherDoorsFeature.runStarted()` also counts `DungeonRun.resumed()`. Testkit 1121-hx-rejoin-runstarted.

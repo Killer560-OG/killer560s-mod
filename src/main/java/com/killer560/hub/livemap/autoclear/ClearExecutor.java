@@ -1997,6 +1997,9 @@ public final class ClearExecutor {
                 }
             }
             if (match >= 0) {
+                if (match == issued.size() - 1) {
+                    com.killer560.hub.autoroutes.RouteExecutor.noteLandingTicks((int) (clientTicks - lastIssueTick));
+                }
                 confirmed = match + 1;
                 lastGood = issued.get(match);
                 ticksSinceProgress = 0;
@@ -2018,8 +2021,11 @@ public final class ClearExecutor {
             return false;
         }
         // A server stall since the last progress is not the warp failing: the deadline grows by the stall (0 when
-        // the server keeps time, so the normal case is exactly STALL_TICKS).
-        if (ticksSinceProgress > STALL_TICKS + ServerLag.ticksSince(progressLag)) {
+        // the server keeps time, so the normal case is exactly STALL_TICKS). A warp in flight with no answer is judged
+        // lost by RouteExecutor's ring (RouteExecutor.lostWarpTicks: the slowest recent landing + 3): Hypixel never answers a use it dropped, and
+        // the old 20 ticks idled a whole second per lost warp (his acslow-1121 log, door 81).
+        int deadline = confirmed < issued.size() ? com.killer560.hub.autoroutes.RouteExecutor.lostWarpTicks() : STALL_TICKS;
+        if (ticksSinceProgress > deadline + ServerLag.ticksSince(progressLag)) {
             offPath(confirmed < issued.size() ? "warp " + (confirmed + 1) + " never landed"
                     : waitReason != null ? waitReason : "nothing moved for a second", null);
             return false;
@@ -2237,6 +2243,7 @@ public final class ClearExecutor {
             }
             if (bx != playerPos[0] || by != playerPos[1] || bz != playerPos[2]) {
                 issued.add(new Vec3(playerPos[0], playerPos[1], playerPos[2]));
+                lastIssueTick = clientTicks;
             }
             ticksSinceProgress = 0;
             waitReason = null;
@@ -2441,6 +2448,8 @@ public final class ClearExecutor {
      *  the pace with it, beside the packets themselves. */
     private static final List<Long> hopSendTicks = new java.util.ArrayList<>();
     private static long clientTicks;
+    /** {@link #clientTicks} when the newest path hop went out: its landing time feeds the refused-warp deadline. */
+    private static long lastIssueTick;
     /** {@code RightClick.itemUsesSent()} when this tick began (before every START handler): one hop use per tick. */
     private static int itemUsesAtTickStart;
 

@@ -386,13 +386,14 @@ public final class WitherDoorsFeature {
      * Whether the run has started, so there is a map he could be looking at. killer560, 2026-10-15: "the mod should not
      * show wither doors before mort finishes his countdown and the run actually starts since there is no map the player
      * can actually see yet". On Hypixel: Mort's opening line was seen in this world, or the held map is already read
-     * (Mort hands it over at that moment, so a rejoin mid-run still counts). In the sim: its own countdown said GO.
+     * (Mort hands it over at that moment), or this world is a rejoin of a run that was already live (Mort does not speak
+     * again, and Auto Clear started there must start, not arm, before the map is read). In the sim: its own countdown said GO.
      */
     public static boolean runStarted() {
         if (com.killer560.hub.roomsim.SimState.isActive()) {
             return com.killer560.hub.roomsim.SimRun.hasStarted() || !com.killer560.hub.roomsim.SimState.isGeneratedFloor();
         }
-        return mortSeen || com.killer560.hub.livemap.LiveMapReads.mapItemCalibrated();
+        return mortSeen || com.killer560.hub.secrets.DungeonRun.resumed() || com.killer560.hub.livemap.LiveMapReads.mapItemCalibrated();
     }
 
     private static String status = "idle";

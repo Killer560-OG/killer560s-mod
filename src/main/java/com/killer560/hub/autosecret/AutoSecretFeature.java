@@ -113,6 +113,8 @@ public final class AutoSecretFeature {
     private static BlockPos doorGoal;
     private static BlockPos doorLock;
     private static int doorClicks;
+    /** The team's key count for this door's kind at our last click (a key picked up after a used-up round earns a new one). */
+    private static int doorClickKeys = Integer.MIN_VALUE;
     private static int doorLastClickTick;
     private static String lastDoorSaid;
     private static boolean noKeySaid;
@@ -324,6 +326,9 @@ public final class AutoSecretFeature {
         if (!withPilot && !AutoRoutesConfig.getInstance().isEnabled()) {
             say(ModChat.bad("Turn Auto Routes on first - Auto Secret plays your routes."));
             return false;
+        }
+        if (ArmedStart.defer(withPilot ? "Dungeon Autopilot" : CHAT, () -> start(withPilot))) {
+            return false;   // the green room: armed (or disarmed), started by the run's own start
         }
         runId++;
         lastRoomName = null;
@@ -634,7 +639,7 @@ public final class AutoSecretFeature {
             return "the mimic (Kill Mimic is fighting it)";
         }
         boolean all = counted == null || counted[0] >= counted[1];
-        String aura = com.killer560.hub.cheatutils.SecretAuraFeature.takingInReach(client, all);
+        String aura = com.killer560.hub.cheatutils.SecretAuraFeature.takingBeforeLeaving(client, all);
         if (aura != null || all) {
             return aura;
         }
@@ -973,6 +978,12 @@ public final class AutoSecretFeature {
             boolean had = clearsDone.remove(back);
             LOGGER.info("[AutoSecret] {}: not cleared 30 s after its secret chest - {}", back,
                     had ? "may send Auto Clear back to it (once)" : "it counts as uncleared again (once)");
+        }
+        // A clear ended at the room's last death that the map still has not shown: a mob never seen is still there.
+        for (String back : AutoClearFeature.drainHandBackReturns()) {
+            clearsDone.remove(back);
+            LOGGER.info("[AutoSecret] {}: not cleared on the map after Auto Clear ended at its last death - may send"
+                    + " Auto Clear back to it", back);
         }
         DungeonLayout layout = DungeonLayout.capture();
         int here = layout.currentRoom();
@@ -2681,7 +2692,10 @@ public final class AutoSecretFeature {
         status = "Going to clear " + r.name();
         LOGGER.info("[AutoSecret] {}clear {} ({} room(s) away) - Auto Clear", label, r.name(), dist.get(r.room()));
         note(ModChat.text("Clearing "), ModChat.value(r.name()));
-        if (layout.currentRoom() == r.room() || keyRoomOnTheWay(layout, r.room())) {
+        // A room next door (an open way in, by dist) goes straight to Auto Clear, which warps to the block that reaches its
+        // mobs: a trip to the door first, then the map's flip (~10 ticks), only delayed the first shot (acslow-1121).
+        Integer away = dist.get(r.room());
+        if (layout.currentRoom() == r.room() || keyRoomOnTheWay(layout, r.room()) || away != null && away <= 1) {
             arrived(Trip.CLEAR);
             return;
         }
@@ -3095,6 +3109,7 @@ public final class AutoSecretFeature {
         doorGoal = null;
         doorLock = null;
         doorClicks = 0;
+        doorClickKeys = Integer.MIN_VALUE;
         doorLastClickTick = -1000;
         noKeySaid = false;
     }
@@ -3120,17 +3135,18 @@ public final class AutoSecretFeature {
     /** At the door: open it if the team has a key; otherwise wait, saying so; carry on the moment it reads open. */
     private static void tickDoor() {
         Minecraft client = Minecraft.getInstance();
-        DungeonLayout layout = DungeonLayout.capture();
-        if (doorCell < 0 || !layout.isLocked(doorCell)) {
-            LOGGER.info("[AutoSecret] the {} door at cell {} is open ({} click(s) of ours) - carrying on",
-                    doorBlood ? "blood" : "wither", doorCell, doorClicks);
+        // The door's own blocks, not a whole layout built every tick; open = the whole opening is clear, so the next
+        // trip goes the same tick with nothing left to settle (acslow-1121: the 10-tick SETTLE after every door).
+        if (doorCell < 0 || !DungeonLayout.doorShut(doorCell, doorBlood)) {
+            LOGGER.info("[AutoSecret] the {} door at cell {} is open ({} click(s) of ours, {} tick(s) at it) - carrying on",
+                    doorBlood ? "blood" : "wither", doorCell, doorClicks, phaseTicks);
             note(ModChat.good(doorBlood ? "Blood door open" : "Wither door open"), ModChat.dim(" - carrying on"));
             if (doorBlood) {
                 Autopilot.onBloodDoorOpened();
             }
             resetDoor();
             lastDoorSaid = null;
-            setPhase(Phase.SETTLE);
+            setPhase(Phase.DECIDE);
             return;
         }
         if (WitherDoorOpener.isBusy()) {
@@ -3141,8 +3157,20 @@ public final class AutoSecretFeature {
         boolean key = doorBlood ? com.killer560.hub.doorkeys.DungeonKeys.bloodKey() != 0
                 : WitherDoorOpener.haveKey(client.player);
         String kind = doorBlood ? "blood" : "wither";
+        // An unknown blood key count (-1) spends a round of clicks to find out; a key picked up after that round
+        // (acgaps2-1121-fix: the Blood Key came after 12 clicks at the door, which then waited to the end of the run)
+        // starts a new round.
+        int keys = doorBlood ? com.killer560.hub.doorkeys.DungeonKeys.bloodKey()
+                : com.killer560.hub.doorkeys.DungeonKeys.witherKeys();
+        if (doorClicks >= DOOR_CLICKS && keys > 0 && keys > doorClickKeys) {
+            LOGGER.info("[AutoSecret] a {} key came after {} click(s) at the door at cell {} - clicking again",
+                    kind, doorClicks, doorCell);
+            doorClicks = 0;
+            noKeySaid = false;
+        }
         if (key && doorClicks < DOOR_CLICKS && phaseTicks - doorLastClickTick >= DOOR_CLICK_GAP_TICKS) {
             doorClicks++;
+            doorClickKeys = keys;
             doorLastClickTick = phaseTicks;
             status = "Opening the " + kind + " door";
             LOGGER.info("[AutoSecret] opening the {} door at cell {} (click {} of {})", kind, doorCell, doorClicks,
@@ -3436,7 +3464,8 @@ public final class AutoSecretFeature {
         if (done) {
             LOGGER.info("[AutoSecret] Ice Fill done after {} tick(s)", phaseTicks);
             note(ModChat.good("Ice Fill done"));
-            setPhase(Phase.SETTLE);
+            permitLeaveHere();   // done on its own signal, as a solved puzzle: the next decision now, not after a settle
+            setPhase(Phase.DECIDE);
             return;
         }
         if (phaseTicks > ICE_FILL_TIMEOUT_TICKS) {
