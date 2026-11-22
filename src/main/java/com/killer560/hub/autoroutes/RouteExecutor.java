@@ -663,6 +663,18 @@ public final class RouteExecutor {
     private static int walkHoldStallTicks;
     /** A held walk that has not moved for this many ticks has hit something and lets go. */
     private static final int WALK_HOLD_STALL_TICKS = 10;
+    /**
+     * A trap-room held walk that reached the next (non-walk) node's ring short of its point: AP3's align is bringing him
+     * onto the point before the node fires, or null. A first touch of the ring left him up to 0.8 off it, and New Trap's
+     * breaker #6 must drop him through a 1x1 hole (newtrap-route7, 2026-11-22).
+     */
+    private static RouteNode walkAlignNode;
+    /** Trap-room walks that aligned onto the next node's point before firing it - read by the testkit. */
+    private static int walkAligns;
+
+    public static int walkAligns() {
+        return walkAligns;
+    }
 
     /**
      * Every node on one tile fires, as one unit (killer560, 2026-10-04): the nodes still to run in the stack being
@@ -1133,6 +1145,12 @@ public final class RouteExecutor {
             // An align has no teleport of its own either: the server put him somewhere. Honored, never fought, never a
             // stop - AP3's align carries on from the corrected position (and walks back first if it left the reach).
             reportCorrection(String.format(Locale.US, "during align #%d - aligning on from here", route.indexOf(node) + 1));
+            Ap3TrapWalk.onCorrection(client, player);
+            return;
+        }
+        if (walkAlignNode != null && trapWalk) {
+            reportCorrection(String.format(Locale.US, "while walking onto node #%d - aligning on from here",
+                    route.indexOf(walkAlignNode) + 1));
             Ap3TrapWalk.onCorrection(client, player);
             return;
         }
@@ -1776,9 +1794,10 @@ public final class RouteExecutor {
         Vec3 rel = RouteCoords.toRelative(frame, pos);
 
         if (path.isEmpty()) {
-            // No recorded movement: the next node fires fires when the player walks into its ring.
+            // No recorded movement: the next node fires when the player walks into its ring (a trap-room held walk
+            // first aligns onto the node's point, walkAlignOnto).
             clearMovement();
-            if (walkHoldYaw != null) {
+            if (walkHoldYaw != null && walkAlignNode == null) {
                 tickWalkHold(player);
             }
             if (landedFrom != null) {
@@ -1813,7 +1832,10 @@ public final class RouteExecutor {
             }
             RouteNode node = ordered.get(nextNode);
             Vec3 nodeAt = RouteCoords.toReal(frame, node.relativePos());
-            if (node.contains(frame, nodeAt, cfg.getHeight(), feetBox(player))) {
+            if (walkAlignNode == node || node.contains(frame, nodeAt, cfg.getHeight(), feetBox(player))) {
+                if (walkAlignOnto(client, player, node, nodeAt)) {
+                    return;
+                }
                 if (refireHeld(client, player, node)) {
                     return;
                 }
@@ -2006,7 +2028,83 @@ public final class RouteExecutor {
                 && RouteRunMemory.givenUp(RouteRunMemory.nodeKey(route, node));
     }
 
+    /**
+     * A trap-room held walk that touched the next node's ring: brings him onto the node's point with AP3's align (the
+     * same discrete keys and body turn as an ALIGN node, {@link #tickAlign}) before the node fires, because a ring touch
+     * can be 0.8 short of a 1x1 hole the node drops him through. Not for a walk node next (the sprint carries on), nor
+     * when he already stands still with his whole box inside the ring. Returns true while it still drives; false when
+     * the node may fire now. A refusal or the align's timeout fires the node anyway: nothing here stops the route.
+     */
+    private static boolean walkAlignOnto(Minecraft client, LocalPlayer player, RouteNode node, Vec3 nodeAt) {
+        if (walkAlignNode != node) {
+            if (walkHoldYaw == null || !walkHoldBody || node.type == RouteNode.Type.WALK) {
+                return false;
+            }
+            int rot = frame == null ? 0 : frame.rotation();
+            double hx = node.halfRealX(rot);
+            double hz = node.halfRealZ(rot);
+            double half = player.getBbWidth() / 2.0;
+            Vec3 v = player.getDeltaMovement();
+            if (Math.abs(player.getX() - nodeAt.x) <= hx - half && Math.abs(player.getZ() - nodeAt.z) <= hz - half
+                    && v.x * v.x + v.z * v.z < 0.05 * 0.05) {
+                return false;
+            }
+            walkAlignNode = node;
+            walkAligns++;
+            trapWalk = true; // Ap3TrapWalk is driving: stop(), endWalkHold and the node's beginAction cancel it
+            Ap3TrapWalk.beginAlign(client, player, nodeAt, hx, hz,
+                    "Walk onto #" + (route.indexOf(node) + 1) + " in " + frame.roomName());
+            LOGGER.info("[AutoRoutes] walk reached node #{} {} off its point - aligning onto it before it fires",
+                    route.indexOf(node) + 1, String.format(Locale.US, "%.3f",
+                            Math.hypot(nodeAt.x - player.getX(), nodeAt.z - player.getZ())));
+        }
+        if (com.killer560.hub.util.ActionGate.hisClickQueued(client.options.keyAttack)) {
+            // His attack goes out this tick, judged by the looks it reports: the body faces his view for it and no key is
+            // held; the align carries on next tick (the warp's rule, 62-argrim-1122-trapwalkalign-same-attack).
+            BODY.giveBack(player);
+            wantForward = wantBackward = wantLeft = wantRight = wantJump = wantSneak = wantSprint = false;
+            return true;
+        }
+        Ap3TrapWalk.Drive d = Ap3TrapWalk.tick(client, player);
+        Ap3TrapWalk.Phase phase = Ap3TrapWalk.phase();
+        if (phase == Ap3TrapWalk.Phase.ARRIVED || phase == Ap3TrapWalk.Phase.REFUSED) {
+            LOGGER.info("[AutoRoutes] walk onto node #{}: {} at ({}, {}) - firing it", route.indexOf(node) + 1,
+                    phase == Ap3TrapWalk.Phase.ARRIVED ? "on the point" : "align refused (" + Ap3TrapWalk.refusal() + ")",
+                    String.format(Locale.US, "%.3f", player.getX()), String.format(Locale.US, "%.3f", player.getZ()));
+            walkAlignNode = null;
+            trapWalk = false;
+            return false;
+        }
+        applyDrive(player, d);
+        return true;
+    }
+
+    /** One tick of Ap3TrapWalk's keys and body yaw (null = at rest or re-planning: no keys). */
+    private static void applyDrive(LocalPlayer player, Ap3TrapWalk.Drive d) {
+        if (d == null) {
+            return;
+        }
+        float delta = Mth.wrapDegrees(d.yaw() - player.getYRot());
+        if (Math.abs(delta) > 1e-4f) {
+            turnBody(player, player.getYRot() + delta, player.getXRot());
+        }
+        wantForward = d.forward();
+        wantBackward = d.backward();
+        wantLeft = d.left();
+        wantRight = d.right();
+        wantJump = d.jump();
+        wantSneak = d.sneak();
+        wantSprint = d.sprint() && !player.isInWater();
+    }
+
     private static void endWalkHold() {
+        if (walkAlignNode != null) {
+            walkAlignNode = null;
+            if (trapWalk) {
+                Ap3TrapWalk.cancel("the walk ended");
+                trapWalk = false;
+            }
+        }
         walkHoldYaw = null;
         walkHoldBody = false;
         walkHoldLastPos = null;
@@ -2670,20 +2768,7 @@ public final class RouteExecutor {
             return;
         }
         wantSneak = false;
-        if (d == null) {
-            return; // at rest on the point for the settle ticks, or re-planning after a correction: no keys
-        }
-        float delta = Mth.wrapDegrees(d.yaw() - player.getYRot());
-        if (Math.abs(delta) > 1e-4f) {
-            turnBody(player, player.getYRot() + delta, player.getXRot());
-        }
-        wantForward = d.forward();
-        wantBackward = d.backward();
-        wantLeft = d.left();
-        wantRight = d.right();
-        wantJump = d.jump();
-        wantSneak = d.sneak();
-        wantSprint = d.sprint() && !player.isInWater();
+        applyDrive(player, d);
     }
 
     /** Ticks a jump node waits for him to be on the ground before pressing anyway (a press in the air does nothing). */

@@ -41,6 +41,12 @@ and Auto Clear are in [LESSONS-AUTOCLEAR.md](LESSONS-AUTOCLEAR.md). Problem, the
   off its tile; since 60920921 that stops the route ("not at path #16"): 96-ar-1017-bridges failed on the batch jar
   (batch1026-c-ar-1, unreported) and on bad234a8. `Route.fireRank` puts an arrival (second PATH of a pair) after every
   standing-still node and before etherwarp, path, jump and walk; every other node keeps its place.
+- **A trap-room walk must stop ON the next node's point, not on its ring** (newtrap-route7, New Trap's bundled route
+  stalled at #7 in the sim on every rotation): the held WALK fired the next node at the first touch of its 1x1 ring, up to
+  0.8 short of the point, so breaker #6 broke the blocks over a 1x1 hole he was not standing over and the drop never came.
+  `RouteExecutor.walkAlignOnto` now aligns onto the point with `Ap3TrapWalk.beginAlign` (discrete keys, body turn) before a
+  non-WALK node fires, unless he already rests with his whole box in the ring; a refused align fires it anyway. Testkit
+  1121-sim-trap-routes (blocks broken at #6, a drop of 10+, last node reached) and 62-argrim-1122-trapwalkalign(-same-*).
 
 ## Aiming a node
 
