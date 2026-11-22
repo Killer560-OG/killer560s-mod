@@ -758,6 +758,8 @@ public final class InstaClearTracker {
         loaded = false;
         PENDING.clear();
         ensureLoaded();
+        // the load may migrate and save on SharedWriter; a test reads the file right after
+        com.killer560.hub.shared.SharedWriter.drain(2000);
     }
 
     /** Overrides the dungeon map's state for a room by name ({@code LiveMapFeature.MAP_*}); null removes it. */

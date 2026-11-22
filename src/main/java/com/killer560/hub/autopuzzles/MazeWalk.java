@@ -176,7 +176,7 @@ final class MazeWalk {
         }
         float[] dir = AutoPuzzleUtil.direction(player.getEyePosition(), aim);
         AutoPuzzleUtil.rotateCamera(player, dir[0], dir[1]);
-        client.options.keyUp.setDown(true);
+        AutoTeleportMaze.forward(client, true);
         return true;
     }
 

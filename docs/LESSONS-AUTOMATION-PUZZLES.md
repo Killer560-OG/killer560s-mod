@@ -273,4 +273,34 @@ The puzzle autos at run time (camera, timing, leaving, each puzzle). Part of the
   is 0.05 over), or the recovery fired a second straight-down warp. A give-up releases the free camera. Testkit
   93-solve-icefill-1118-bunched/-recovery/-sweep, 1118-same-icefill-* (Grim).
 - Tic Tac Toe walkout (killer560, 2026-11-20: "you dont need ttt walkout since you can etherwarp inside of the ttt room"): the Walk Out When Done setting is gone for good; never bring a walkout back. 93-solve-tictactoe-resume failed once at 18 ticks (bound 5) in a loaded run and passed alone on this branch jar (remerge3a-1120): a load flake, so the bound stays.
+
+- Puzzle autos under Auto Clear (acpuzzles-1121, measured 11-21 on 26.3 cheat). Ice Fill: a hop whose server position
+  packet arrives after the 3-tick teleport waiver ran out sets the gate's 1-tick settle and denies the next hop, so a
+  late landing cost about 3 ticks; the landing wait now renews `ActionGate.expectSelfTeleport(PUZZLE_WORLD, 2)` each
+  tick. With 150 ms server stalls on every hop the case 1121-sim-acpuzzles-icefill solves in 462 ticks on origin and
+  384 on this change (bound 420); with no stalls the sim lands a hop in 1 tick and both are the same, so the gain is
+  only under real latency. Teleport Maze: an etherwarp onto the pad never landed in the sim (no landing 11 ticks after
+  the use, then a timed-out reposition, then the walk anyway), about 50 ticks per hop, so that try was reverted and the
+  walk stays at 186 ticks; mazes differ per run, so tick counts between two runs of that case are noisy. Ice Path
+  (229-251 ticks in 93-solve-icepath*): the ticks are the silverfish slide (8 blocks about 12 ticks, 16 blocks about 27,
+  one 16-block slide 61) plus about 4 per stop (2-tick etherwarp landing, the solver's rest check, one swap tick) and
+  about 7 at the start; the shot goes the tick the solver reports rest, so no timer is left to remove. Beams and Lower
+  Blaze are slide or latency paced the same way; no removable timer was found.
+- Teleport Maze and Ice Fill ticks from his real run (acpuzzles2-1121, untested-latest-1121.log 11:07 and 11:09). The
+  maze etherwarp did not land because the sim refuses every ability but Superboom in the maze (`SimAbilities.trapLocked`,
+  his rule of 2026-10-01, Hypixel's "You cannot use abilities in this room!"), so walking is the only legal move. His 186
+  ticks: 34 walking 14 blocks to the start pad, six hops of 13-19 ticks (5-7 blocks each; the next pad is picked the tick
+  a teleport lands, no fixed wait; the count is exploring random pad links), 47 finishing (chest click about 10, end pad,
+  walk out). The walk held forward only, at walking pace (his toggleSprint is off), so every maze leg now holds sprint
+  with forward (`AutoTeleportMaze.forward`, discrete keys, as Auto Boulder): about 30% off the ~140 walking ticks. Testkit
+  1121-sim-acpuzzles-teleportmaze fails unless most walking ticks sprint. Ice Fill's 239 ticks were 75 AOTV hops (223
+  ticks: 26 at 2 ticks, 39 at 3, 9 at 5-7) plus about 13 claiming the two chests; it hands back the tick it is done. The
+  "9 s walk with no use" was the landing-wait lines read as walking: no leg walked. A hop goes only after the last landed
+  (icefillbugs-1118), so it is bound by the round trip (about 2.5 ticks a hop at his ping); the ~30 ticks of the ten
+  "held back by the action gate" hops are the late-landing denials acpuzzles-1121's waiver renewal removes. The Quiz
+  waited behind Ice Fill because Auto Clear's route finished Ice Fill first: that is the Auto Clear core, not a puzzle auto.
+- Testkit 1118-same-icefill-move sent 0 hops whenever it ran right after the other same-tick Ice Fill cases (on the
+  pre-waiver origin jar too, acpuzzles2-1121): each lap's tp starts ActionGate's 6-tick teleport settle and the case's hook
+  retries only from the tile's middle, which the held walk leaves in one tick. A test that drives a feature from an exact
+  spot while keys are held waits out the settle (and the item's slot update) before pressing them (tk 44741fb91).
 - Auto Melody's Harp timing (harpmiss-1121): a note shows quartz in the click row for one step (250 ms in the testkit), so every tick before the click counts. Waiting a settle tick after EVERY step (to dodge a step whose click row arrives a tick after its rows) put the shipped jar's latest click 193-241 ms into the step and missed notes under load; the click row is now decided at once when its quartz equals the last board's row-3 wool, and only a mismatch waits. Early (row-ahead) clicks still wait the tick: TICK_LAG_MS was measured with it, and without it the 200 ms ping cases clicked a step too soon. HxHarp click events carry "ms" into their step to see the margin.

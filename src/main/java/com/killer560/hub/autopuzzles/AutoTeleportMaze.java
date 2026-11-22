@@ -163,6 +163,16 @@ final class AutoTeleportMaze {
     private AutoTeleportMaze() {
     }
 
+    /**
+     * Forward and sprint together (acpuzzles2-1121): abilities are refused in the maze, so every leg is on foot, and
+     * the walk held forward only, at walking pace (his sprint key is not toggled). Sprinting is about 30% faster on
+     * every pad hop, the start-pad walk and the finish. Discrete key presses, same as Auto Boulder.
+     */
+    static void forward(Minecraft client, boolean on) {
+        client.options.keyUp.setDown(on);
+        client.options.keySprint.setDown(on);
+    }
+
     static void levelChanged(Minecraft client) {
         GUARD.levelChanged();
         CAMERA.drop();
@@ -376,7 +386,7 @@ final class AutoTeleportMaze {
         // No planned way (or the planned points are used up, i.e. he is at the pad): straight at it.
         float[] dir = AutoPuzzleUtil.direction(player.getEyePosition(), Vec3.atCenterOf(walkTarget));
         AutoPuzzleUtil.rotateCamera(player, dir[0], dir[1]);
-        client.options.keyUp.setDown(true);
+        forward(client, true);
     }
 
     /**
@@ -662,7 +672,7 @@ final class AutoTeleportMaze {
                 lastChestClickMs == 0L ? "none" : String.valueOf(System.currentTimeMillis() - lastChestClickMs));
         ModChat.log(AutoPuzzlesFeature.CHAT, ModChat.text("Teleport Maze: opened the "), ModChat.good("secret chest"),
                 ModChat.text("."));
-        client.options.keyUp.setDown(false);
+        forward(client, false);
         walking = false;
         int[] cr = LiveMapFeature.currentRoomClayAndRotation();
         BlockPos pad = cr == null ? null
@@ -700,7 +710,7 @@ final class AutoTeleportMaze {
                     AutoPuzzleUtil.fmt(player.blockPosition()), nowTick() - finishStageStartTick);
             ModChat.send(AutoPuzzlesFeature.CHAT, ModChat.text("Auto Teleport Maze: "),
                     ModChat.bad("the chest click was never confirmed"), ModChat.text(" - stopped."));
-            client.options.keyUp.setDown(false);
+            forward(client, false);
             walking = false;
             finishStage = FinishStage.DONE;
             return;
@@ -732,7 +742,7 @@ final class AutoTeleportMaze {
                 LOGGER.info("[AutoPuzzles] TeleportMaze: no chest seen in the center cell yet - waiting ({}) tick={}",
                         cr == null ? "room rotation not known" : "scan found none or chunks not loaded", nowTick());
             }
-            client.options.keyUp.setDown(false);
+            forward(client, false);
             walking = false;
             return;
         }
@@ -777,10 +787,10 @@ final class AutoTeleportMaze {
         if (dx * dx + dz * dz > CHEST_STOP_SQ) {
             float[] dir = AutoPuzzleUtil.direction(player.getEyePosition(), centre);
             AutoPuzzleUtil.rotateCamera(player, dir[0], dir[1]);
-            client.options.keyUp.setDown(true);
+            forward(client, true);
             walking = true;
         } else {
-            client.options.keyUp.setDown(false); // beside it: wait for the answer
+            forward(client, false); // beside it: wait for the answer
             walking = false;
         }
     }
@@ -809,7 +819,7 @@ final class AutoTeleportMaze {
                                 + " elapsedTicks={}", pad == null ? "room rotation not known, assumed" : "teleported",
                         AutoPuzzleUtil.fmt(player.blockPosition()), nowTick() - finishStageStartTick);
             }
-            client.options.keyUp.setDown(false);
+            forward(client, false);
             walking = false;
             finishStageStartTick = nowTick();
             finishStage = FinishStage.WALK_OUT;
@@ -819,7 +829,7 @@ final class AutoTeleportMaze {
         }
         float[] dir = AutoPuzzleUtil.direction(player.getEyePosition(), Vec3.atCenterOf(pad));
         AutoPuzzleUtil.rotateCamera(player, dir[0], dir[1]);
-        client.options.keyUp.setDown(true);
+        forward(client, true);
         walking = true;
     }
 
@@ -834,7 +844,7 @@ final class AutoTeleportMaze {
             finishStageStartTick = nowTick();
             finishStageStartMs = System.currentTimeMillis();
             finishStageLag = com.killer560.hub.util.ServerLag.mark();
-            client.options.keyUp.setDown(false);
+            forward(client, false);
             walking = false;
             return true;
         }
@@ -843,7 +853,7 @@ final class AutoTeleportMaze {
             LOGGER.info("[AutoPuzzles] TeleportMaze: reached {} at {} (dist {}) - next stage {} elapsedTicks={}", label,
                     AutoPuzzleUtil.fmt(target), String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(distSq)),
                     nextStage, nowTick() - finishStageStartTick);
-            client.options.keyUp.setDown(false);
+            forward(client, false);
             walking = false;
             finishStageStartTick = nowTick();
             finishStage = nextStage;
@@ -855,7 +865,7 @@ final class AutoTeleportMaze {
             LOGGER.warn("[AutoPuzzles] TeleportMaze: walk to {} timed out - continuing anyway: target={} dist={}"
                             + " elapsedTicks={}", label, AutoPuzzleUtil.fmt(target),
                     String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(distSq)), nowTick() - finishStageStartTick);
-            client.options.keyUp.setDown(false);
+            forward(client, false);
             walking = false;
             finishStageStartTick = nowTick();
             finishStage = nextStage;
@@ -865,7 +875,7 @@ final class AutoTeleportMaze {
         }
         float[] dir = AutoPuzzleUtil.direction(player.getEyePosition(), Vec3.atCenterOf(target));
         AutoPuzzleUtil.rotateCamera(player, dir[0], dir[1]);
-        client.options.keyUp.setDown(true);
+        forward(client, true);
         walking = true;
         return false;
     }
@@ -948,7 +958,7 @@ final class AutoTeleportMaze {
     private static void stop(Minecraft client) {
         startWalking = false;
         if (walking) {
-            client.options.keyUp.setDown(false);
+            forward(client, false);
             walking = false;
         }
     }

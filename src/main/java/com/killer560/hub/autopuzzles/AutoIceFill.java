@@ -342,6 +342,9 @@ final class AutoIceFill {
                 lastIndex = index;
                 ticks = 0;
             } else {
+                // The landing is the server position packet that sets the gate's 1-tick teleport settle; one arriving
+                // after the hop's 3-tick waiver ran out denied the next hop and cost ~3 ticks (acpuzzles-1121).
+                com.killer560.hub.util.ActionGate.expectSelfTeleport(com.killer560.hub.util.ActionGate.Actor.PUZZLE_WORLD, 2);
                 note("landing" + lastIndex, "waiting: hop to point {} not landed yet (standing on point {})",
                         lastIndex, index);
             }
