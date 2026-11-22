@@ -705,11 +705,20 @@ public final class RouteExecutor {
         return starts;
     }
 
-    /** A path-less run between nodes whose next node is not where he stands: only his own walk can fire it. */
+    /**
+     * A path-less run between nodes whose next node is not where he stands: only his own walk can fire it. Not while the
+     * route is still carrying him there itself (acrev-trap-1122: New Trap was given up 10 t into its #3 pearl's flight):
+     * a pearl it threw that has not teleported him yet, a held walk or a trap-room align.
+     */
     public static boolean awaitingWalk() {
         return running && step == null && route != null && route.path().isEmpty() && plannedNext != null
-                && !plannedInPlace;
+                && !plannedInPlace && execTicks >= pearlUntil && walkHoldYaw == null && walkAlignNode == null;
     }
+
+    /** Route tick until which a pearl the route threw counts as in flight; its teleport (any position packet) ends it. */
+    private static long pearlUntil;
+    /** The longest a thrown pearl is waited on for its teleport before the route counts as idle again. */
+    private static final int PEARL_FLIGHT_MAX = 100;
 
     /** The room of the route being played, or null when none is (Auto Trap stops a trap route the moment he leaves). */
     public static String runningRoom() {
@@ -815,6 +824,7 @@ public final class RouteExecutor {
             Ap3TrapWalk.cancel("the route stopped (" + reason + ")");
             trapWalk = false;
         }
+        pearlUntil = 0;
         stackQueue.clear();
         stackTrigger = null;
         activeNode = null;
@@ -1027,6 +1037,7 @@ public final class RouteExecutor {
     /** From the client's position-packet handler, on the client thread. */
     public static void onServerPositionPacket() {
         teleportPacketSeen = true;
+        pearlUntil = 0;
         positionPackets++;
         if (running && LOGGER.isDebugEnabled()) {
             LOGGER.debug("[AutoRoutes] server position packet #{} at route tick {} (step {})", positionPackets,
@@ -2961,14 +2972,15 @@ public final class RouteExecutor {
         return com.killer560.hub.util.RightClick.eatenRetryTicks() + serverLagTicks();
     }
 
-    /** His left click let the warp under way past what held it; logged at INFO so he can find it in latest.log. */
-    private static void forceWarpPastHold(RouteNode node, String held, int heldTicks) {
+    /** His left click (or a bounded hold's limit) let the warp under way past what held it; logged at INFO. */
+    private static void forceWarpPastHold(RouteNode node, String held, int heldTicks, boolean byClick) {
         warpForced = true;
-        LOGGER.info("[AutoRoutes] Left click on node #{} {}: released its wait ({}, {} tick(s)) - warping now",
-                route.indexOf(node) + 1, node.type, held, heldTicks);
+        LOGGER.info("[AutoRoutes] {} on node #{} {}: released its wait ({}, {} tick(s)) - warping now",
+                byClick ? "Left click" : "Time limit", route.indexOf(node) + 1, node.type, held, heldTicks);
         blockWaitTicks = 0;
         blockWaitSaid = false;
         pickWaitBlock = null;
+        pickHeldTicks = 0;
         lineWaitTicks = 0;
         lineWaitBlock = null;
     }
@@ -3277,9 +3289,13 @@ public final class RouteExecutor {
                 double half = Math.min(dest.halfRealX(destRot), dest.halfRealZ(destRot)) * 0.8;
                 final Route walkRoute = route;
                 final RouteCoords.Frame walkFrame = frame;
+                // A saved walk that still fits the pair is never replaced by a fresh plan from wherever he stood
+                // (acrev-trap-1122: the bundled New Trap walk, his own, was overwritten by a plan 0.62 off the start, and
+                // every later start from the real spot then planned 4.1 s standing still). Only a pair with none saves.
+                Ap3TrapWalk.SavedWalk saved = savedWalk(node, dest);
                 Ap3TrapWalk.begin(client, player, to, half, "Path #" + (route.indexOf(node) + 1) + " -> #"
-                        + (route.indexOf(dest) + 1) + " in " + frame.roomName(), savedWalk(node, dest),
-                        w -> saveWalk(walkRoute, walkFrame, node, dest, w));
+                        + (route.indexOf(dest) + 1) + " in " + frame.roomName(), saved,
+                        saved != null ? null : w -> saveWalk(walkRoute, walkFrame, node, dest, w));
                 step = Step.DO;
                 stepTicks = 0;
                 tickTrapWalk(client, player, node);
@@ -3493,6 +3509,10 @@ public final class RouteExecutor {
     private static final int REPLAN_AFTER = 3;
     /** The same for a missing landing block: a second, so a block the server is still sending gets its wait first. */
     private static final int REPLAN_AFTER_LANDING = 20;
+    /** Ticks a path hop holds on a standing breaker pick before the pair is planned round it (the pick kept solid). */
+    private static final int PICK_REPLAN_AFTER = 10;
+    /** Ticks a path hop holds on a standing breaker pick before the warp goes anyway, as his left click would send it. */
+    private static final int PICK_FORCE_AFTER = 30;
     /** Replans per pair flight: past these the hold is the old one (his left click). */
     private static final int MAX_REPLANS = 2;
     /** Path hops flown round a hold by planning the rest of the pair again - read by the testkit. */
@@ -3512,7 +3532,8 @@ public final class RouteExecutor {
      *
      * @return true while held for the replan (or on the tick its hops were loaded); false = hold as before
      */
-    private static boolean replanHops(LocalPlayer player, RouteNode node, String why, int heldTicks, int after) {
+    private static boolean replanHops(LocalPlayer player, RouteNode node, String why, int heldTicks, int after,
+                                      boolean standingSolid) {
         if (hopIndex < 0 || heldTicks < after || route == null || frame == null) {
             return false;
         }
@@ -3537,7 +3558,7 @@ public final class RouteExecutor {
         Vec3 from = feet(player);
         LOGGER.info("[AutoRoutes] Etherwarp (path hop {}): {} for {} tick(s) - planning the rest of node #{}'s pair again "
                 + "from {} ({}/{})", at + 1, why, heldTicks, route.indexOf(node) + 1, fmt(from), replansThisPair, MAX_REPLANS);
-        RoutePathPlanner.planFrom(route, frame, node, from, found -> {
+        RoutePathPlanner.planFrom(route, frame, node, from, standingSolid, found -> {
             if (stamp != replanStamp || !running || activeNode != node || hopIndex != at) {
                 return;
             }
@@ -3571,6 +3592,7 @@ public final class RouteExecutor {
         blockWaitTicks = 0;
         blockWaitSaid = false;
         pickWaitBlock = null;
+        pickHeldTicks = 0;
         // Not standing where the plan stood (the first hop, fired from anywhere in the node's ring): aim from HERE at
         // the same block, with the aim the Interactive Map itself uses, if that ray really lands on it.
         LocalPlayer player = Minecraft.getInstance().player;
@@ -3922,14 +3944,22 @@ public final class RouteExecutor {
             }
             if (!warpForced && (!landingBlockThere(client) || pickStillStanding(client, player, node))) {
                 // Held with no time limit of its own (a pick, up to 60 s for a missing block): his left click goes off.
+                // A standing breaker pick is bounded (acrev-trap-1122: Spider stood 78 t on one its breaker skipped): the
+                // rest of the pair is planned round it, and past PICK_FORCE_AFTER the warp goes as his click would send it.
+                boolean pickHold = blockWaitTicks == 0 && pickWaitBlock != null;
+                String pickWhy = "breaker block " + (pickWaitBlock == null ? "?" : pickWaitBlock.toShortString())
+                        + " in the way";
                 if (!running || activeNode != node || (blockWaitTicks > 0 && replanHops(player, node, "landing block "
-                        + warpTarget.toShortString() + " missing", blockWaitTicks, REPLAN_AFTER_LANDING))
-                        || !takeSkipClick(client)) {
+                        + warpTarget.toShortString() + " missing", blockWaitTicks, REPLAN_AFTER_LANDING, false))
+                        || (pickHold && replanHops(player, node, pickWhy, pickHeldTicks, PICK_REPLAN_AFTER, true))) {
+                    return false;
+                }
+                boolean clicked = takeSkipClick(client);
+                if (!clicked && !(pickHold && pickHeldTicks >= PICK_FORCE_AFTER)) {
                     return false;
                 }
                 forceWarpPastHold(node, blockWaitTicks > 0 ? "landing block " + warpTarget.toShortString() + " missing"
-                        : "breaker block " + (pickWaitBlock == null ? "?" : pickWaitBlock.toShortString())
-                        + " in the way", blockWaitTicks > 0 ? blockWaitTicks : stepTicks);
+                        : pickWhy, blockWaitTicks > 0 ? blockWaitTicks : pickHeldTicks, clicked);
             }
             if (!warpAimReady(player)) {
                 logHold("legitaim:" + traceIndex(node), "Etherwarp ({}): legit camera turn still settling ({} off, {} "
@@ -3991,7 +4021,7 @@ public final class RouteExecutor {
                     return false; // no time limit (his rule): only his click sends it past the block
                 }
                 forceWarpPastHold(node, "block " + (lineWaitBlock == null ? "?" : lineWaitBlock.toShortString())
-                        + " in its line", lineWaitTicks);
+                        + " in its line", lineWaitTicks, true);
             }
             if (!warpForced && !aimLandsOnTarget(client, player, node, what)) {
                 // killer560, 2026-10-19: "No node may ever Etherwarp wrong." The look about to go does not land on the
@@ -3999,10 +4029,10 @@ public final class RouteExecutor {
                 // same test runs every tick, so it goes the tick a look lands (he settles, a block moves); his left click
                 // sends it as it is. Before turnFirst, so a look replaced here is the one the server is told.
                 if (!running || activeNode != node || replanHops(player, node, "no look from here lands on "
-                        + warpTarget.toShortString(), warpAimHoldTicks, REPLAN_AFTER) || !takeSkipClick(client)) {
+                        + warpTarget.toShortString(), warpAimHoldTicks, REPLAN_AFTER, false) || !takeSkipClick(client)) {
                     return false;
                 }
-                forceWarpPastHold(node, "no look from here lands on " + warpTarget.toShortString(), warpAimHoldTicks);
+                forceWarpPastHold(node, "no look from here lands on " + warpTarget.toShortString(), warpAimHoldTicks, true);
             }
             if (turnFirst(player, warpYaw, warpPitch, "[AutoRoutes] Etherwarp")) {
                 warpTurnFirstTicks++;
@@ -4517,6 +4547,8 @@ public final class RouteExecutor {
 
     /** The Breaker Aura pick a path hop is waiting on, said once in chat per block; null when not waiting. */
     private static BlockPos pickWaitBlock;
+    /** Ticks the current hop has waited on standing picks in a row (bounded by PICK_FORCE_AFTER). */
+    private static int pickHeldTicks;
     /** Ticks path hops have waited on a standing pick since launch - read by the testkit (637). */
     private static int pickWaitTicksTotal;
 
@@ -4528,8 +4560,9 @@ public final class RouteExecutor {
      * killer560 (2026-10-11): "Have it wait on the path." A path pair is planned with Breaker Aura's picks as already
      * broken (RoutePathPlanner), so a hop can go THROUGH one, or land under one. While such a pick still stands - in
      * the shot's line before it reaches the landing block, or in the landing's two blocks of standing room - nothing is
-     * sent: no use, sneak held, the same test again next tick, so the warp goes on the first tick the block is gone. No
-     * time limit; any key of his or /ar stop ends it as it ends any route. Chat names the block once. Only path hops,
+     * sent: no use, sneak held, the same test again next tick, so the warp goes on the first tick the block is gone.
+     * Bounded (acrev-trap-1122): after {@link #PICK_REPLAN_AFTER} ticks the rest of the pair is planned round the standing
+     * pick, and after {@link #PICK_FORCE_AFTER} the warp goes as his left click would send it. Chat names the block once. Only path hops,
      * and only while the shot would not land as planned: a pick that stands somewhere this hop does not need changes
      * nothing.
      *
@@ -4568,9 +4601,11 @@ public final class RouteExecutor {
                         pickWaitBlock.toShortString());
             }
             pickWaitBlock = null;
+            pickHeldTicks = 0;
             return false;
         }
         pickWaitTicksTotal++;
+        pickHeldTicks++;
         if (!waitOn.equals(pickWaitBlock)) {
             pickWaitBlock = waitOn.immutable();
             LOGGER.info("[AutoRoutes] Path hop {}: waiting for the breaker block at {} ({}) - the warp to {} goes"
@@ -4689,6 +4724,9 @@ public final class RouteExecutor {
             if (!node.hasLanding) {
                 // Nothing generic to wait for from the server for an arbitrary item: the use call itself, with
                 // the right item in hand, is the confirmation; the interact delay follows.
+                if (node.item != null && node.item.toUpperCase(Locale.ROOT).contains("PEARL")) {
+                    pearlUntil = execTicks + PEARL_FLIGHT_MAX;
+                }
                 finishAction();
                 return;
             }

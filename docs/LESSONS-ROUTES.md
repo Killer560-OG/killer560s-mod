@@ -47,6 +47,16 @@ and Auto Clear are in [LESSONS-AUTOCLEAR.md](LESSONS-AUTOCLEAR.md). Problem, the
   `RouteExecutor.walkAlignOnto` now aligns onto the point with `Ap3TrapWalk.beginAlign` (discrete keys, body turn) before a
   non-WALK node fires, unless he already rests with his whole box in the ring; a refused align fires it anyway. Testkit
   1121-sim-trap-routes (blocks broken at #6, a drop of 10+, last node reached) and 62-argrim-1122-trapwalkalign(-same-*).
+- **"Waiting for his walk" must not count while the route itself is still moving him** (acrev-trap-1122, his New Trap run
+  2026-11-22 09:15): Dungeons Autopilot's walk-wait guard (10 still ticks on `RouteExecutor.awaitingWalk`) gave the route up
+  10 t into #3's pearl flight, and in a trap room that stop is final. `awaitingWalk` is now false while a pearl the route
+  threw has not teleported him (any position packet ends it, at most 100 t), a held walk or a trap align runs.
+- **A saved trap walk is never replaced by a fresh plan** (same run): the first fresh plan from 0.62 off the start overwrote
+  the bundled walk (his own), and every later start from the real spot then missed the 0.5 reuse window and planned 4.1 s
+  standing still. A fresh plan is saved only for a pair with no valid saved walk. Testkit 1122-sim-trapstart.
+- **A path hop held on a breaker block is bounded** (Spider run 7, 78 t until his click on a block its breaker skipped):
+  after 10 t the rest of the pair is planned round the standing block (`RoutePathPlanner.planFrom` with `standingSolid`),
+  and after 30 t the warp goes as his click would send it; a block that goes sooner still warps on that tick. Testkit 637.
 
 ## Aiming a node
 

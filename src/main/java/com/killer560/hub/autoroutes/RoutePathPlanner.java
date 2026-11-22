@@ -293,7 +293,7 @@ public final class RoutePathPlanner {
      * search, config, range and breaker blocks as {@link #plan}, with the plan's proof budget. {@code done} runs on the
      * client thread with the hops, or null when there is no way from here.
      */
-    public static void planFrom(Route route, RouteCoords.Frame frame, RouteNode src, Vec3 from,
+    public static void planFrom(Route route, RouteCoords.Frame frame, RouteNode src, Vec3 from, boolean standingSolid,
                                 Consumer<List<RouteNode.PathHop>> done) {
         Minecraft client = Minecraft.getInstance();
         RouteNode dest = route == null ? null : route.pathDestination(src);
@@ -305,7 +305,13 @@ public final class RoutePathPlanner {
         DungeonLayout layout = DungeonLayout.capture();
         EtherwarpPathfinder.PathConfig cfg = ClearExecutor.pathConfig();
         double range = ClearExecutor.hopRange();
-        java.util.Set<Long> air = breakerAir(route, frame, src);
+        java.util.Set<Long> air = new java.util.HashSet<>();
+        for (BlockPos p : breakerBlocksBefore(route, frame, src)) {
+            // standingSolid: a pick the breaker has not broken is planned round, not through (acrev-trap-1122).
+            if (!standingSolid || client.level.getBlockState(p).isAir()) {
+                air.add(com.killer560.hub.livemap.autoclear.EtherSearch.pack(p.getX(), p.getY(), p.getZ()));
+            }
+        }
         ClearExecutor.onPlanner(() -> {
             List<EtherwarpPathfinder.Node> path = null;
             try {

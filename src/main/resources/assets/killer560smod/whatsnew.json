@@ -23,7 +23,8 @@
      "Team Melody's settings no longer load during a frame, which could stall the game for a moment.",
      "Dungeon Autopilot on the Solo 300 goal plans each room once (clear it or do the secrets the score still needs, least travel first); Clear First and the Clear Then Secret mode clear every room's mobs before any secret, opening a wither door to reach more; Party Secrets opens a door to more secrets before clearing; Clear Room Before Secreting and Room Before Blood: Skip are followed. Auto Secret and the Autopilot come back to the Quiz just as the next question opens: the countdown is filled with a route or a room's mob clear and decided again while it waits, a clear started in it is cut when only the trip back is left, and a trip it could not find a way for once is looked for again; with nothing else left on this side it clears a route room cut short or, with a Wither Key in hand, opens the wither door meanwhile",
      "New Trap's bundled Just Cleared Auto Trap route no longer stalls at its breaker node: a trap-room walk lines up on the node's point before it fires, and gives your view back on any tick you attack.",
-     "Blood Camp Stats: time lost reads unknown (or at least N) when the camp is out of entity range instead of 0 (26.3 cheat 5 pass, 26.3 legit 4 pass, 26.2 cheat 4 pass)"
+     "Blood Camp Stats: time lost reads unknown (or at least N) when the camp is out of entity range instead of 0 (26.3 cheat 5 pass, 26.3 legit 4 pass, 26.2 cheat 4 pass)",
+     "Auto Trap starts faster: a route no longer stops while your ender pearl is still in the air or a walk is lining up, the bundled trap walk is used from the first entry instead of being replaced by a fresh plan, and a warp held by a block that does not break is planned again from where you stand after half a second (forced after a second and a half) instead of waiting for a left click"
     ]
    }
   ]
