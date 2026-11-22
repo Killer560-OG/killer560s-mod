@@ -73,7 +73,10 @@ public final class AwaitEvents {
     /** Secret bats of his killed since the window opened - only a BAT node reads it (killer560, 2026-10-13). */
     private static int bats;
     private static final Set<String> counted = new HashSet<>();
+    /** Bats judged this window: not a secret bat's, or a secret bat in range and counted. */
     private static final Set<Integer> seenBats = new HashSet<>();
+    /** Secret bats seen beyond {@link #BAT_SPAWN_RANGE} (logged once; they are judged again each tick). */
+    private static final Set<Integer> farBats = new HashSet<>();
     private static final List<String> pending = new ArrayList<>();
 
     private static int lastWeaponUse = Integer.MIN_VALUE / 2;
@@ -228,13 +231,6 @@ public final class AwaitEvents {
         counted.clear();
         pending.clear();
         seenBats.clear();
-        if (client.level != null) {
-            for (Entity e : client.level.entitiesForRendering()) {
-                if (e instanceof Bat) {
-                    seenBats.add(e.getId());
-                }
-            }
-        }
     }
 
     static void end() {
@@ -245,6 +241,7 @@ public final class AwaitEvents {
         active = false;
         counted.clear();
         seenBats.clear();
+        farBats.clear();
         pending.clear();
         secrets = 0;
         crypts = 0;
@@ -291,10 +288,11 @@ public final class AwaitEvents {
             if (e instanceof Bat dying && dying.isDeadOrDying() && isSecretBat(dying)) {
                 onBatKill(client, player, dying);
             }
-            if (!(e instanceof Bat bat) || !seenBats.add(bat.getId())) {
+            if (!(e instanceof Bat bat) || bat.isDeadOrDying() || seenBats.contains(bat.getId())) {
                 continue;
             }
             if (!isSecretBat(bat)) {
+                seenBats.add(bat.getId());
                 LOGGER.debug("[AwaitEvents] bat {} at {} ignored: max health {} is not a secret bat's", bat.getId(),
                         bat.blockPosition().toShortString(), bat.getMaxHealth());
                 continue; // a Spirit Sceptre's bats, or a vanilla one
@@ -302,9 +300,20 @@ public final class AwaitEvents {
             double d = bat.distanceTo(player);
             BlockPos p = bat.blockPosition();
             if (d > BAT_SPAWN_RANGE) {
-                LOGGER.info("[AutoRoutes] secret ignored: bat appeared at {} {} blocks away (over {})", p.toShortString(),
-                        String.format(Locale.US, "%.1f", d), BAT_SPAWN_RANGE);
+                // Judged again every tick: a secret bat that spawned out of range (or before the route began) is there
+                // for him the moment he comes within range, not only when it appears (batnode-spawned-1121).
+                if (farBats.size() > 256) {
+                    farBats.clear();
+                }
+                if (farBats.add(bat.getId())) {
+                    LOGGER.info("[AutoRoutes] secret bat at {} is {} blocks away (over {}) - counted if he comes within range",
+                            p.toShortString(), String.format(Locale.US, "%.1f", d), BAT_SPAWN_RANGE);
+                }
                 continue;
+            }
+            seenBats.add(bat.getId());
+            if (RouteRunMemory.has("bat " + bat.getId())) {
+                continue; // already counted this run (an earlier window's)
             }
             RouteRunMemory.gotSecret("bat " + bat.getId(), bat.position(), "bat spawned at " + p.toShortString());
             addSecret("bat " + bat.getId(), "bat spawned at " + p.toShortString()

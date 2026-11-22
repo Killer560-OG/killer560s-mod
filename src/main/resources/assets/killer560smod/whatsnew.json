@@ -11,7 +11,8 @@
      "Mining no longer freezes the game for a moment on island changes (Dark Stone redrew the whole block texture atlas twice), a rare drop message no longer stalls the game while Luck rebuilt every row",
      "Lever Aura flicks again while the server keeps teleporting you (a teleport every tick no longer holds every flick back).",
      "Corpse Locator now boxes a Frozen Corpse only once it has been in your line of sight; after that it stays marked through walls. The cheat build's Corpse Scan still finds every loaded corpse.",
-     "Auto Correct now fixes a mistyped /warp destination against every Fast Travel destination, and completes a cut-off one like /warp bas to /warp base when exactly one destination fits."
+     "Auto Correct now fixes a mistyped /warp destination against every Fast Travel destination, and completes a cut-off one like /warp bas to /warp base when exactly one destination fits.",
+     "Auto Routes: a secret bat that was already standing there when a node began waiting (or that spawned far off and was then walked up to) now counts toward the node's secret await, so the route no longer stalls on it"
     ]
    }
   ]
