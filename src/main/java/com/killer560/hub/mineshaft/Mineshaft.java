@@ -1,5 +1,6 @@
 package com.killer560.hub.mineshaft;
 
+import com.killer560.hub.BuildVariant;
 import com.killer560.hub.autoroutes.ItemIdentity;
 import com.killer560.hub.auction.BazaarCatalog;
 import com.killer560.hub.gui.ThemeAccent;
@@ -26,6 +27,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.decoration.ArmorStand;
 import net.minecraft.world.level.Level;
@@ -51,7 +53,8 @@ public final class Mineshaft {
     public static final IslandConfig CFG = IslandConfig.of("mining", "mineshaft")
             .flag("detect", false).flag("detectParty", false).flag("waypoints", false)
             .flag("corpses", false).flag("corpseParty", false).flag("profit", false)
-            .flag("hud", false).flag("coldWarn", false).num("coldAt", 60, 10, 100).flag("scrap", false);
+            .flag("hud", false).flag("coldWarn", false).num("coldAt", 60, 10, 100).flag("scrap", false)
+            .flag("corpseScan", false);
 
     private static final Pattern CODE = Pattern.compile("\\b([A-Z]{4})_([A-Z0-9])\\b");
     private static final Pattern LOOT_HEAD = Pattern.compile("(LAPIS|UMBER|TUNGSTEN|VANGUARD) CORPSE LOOT!");
@@ -67,6 +70,7 @@ public final class Mineshaft {
     private static final Map<String, String> HELMETS = Map.of("LAPIS_ARMOR_HELMET", "Lapis", "MINERAL_HELMET", "Tungsten",
             "ARMOR_OF_YOG_HELMET", "Umber", "VANGUARD_HELMET", "Vanguard");
     private static final int MAX_CORPSES = 16;
+    private static final String ALREADY_LOOTED = "You've already looted this corpse!";
     private static final String FEATURE = "Mineshaft";
 
     /** One frozen corpse seen: where, which type, and whether its loot was taken or its place shared. */
@@ -291,11 +295,22 @@ public final class Mineshaft {
         ladders = List.copyOf(out.subList(0, Math.min(6, out.size())));
     }
 
+    /** Corpse Scan (cheat build only): every entity the client has loaded is checked, at any distance. */
+    public static boolean scanOn() {
+        return BuildVariant.CHEAT_FEATURES_ENABLED && CFG.on("corpseScan");
+    }
+
     private static void scanCorpses(Minecraft mc) {
-        AABB around = mc.player.getBoundingBox().inflate(96);
-        for (ArmorStand s : mc.level.getEntitiesOfClass(ArmorStand.class, around, a -> true)) {
-            String t = HELMETS.get(ItemIdentity.skyblockId(s.getItemBySlot(EquipmentSlot.HEAD)));
-            if (t == null || CORPSES.size() >= MAX_CORPSES || known(t, s)) {
+        Iterable<? extends Entity> all = scanOn() ? mc.level.entitiesForRendering()
+                : mc.level.getEntitiesOfClass(ArmorStand.class, mc.player.getBoundingBox().inflate(96), a -> true);
+        for (Entity e : all) {
+            if (!(e instanceof ArmorStand s) || CORPSES.size() >= MAX_CORPSES) {
+                continue;
+            }
+            // Most stands carry no Skyblock id: Map.of throws on a null key, which switched the whole feature off in a mineshaft.
+            String id = ItemIdentity.skyblockId(s.getItemBySlot(EquipmentSlot.HEAD));
+            String t = id == null ? null : HELMETS.get(id.toUpperCase(Locale.ROOT));
+            if (t == null || known(t, s)) {
                 continue;
             }
             CORPSES.add(new Corpse(t, s));
@@ -338,7 +353,12 @@ public final class Mineshaft {
             return;
         }
         if (on("corpses")) {
-            loot(s.trim());
+            String line = s.trim();
+            if (line.equals(ALREADY_LOOTED)) {
+                markLooted(null, 36); // a corpse looted before this game saw its loot block
+            } else {
+                loot(line);
+            }
         }
     }
 
@@ -353,7 +373,7 @@ public final class Mineshaft {
             lootType = t;
             lootAt = now;
             LOOT.clear();
-            markLooted(t);
+            markLooted(t, 144);
         } else if (lootType != null) {
             if (s.startsWith("▬")) {
                 finishLoot();
@@ -363,13 +383,14 @@ public final class Mineshaft {
         }
     }
 
-    private static void markLooted(String t) {
+    /** Marks the nearest unlooted corpse of type {@code t} (any type when null) within {@code maxSq} looted. */
+    private static void markLooted(String t, double maxSq) {
         Minecraft mc = Minecraft.getInstance();
         Corpse best = null;
-        double d = 144;
+        double d = maxSq;
         for (Corpse c : CORPSES) {
             double dd = mc.player == null ? 0 : mc.player.distanceToSqr(c.x, c.y, c.z);
-            if (!c.looted && c.type.equals(t) && dd < d) {
+            if (!c.looted && (t == null || c.type.equals(t)) && dd < d) {
                 best = c;
                 d = dd;
             }

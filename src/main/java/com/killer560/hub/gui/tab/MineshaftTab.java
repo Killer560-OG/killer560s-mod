@@ -1,5 +1,7 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.BuildVariant;
+import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
 import com.killer560.hub.mineshaft.Mineshaft;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -54,6 +56,11 @@ public class MineshaftTab extends BaseTab {
             y[0] += 22;
         }
         flag(out, x, y, w, "Suspicious Scrap Button", "scrap", null);
+        if (BuildVariant.CHEAT_FEATURES_ENABLED && (Mineshaft.CFG.on("corpses") || scan)) {
+            out.add(SectionHeaders.row(x, y[0], w, "Cheat", true));
+            y[0] += 16;
+            flag(out, x, y, w, "Corpse Scan", "corpseScan", null);
+        }
         return out;
     }
 

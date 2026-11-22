@@ -1,5 +1,18 @@
 [
  {
+  "date": "2026-11-22",
+  "summary": "Corpse Locator works again in Mineshafts: an ordinary armor ",
+  "sections": [
+   {
+    "title": "More",
+    "blurb": "Changes in this update.",
+    "items": [
+     "Corpse Locator works again in Mineshafts: an ordinary armor stand nearby no longer switched it (and the Mineshaft HUD and detection) off for the session. New cheat-build Corpse Scan finds every loaded Frozen Corpse at any distance, and \"You've already looted this corpse!\" now marks that corpse looted."
+    ]
+   }
+  ]
+ },
+ {
   "date": "2026-11-21",
   "summary": "Fast Leap now works in the dungeon sim even with no Sim Team",
   "sections": [
