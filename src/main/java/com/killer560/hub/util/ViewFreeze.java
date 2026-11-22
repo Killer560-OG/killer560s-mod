@@ -30,10 +30,16 @@ public final class ViewFreeze {
     /** A lease lapses this long after the last {@link #hold}. About eight ticks - long enough to span the gaps
      *  between a solver's rotations, short enough that a solver stopping is unnoticeable. */
     private static final long STALE_MS = 400L;
+    /** ...and not before eight client ticks have passed too: a frame that stalls past STALE_MS between a turn and its
+     *  hand-back must not drop the lease (the camera followed the turned body 180 degrees and the hand-back kept it,
+     *  leverquar-1122), capped at {@link #MAX_STALL_MS} so a stopped game does not hold it for good. */
+    private static final long STALE_TICKS = 8L;
+    private static final long MAX_STALL_MS = 5000L;
 
     private static float yaw = Float.NaN;
     private static float pitch = Float.NaN;
     private static long heldUntil;
+    private static long heldTick;
     /** Every {@link #hold} ever made, so an owner can tell whether anybody else has held the camera since it did. */
     private static long holds;
 
@@ -55,6 +61,7 @@ public final class ViewFreeze {
             pitch = currentPitch;
         }
         heldUntil = System.currentTimeMillis() + STALE_MS;
+        heldTick = ActionGate.currentTick();
     }
 
     /** Give the camera straight back. Optional - a lease lapses by itself; this is for a clean, instant handover. */
@@ -67,7 +74,11 @@ public final class ViewFreeze {
     /** The number of {@link #hold} calls so far (see util/TurnFirst: it never takes away a hold somebody else renewed). */
     public static long holdCount() { return holds; }
 
-    public static boolean isHeld() { return !Float.isNaN(yaw) && System.currentTimeMillis() < heldUntil; }
+    public static boolean isHeld() {
+        if (Float.isNaN(yaw)) return false;
+        long now = System.currentTimeMillis();
+        return now < heldUntil || (now < heldUntil - STALE_MS + MAX_STALL_MS && ActionGate.currentTick() - heldTick < STALE_TICKS);
+    }
 
     /** The held view yaw, or NaN when nothing is held. Deliberately NOT wrapped to 0-360 - see the mod's standing
      *  rule about running rotation values; this is a view, and wrapping it would jump the camera. */

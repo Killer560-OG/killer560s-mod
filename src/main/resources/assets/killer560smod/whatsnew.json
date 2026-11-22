@@ -29,7 +29,8 @@
      "Dungeons Autopilot switched on in the Entrance before the run now walks you to the front of the Entrance door while it waits, so the first trip goes straight through the door instead of spending two etherwarps reaching it; any movement key of yours takes over",
      "Dungeons Autopilot no longer starts the moment you enter a new dungeon while the last run is still held for a rejoin: it arms and waits for the run to start; Auto Clear Door Only no longer stands still at the Entrance when its first wither door is too far away to be loaded",
      "Dungeons Autopilot and Auto Clear no longer lose a Wither Key on the way to Blood: a wither door is opened only once the map shows the room behind it (at most 2 s), because a door opened into a room the map does not show yet clears that room at once and its key never drops",
-     "Auto Melody's Harp no longer misses or mis-clicks notes at 150-320 ms ping: an early click is timed from when each step of the board arrives and goes on the first frame it falls due, instead of on game ticks"
+     "Auto Melody's Harp no longer misses or mis-clicks notes at 150-320 ms ping: an early click is timed from when each step of the board arrives and goes on the first frame it falls due, instead of on game ticks",
+     "Lever Aura: a frame that stalls between its body turn and the hand-back no longer swings the camera 180 degrees with the body."
     ]
    }
   ]
