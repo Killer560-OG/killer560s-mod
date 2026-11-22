@@ -1757,6 +1757,9 @@ public final class ClearExecutor {
         while (nodes != null && !nodes.isEmpty() && issued.size() - confirmed < BURST_LEAD && spent < max && max > 1) {
             int uses = com.killer560.hub.util.RightClick.itemUsesSent();
             if (!com.killer560.hub.blink.BlinkCharge.splitTick(() -> spentHop(client))) {
+                if (spent == 0) {
+                    com.killer560.hub.zpew.ZeroPingEtherwarp.splitFellBack("the path's hops");
+                }
                 break;
             }
             spent++;

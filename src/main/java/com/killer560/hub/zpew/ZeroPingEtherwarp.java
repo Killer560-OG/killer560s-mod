@@ -121,6 +121,9 @@ public final class ZeroPingEtherwarp {
     private static long extraStopped;
     /** Tick Split bursts whose bank ran out, so the rest went as Burst (testkit). */
     private static long splitShort;
+    /** The "Tick Split fell back" chat line was said and no covered split tick has run since (once per stretch, not per warp). */
+    private static boolean fallbackSaid;
+    private static long fallbackLines;
     /** Etherwarp uses seen in the current client tick, and the most ever seen in one tick. */
     private static long usesTick = -1;
     private static int usesThisTick;
@@ -167,6 +170,7 @@ public final class ZeroPingEtherwarp {
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             deferredClicks = 0;
+            fallbackSaid = false;
             synchronized (PENDING) {
                 PENDING.clear();
             }
@@ -368,6 +372,19 @@ public final class ZeroPingEtherwarp {
         }
     }
 
+    /** A covered split tick ran: the next fallback is news again. */
+    public static void splitRan() { fallbackSaid = false; }
+
+    /** Tick Split is chosen but {@code what} went without a covered Blink Charge bank: one chat line says why (never
+     *  Tick Split without the bank: GrimAC Timer). Nothing while Burst is chosen. */
+    public static void splitFellBack(String what) {
+        if (fallbackSaid || !ZeroPingEtherwarpConfig.getInstance().effectiveTickSplit()) return;
+        fallbackSaid = true;
+        fallbackLines++;
+        com.killer560.hub.util.ModChat.send("ZPEW", com.killer560.hub.util.ModChat.text("Tick Split needs Blink Charge on with "
+                + "a covered bank, " + what + " went without it (one warp per tick, or Burst)."));
+    }
+
     /** One warp's whole tick ({@code first} sends its use): {@code BlinkCharge.splitTick} in Tick Split, else a banked tick. */
     public static boolean warpTick(Runnable first) {
         return ZeroPingEtherwarpConfig.getInstance().effectiveTickSplit() ? com.killer560.hub.blink.BlinkCharge.splitTick(first)
@@ -443,6 +460,7 @@ public final class ZeroPingEtherwarp {
                 if (split && !warpTick(() -> { })) {
                     split = false; // the bank ran out: the rest go as Burst, in this tick at his look
                     splitShort++;
+                    splitFellBack("Warps Per Tick's extra warps");
                 }
                 invoker.killer560smod$invokeStartPrediction(mc.level,
                         sequence -> new ServerboundUseItemPacket(hand, sequence, yaw, pitch));
@@ -635,6 +653,7 @@ public final class ZeroPingEtherwarp {
                 if (i < n - 1) {
                     if (!warpTick(use)) {
                         dropped += n - i;
+                        splitFellBack("Aimed Warps");
                         break;
                     }
                 } else {

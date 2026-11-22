@@ -1169,6 +1169,9 @@ public final class AutoRoutesFeature {
         while (RouteExecutor.isRunning() && RouteExecutor.chargedChainReady() && spent < max) {
             int before = RouteExecutor.zeroPingChained();
             if (!com.killer560.hub.blink.BlinkCharge.splitTick(() -> RouteExecutor.tick(client))) {
+                if (spent == 0) {
+                    com.killer560.hub.zpew.ZeroPingEtherwarp.splitFellBack("the Auto Routes chain");
+                }
                 break;
             }
             spent++;

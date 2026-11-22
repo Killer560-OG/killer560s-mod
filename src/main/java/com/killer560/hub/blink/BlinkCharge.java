@@ -2007,7 +2007,11 @@ public final class BlinkCharge {
      * @return false when there is no covered bank (nothing was run)
      */
     public static boolean splitTick(Runnable first) {
-        return active && shotCovered() && spendTick(first);
+        boolean ran = active && shotCovered() && spendTick(first);
+        if (ran) {
+            com.killer560.hub.zpew.ZeroPingEtherwarp.splitRan();
+        }
+        return ran;
     }
 
     /** One whole client tick by hand: {@code first} (its use), his movement tick and its move, the tick-end. */
