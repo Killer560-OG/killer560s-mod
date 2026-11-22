@@ -68,7 +68,7 @@ public final class ScoreboardData {
     }
 
 
-    static void refresh(Minecraft client) {
+    public static void refresh(Minecraft client) {
         if (client.level == null || client.player == null) {
             sidebarLines = Collections.emptyList();
             objectiveTitle = "";

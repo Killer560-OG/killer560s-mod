@@ -113,6 +113,19 @@ public enum ChunkedStat {
 
     String color() { return color; }
 
+    /** One line per stat for a bug report: what the reader parsed, or "no source", and whether its line may show here. */
+    public static String report() {
+        CustomScoreboardConfig cfg = CustomScoreboardConfig.getInstance();
+        StringBuilder sb = new StringBuilder();
+        for (ChunkedStat s : values()) {
+            String raw = s.raw();
+            sb.append(s.label).append(": ").append(raw == null ? "no source" : "'" + raw.trim() + "' -> " + formatStringNum(raw.trim()))
+                    .append("; line allowed on this island: ").append(s.entry.showIsland())
+                    .append("; visible: ").append(s.entry.visible(cfg)).append('\n');
+        }
+        return sb.toString();
+    }
+
     /** Colored value for the chunked line, or null to leave this stat out. */
     String display(CustomScoreboardConfig cfg) {
         String raw = raw();

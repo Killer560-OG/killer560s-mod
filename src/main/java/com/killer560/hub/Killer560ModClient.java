@@ -646,7 +646,10 @@ public class Killer560ModClient implements ClientModInitializer {
             // /bugreport and /logreport build the same zip as "/killer560 bugreport" (killer560, 2026-11-15).
             for (String n : new String[] {"bugreport", "logreport"}) {
                 dispatcher.register(ClientCommands.literal(n)
-                        .executes(context -> com.killer560.hub.bugreport.BugReportFeature.generate()));
+                        .executes(context -> com.killer560.hub.bugreport.BugReportFeature.generate())
+                        .then(ClientCommands.argument("note", com.mojang.brigadier.arguments.StringArgumentType.greedyString())
+                                .executes(context -> com.killer560.hub.bugreport.BugReportFeature.generate(
+                                        com.mojang.brigadier.arguments.StringArgumentType.getString(context, "note")))));
             }
         });
         com.killer560.hub.commandprefix.CommandPrefixFeature.register(name ->
@@ -668,7 +671,10 @@ public class Killer560ModClient implements ClientModInitializer {
                         // so a stranger in the Discord can be diagnosed without being talked through finding
                         // their log folder. Credentials are stripped before anything goes in it.
                         .then(ClientCommands.literal("bugreport").requires(src -> com.killer560.hub.commandprefix.CommandPrefixFeature.on(name))
-                                .executes(context -> com.killer560.hub.bugreport.BugReportFeature.generate()))
+                                .executes(context -> com.killer560.hub.bugreport.BugReportFeature.generate())
+                                .then(ClientCommands.argument("note", com.mojang.brigadier.arguments.StringArgumentType.greedyString())
+                                        .executes(context -> com.killer560.hub.bugreport.BugReportFeature.generate(
+                                                com.mojang.brigadier.arguments.StringArgumentType.getString(context, "note")))))
                         // "/Killer560 leaporder" (2026-09-13 request) - opens the Leap Order menu
                         // directly rather than going through the mod menu's Dungeon folder.
                         // "/killer560 class", "ew", "mapdump", "profile" and "sim" were removed (killer560, 2026-11-01):

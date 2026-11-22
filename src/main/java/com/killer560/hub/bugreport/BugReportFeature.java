@@ -136,20 +136,43 @@ public final class BugReportFeature {
      *  exactly where. Never throws: every failure is reported in chat instead (requirement: must never
      *  crash the game). Returns 1 (brigadier "success") either way since the command itself always ran. */
     public static int generate() {
+        return generate("");
+    }
+
+    /** Reads the client state here (client thread), then writes the zip on a worker thread. */
+    public static int generate(String note) {
+        java.util.Map<String, String> snapshot;
+        String reportText;
         try {
-            Path zipPath = buildZip();
-            ModChat.send("Bug Report",
-                    ModChat.good("Saved: "), ModChat.value(zipPath.toString()),
-                    ModChat.text(" - drag that file into Discord."));
-            tryOpenContainingFolder(zipPath);
-        } catch (Exception e) {
-            LOGGER.warn("Bug report generation failed", e);
+            snapshot = ReportSnapshot.take(note);
+            reportText = buildReportText();
+        } catch (RuntimeException e) {
+            LOGGER.warn("Bug report snapshot failed", e);
             ModChat.send("Bug Report", ModChat.bad("Couldn't generate a bug report: " + e.getMessage()));
+            return 1;
         }
+        Thread t = new Thread(() -> {
+            try {
+                Path zipPath = buildZip(snapshot, reportText);
+                net.minecraft.client.Minecraft.getInstance().execute(() -> {
+                    ModChat.send("Bug Report",
+                            ModChat.good("Saved: "), ModChat.value(zipPath.toString()),
+                            ModChat.text(" - drag that file into Discord."
+                                    + (note == null || note.isBlank() ? " Tip: /bugreport <what is wrong> adds your note to the report." : "")));
+                    tryOpenContainingFolder(zipPath);
+                });
+            } catch (Exception e) {
+                LOGGER.warn("Bug report generation failed", e);
+                net.minecraft.client.Minecraft.getInstance().execute(() ->
+                        ModChat.send("Bug Report", ModChat.bad("Couldn't generate a bug report: " + e.getMessage())));
+            }
+        }, "killer560smod-bugreport");
+        t.setDaemon(true);
+        t.start();
         return 1;
     }
 
-    private static Path buildZip() throws Exception {
+    private static Path buildZip(java.util.Map<String, String> snapshot, String reportText) throws Exception {
         Path bugReportsDir = ModPaths.config("bug-reports");
         Files.createDirectories(bugReportsDir);
         String timestamp = TIMESTAMP_FORMAT.format(LocalDateTime.now());
@@ -158,7 +181,14 @@ public final class BugReportFeature {
         try (OutputStream fos = Files.newOutputStream(zipPath);
              ZipOutputStream zos = new ZipOutputStream(fos)) {
 
-            writeEntry(zos, "report.txt", buildReportText());
+            writeEntry(zos, "report.txt", reportText);
+            snapshot.forEach((name, text) -> {
+                try {
+                    writeEntry(zos, name, text);
+                } catch (Exception e) {
+                    throw new java.io.UncheckedIOException(new java.io.IOException(e));
+                }
+            });
 
             for (Path configFile : listConfigFiles()) {
                 String redacted = redactConfigFile(configFile);
