@@ -72,6 +72,9 @@
             "yaw": 179.333984,
             "pitch": 89.352875,
             "at": 0,
+            "awaitEnabled": true,
+            "await": "SECRET",
+            "amount": 1,
             "blocks": [
               "27 89 14",
               "27 77 14",
