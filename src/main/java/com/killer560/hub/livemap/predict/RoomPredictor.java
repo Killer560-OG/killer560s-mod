@@ -182,7 +182,7 @@ public final class RoomPredictor {
     private static final Map<String, Candidate> ALL = new HashMap<>();
     @SuppressWarnings("unchecked")
     private static final List<Candidate>[] BY_TILE = new List[TILES * TILES];
-    private static final Map<String, int[]> NORM_CACHE = new HashMap<>();
+    private static final Map<String, int[]> NORM_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
     private static final Map<Integer, Prediction> PREDICTIONS = new HashMap<>();
     /** Bumped whenever {@link #PREDICTIONS} is replaced or cleared (the Dungeon Map's draw cache keys on it). */
     private static int predictionsVersion = 0;
@@ -239,6 +239,8 @@ public final class RoomPredictor {
         logGate(!RoomDatabase.isReady() ? "running (room database not loaded yet)" : sim ? "running (sim)" : "running");
         if (!RoomDatabase.isReady()) {
             RoomDatabase.ensureLoading();
+        } else {
+            warm();
         }
         noteStartTile(client.player.getEyePosition());
         noteOpenedChange();
@@ -863,9 +865,25 @@ public final class RoomPredictor {
         return !(Math.abs(eye.x - (c.getX() + 0.5)) < 15.5 && Math.abs(eye.z - (c.getZ() + 0.5)) < 15.5);
     }
 
-    private static void buildCandidates(Minecraft client, int tx, int tz, int[] floor) {
-        List<Candidate> list = new ArrayList<>();
-        BY_TILE[tz * TILES + tx] = list;
+    /**
+     * What a room contributes to every tile's candidates, worked out once (perf, roompredictor-1123): usable (a scan of
+     * every column), its size in tiles, whether it is an L and its missing quarter per turn (column scans), its block ids.
+     * Rebuilding these for 134 rooms on each first look into a tile cost 10-45 ms on the render thread.
+     */
+    private record RoomInfo(RoomLibrary.Room room, int tilesX, int tilesZ, boolean noEntry, boolean isL, int[][] missing,
+                            int[] norm) {
+    }
+
+    /** The usable rooms' {@link RoomInfo}, kept only once the room database is in (an L is told from a 2x2 through it). */
+    private static volatile List<RoomInfo> infoCache;
+    private static final java.util.concurrent.atomic.AtomicBoolean WARMING = new java.util.concurrent.atomic.AtomicBoolean();
+
+    private static List<RoomInfo> infos() {
+        List<RoomInfo> cached = infoCache;
+        if (cached != null && (cached.isEmpty() || RoomLibrary.get(cached.get(0).room().name) == cached.get(0).room())) {
+            return cached;
+        }
+        List<RoomInfo> out = new ArrayList<>();
         for (String name : RoomLibrary.names()) {
             RoomLibrary.Room room = RoomLibrary.get(name);
             if (room == null || !room.usable()) {
@@ -875,17 +893,59 @@ public final class RoomPredictor {
             int tilesZ = Math.max(1, (room.sizeZ - 1) / (RoomLibrary.TILE + 1));
             RoomEntry entry = RoomDatabase.lookupByName(room.name);
             boolean isL = entry != null && entry.shape != null && "L".equalsIgnoreCase(entry.shape.trim());
-            if (tilesX == 2 && tilesZ == 2 && entry == null) {
+            int[][] missing = null;
+            if (isL) {
+                missing = new int[4][];
+                for (int r = 0; r < 4; r++) {
+                    missing[r] = RoomLShape.missingTilePasted(room, r * 90);
+                }
+            }
+            if (RoomDatabase.isReady() && VOLATILE.containsKey(room.name)) {
+                volatilePalette(room); // the capture's turn and its moving parts' blocks, off the tick that first needs them
+            }
+            out.add(new RoomInfo(room, tilesX, tilesZ, entry == null, isL, missing,
+                    NORM_CACHE.computeIfAbsent(room.name, n -> normalise(room))));
+        }
+        if (RoomDatabase.isReady()) {
+            infoCache = out;
+        }
+        return out;
+    }
+
+    /** Fills {@link #infoCache} on a background thread, once the library and the room database are in. */
+    private static void warm() {
+        if (infoCache == null && WARMING.compareAndSet(false, true)) {
+            Thread t = new Thread(() -> {
+                try {
+                    infos();
+                } finally {
+                    WARMING.set(false);
+                }
+            }, "killer560smod-predict-warm");
+            t.setDaemon(true);
+            t.start();
+        }
+    }
+
+    private static void buildCandidates(Minecraft client, int tx, int tz, int[] floor) {
+        List<Candidate> list = new ArrayList<>();
+        BY_TILE[tz * TILES + tx] = list;
+        for (RoomInfo info : infos()) {
+            RoomLibrary.Room room = info.room();
+            int tilesX = info.tilesX();
+            int tilesZ = info.tilesZ();
+            boolean isL = info.isL();
+            if (tilesX == 2 && tilesZ == 2 && info.noEntry()) {
                 continue; // an L or a 2x2 cannot be told apart before the room database is in
             }
             if (VOLATILE.containsKey(room.name) && !RoomDatabase.isReady()) {
                 continue; // its moving parts are placed through the capture's turn, which needs the database
             }
-            int[] norm = NORM_CACHE.computeIfAbsent(room.name, n -> normalise(room));
+            int[] norm = info.norm();
             for (int rot = 0; rot < 360; rot += 90) {
                 int w = rot % 180 == 0 ? tilesX : tilesZ;
                 int h = rot % 180 == 0 ? tilesZ : tilesX;
-                int[] missing = isL ? RoomLShape.missingTilePasted(room, rot) : null;
+                int[] missing = isL ? info.missing()[rot / 90] : null;
                 if (isL && missing == null) {
                     continue;
                 }
@@ -934,6 +994,14 @@ public final class RoomPredictor {
 
     /** Runs every standing candidate over what has been seen since it last looked, within a budget. */
     static void evaluate() {
+        evaluate(EVAL_NANOS);
+    }
+
+    /** Longest one tick's comparisons run (the rest wait for the next tick: they resume from each candidate's cursor). */
+    private static final long EVAL_NANOS = 5_000_000L;
+
+    private static void evaluate(long limitNanos) {
+        long start = System.nanoTime();
         int work = 0;
         int off = DungeonLayout.simYOffset();
         for (Candidate c : ALL.values()) {
@@ -991,7 +1059,7 @@ public final class RoomPredictor {
             work += LEGACY_WORK ? end - c.cursor : Math.max(1, compared + (skipped >> 4));
             c.cursor = c.dead ? obsCount : LEGACY_WORK ? end : i;
             dirty = true;
-            if (work >= WORK_PER_TICK) {
+            if (work >= WORK_PER_TICK || System.nanoTime() - start > limitNanos) {
                 return;
             }
         }
@@ -1025,9 +1093,9 @@ public final class RoomPredictor {
                     {12, 54, 15, 18, 57, 19}});
 
     /** {@link #VOLATILE} turned into each loaded capture's own coordinates, by capture (a library reload replaces them). */
-    private static final Map<RoomLibrary.Room, int[][]> VOLATILE_CAPTURE = new java.util.IdentityHashMap<>();
+    private static final Map<RoomLibrary.Room, int[][]> VOLATILE_CAPTURE = new java.util.concurrent.ConcurrentHashMap<>();
     /** Every block id (not air, not {@link #changesDuringARun}) a capture has inside its {@link #VOLATILE} boxes. */
-    private static final Map<RoomLibrary.Room, java.util.BitSet> VOLATILE_PALETTE = new java.util.IdentityHashMap<>();
+    private static final Map<RoomLibrary.Room, java.util.BitSet> VOLATILE_PALETTE = new java.util.concurrent.ConcurrentHashMap<>();
     /** What {@link #expectedAt} returns inside a {@link #VOLATILE} box. */
     private static final int VOLATILE_EXPECTED = -2;
 
@@ -1416,7 +1484,7 @@ public final class RoomPredictor {
             if (!pending) {
                 break;
             }
-            evaluate();
+            evaluate(Long.MAX_VALUE);
         }
         decide();
     }
