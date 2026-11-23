@@ -47,6 +47,16 @@ and Auto Clear are in [LESSONS-AUTOCLEAR.md](LESSONS-AUTOCLEAR.md). Problem, the
   `RouteExecutor.walkAlignOnto` now aligns onto the point with `Ap3TrapWalk.beginAlign` (discrete keys, body turn) before a
   non-WALK node fires, unless he already rests with his whole box in the ring; a refused align fires it anyway. Testkit
   1121-sim-trap-routes (blocks broken at #6, a drop of 10+, last node reached) and 62-argrim-1122-trapwalkalign(-same-*).
+  The align gives the body back and holds no key on a tick his attack is queued; an attack queued EVERY tick held it for
+  good (trapawait-1122): vanilla queues a mouse click only on the press, but `KeyboardHandler` calls `KeyMapping.click`
+  on every key REPEAT too, so a keyboard-bound attack held down (or a 20 CPS clicker) is queued each tick. After 40
+  given-back ticks the node now fires from where he stands (62-argrim-1123-trapwalkalign-attack-every-tick).
+- **An await in a bundled trap route waits for HIS secret; the sim case must take one** (trapawait-1122): New Trap's #6
+  awaits 1 secret (his route, 4a639361c). In the sim nobody takes it, so 1121-sim-trap-routes on the old case sat at #6 on
+  every rotation: the await was right, the case was wrong. The case now checks #6 holds 80 ticks, then counts a lever click
+  through `AwaitEvents.onLocalBlockClick` and the route digs within 3 ticks. Separately, node #3's ender pearl lands up to
+  ~0.6 off (vanilla's server-side throw spread; same look and spot every run) and about 1 rotation in 9 drops him into the pit
+  beside #4 (y -25), where the walk to #6 hits a wall and the route idles: not the await.
 - **"Waiting for his walk" must not count while the route itself is still moving him** (acrev-trap-1122, his New Trap run
   2026-11-22 09:15): Dungeons Autopilot's walk-wait guard (10 still ticks on `RouteExecutor.awaitingWalk`) gave the route up
   10 t into #3's pearl flight, and in a trap room that stop is final. `awaitingWalk` is now false while a pearl the route

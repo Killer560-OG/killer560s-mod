@@ -675,6 +675,13 @@ public final class RouteExecutor {
     private static RouteNode walkAlignNode;
     /** Trap-room walks that aligned onto the next node's point before firing it - read by the testkit. */
     private static int walkAligns;
+    /** Ticks the open walk align gave the body back for his attack; at {@link #WALK_ALIGN_YIELD_MAX} the node fires. */
+    private static int walkAlignYields;
+    /**
+     * An attack queued every tick (an attack key on the keyboard held down repeats, an autoclicker) would hold the align
+     * for good, so after this many given-back ticks the node fires from where he stands, as on a refusal.
+     */
+    private static final int WALK_ALIGN_YIELD_MAX = 40;
 
     public static int walkAligns() {
         return walkAligns;
@@ -2104,6 +2111,7 @@ public final class RouteExecutor {
             }
             walkAlignNode = node;
             walkAligns++;
+            walkAlignYields = 0;
             trapWalk = true; // Ap3TrapWalk is driving: stop(), endWalkHold and the node's beginAction cancel it
             Ap3TrapWalk.beginAlign(client, player, nodeAt, hx, hz,
                     "Walk onto #" + (route.indexOf(node) + 1) + " in " + frame.roomName());
@@ -2116,7 +2124,16 @@ public final class RouteExecutor {
             // held; the align carries on next tick (the warp's rule, 62-argrim-1122-trapwalkalign-same-attack).
             BODY.giveBack(player);
             wantForward = wantBackward = wantLeft = wantRight = wantJump = wantSneak = wantSprint = false;
-            return true;
+            if (++walkAlignYields < WALK_ALIGN_YIELD_MAX) {
+                return true;
+            }
+            LOGGER.info("[AutoRoutes] walk onto node #{}: your attacks held the align {} tick(s) - firing it from ({}, {})",
+                    route.indexOf(node) + 1, walkAlignYields, String.format(Locale.US, "%.3f", player.getX()),
+                    String.format(Locale.US, "%.3f", player.getZ()));
+            walkAlignNode = null;
+            Ap3TrapWalk.cancel("his attacks held it");
+            trapWalk = false;
+            return false;
         }
         Ap3TrapWalk.Drive d = Ap3TrapWalk.tick(client, player);
         Ap3TrapWalk.Phase phase = Ap3TrapWalk.phase();
