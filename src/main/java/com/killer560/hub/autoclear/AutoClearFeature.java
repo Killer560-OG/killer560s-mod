@@ -2537,8 +2537,17 @@ public final class AutoClearFeature {
         // A mob counts for the room it was first seen standing in, however far it walks (autoclear-speed-1020: the sim's
         // walking mobs; a zombie that strolled out of Overgrown Chains left it uncleared, and the room was given up after
         // four roam spots while the zombie stood in the next room). The edge rule below stays for a mob first seen there.
+        // Only an uncleared mob room is a home (acreview-1123): mobs chase the player, and one first seen after it followed
+        // him into a cleared room or a puzzle (Drop's two into white Sarcophagus, Sloth's tank seen from the Quiz) was pinned
+        // there and never targeted back in its own room, a block from him. Such a mob counts where it stands until it is
+        // seen in an uncleared mob room; a home that turns cleared on the map is dropped the same way.
         String home = homeRooms.get(mob.getId());
-        if (home == null && here != null && (before == null || before.lost())) {
+        if (home != null && !homeable(layout, AutoClearTargets.roomByName(layout, home))) {
+            homeRooms.remove(mob.getId());
+            home = null;
+        }
+        if (home == null && homeable(layout, under) && (before == null || before.lost() || before.room() == null
+                || !homeable(layout, AutoClearTargets.roomByName(layout, before.room())))) {
             homeRooms.put(mob.getId(), here);
         } else if (home != null && !home.equals(here)) {
             return home;
@@ -2563,9 +2572,14 @@ public final class AutoClearFeature {
     /** Each starred mob's room by entity id: where it was first seen (mobRoom). For the run. */
     private static final java.util.Map<Integer, String> homeRooms = new java.util.HashMap<>();
 
+    /** A room a starred mob may be pinned to ({@link #mobRoom}): a mob room not yet cleared on the map. */
+    private static boolean homeable(DungeonLayout layout, int room) {
+        return room >= 0 && AutoClearTargets.isMobRoom(layout, room) && !AutoClearTargets.isClearedOnMap(layout, room);
+    }
+
     private static boolean inRoom(DungeonLayout layout, int room, Entity mob) {
         String home = homeRooms.get(mob.getId());
-        if (home != null) {
+        if (home != null && homeable(layout, AutoClearTargets.roomByName(layout, home))) {
             return home.equals(layout.name(room));
         }
         if (layout.roomAtWorld(mob.getX(), mob.getZ()) == room) {

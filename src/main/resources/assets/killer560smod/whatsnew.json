@@ -27,7 +27,8 @@
      "Auto Routes: in a trap room, an attack key held down on the keyboard (or a very fast clicker) no longer holds the walk's line-up onto the next node forever; after 2 seconds the node goes from where you stand.",
      "Held Item Outline's default colors follow the menu theme (test allowance only, no mod change).",
      "Fastest P3 board: there is no minimum time; any F7 P3 counts.",
-     "Auto Trap: nodes you add or delete in New Trap or Old Trap now show up, play and are saved. The built-in route no longer hides your own route for that room, and your first edit there starts your own route from a copy of the built-in one."
+     "Auto Trap: nodes you add or delete in New Trap or Old Trap now show up, play and are saved. The built-in route no longer hides your own route for that room, and your first edit there starts your own route from a copy of the built-in one.",
+     "Auto Clear: a starred mob that chased you into a cleared room or a puzzle room and walked back into its own room is now cleared there, instead of Auto Clear teleporting around the room looking for it while it stands next to you."
     ]
    }
   ]

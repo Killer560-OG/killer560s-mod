@@ -523,3 +523,17 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   1123-logic-apclearest. Not fixed, kill logic (ackilllogic-1122): Stairs spent 60 of 122 ticks turning; Steps 214 ticks (87 roam
   trips, 40 looking); King Midas twice 128/63 ticks firing 34/18 uses for 0-1 kills; Mirror and Beams gave up "no starred mob is
   visible" after 9 roam trips.
+- Chasing mobs and the first-seen home room (acreview-1123, his 11-23 F7 runs): `homeRooms` pinned a starred mob to the room
+  Auto Clear FIRST saw it in, and mobs chase the player. Drop's Zombie Soldier and Super Tank Zombie followed him into
+  Sarcophagus, already cleared; Auto Clear first saw them there, so Drop's clear roamed three times (84/63/76 ticks, one give-up,
+  he pressed W twice) with both 1.4-1.5 blocks from him and Drop's mob list empty. Sloth's tank was first seen from the Quiz and
+  pinned to a puzzle room. Only an uncleared mob room (`homeable`: NORMAL/RARE/CHAMPION, not cleared on the map) is a home now;
+  otherwise the mob counts where it stands until it is seen in one, and a home that turns cleared is dropped. Testkit
+  1123-sim-ac-chaser. Read the logger's acruns K lines (`m=` is the room's starred list) against the session recorder's
+  `world entities` positions to find a mob next to him that the room did not list.
+- Back at the Quiz early (same runs, 5 of 12 countdowns with 68-111 ticks left, 2.4-4.1 s standing): every one was "none fits"
+  - no secret route fitted there + route + back, and a cut-short mob clear needs `QUIZ_GAP_PART_MIN_LEFT` (100) ticks left. At
+  13:21:21 (68 left) Small Stairs next door cost 22 there + 18 back + the 20-tick spare, 8 ticks of work; at 12:59:55 (90 left)
+  Prison Cell's route came to 100. The log does not say which mob rooms were weighed (quizGapMobClear logs nothing when it picks
+  none), so whether a cut-short clear would have paid is unproven; filling such gaps means a shorter spare or arriving late,
+  his call. Not changed.
