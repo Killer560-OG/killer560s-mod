@@ -78,8 +78,13 @@ final class Autopilot {
     /** Seconds a route takes per node, travel excluded. */
     private static final double ROUTE_SECONDS_PER_NODE_START = 0.45;
     private static final double LEARN = 0.4;
+    /** A clear's time follows its mob count (1 s for a room with none left, 6-7 s for ten starred mobs; ap-clearest-1122), so the
+     * clear estimate is a running mean: weight 1/(n+2) while few clears are known, never under this (a rate of 0.4 only remembered
+     * the last two or three rooms and swung the estimate between 1.5 s and 6.9 s). */
+    private static final double CLEAR_LEARN_MIN = 0.12;
 
     private static double clearSeconds = CLEAR_SECONDS_START;
+    private static int clearsLearned;
     private static double routeSecondsPerNode = ROUTE_SECONDS_PER_NODE_START;
     private static boolean bloodOpened;
     private static final Set<Integer> explored = new HashSet<>();
@@ -686,13 +691,18 @@ final class Autopilot {
         if (failed) {
             LOGGER.info("[Autopilot] (that trip failed - not learned from)");
         } else if (current.kind() == AutopilotPlanner.Kind.CLEAR) {
-            clearSeconds = clearSeconds * (1 - LEARN) + work * LEARN;
+            clearSeconds = learnClear(clearSeconds, clearsLearned++, work);
             clearEndedMs = clearHoldsKey ? System.currentTimeMillis() : 0;
             finishHoldUntilMs = clearMayDropKey ? System.currentTimeMillis() + FINISH_KEY_WAIT_MS : 0;
         } else if (current.kind() == AutopilotPlanner.Kind.SECRET && currentNodes > 0) {
             routeSecondsPerNode = routeSecondsPerNode * (1 - LEARN) + (work / currentNodes) * LEARN;
         }
         current = null;
+    }
+
+    static double learnClear(double mean, int learned, double work) {
+        double w = Math.max(CLEAR_LEARN_MIN, 1.0 / (learned + 2));
+        return mean * (1 - w) + work * w;
     }
 
     /** The action's trip failed: its time says nothing about how long the work takes. */

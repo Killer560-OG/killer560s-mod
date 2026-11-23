@@ -492,3 +492,11 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   gave legs 655/646 and run 3304 twice with no floor slower. He answered 2026-11-22 (Blood Rush Split off "should be able to clear whatever is fastest"): Full Clear now uses that tour with nothing forced first; Split ON keeps its rush order. The ONE_TOUR switch is gone. Testkit 131 case 6 asserts the tour costs no more than the plain order.
 - Pricing the plan's casts at link+1 like the old hop (ackillprice-1122, with k14-pricing.patch) made the old order slower
   (room ticks 3173 vs 3048/3119, run 3544): not shipped; patch kept at C:\kmtest\jars\acroomorder-1122\pricing-P.patch.
+- Autopilot clear estimate (ap-clearest-1122, his 11-22 F7 runs): Auto Clear room times of 2-4x "estimated" (Stairs 6.3 s vs 2.5,
+  Chambers 7.5 vs 4.0, Crypt 7.1 vs 3.1) were not corrections or waits: the `room time:` lines show the time follows the starred
+  mob count (Chambers 10 kills 148 ticks, Wizard 9 kills 124, Crypt 13 kills 124; a room with nothing left 1 s), and the 77 clears
+  split into about 1 s and 6-11 s. Corrections happened but Stairs had 0. The estimate was a rate-0.4 average of the last two or
+  three rooms, so it swung 0.5..6.5 s; it is now a running mean (`Autopilot.learnClear`, weight 1/(n+2), floor 0.12). Testkit
+  1123-logic-apclearest. Not fixed, kill logic (ackilllogic-1122): Stairs spent 60 of 122 ticks turning; Steps 214 ticks (87 roam
+  trips, 40 looking); King Midas twice 128/63 ticks firing 34/18 uses for 0-1 kills; Mirror and Beams gave up "no starred mob is
+  visible" after 9 roam trips.
