@@ -20,7 +20,7 @@ import com.killer560.hub.compat.McCompat;
  *  clicking lives in {@link AutoFairySoulsTab}; this tab only ever shows or tracks, never moves the player.
  *  <p>
  *  Layout (killer560, 2026-10-17): the feature switch, then Show Waypoints, Show Path with its Nearest / Whole Island
- *  mode, Dim Path and Path Color, the sliders, then HUD and Start On Island Join. The "Found 1/80" line and the Stop
+ *  mode, Dim Path and Path Color, the sliders, then HUD. The "Found 1/80" line and the Stop
  *  Navigation button are gone: turning the switch off stops the guide. */
 public class PathfindingTab extends BaseTab {
 
@@ -124,8 +124,6 @@ public class PathfindingTab extends BaseTab {
         });
         y += 20;
         widgets.add(onOffButton("HUD", cfg::isSoulHud, cfg::setSoulHud, cfg::save, null, contentX, y, col2W, 18));
-        widgets.add(onOffButton("Start On Island Join", cfg::isAutoStartOnIsland, cfg::setAutoStartOnIsland, cfg::save,
-                null, col2bX, y, col2W, 18));
         y += 26;
 
         // ---------------------------------------------------------------- the rest: label, chat, the found-soul log

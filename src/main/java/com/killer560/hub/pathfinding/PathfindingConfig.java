@@ -73,7 +73,6 @@ public final class PathfindingConfig {
     private double recalcDistance = 7.0;
     private float textScale = 1.0f;
     private boolean soulHud = true;
-    private boolean autoStartOnIsland = false;
     private boolean showTargetLabel = true;
     private int targetColor = DEFAULT_TARGET_COLOR;
     private boolean chatFeedback = true;
@@ -129,7 +128,6 @@ public final class PathfindingConfig {
         setRecalcDistance(ConfigJson.getDouble(obj, "recalcDistance", 7.0));
         setTextScale(ConfigJson.getFloat(obj, "textScale", 1.0f));
         soulHud = ConfigJson.getBool(obj, "soulHud", true);
-        autoStartOnIsland = ConfigJson.getBool(obj, "autoStartOnIsland", false);
         showTargetLabel = ConfigJson.getBool(obj, "showTargetLabel", true);
         targetColor = ConfigJson.getInt(obj, "targetColor", DEFAULT_TARGET_COLOR);
         chatFeedback = ConfigJson.getBool(obj, "chatFeedback", true);
@@ -171,7 +169,6 @@ public final class PathfindingConfig {
         obj.addProperty("recalcDistance", recalcDistance);
         obj.addProperty("textScale", textScale);
         obj.addProperty("soulHud", soulHud);
-        obj.addProperty("autoStartOnIsland", autoStartOnIsland);
         obj.addProperty("showTargetLabel", showTargetLabel);
         obj.addProperty("targetColor", targetColor);
         obj.addProperty("chatFeedback", chatFeedback);
@@ -249,9 +246,6 @@ public final class PathfindingConfig {
 
     public void setSoulHud(boolean v) { this.soulHud = v; }
 
-    public boolean isAutoStartOnIsland() { return autoStartOnIsland; }
-
-    public void setAutoStartOnIsland(boolean v) { this.autoStartOnIsland = v; }
 
     public boolean isShowTargetLabel() { return showTargetLabel; }
 

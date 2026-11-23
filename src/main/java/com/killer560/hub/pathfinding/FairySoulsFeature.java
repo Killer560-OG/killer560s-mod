@@ -3,10 +3,15 @@ package com.killer560.hub.pathfinding;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.phys.Vec3;
 
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.decoration.ArmorStand;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
@@ -41,7 +46,47 @@ public final class FairySoulsFeature {
     private static String queueIsland;
     private static boolean routing;
     private static boolean guiding;
-    private static long lastAutoStartMs;
+    private static String autoStartedIsland;
+    /** Real head centres of souls whose stand has been seen (node block position -> centre); the graph node is only a
+     *  walkable spot up to 3.6 blocks from the stand (doc-fairy-1101). Cleared when the island changes. */
+    private static final Map<Long, Vec3> STANDS = new HashMap<>();
+    private static String standsIsland;
+
+    /** The seen stand's head centre for a soul, or null while its stand has not been in range. */
+    private static long key(double x, double y, double z) {
+        return BlockPos.asLong((int) Math.floor(x), (int) Math.floor(y), (int) Math.floor(z));
+    }
+
+    public static Vec3 standCentre(double x, double y, double z) {
+        return STANDS.get(key(x, y, z));
+    }
+
+    /** Head centre of an armor stand, from vanilla's own model: the head part pivots 1.501 - 1/16 above the feet
+     *  (0.5 x on a small stand) and the skull block drawn on it is 0.5 x 1.1875 tall, centred 0.297 above the pivot. */
+    public static Vec3 headCentre(ArmorStand s) {
+        return s.position().add(0, (s.isSmall() ? 0.5 : 1.0) * 1.7354, 0);
+    }
+
+    private static void refineStands(Minecraft client, String island, IslandGraph graph) {
+        if (!island.equals(standsIsland)) {
+            STANDS.clear();
+            standsIsland = island;
+        }
+        if (client.level == null || client.player == null || client.level.getGameTime() % 10 != 0) return;
+        Vec3 me = client.player.position();
+        for (IslandGraph.Node soul : unfound(graph)) {
+            if (soul.distSq(me.x, me.y, me.z) > 64 * 64) continue;
+            Vec3 c = NavigationManager.centre(soul);
+            ArmorStand best = null;
+            double bestD = 16;
+            for (ArmorStand s : client.level.getEntitiesOfClass(ArmorStand.class, new net.minecraft.world.phys.AABB(c, c).inflate(5))) {
+                if (s.getItemBySlot(EquipmentSlot.HEAD).isEmpty()) continue;
+                double d = s.position().distanceToSqr(c);
+                if (d < bestD) { bestD = d; best = s; }
+            }
+            if (best != null) STANDS.put(key(soul.x, soul.y, soul.z), headCentre(best));
+        }
+    }
     private static boolean subscribed;
 
     private FairySoulsFeature() {
@@ -338,18 +383,26 @@ public final class FairySoulsFeature {
             return;
         }
         String island = IslandDetector.graphIsland();
-        if (island == null) return;
+        if (island == null) {
+            autoStartedIsland = null; // leaving the graph islands: the next arrival starts the guide again
+            if (guiding) stopGuide(false);
+            return;
+        }
         GraphRepository.ensureLoading(island, false);
+        IslandGraph known = GraphRepository.get(island);
+        if (known != null) refineStands(client, island, known);
         if (guiding && !island.equals(queueIsland)) {
             stopGuide(false);
         }
         if (guiding && !routing && !NavigationManager.isActive() && !queue.isEmpty()) {
             navigateToCurrent();
         }
-        if (!guiding && cfg.isFairySouls() && cfg.isAutoStartOnIsland() && System.currentTimeMillis() - lastAutoStartMs > 10_000L) {
+        // the finder is simply on while the switch is: once per arrival on an island that still has unfound souls
+        // (a Stop sticks until the next island)
+        if (!guiding && cfg.isFairySouls() && !island.equals(autoStartedIsland) && client.player != null) {
             IslandGraph graph = GraphRepository.get(island);
-            if (graph != null && !unfound(graph).isEmpty() && client.player != null) {
-                lastAutoStartMs = System.currentTimeMillis();
+            if (graph != null && !unfound(graph).isEmpty()) {
+                autoStartedIsland = island;
                 start(cfg.getSoulMode());
             }
         }

@@ -1647,7 +1647,6 @@ final class SettingTooltipsData {
         d.put("fairy souls/path mode", "Nearest guides you to the closest missing soul; Whole Island plans one route through all of them.");
         d.put("fairy souls/dim path", "Also draws the rest of the route faintly.");
         d.put("fairy souls/hud", "Shows how many Fairy Souls you have found on this island, and the distance to the next one.");
-        d.put("start on island join", "Starts guiding automatically when you arrive on an island with missing souls.");
         d.put("mark all found (this island)", "Logs every fairy soul on this island as found, so the walker skips them.");
         d.put("reset this island", "Clears the found-soul log for this island. Click twice to confirm.");
         d.put("reset found souls (profile)", "Clears the found-soul log for every island. Click twice to confirm.");

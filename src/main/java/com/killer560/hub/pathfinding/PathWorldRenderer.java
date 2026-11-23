@@ -46,13 +46,13 @@ public final class PathWorldRenderer {
         float[] tc = WorldRenderUtils.argbToFloats(cfg.getTargetColor());
         float thickness = cfg.getLineThickness();
 
-        if (cfg.isShowPath() && path.size() >= 2) {
+        if (cfg.isShowPath() && !path.isEmpty()) { // one point left (next to the target) still gets its line from the crosshair
             Vec3 pos = client.player.position();
             List<Vec3> smoothed = smoothed(path);
             int startIdx = closestIndex(smoothed, pos);
             // the visible stretch: from the player, along the next N blocks of path
             List<Vec3> near = new ArrayList<>();
-            near.add(new Vec3(McRender.cameraPos(context).x, McRender.cameraPos(context).y - 1.2, McRender.cameraPos(context).z));
+            near.add(lastLineStart = WorldRenderUtils.tracerOrigin(context)); // out of the crosshair, like every other tracer
             double budget = cfg.getVisiblePathLength();
             for (int i = startIdx; i < smoothed.size() && budget > 0; i++) {
                 Vec3 point = smoothed.get(i);
@@ -61,15 +61,18 @@ public final class PathWorldRenderer {
                 }
                 near.add(point);
             }
-            if (cfg.isDimPath()) {
+            if (cfg.isDimPath() && smoothed.size() >= 2) {
                 WorldRenderUtils.renderLineStrip(context, smoothed, pc[0], pc[1], pc[2], 0.25f, Math.max(1f, thickness - 1f));
             }
             WorldRenderUtils.renderLineStrip(context, near, pc[0], pc[1], pc[2], 0.95f, thickness);
         }
 
         Vec3 t = target.pos;
-        AABB box = new AABB(Math.floor(t.x) - 0.1, Math.floor(t.y) - 0.1, Math.floor(t.z) - 0.1,
+        Vec3 stand = FairySoulsFeature.standCentre(t.x, t.y, t.z); // a soul target marks the seen stand's head, not its walkable node
+        AABB box = stand != null ? new AABB(stand.x - 0.3, stand.y - 0.3, stand.z - 0.3, stand.x + 0.3, stand.y + 0.3, stand.z + 0.3)
+                : new AABB(Math.floor(t.x) - 0.1, Math.floor(t.y) - 0.1, Math.floor(t.z) - 0.1,
                 Math.floor(t.x) + 1.1, Math.floor(t.y) + 1.1, Math.floor(t.z) + 1.1);
+        if (stand != null) t = stand;
         WorldRenderUtils.renderOutlineBox(context, box, tc[0], tc[1], tc[2], 1f, thickness);
         WorldRenderUtils.renderLineStrip(context, List.of(new Vec3(t.x, t.y, t.z), new Vec3(t.x, t.y + 25, t.z)),
                 tc[0], tc[1], tc[2], 0.5f, thickness);
@@ -91,7 +94,9 @@ public final class PathWorldRenderer {
             IslandGraph.Node soul = unfound.get(i);
             double distSq = cam.distanceToSqr(soul.x, soul.y, soul.z);
             if (distSq > 96 * 96) continue;
-            AABB box = new AABB(soul.x, soul.y, soul.z, soul.x + 1, soul.y + 1, soul.z + 1);
+            Vec3 stand = FairySoulsFeature.standCentre(soul.x, soul.y, soul.z);
+            AABB box = stand == null ? new AABB(soul.x, soul.y, soul.z, soul.x + 1, soul.y + 1, soul.z + 1)
+                    : new AABB(stand.x - 0.3, stand.y - 0.3, stand.z - 0.3, stand.x + 0.3, stand.y + 0.3, stand.z + 0.3);
             WorldRenderUtils.renderOutlineBox(context, box, c[0], c[1], c[2], 0.75f, 2f);
         }
     }
@@ -126,6 +131,8 @@ public final class PathWorldRenderer {
 
     // NavigationManager always REPLACES its path list (never mutates it), so identity is a valid cache key. Without
     // this the spline below was rebuilt every frame - thousands of Vec3 allocations per frame on a long route.
+    /** Where the guide line began on the last frame it was drawn (testkit 1122-fairy-tracer reads it). */
+    public static Vec3 lastLineStart;
     private static List<Vec3> lastPath;
     private static List<Vec3> lastSmoothed;
 
