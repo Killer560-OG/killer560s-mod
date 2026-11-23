@@ -25,7 +25,8 @@
      "Dungeons Autopilot: a route whose next node needs a walk is warped across instead of given up, rooms whose route ended short of needed secrets are gone back to before the blood door, and a trip that finds no warp chain from where you stand no longer skips that room for the run",
      "Auto Routes: an etherwarp sent the tick right after the sneak goes down now aims where both eye heights land on its block too, or waits one tick when no such aim exists.",
      "Auto Routes: in a trap room, an attack key held down on the keyboard (or a very fast clicker) no longer holds the walk's line-up onto the next node forever; after 2 seconds the node goes from where you stand.",
-     "Held Item Outline's default colors follow the menu theme (test allowance only, no mod change)."
+     "Held Item Outline's default colors follow the menu theme (test allowance only, no mod change).",
+     "Share To Website: the Fastest P3 board (F7 only) now ignores any P3 time under 25 seconds as a bad measurement, and drops such a saved best."
     ]
    }
   ]

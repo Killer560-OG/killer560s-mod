@@ -75,7 +75,7 @@ final class BoardTimes {
                 if ("Terminals".equals(s.name())) terms += s.ms();
                 else if ("Goldor".equals(s.name())) goldor += s.ms();
             }
-            if (terms > 0L && goldor > 0L) out.put("p3", terms + goldor);
+            if (terms > 0L && goldor > 0L && terms + goldor >= RecordCatalog.P3_MIN_MS) out.put("p3", terms + goldor);
         }
         return out;
     }
@@ -85,7 +85,7 @@ final class BoardTimes {
         if (!realRun()) return;
         Map<String, Long> times = times(r);
         if (times.isEmpty()) return;
-        JsonObject bests = SharedRecords.load(SharedRecords.file(RecordCatalog.BOARD_BESTS));
+        JsonObject bests = RecordCatalog.withoutImpossibleBoards(SharedRecords.load(SharedRecords.file(RecordCatalog.BOARD_BESTS)));
         synchronized (BoardTimes.class) {
             for (Map.Entry<String, Long> t : times.entrySet()) {
                 JsonObject best = bests.has(t.getKey()) ? bests.getAsJsonObject(t.getKey()) : null;
