@@ -690,6 +690,8 @@ public final class RouteExecutor {
      *  went off as part of an earlier node's stack is not fired a second time when the order reaches its own number.
      *  A landing re-fire ignores this - a ping-pong is meant to fire the same nodes again and again. */
     private static final Set<RouteNode> firedInRun = new HashSet<>();
+    /** The node that fired last this run: standing in its ring is not a new step onto it ({@link #steppedOntoOther}). */
+    private static RouteNode lastFired;
 
     private RouteExecutor() {
     }
@@ -934,6 +936,7 @@ public final class RouteExecutor {
         stackQueue.clear();
         stackTrigger = null;
         firedInRun.clear();
+        lastFired = null;
         endWalkHold();
         RouteRotation.clear();
         running = true;
@@ -1851,6 +1854,8 @@ public final class RouteExecutor {
                     return;
                 }
                 beginStack(node);
+            } else if (steppedOntoOther(player, cfg)) {
+                return;
             } else if (++idleTicks == IDLE_SAY_TICKS && walkHoldYaw == null && !idleSaid) {
                 // Normal while he walks to it himself; after a warp it names a landing that missed the next ring.
                 idleSaid = true;
@@ -2031,6 +2036,28 @@ public final class RouteExecutor {
             }
         }
         return null;
+    }
+
+    /**
+     * Manual play (killer560, 2026-11-22: "it should be order you step onto them"): a path-less run waiting for the next
+     * node in order fires any OTHER node he steps into, and carries on in order from it. Not while Auto Secret / Dungeon
+     * Autopilot drives (their chain stays in order) and not for the node that just fired while he still stands in it.
+     */
+    private static boolean steppedOntoOther(LocalPlayer player, AutoRoutesConfig cfg) {
+        if (com.killer560.hub.autosecret.AutoSecretFeature.isRunning() || com.killer560.hub.autoclear.AutoClearFeature.isBusy()) {
+            return false;
+        }
+        net.minecraft.world.phys.AABB box = feetBox(player);
+        for (RouteNode n : ordered) {
+            if (n != lastFired && !n.sameTile(lastFired) && !givenUpNode(n)
+                    && n.contains(frame, RouteCoords.toReal(frame, n.relativePos()), cfg.getHeight(), box)) {
+                nextNode = ordered.indexOf(n);
+                LOGGER.info("[AutoRoutes] stepped onto node #{} ({}) out of order - firing it", route.indexOf(n) + 1, n.type);
+                beginStack(n);
+                return true;
+            }
+        }
+        return false;
     }
 
     /** A bat / crypt node the route gave up on: a landing never counts as arriving in it ({@link RouteRunMemory#markGivenUp}). */
@@ -2224,6 +2251,7 @@ public final class RouteExecutor {
         nodeSwapped = false;
         sneakReadyAge = -1;
         firedInRun.add(node);
+        lastFired = node;
         actionOrigin = feet(Minecraft.getInstance().player);
         // Any node firing ends a held walk ("keep me walking until I hit a different node", AP3's rule), and the
         // node owns the input from here: keys he is already holding are overridden, not read as a takeover.
