@@ -717,6 +717,17 @@ public final class RouteExecutor {
                 && !plannedInPlace && execTicks >= pearlUntil && walkHoldYaw == null && walkAlignNode == null;
     }
 
+    /**
+     * The node {@link #awaitingWalk} waits for him to walk into, with the run's route and room frame, or null
+     * ({@link AutoRoutesFeature#warpOntoWalkNode}).
+     */
+    static WalkGap walkGap() {
+        return awaitingWalk() && frame != null ? new WalkGap(route, frame, plannedNext) : null;
+    }
+
+    record WalkGap(Route route, RouteCoords.Frame frame, RouteNode node) {
+    }
+
     /** Route tick until which a pearl the route threw counts as in flight; its teleport (any position packet) ends it. */
     private static long pearlUntil;
     /** The longest a thrown pearl is waited on for its teleport before the route counts as idle again. */

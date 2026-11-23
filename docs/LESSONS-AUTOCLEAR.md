@@ -326,6 +326,15 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   the 40-tick arm timeout ran out: `RouteExecutor.starts()` tells it a route started, and it moves on at once.
 - The 112-tick START_NODE stall was a path-less route waiting for him to walk to its next etherwarp node: Auto Secret now
   stops it after 10 still, grounded ticks (`RouteExecutor.awaitingWalk()`).
+- (apfix-1123) Giving such a route up put the room in `secreted` for the run: his 11-22 F7 Autopilot stopped at 289 with 13
+  needed secrets in Atlas, Archway, Bridges and Market, whose routes all had a walk gap. Now the 10 still ticks end in a
+  warp onto the waited node (`AutoRoutesFeature.warpOntoWalkNode`, Trip.WALK_NODE, fired on landing through the
+  added-node path so Start From Start Node Only does not block it); finishPilot also runs goBackForMissed while
+  `usefulSecrets > 0`. Testkit 1123-sim-ap-walkgap.
+- (apfix-1123) A "no etherwarp path" trip failure is about the block he stands on, not the room: his Hall was tried 3x in
+  2 s from one Dome block and skipped for the run, while Museum's trip from there worked. The Autopilot now leaves such
+  targets out while he stands on that block (`AutoSecretFeature.noPathFromHere`, kept when nothing else is left). A failed
+  trip logs `[Autopilot] trip failed: ...`, never `done`. Testkit 1123-sim-ap-nopath-hold.
 - A finished pilot puzzle went through a 10-tick SETTLE; it goes to DECIDE now.
 - Kept, with cause: DOOR to open 20 t (blood 42 t) is the server's open delay (sim `SimDoors.OPEN_DELAY_TICKS`); QUIZ 100 t
   is Oruo's cooldowns; SETTLE after a failed START_NODE or CLEAR is the backoff; long ROUTE stands were his own keys or a

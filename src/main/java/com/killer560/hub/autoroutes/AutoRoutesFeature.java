@@ -530,7 +530,7 @@ public final class AutoRoutesFeature {
         }
         Vec3 real = RouteCoords.toReal(frame, node.relativePos());
         BlockPos below = BlockPos.containing(real.x, real.y - 0.5, real.z);
-        BlockPos goal = TeleportUtils.etherwarpable(below) ? below : TeleportUtils.nearestEtherwarpable(below);
+        BlockPos goal = nodeGoal(frame, node);
         if (goal == null) {
             LOGGER.info("[AutoRoutes] Go To #{} refused: no etherwarpable block at or near {}", number, below.toShortString());
             chatBad("No etherwarpable block at or near node #" + number + " - no path to it.");
@@ -746,7 +746,7 @@ public final class AutoRoutesFeature {
         }
         Vec3 real = RouteCoords.toReal(frame, start.relativePos());
         BlockPos below = BlockPos.containing(real.x, real.y - 0.5, real.z);
-        BlockPos goal = TeleportUtils.etherwarpable(below) ? below : TeleportUtils.nearestEtherwarpable(below);
+        BlockPos goal = nodeGoal(frame, start);
         if (goal == null) {
             LOGGER.info("[AutoRoutes] Start-node warp to {} refused: nothing etherwarpable at or near {}",
                     frame.roomName(), below.toShortString());
@@ -794,6 +794,59 @@ public final class AutoRoutesFeature {
         });
         note(ModChat.text("Warping to the start node of "), ModChat.value(frame.roomName()));
         return true;
+    }
+
+    /** The block a warp onto {@code node} aims at: the one under it, or the nearest etherwarpable one; null if none. */
+    private static BlockPos nodeGoal(RouteCoords.Frame frame, RouteNode node) {
+        Vec3 real = RouteCoords.toReal(frame, node.relativePos());
+        BlockPos below = BlockPos.containing(real.x, real.y - 0.5, real.z);
+        return TeleportUtils.etherwarpable(below) ? below : TeleportUtils.nearestEtherwarpable(below);
+    }
+
+    /**
+     * Auto Secret / Dungeon Autopilot (ap-stop289-1122): a path-less route stands between nodes because its next node
+     * needs a walk, and nobody walks under them, so his Atlas, Archway, Bridges and Market routes were given up a node or
+     * two in and their 13 secrets were never got (his 11-22 F7, stopped at 289). The map warps him onto that node, as its
+     * Go To does, and the route goes on from it on landing. @return true when the warp was started
+     */
+    public static boolean warpOntoWalkNode() {
+        RouteExecutor.WalkGap gap = RouteExecutor.walkGap();
+        BlockPos goal = gap == null ? null : nodeGoal(gap.frame(), gap.node());
+        if (goal == null) {
+            return false;
+        }
+        RouteExecutor.stop("Auto Secret: warping onto the next node");
+        RouteExecutor.clearStoppedByUser();
+        RouteExecutor.clearJustFinished();
+        LOGGER.info("[AutoRoutes] walk gap in {}: warping onto #{} ({}) at {}", gap.route().roomName(),
+                gap.route().indexOf(gap.node()) + 1, gap.node().type, goal.toShortString());
+        mapArrivalGuard = true;
+        externalTeleport = true;
+        ClearExecutor.setExternalOwner(true);
+        walkGapWarp(gap, goal, 0);
+        return true;
+    }
+
+    /**
+     * One warp of {@link #warpOntoWalkNode}. A long flat warp made right on a landing can come down a block short of the
+     * node (62-argrim-1123-walkgap-same-again: 12 blocks, landed on the block before it), and the node then never fires
+     * (tickAddedNode wants him in its ring), so a landing off the goal warps again, twice at most.
+     */
+    private static void walkGapWarp(RouteExecutor.WalkGap gap, BlockPos goal, int tries) {
+        ClearExecutor.etherPathArrive(goal, () -> {
+            LocalPlayer p = Minecraft.getInstance().player;
+            if (p != null && tries < 2 && !p.blockPosition().below().equals(goal)) {
+                LOGGER.info("[AutoRoutes] walk gap warp landed at {}, not on {} - warping again",
+                        p.blockPosition().toShortString(), goal.toShortString());
+                walkGapWarp(gap, goal, tries + 1);
+                return;
+            }
+            ClearExecutor.setExternalOwner(false);
+            externalTeleport = false;
+            // Fired by the next tick past the interlocks, as a node just added is (tickAddedNode: still in its ring).
+            addedToFire = gap.node();
+            addedToFireRoute = gap.route();
+        });
     }
 
     /**

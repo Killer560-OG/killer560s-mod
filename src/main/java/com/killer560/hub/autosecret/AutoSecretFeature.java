@@ -75,7 +75,7 @@ public final class AutoSecretFeature {
         KEY_WAIT, QUIZ }
 
     /** What a TRAVEL is for, so its arrival knows what comes next. */
-    enum Trip { START_NODE, ICE_FILL, INSTA_FROM, INSTA_INTO, PUZZLE, CLEAR, FINAL, DOOR, EXPLORE, KEY, QUIZ }
+    enum Trip { START_NODE, WALK_NODE, ICE_FILL, INSTA_FROM, INSTA_INTO, PUZZLE, CLEAR, FINAL, DOOR, EXPLORE, KEY, QUIZ }
 
     /** Ticks to wait for a route to arm once he has landed on its start node. */
     private static final int ARM_TIMEOUT_TICKS = 40;
@@ -356,6 +356,8 @@ public final class AutoSecretFeature {
         puzzlesDone.clear();
         clearsDone.clear();
         tripFailures.clear();
+        noPathFrom = null;
+        noPathTargets.clear();
         iceFillTried = false;
         QuizPlan.reset();
         quizIdleTicks = 0;
@@ -525,7 +527,7 @@ public final class AutoSecretFeature {
     /** The target's route ran to its end since its trip began (on its arming tick too, for a one-node route). */
     private static boolean routeJustCompleted() {
         boolean waiting = phase == Phase.ROUTE || phase == Phase.AWAIT_ROUTE
-                || phase == Phase.TRAVEL && trip == Trip.START_NODE;
+                || phase == Phase.TRAVEL && (trip == Trip.START_NODE || trip == Trip.WALK_NODE);
         return waiting && !RouteExecutor.isRunning() && RouteExecutor.completions() != routeCompletionsSeen
                 && target != null && target.equals(RouteExecutor.lastCompletedRoom());
     }
@@ -2566,6 +2568,7 @@ public final class AutoSecretFeature {
         AutoRoutesFeature.cancelForInteractiveMap("Auto Secret");
         routeCompletionsSeen = RouteExecutor.completions();
         routeStartsSeen = RouteExecutor.starts();
+        walkWarps = 0;
         routeStartClock =com.killer560.hub.autoroutes.RouteRunMemory.clock();
         routeFoundAtStart = Math.max(0, r.secrets() - r.unfound());
         if (!AutoRoutesFeature.warpToStartNode(layout, r.room())) {
@@ -2811,6 +2814,12 @@ public final class AutoSecretFeature {
     /** Nothing left the planner wants: a wither door with something behind it, then (Solo) the blood door, then hand back. */
     private static void finishPilot(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist,
                                     Autopilot.Order o) {
+        // Secrets the S+ still needs, in rooms whose route ended short of them: back for those first, nearest first, each
+        // room once, as Auto Secret's own endgame does (ap-stop289-1122: it opened the blood door and stopped at 289).
+        AutopilotScore.State s = Autopilot.scoreState(layout, rooms);
+        if (s.currentTotal() >= 0 && AutopilotScore.usefulSecrets(s) > 0 && goBackForMissed(layout, rooms, dist)) {
+            return;
+        }
         if (o.tryWither() && decideWitherDoor(layout, rooms, dist, 0)) {
             return;
         }
@@ -3597,7 +3606,7 @@ public final class AutoSecretFeature {
             setPhase(Phase.DECIDE);
             return;
         }
-        if (trip == Trip.START_NODE && RouteExecutor.isRunning()) {
+        if ((trip == Trip.START_NODE || trip == Trip.WALK_NODE) && RouteExecutor.isRunning()) {
             // Already standing on it (the warp had nothing to do) and the route armed at once.
             beginRoute();
             return;
@@ -3640,14 +3649,14 @@ public final class AutoSecretFeature {
                     && client.player.blockPosition().below().distSqr(instaLanding) <= 4
                     : here >= 0 && here == roomIdOf(layout, trip == Trip.INSTA_FROM ? instaFrom : target);
         }
-        if (trip != Trip.START_NODE) {
+        if (trip != Trip.START_NODE && trip != Trip.WALK_NODE) {
             ClearExecutor.setExternalOwner(false);
         }
         if (!arrived && trip == Trip.EXPLORE && !ClearExecutor.lastPathFailed()) {
             arrived = true;   // the room it went to may have regrouped once identified; the trip ran, that is enough
         }
         if (!arrived) {
-            tripFailed(ClearExecutor.lastPathFailed() ? "no etherwarp path" : "the warp ended short");
+            tripFailed(ClearExecutor.lastPathFailed() ? NO_PATH : "the warp ended short");
             return;
         }
         arrived(trip);
@@ -3668,7 +3677,7 @@ public final class AutoSecretFeature {
     private static void arrived(Trip t) {
         tripFailures.remove(target);
         switch (t) {
-            case START_NODE -> setPhase(Phase.AWAIT_ROUTE);
+            case START_NODE, WALK_NODE -> setPhase(Phase.AWAIT_ROUTE);
             case ICE_FILL -> beginIceFill();
             case INSTA_FROM -> etherPathTo(instaLanding, Trip.INSTA_INTO);
             case INSTA_INTO -> {
@@ -3686,6 +3695,18 @@ public final class AutoSecretFeature {
         }
     }
 
+    private static final String NO_PATH = "no etherwarp path";
+    /** The block he stood on when trips failed for want of a warp chain, and the targets that failed from it. */
+    private static BlockPos noPathFrom;
+    private static final Set<String> noPathTargets = new HashSet<>();
+
+    /** A trip to {@code key} already found no warp chain from the block he still stands on (see {@link #tripFailed}). */
+    static boolean noPathFromHere(String key) {
+        Minecraft mc = Minecraft.getInstance();
+        return noPathFrom != null && mc.player != null && noPathFrom.equals(mc.player.blockPosition())
+                && noPathTargets.contains(key);
+    }
+
     /** A trip that did not get there. Two more tries from wherever he is, then that room is left out this run. */
     private static void tripFailed(String why) {
         if (pilot) {
@@ -3694,6 +3715,24 @@ public final class AutoSecretFeature {
         if (trip == Trip.KEY && keyTarget != null) {
             Autopilot.keyNotTaken(keyTarget.id());
             keyTarget = null;
+        }
+        if (trip == Trip.WALK_NODE) {
+            secreted.add(target);   // the route is left where its walk began, as before the warp was tried
+            LOGGER.info("[AutoSecret] route {}: the warp onto its next node failed ({}) - moving on", target, why);
+            setPhase(Phase.SETTLE);
+            return;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        if (pilot && target != null && mc.player != null && NO_PATH.equals(why)) {
+            // The planner found no warp chain out of the spot he stands on: from here every retry of it fails the same way
+            // (his 11-22 F7, 20:09:25-33: Hall three times in 2 s, then New Trap, Three Weirdos - all from one block in
+            // Dome). The Autopilot plans around it until he stands somewhere else (Autopilot.candidates).
+            BlockPos at = mc.player.blockPosition();
+            if (!at.equals(noPathFrom)) {
+                noPathFrom = at;
+                noPathTargets.clear();
+            }
+            noPathTargets.add(target);
         }
         int n = tripFailures.merge(String.valueOf(target), 1, Integer::sum);
         boolean giveUp = n > MAX_TRIP_FAILURES;
@@ -3756,6 +3795,10 @@ public final class AutoSecretFeature {
     /** Still ticks on the ground before a route that only his walk can go on is given up. */
     private static final int WALK_WAIT_TICKS = 10;
 
+    /** Walk gaps of one room's route that are warped across ({@link #tickRoute}); past them the route is left as before. */
+    private static final int MAX_WALK_WARPS = 4;
+    private static int walkWarps;
+
     /** A path-less route waits for a walk to its next node and he stands still on the ground (knockback drift is not a walk). */
     private static boolean walkWaiting() {
         net.minecraft.client.player.LocalPlayer p = Minecraft.getInstance().player;
@@ -3785,6 +3828,14 @@ public final class AutoSecretFeature {
                 // (acwaits-1121: Pipes stood 112 t on "next #13 ETHERWARP (walk to it)" until he pressed S).
                 boolean walk = walkWaitTicks >= WALK_WAIT_TICKS;
                 walkWaitTicks = 0;
+                if (walk && walkWarps++ < MAX_WALK_WARPS && AutoRoutesFeature.warpOntoWalkNode()) {
+                    // The walk is a warp onto that node, and the route goes on from it (ap-stop289-1122: his Atlas,
+                    // Archway, Bridges and Market routes were left here with 13 of the S+'s secrets in them).
+                    LOGGER.info("[AutoSecret] route {}: its next node needs a walk - warping onto it", target);
+                    routeStartsSeen = RouteExecutor.starts();
+                    beginTravel(Trip.WALK_NODE);
+                    return;
+                }
                 RouteExecutor.stop(walk ? "Auto Secret: the next node needs a walk"
                         : "Auto Secret: no node for " + AutoSecretConfig.getInstance().getRouteStallSeconds() + " s");
                 secreted.add(target);

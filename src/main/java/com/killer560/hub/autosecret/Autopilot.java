@@ -683,14 +683,17 @@ final class Autopilot {
         currentFailed = false;
         double took = (System.currentTimeMillis() - currentStartMs) / 1000.0;
         double work = Math.max(0.5, took - currentTravel);
-        LOGGER.info(String.format(Locale.US, "[Autopilot] done %s %s in %.1f s (estimated %.1f s, travel ~%.1f s)",
-                current.kind(), current.room(), took, current.seconds(), currentTravel));
-        if (!failed) {
-            actionsDone++;
-        }
+        // A failed trip is not a done action (ap-tripfail-done-1122: "done PUZZLE Three Weirdos" was logged for a trip that
+        // never got there; the puzzle was solved 20 s later).
+        LOGGER.info(String.format(Locale.US, "[Autopilot] %s %s %s %s %.1f s (estimated %.1f s, travel ~%.1f s)%s",
+                failed ? "trip failed:" : "done", current.kind(), current.room(), failed ? "after" : "in", took,
+                current.seconds(), currentTravel, failed ? " - not done, not learned from" : ""));
         if (failed) {
-            LOGGER.info("[Autopilot] (that trip failed - not learned from)");
-        } else if (current.kind() == AutopilotPlanner.Kind.CLEAR) {
+            current = null;
+            return;
+        }
+        actionsDone++;
+        if (current.kind() == AutopilotPlanner.Kind.CLEAR) {
             clearSeconds = learnClear(clearSeconds, clearsLearned++, work);
             clearEndedMs = clearHoldsKey ? System.currentTimeMillis() : 0;
             finishHoldUntilMs = clearMayDropKey ? System.currentTimeMillis() + FINISH_KEY_WAIT_MS : 0;
@@ -828,6 +831,11 @@ final class Autopilot {
             travelByKey.put(key, secs - 1.0);
             out.add(new AutopilotPlanner.Candidate(AutopilotPlanner.Kind.KEY, key,
                     AutopilotScore.roomValue(s) * (none ? 2.0 : 0.5), secs, false, -1));
+        }
+        // A trip that found no warp chain out of the block he stands on is left out while anything else is still worth
+        // trying from it (AutoSecretFeature.tripFailed): his 11-22 F7 gave up Hall after three tries from one block.
+        if (out.stream().anyMatch(c -> !AutoSecretFeature.noPathFromHere(c.room()))) {
+            out.removeIf(c -> AutoSecretFeature.noPathFromHere(c.room()));
         }
         // What the trips between them will be planned for while the next route runs (AutoSecretFeature.planAhead).
         Map<String, RoomTour.Site> byKey = RoomTour.byKey(siteList);
