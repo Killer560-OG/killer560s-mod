@@ -1055,7 +1055,10 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   of the block that does; no tick spent, routes never wait), and only when no look holds for both does the hop wait the one
   tick for the sneak to age. Flat floor: a block under ~3 blocks away has such a look, one farther never does (the two
   eyes' hits differ by 28% of the distance), so those hops wait one tick (testkit 1123-hx-standeye-senders-*, hx
-  `dungeon.standingEye fresh`). Auto Routes (RouteExecutor) is not covered yet.
+  `dungeon.standingEye fresh`). Auto Routes (RouteExecutor, standeye-ar-1123) does the same just before its use: on a sneak 2 ticks old or
+  less (`sneakFresh(2)`: a 1-tick window still cast standing in 1 of 4 hx runs) the
+  look is `aimForBothEyes` or the warp waits one tick (not in legit mode, which turns the camera). It failed on the 8-block
+  start-node warp before (landed 2 blocks past), testkit 62-argrim-1123-standeye*.
 - A shot replays banked ticks inside one real tick, so a feature that steers him per tick must run inside it: a 20-tick AP3
   release on the keys chosen at the END before ran him 18.75 blocks straight off S2's platform (Mod Only Test log
   2026-10-27 00:15:34). `BlinkCharge.addShotTickEndHook` runs after each shot tick's movement and tick-end, and

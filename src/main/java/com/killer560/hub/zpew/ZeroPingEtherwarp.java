@@ -93,7 +93,12 @@ public final class ZeroPingEtherwarp {
      * ({@code RightClick.aimForBothEyes}); tracked whether or not Zero Ping Etherwarp is on.
      */
     public static boolean sneakFresh() {
-        return clientTick - sneakSentTick <= 1;
+        return sneakFresh(1);
+    }
+
+    /** The sneak went out within {@code ticks} client ticks. */
+    public static boolean sneakFresh(int ticks) {
+        return clientTick - sneakSentTick <= ticks;
     }
     private static boolean shiftSent;
     private static long standingHits;

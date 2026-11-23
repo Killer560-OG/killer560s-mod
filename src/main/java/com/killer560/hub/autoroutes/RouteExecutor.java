@@ -163,6 +163,10 @@ public final class RouteExecutor {
     private static boolean nodeSwapped;
     /** {@link #actionAge} at which the server was known to have the etherwarp's sneak, or -1. */
     private static int sneakReadyAge;
+    /** Warps re-aimed so the standing eye lands on the block too (the sneak was fresh); read by the testkit. */
+    private static int standingReaims;
+
+    public static int standingReaims() { return standingReaims; }
     /** Set by the position-packet hook ({@code LiveMapPacketListenerMixin}) when the server moves the player, cleared
      *  when a teleport's use is sent - Hypixel and the sim both teleport with that packet, so it is the landing check's
      *  proof that a teleport really happened, however short. */
@@ -4072,6 +4076,32 @@ public final class RouteExecutor {
                     return false;
                 }
                 forceWarpPastHold(node, "no look from here lands on " + warpTarget.toShortString(), warpAimHoldTicks, true);
+            }
+            // The sneak went out within the last two ticks (the use is in a tick-start packet, so it needs the extra tick: a one-tick
+            // window still cast standing in 1 of 4 runs): Hypixel may cast this warp from his standing eye (1.62, not 1.27) and land
+            // a block or two further. The look goes where both eyes land on the block, no tick spent; with no such look the warp
+            // waits one tick for the sneak to age (standeye-ar-1123; the same helper Auto Clear's hops use).
+            if (!warpForced && warpTarget != null && !AutoRoutesConfig.getInstance().isLegitMode()
+                    && com.killer560.hub.zpew.ZeroPingEtherwarp.sneakFresh(2)) {
+                Vec3 at = feet(player);
+                float[] both = com.killer560.hub.util.RightClick.aimForBothEyes(client, player, zpFeet, at, warpTarget,
+                        com.killer560.hub.livemap.autoclear.ClearExecutor.hopRange() + 1.0,
+                        player.getYRot() + Mth.wrapDegrees(warpYaw - player.getYRot()), Mth.clamp(warpPitch, -90f, 90f));
+                if (both == null) {
+                    logHold("freshsneak:" + traceIndex(node), "Etherwarp ({}): no look lands on {} from both the standing and "
+                            + "the crouched eye - waiting a tick for the sneak to reach the server", what, warpTarget.toShortString());
+                    return false;
+                }
+                if (both[0] != warpYaw || both[1] != warpPitch) {
+                    LOGGER.info("[AutoRoutes] Etherwarp ({}): sneak still fresh - re-aimed {} / {} -> {} / {} so the standing eye "
+                                    + "lands on {} too", what, String.format(Locale.ROOT, "%.2f", warpYaw),
+                            String.format(Locale.ROOT, "%.2f", warpPitch), String.format(Locale.ROOT, "%.2f", both[0]),
+                            String.format(Locale.ROOT, "%.2f", both[1]), warpTarget.toShortString());
+                    warpYaw = both[0];
+                    warpPitch = both[1];
+                    warpAimFrom = at;
+                    standingReaims++;
+                }
             }
             if (turnFirst(player, warpYaw, warpPitch, "[AutoRoutes] Etherwarp")) {
                 warpTurnFirstTicks++;

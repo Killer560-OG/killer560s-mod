@@ -22,7 +22,8 @@
      "Auto Clear, Auto Secret and Pathfinding: an etherwarp sent the tick right after the sneak goes down, which Hypixel can cast from your standing eye and land a block or two further, now aims where both eye heights land on the planned block, or waits one tick when no such aim exists.",
      "Fairy Souls: the guide line now starts at your crosshair instead of your feet, the waypoints sit exactly on each fairy soul, and the guide starts by itself when you arrive on an island with unfound souls (the Start On Island Join setting is gone).",
      "Testing only: the Auto Secret sim test now skips on the legit build, where Auto Secret does not exist.",
-     "Dungeons Autopilot: a route whose next node needs a walk is warped across instead of given up, rooms whose route ended short of needed secrets are gone back to before the blood door, and a trip that finds no warp chain from where you stand no longer skips that room for the run"
+     "Dungeons Autopilot: a route whose next node needs a walk is warped across instead of given up, rooms whose route ended short of needed secrets are gone back to before the blood door, and a trip that finds no warp chain from where you stand no longer skips that room for the run",
+     "Auto Routes: an etherwarp sent the tick right after the sneak goes down now aims where both eye heights land on its block too, or waits one tick when no such aim exists."
     ]
    }
   ]
