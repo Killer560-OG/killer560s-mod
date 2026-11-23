@@ -234,7 +234,8 @@ public final class RouteStore {
 
     /**
      * @return the route for this room, or null. The overlay (Auto Trap, when on and holding a route for this trap room in
-     * its current mode) wins over his own: it is the mode he or Dungeon Autopilot picked. Never while recording.
+     * its current mode) wins over his own: it is the mode he or Dungeon Autopilot picked. Auto Trap offers its bundled
+     * route only for a room he has no own route for ({@code AutoTrap.overlayFor}). Never while recording.
      */
     public Route forRoom(String roomName) {
         if (roomName == null) {
@@ -295,12 +296,19 @@ public final class RouteStore {
         return writeRoute(route);
     }
 
-    /** The route for this room, created empty if missing (not saved until {@link #save()}). */
+    /**
+     * His own route for this room, created if missing (not saved until {@link #save()}): a copy of the overlay route shown
+     * there (Auto Trap's bundled one), so a node he adds lands after the nodes he sees, else empty.
+     */
     public Route forRoomOrCreate(String roomName) {
         Route route = routes.get(roomName);
         if (route == null) {
-            LOGGER.info("[RouteStore] new empty route created for \"{}\"", roomName);
-            route = new Route(roomName);
+            java.util.function.Function<String, Route> o = overlay;
+            Route shown = o == null || RouteRecorder.isRecording() ? null : o.apply(roomName);
+            route = shown == null ? null : routeFromJson(roomName, routeToJson(shown));
+            LOGGER.info("[RouteStore] new route created for \"{}\": {}", roomName,
+                    route == null ? "empty" : "a copy of the shown overlay route (" + route.nodes().size() + " node(s))");
+            route = route == null ? new Route(roomName) : route;
             routes.put(roomName, route);
             parseFailed = false; // an explicit new route is the user's own decision to start over
         }

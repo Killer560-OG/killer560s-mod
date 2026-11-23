@@ -124,7 +124,7 @@ public final class AutoTrap {
             return;
         }
         load();
-        RouteStore.setOverlay(name -> isEnabled() ? routeFor(name) : null);
+        RouteStore.setOverlay(name -> isEnabled() ? overlayFor(name) : null);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("AutoTrap.tick", AutoTrap::tick));
     }
 
@@ -197,6 +197,19 @@ public final class AutoTrap {
     public static Route routeFor(String room) {
         Entry e = entry(room, modeNow(room));
         return e == null ? null : e.route();
+    }
+
+    /**
+     * What Auto Trap hands Auto Routes for this room: his capture, else the bundled route only while he has no Auto Routes
+     * route of his own there. A bundled route that won over his own hid every node he added (they were saved to his route
+     * and never drawn or played, killer560 2026-11-23, newtrap-pathnodes-1123).
+     */
+    static Route overlayFor(String room) {
+        Entry e = entry(room, modeNow(room));
+        if (e == null || "bundled".equals(e.source()) && RouteStore.getInstance().ownRoute(room) != null) {
+            return null;
+        }
+        return e.route();
     }
 
     public static boolean hasRoute(String room, Mode mode) {

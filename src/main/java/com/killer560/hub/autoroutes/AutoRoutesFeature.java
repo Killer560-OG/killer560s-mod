@@ -259,7 +259,7 @@ public final class AutoRoutesFeature {
     }
 
     private static boolean deleteNode(int index, boolean remember) {
-        Route route = currentRoute();
+        Route route = editTarget();
         if (route == null || index < 0 || index >= route.nodes().size()) {
             chatBad("No node #" + (index + 1) + " in this room.");
             return false;
@@ -280,6 +280,21 @@ public final class AutoRoutesFeature {
         suppressAutoArm();
         RoutePathPlanner.refreshStale(route, editableFrame());
         return true;
+    }
+
+    /**
+     * The route a delete changes: what is shown, except Auto Trap's bundled route in a room he has no own route for,
+     * which first becomes his own copy - a delete of the bundled one lived only until the game closed and never reached
+     * his file (killer560 2026-11-23, newtrap-pathnodes-1123).
+     */
+    private static Route editTarget() {
+        Route shown = currentRoute();
+        RouteCoords.Frame f = RouteCoords.Frame.current();
+        RouteStore store = RouteStore.getInstance();
+        if (shown == null || RouteRecorder.isRecording() || f == null || store.ownRoute(f.roomName()) != null) {
+            return shown;
+        }
+        return store.forRoomOrCreate(f.roomName());
     }
 
     /** {@code /ar delete} with no number: nearest node within this many blocks... */
