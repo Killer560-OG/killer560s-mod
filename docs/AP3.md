@@ -309,6 +309,12 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   move (velocity plus the ground push) already clears the edge, so the jump starts on whichever grounded tick is nearer
   the edge. With strafe off the route still jumps on the coyote tick. AP3 boxes are tested only at end-of-tick
   positions, so a 1x1 box at a run is hit by luck; give a route's run boxes at least the move length.
+- Dungeonbreaker charges (owner-confirmed 2026-11-23, killer560 answered "Yes"): 20 charges, one back every 10 ticks while
+  below 20, one charge per block. A route whose picks need more than that is INVALID, not slower: the EE3 route r22m (29
+  picks) spent 11 at the start, ran dry at model t67 / live t70 and stood ~14 ticks at 19.3,113,122.3 waiting for a charge,
+  then died in lava under a same-tick swap (testkit 1109-boss-ee3route-same-swap, whose fake Breaker budget is right). The
+  AP3 finder (killer560s-mod-logs/ap3finder-1112, class folder outR25 since breakercharges-1123) kills a planned state the
+  tick a listed pick is in reach with no charge left (death `dryPick`), so no searched route can count on a recharge.
 
 ## Built-in routes
 
