@@ -39,7 +39,8 @@
      "Blood Rush Helper no longer errors out and switches itself off when a miniboss is seen in a room whose rotation the map has not found yet; its look is recorded once the rotation is known.",
      "Bug Report: a report has no size limit any more. Save always writes the whole zip, and Save and Post sends a zip over 7.5 MB in parts (the first in the post, the rest as replies in the same thread, with Posting part N of M on the screen).",
      "Dungeon Map: the Advanced Position HUD no longer draws under a Dungeon Map moved over its spot, where its coordinate lines showed through the map background between the rooms and garbled room names such as Supertall; it moves just to the map's right while the map is up.",
-     "Auto Clear plans each room's kills: it weighs Hyperion casts across the room against etherwarps to cover spots and takes the order that ends the room soonest, never a slower one (about 4% faster over six floors in the dungeon sim); a container click of yours during its etherwarp no longer meets its sneak"
+     "Auto Clear plans each room's kills: it weighs Hyperion casts across the room against etherwarps to cover spots and takes the order that ends the room soonest, never a slower one (about 4% faster over six floors in the dungeon sim); a container click of yours during its etherwarp no longer meets its sneak",
+     "Dungeon Sim map designer: a puzzle or trap room you place by hand now gets exactly one door, like on Hypixel, instead of a door on every side; the other rooms are joined first, and a placement that would wall a puzzle in with no door is refused."
     ]
    }
   ]

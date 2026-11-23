@@ -232,3 +232,16 @@ Nothing in the sim breaks a wither or blood door block, key or no key, as on Hyp
 `SimBreakRules.refuses` (the Dungeonbreaker START, and through `BreakerGuard.protects` Breaker Aura, Zero Ping and Auto Routes),
 by Superboom's per-block loop and by `SimItems.breakIfBreakable`. A refused break changes no block, so the client has no ghost
 hole. Testkit 1121-sim-witherdoor-anyitem and 1121-sim-witherdoor-nobreak.
+
+## A hand-drawn puzzle or trap room gets one door (simpuzzledoor-1122)
+
+killer560 placed Creeper Beams in the middle of four rooms by hand and the map drew a door on all four sides. The
+drawing's door pass (`SimFloorGen.linkDoors`, used only by `planExplicit`: the editor grid and Play) was a plain
+spanning tree in scan order, so a puzzle that sat where the scan reached it first became a hub, while the generator
+(`SimFloorLayout.doorLinks`) had always joined puzzles last. It now does the same for puzzles and trap rooms
+(`isOneDoor` / `isTrap`): every other room is joined first, then each dead end takes the first link to an ordinary
+neighbor (NORMAL type before any other, never blood, never another dead end). A map whose rooms are reachable only
+THROUGH the puzzle (a puzzle in the middle of a cross) therefore leaves those rooms disconnected; the editor cannot
+tell a half-drawn map from a broken one, so it refuses only the placement that walls a puzzle or trap in
+(`SimFloorGen.doorsOf` == 0: every touching neighbor is a dead end or blood). The editor's drawn doors and the built world
+share one `cellDoor` array, so they agree. Testkit 1122-sim-puzzledoor.

@@ -578,7 +578,7 @@ public final class SimFloorGen {
         if (entrance == null) {
             entrance = new int[]{keys.get(0) % ROOM_GRID, keys.get(0) / ROOM_GRID};
         }
-        int doors = linkDoors(cellRoom, cellDoor, occupied, filled, entrance, blood);
+        int doors = linkDoors(cellRoom, cellDoor, occupied, filled, entrance, blood, nameTable);
 
         for (String d : quiet ? List.<String>of() : dropped) {
             ModChat.send("Sim", ModChat.dim("skipped " + d));
@@ -671,9 +671,9 @@ public final class SimFloorGen {
      * <p>The only caller, {@link #planExplicit}, hands in a grid with no doors yet, so nothing seeds the union-find.
      */
     private static int linkDoors(int[] cellRoom, int[] cellDoor, List<int[]> occupied, Set<Long> filled,
-                                 int[] entrance, int[] blood) {
+                                 int[] entrance, int[] blood, List<String> names) {
         Map<Integer, Integer> parent = new HashMap<>();
-        int doors = 0;
+        List<int[]> edges = new ArrayList<>();   // {cellA, cellB, ax, az, bx, bz}
         for (int[] c : occupied) {
             for (int[] step : new int[][]{{1, 0}, {0, 1}}) {
                 int[] n = {c[0] + step[0], c[1] + step[1]};
@@ -681,13 +681,42 @@ public final class SimFloorGen {
                 int a = gridCell(c);
                 int bCell = gridCell(n);
                 if (cellRoom[a] < 0 || cellRoom[bCell] < 0 || cellRoom[a] == cellRoom[bCell]) continue;
-                int between = (a + bCell) / 2;
+                edges.add(new int[]{a, bCell, c[0], c[1], n[0], n[1]});
+            }
+        }
+        // A puzzle or trap has ONE door on Hypixel (SimFloorLayout.isDeadEnd): every other room is joined first,
+        // then each of these takes the first link to an ordinary neighbor, a NORMAL type before any other, never
+        // blood and never another dead end. Without a door it stays walled in (the editor refuses that placement).
+        boolean[] leaf = new boolean[names.size()];
+        for (int i = 0; i < leaf.length; i++) {
+            String t = typeOf(names.get(i));
+            leaf[i] = SimFloorLayout.isTrap(names.get(i), t) || SimFloorLayout.isOneDoor(t);
+        }
+        boolean[] hasDoor = new boolean[leaf.length];
+        int doors = 0;
+        for (int pass = 0; pass < 3; pass++) {
+            for (int[] e : edges) {
+                int ra = cellRoom[e[0]];
+                int rb = cellRoom[e[1]];
+                int between = (e[0] + e[1]) / 2;
+                int[] ca = {e[2], e[3]};
+                int[] cb = {e[4], e[5]};
                 if (cellDoor[between] != DungeonLayout.DOOR_NONE) continue;
+                boolean toBlood = blood != null && (same(ca, blood) || same(cb, blood));
+                if (pass == 0) {
+                    if (leaf[ra] || leaf[rb]) continue;
+                } else {
+                    if (leaf[ra] == leaf[rb]) continue;   // dead end to dead end, or no dead end here
+                    int l = leaf[ra] ? ra : rb;
+                    int o = leaf[ra] ? rb : ra;
+                    if (hasDoor[l] || toBlood) continue;
+                    if (pass == 1 && !"NORMAL".equalsIgnoreCase(typeOf(names.get(o)))) continue;
+                    hasDoor[l] = true;
+                }
                 // Already reachable from each other: a door here would be a second way in.
-                if (find(parent, cellRoom[a]) == find(parent, cellRoom[bCell])) continue;
-                union(parent, cellRoom[a], cellRoom[bCell]);
-                boolean toBlood = blood != null && (same(c, blood) || same(n, blood));
-                boolean fromEntrance = entrance != null && (same(c, entrance) || same(n, entrance));
+                if (find(parent, ra) == find(parent, rb)) continue;
+                union(parent, ra, rb);
+                boolean fromEntrance = entrance != null && (same(ca, entrance) || same(cb, entrance));
                 cellDoor[between] = toBlood ? DungeonLayout.DOOR_BLOOD
                         : fromEntrance ? DungeonLayout.DOOR_ENTRANCE
                         : DungeonLayout.DOOR_NORMAL;
@@ -695,6 +724,24 @@ public final class SimFloorGen {
             }
         }
         return doors;
+    }
+
+    /** Doors cut into room {@code room}'s sides on a drawn plan, or -1 when it touches no other room yet. */
+    public static int doorsOf(MapCode.Decoded d, int room) {
+        int g = DungeonLayout.GRID;
+        int doors = 0;
+        boolean touches = false;
+        for (int i = 0; i < d.cellRoom().length; i++) {
+            if (d.cellRoom()[i] != room) continue;
+            for (int off : new int[]{1, -1, g, -g}) {
+                int j = i + off;
+                int k = i + 2 * off;
+                if (j < 0 || k < 0 || k >= d.cellRoom().length) continue;
+                if (d.cellDoor()[j] != DungeonLayout.DOOR_NONE) doors++;
+                if (d.cellRoom()[k] >= 0 && d.cellRoom()[k] != room) touches = true;
+            }
+        }
+        return touches ? doors : -1;
     }
 
     private static int find(Map<Integer, Integer> parent, int room) {

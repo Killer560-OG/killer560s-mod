@@ -716,6 +716,18 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
                 pinned.put(slot, selected);
                 rebuildOccupancy();
                 status = "placed " + selected;
+                // A puzzle or trap is a dead end with one door: with every neighbor a dead end or blood it would
+                // be walled in, so the placement is refused.
+                String t = SimFloorGen.typeOf(selected);
+                if (drawnPlan != null && (SimFloorLayout.isTrap(selected, t) || "PUZZLE".equalsIgnoreCase(t))) {
+                    int room = java.util.Arrays.asList(drawnPlan.nameTable()).indexOf(selected);
+                    if (room >= 0 && SimFloorGen.doorsOf(drawnPlan, room) == 0) {
+                        placements.remove(slot);
+                        pinned.remove(slot);
+                        rebuildOccupancy();
+                        status = selected + " would have no door: it needs an ordinary room next to it";
+                    }
+                }
             } else {
                 int[] s = footprintOf(selected, 0);
                 status = selected + " needs " + s[0] + "x" + s[1] + " free cells here";
