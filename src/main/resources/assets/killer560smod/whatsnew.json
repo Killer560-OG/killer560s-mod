@@ -29,7 +29,8 @@
      "Fastest P3 board: there is no minimum time; any F7 P3 counts.",
      "Auto Trap: nodes you add or delete in New Trap or Old Trap now show up, play and are saved. The built-in route no longer hides your own route for that room, and your first edit there starts your own route from a copy of the built-in one.",
      "Auto Clear: a starred mob that chased you into a cleared room or a puzzle room and walked back into its own room is now cleared there, instead of Auto Clear teleporting around the room looking for it while it stands next to you.",
-     "The dungeon map's room prediction no longer causes frame stutters during a run."
+     "The dungeon map's room prediction no longer causes frame stutters during a run.",
+     "Auto Trap: the built-in Old Trap route no longer throws a pearl and now walks out of the room."
     ]
    }
   ]

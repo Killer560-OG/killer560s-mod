@@ -145,17 +145,34 @@
             "at": 0
           },
           {
-            "type": "USE_ITEM",
+            "type": "PATH",
             "x": 7.5,
             "y": 69.0,
             "z": 5.5,
-            "yaw": -101.242493,
-            "pitch": -44.798309,
+            "yaw": 36.789139,
+            "pitch": 9.366946,
             "at": 0,
             "awaitEnabled": true,
             "await": "SECRET",
-            "amount": 1,
-            "item": "ENDER_PEARL"
+            "amount": 1
+          },
+          {
+            "type": "PATH",
+            "x": 14.5,
+            "y": 69.0,
+            "z": 5.5,
+            "yaw": -179.742401,
+            "pitch": 8.849281,
+            "at": 0
+          },
+          {
+            "type": "WALK",
+            "x": 14.5,
+            "y": 69.0,
+            "z": 5.5,
+            "yaw": -179.742401,
+            "pitch": 8.849281,
+            "at": 0
           }
         ],
         "pathNote": "recorded movement - edit the nodes above, not this",
