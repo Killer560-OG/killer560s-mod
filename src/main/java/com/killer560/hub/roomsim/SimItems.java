@@ -598,7 +598,7 @@ public final class SimItems {
             // brick interleaved with plain and mossy brick that a fragile-only fill cannot cross.
             if (slabCrypt) {
                 targets.addAll(withStairsAndFloor(level, slabSection));
-                cryptZombies.add(center.below());
+                cryptZombies.add(cryptMiddle(slabSection));
             } else if (wallCrypt) {
                 chambers.addAll(aimedChamber);
                 targets.addAll(wallSlab(level, center, face));
@@ -637,7 +637,7 @@ public final class SimItems {
                                 java.util.List<BlockPos> crypt = withStairsAndFloor(level, run);
                                 if (anyInReach(boom, crypt)) {
                                     targets.addAll(crypt);
-                                    cryptZombies.add(p.below());
+                                    cryptZombies.add(cryptMiddle(run));
                                 }
                             }
                         } else if (isFragile(st) && !targets.contains(p) && inReach(boom, p)) {
@@ -1139,6 +1139,30 @@ public final class SimItems {
             }
         }
         return found;
+    }
+
+    /**
+     * Where a slab crypt's undead stands: under the slab nearest the middle of its lid. Not under the slab the
+     * Superboom scan met first: that scan runs in fixed world axes, so it named a different corner in each room
+     * rotation, and in Old Trap at paste rotation 0 that corner was the cell the built-in Auto Trap route walks onto
+     * (oldtrap-r0-1123: the sim's zombie never moves, pushed him every tick and the walk could never align).
+     */
+    private static BlockPos cryptMiddle(java.util.List<BlockPos> run) {
+        double mx = 0;
+        double mz = 0;
+        for (BlockPos p : run) {
+            mx += p.getX();
+            mz += p.getZ();
+        }
+        mx /= run.size();
+        mz /= run.size();
+        BlockPos best = run.get(0);
+        for (BlockPos p : run) {
+            if (Math.hypot(p.getX() - mx, p.getZ() - mz) < Math.hypot(best.getX() - mx, best.getZ() - mz) - 1e-9) {
+                best = p;
+            }
+        }
+        return best.below();
     }
 
     /**
