@@ -492,6 +492,20 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   gave legs 655/646 and run 3304 twice with no floor slower. He answered 2026-11-22 (Blood Rush Split off "should be able to clear whatever is fastest"): Full Clear now uses that tour with nothing forced first; Split ON keeps its rush order. The ONE_TOUR switch is gone. Testkit 131 case 6 asserts the tour costs no more than the plain order.
 - Pricing the plan's casts at link+1 like the old hop (ackillprice-1122, with k14-pricing.patch) made the old order slower
   (room ticks 3173 vs 3048/3119, run 3544): not shipped; patch kept at C:\kmtest\jars\acroomorder-1122\pricing-P.patch.
+
+## Quiz countdowns and Ice Fill First under the Autopilot (ap-quizfill-1122, his 11-22 F7 runs)
+
+- A Quiz gap took only a route whose round trip plus the 20-tick spare fit; with none (and no clear or door) it went straight back and stood out
+  the countdown: 83 and 73 ticks for answers 2 and 3 while Steps (79 of 94 left) and Duncan (95 of 86) were "(too long)". Now `quizGapPick`
+  takes, after the clear and door options, the longest route that keeps `QUIZ_GAP_LOOSE_SPARE_TICKS` (10) in hand; never one
+  over the countdown (an exact 95-of-95 fit came back 22 ticks late in 1017-sim-quiz-autosecret: the trip estimate runs short). Testkit
+  1122-logic-quizgap-pick holds his numbers.
+- `decidePilot` never called `decideIceFill`: Ice Fill First only ran inside the Quiz's first cooldown, so a floor with no Quiz, or an Ice
+  Fill found later, waited for its turn in the tour (found 20:09:01, done 83 s later). It now runs right after the Quiz step, gated on Do
+  Puzzles. Testkit 1122-sim-icefill-first-pilot.
+- A Quiz-gap route whose way runs through an unentered key room is not timed by its round trip: `goSecret` clears the key room first
+  (1121-sim-acquiz-return, 11-22: Purple Flags 93 of 138, Mossy cleared first, question 2 answered 73 ticks late). `quizGapRoom` now
+  leaves such rooms out (`keyRoomFirst`, shared with goSecret); the key room can still come as a timed gap clear.
 - Autopilot clear estimate (ap-clearest-1122, his 11-22 F7 runs): Auto Clear room times of 2-4x "estimated" (Stairs 6.3 s vs 2.5,
   Chambers 7.5 vs 4.0, Crypt 7.1 vs 3.1) were not corrections or waits: the `room time:` lines show the time follows the starred
   mob count (Chambers 10 kills 148 ticks, Wizard 9 kills 124, Crypt 13 kills 124; a room with nothing left 1 s), and the 77 clears

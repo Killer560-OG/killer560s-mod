@@ -1194,6 +1194,7 @@ public final class AutoSecretFeature {
             return false;
         }
         if (iceFillTried || !AutoSecretConfig.getInstance().isIceFillFirst()
+                || pilot && !AutoSecretConfig.getInstance().isDoPuzzles()
                 || !AutoPuzzlesConfig.getInstance().isAutoIceFillEnabled()) {
             return false;
         }
@@ -1288,6 +1289,14 @@ public final class AutoSecretFeature {
             }
             if (quizGapMobClear(layout, rooms, dist, quiz, left) || quizGapDoor(layout, rooms, dist, left)) {
                 return true;
+            }
+            if (pick == null && quizGapLoose != null) {
+                LOGGER.info("[AutoSecret] Quiz: {} tick(s) until question {} opens; {} fits only without the spare - going"
+                        + " rather than standing at the Quiz", left, com.killer560.hub.puzzlesolvers.QuizState.nextQuestion(),
+                        quizGapLoose.name());
+                if (goSecret(layout, quizGapLoose, dist, "-", "-")) {
+                    return true;
+                }
             }
         }
         quizWorkLeft = false;
@@ -1480,6 +1489,7 @@ public final class AutoSecretFeature {
     private static RoomStatus.Room quizGapRoom(DungeonLayout layout, List<RoomStatus.Room> rooms,
                                                Map<Integer, Integer> dist, RoomStatus.Room quiz, long left) {
         Minecraft client = Minecraft.getInstance();
+        quizGapLoose = null;
         if (client.player == null) {
             return null;
         }
@@ -1495,6 +1505,13 @@ public final class AutoSecretFeature {
             }
             Route route = RouteStore.getInstance().forRoom(r.name());
             if (route == null || route.startNode() == null) {
+                continue;
+            }
+            // goSecret clears an unentered key room on the way first, a trip the round trip below does not count: the
+            // 11-22 sim took Purple Flags at 138 ticks, cleared Mossy first and answered question 2 73 ticks late.
+            RoomStatus.Room key = keyRoomFirst(layout, r);
+            if (key != null) {
+                LOGGER.info("[AutoSecret] Quiz: {} left out of the countdown - {} would be cleared first", r.name(), key.name());
                 continue;
             }
             RoomTour.Site s = secretSite(layout, r, r.unfound(), Autopilot.keyOf(r));
@@ -1515,28 +1532,76 @@ public final class AutoSecretFeature {
         }
         RoomTour.Matrix m = RoomTour.matrix(from, sites, false, layout);
         int q = sites.size() - 1;
-        RoomStatus.Room best = null;
-        double bestTotal = 0;
+        double[] totals = new double[q];
+        int[] unfound = new int[q];
         StringBuilder why = new StringBuilder();
         for (int i = 0; i < q; i++) {
-            double total = m.fromHere()[i] + m.work()[i] + m.between()[i][q];
-            RoomStatus.Room r = cands.get(i);
-            // The same second in hand as a gap clear: back about a second early, never late (acplan2-1121).
-            boolean fits = total + QUIZ_GAP_CLEAR_SPARE_TICKS <= left;
-            why.append(String.format(Locale.US, "%s %.0f+%.0f+%.0f=%.0f%s; ", r.name(), m.fromHere()[i], m.work()[i],
-                    m.between()[i][q], total, fits ? "" : " (too long)"));
-            if (!fits) {
-                continue;
-            }
-            if (best == null || r.unfound() > best.unfound() || r.unfound() == best.unfound() && total < bestTotal) {
-                best = r;
-                bestTotal = total;
+            totals[i] = m.fromHere()[i] + m.work()[i] + m.between()[i][q];
+            unfound[i] = cands.get(i).unfound();
+            why.append(String.format(Locale.US, "%s %.0f+%.0f+%.0f=%.0f%s; ", cands.get(i).name(), m.fromHere()[i],
+                    m.work()[i], m.between()[i][q], totals[i], totals[i] + QUIZ_GAP_CLEAR_SPARE_TICKS <= left ? ""
+                            : totals[i] + QUIZ_GAP_LOOSE_SPARE_TICKS <= left ? " (only without the spare)" : " (too long)"));
+        }
+        int pick = quizGapPick(totals, unfound, left, false);
+        int loose = pick < 0 ? quizGapPick(totals, unfound, left, true) : -1;
+        quizGapLoose = loose < 0 ? null : cands.get(loose);
+        LOGGER.info("[AutoSecret] Quiz: {} tick(s) until question {} opens; round trips (there + route + back): {}-> {}",
+                left, com.killer560.hub.puzzlesolvers.QuizState.nextQuestion(), why, pick >= 0 ? cands.get(pick).name()
+                        : loose >= 0 ? "none fits with the spare; " + cands.get(loose).name() + " if nothing else fills it"
+                        : "none fits, waiting at the Quiz");
+        return pick < 0 ? null : cands.get(pick);
+    }
+
+    /**
+     * The unentered key room goSecret clears before {@code r}'s route (killer560, 2026-10-20: the warp to a start node must
+     * not be the first entry into a room holding a key), when Auto Clear can take rooms; else null.
+     */
+    private static RoomStatus.Room keyRoomFirst(DungeonLayout layout, RoomStatus.Room r) {
+        int here = layout.currentRoom();
+        int key = com.killer560.hub.autoclear.KeyRooms.mustNotWarpInto(layout, r.room()) ? r.room()
+                : com.killer560.hub.autoclear.KeyRooms.unenteredKeyRoomOnTheWay(layout, here, r.room());
+        if (key < 0 || key == here || !AutoSecretConfig.getInstance().isAutoClearRooms() || !AutoClearFeature.isAvailable()) {
+            return null;
+        }
+        for (RoomStatus.Room k : RoomStatus.rooms()) {
+            if (k.room() == key && needsClear(layout, k)) {
+                return k;
             }
         }
-        LOGGER.info("[AutoSecret] Quiz: {} tick(s) until question {} opens; round trips (there + route + back): {}-> {}",
-                left, com.killer560.hub.puzzlesolvers.QuizState.nextQuestion(), why,
-                best == null ? "none fits, waiting at the Quiz" : best.name());
+        return null;
+    }
+
+    /** Spare a Quiz-gap route needs when nothing else fills the countdown: half the usual, never late (1017 sim 11-22: an exact fit came back 22 late). */
+    static final int QUIZ_GAP_LOOSE_SPARE_TICKS = QUIZ_GAP_CLEAR_SPARE_TICKS / 2;
+    /** quizGapRoom's room that fits only with the smaller spare: taken when no clear or door fills the countdown either. */
+    private static RoomStatus.Room quizGapLoose;
+
+    /**
+     * Which round trip fills a Quiz countdown of {@code left} ticks: of those that fit with {@link #QUIZ_GAP_CLEAR_SPARE_TICKS}
+     * in hand, the most unfound secrets, then the quickest. {@code loose} (none fits so): the one closest to the countdown
+     * that fits with {@link #QUIZ_GAP_LOOSE_SPARE_TICKS}, because such a route beats standing at the Quiz for the rest
+     * of it (his 11-22 run: 94 left, Steps 79 "too long" for the spare, then 83 ticks stood there). -1 when none.
+     */
+    static int quizGapPick(double[] totals, int[] unfound, long left, boolean loose) {
+        int best = -1;
+        for (int i = 0; i < totals.length; i++) {
+            if (loose ? totals[i] + QUIZ_GAP_LOOSE_SPARE_TICKS > left : totals[i] + QUIZ_GAP_CLEAR_SPARE_TICKS > left) {
+                continue;
+            }
+            double d = Math.abs(totals[i] - left);
+            boolean better = best < 0 || (loose ? d < Math.abs(totals[best] - left)
+                    || d == Math.abs(totals[best] - left) && totals[i] < totals[best]
+                    : unfound[i] > unfound[best] || unfound[i] == unfound[best] && totals[i] < totals[best]);
+            if (better) {
+                best = i;
+            }
+        }
         return best;
+    }
+
+    /** For the testkit (1122-logic-quizgap-pick): {@link #quizGapPick} with his countdowns. */
+    public static int quizGapPickForTest(double[] totals, int[] unfound, long left, boolean loose) {
+        return quizGapPick(totals, unfound, left, loose);
     }
 
     /**
@@ -2482,18 +2547,12 @@ public final class AutoSecretFeature {
         }
         // The warp to its start node must not be the first entry into a room holding a key (killer560, 2026-10-20): that
         // room is cleared first, by Auto Clear walking in, when it can take rooms.
-        int here = layout.currentRoom();
-        int key = com.killer560.hub.autoclear.KeyRooms.mustNotWarpInto(layout, r.room()) ? r.room()
-                : com.killer560.hub.autoclear.KeyRooms.unenteredKeyRoomOnTheWay(layout, here, r.room());
-        if (key >= 0 && key != here && AutoSecretConfig.getInstance().isAutoClearRooms() && AutoClearFeature.isAvailable()) {
-            for (RoomStatus.Room k : RoomStatus.rooms()) {
-                if (k.room() == key && needsClear(layout, k)) {
-                    LOGGER.info("[AutoSecret] key room: {} before the route of {} - its key drops at its last starred death",
-                            k.name(), r.name());
-                    goClear(layout, k, dist, "key room: ");
-                    return true;
-                }
-            }
+        RoomStatus.Room k = keyRoomFirst(layout, r);
+        if (k != null) {
+            LOGGER.info("[AutoSecret] key room: {} before the route of {} - its key drops at its last starred death",
+                    k.name(), r.name());
+            goClear(layout, k, dist, "key room: ");
+            return true;
         }
         target = r.name();
         targetRoomId = r.room();
@@ -2615,6 +2674,12 @@ public final class AutoSecretFeature {
         }
         if (decideQuiz(layout, rooms, dist)) {
             Autopilot.setHud(status, "Quiz first");
+            return;
+        }
+        // Ice Fill First runs the Autopilot too: before, only the Quiz's first cooldown reached it, so an Ice Fill found
+        // mid-run (or a floor with no Quiz) waited for its turn in the tour (his 11-22 F7: found 20:09:01, done 83 s later).
+        if (decideIceFill(layout, rooms, dist)) {
+            Autopilot.setHud(status, "Ice Fill first");
             return;
         }
         if (decideInstaClear(layout, rooms, dist, here)) {

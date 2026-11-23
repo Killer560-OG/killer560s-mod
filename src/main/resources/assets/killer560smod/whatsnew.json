@@ -15,7 +15,8 @@
      "Beacon Ready Alert: a title and a pling tell you when your foraging beacon can be tuned again (Misc, off by default).",
      "Auto Reclaim: the Reclaim Inventory button and Pull And Reclaim now also reclaim armor pieces that carry Boosters (such as Fig armor), which they reported as nothing to reclaim; the stop line now says which kinds it knows.",
      "Dungeon Sim map designer: Play now refuses a drawn or generated map with a room that no door path reaches from the Entrance (such as four rooms that touch only through a puzzle in the middle of a cross), and says so in the status line.",
-     "Dungeons Autopilot: the estimate of how long clearing a room takes is now a running mean over the whole session instead of an average of the last two or three rooms, so room order is no longer ranked on a swinging figure"
+     "Dungeons Autopilot: the estimate of how long clearing a room takes is now a running mean over the whole session instead of an average of the last two or three rooms, so room order is no longer ranked on a swinging figure",
+     "Dungeons Autopilot: Ice Fill First now works under the Autopilot (an Ice Fill found mid-run is the very next trip), and a Quiz countdown is filled with a route that still fits instead of standing at the Quiz, never with a room that needs a key room cleared first"
     ]
    }
   ]
