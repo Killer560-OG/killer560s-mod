@@ -7,6 +7,7 @@ import com.killer560.hub.storagesearch.StorageSearchIndex;
 import com.killer560.hub.util.ModChat;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
+import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
@@ -31,6 +32,10 @@ import java.util.TreeMap;
  * open this session. Purely visual: it never clicks or moves an item (the cheat flow waits on a /reclaim menu capture).
  */
 public final class AutoReclaimFeature {
+
+    private static final org.slf4j.Logger LOG = com.killer560.hub.util.ModLog.get("killer560smod-autoreclaim");
+    private static final java.util.regex.Pattern CLAIM_DONE = java.util.regex.Pattern.compile("^Your (.+) claim has been processed!");
+    private static String handItem;
 
     public static final String CHAT = "Auto Reclaim";
     private static final int MAX_LINES = 25;
@@ -57,9 +62,18 @@ public final class AutoReclaimFeature {
             }
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            watchHandReclaim(client);
             if (++tick % BAG_SCAN_TICKS == 0 && com.killer560.hub.compat.McCompat.screen(client) instanceof AbstractContainerScreen<?> s
                     && AutoReclaimConfig.getInstance().isEnabled()) {
                 scanBag(s);
+            }
+        });
+        ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
+            if (!overlay && handItem != null && !ReclaimMenu.isRunning()) {
+                java.util.regex.Matcher m = CLAIM_DONE.matcher(message.getString());
+                if (m.find()) {
+                    LOG.info("Reclaimed by hand, not matched by ReclaimRules: item {} claim \"{}\"", handItem, m.group(1));
+                }
             }
         });
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
@@ -69,7 +83,21 @@ public final class AutoReclaimFeature {
                 })));
     }
 
+    /** Remembers the id of an item the player put in the Reclaim Menu by hand that ReclaimRules does not know (null otherwise). */
+    private static void watchHandReclaim(Minecraft client) {
+        if (com.killer560.hub.compat.McCompat.screen(client) instanceof AbstractContainerScreen<?> s
+                && ReclaimMenu.TITLE.equals(s.getTitle().getString()) && s.getMenu().slots.size() > 22) {
+            ItemStack in = s.getMenu().getSlot(22).getItem();
+            if (!in.isEmpty()) {
+                handItem = ReclaimRules.reason(in) == null ? String.valueOf(com.killer560.hub.cheatutils.CheatUtils.skyblockId(in)) : null;
+            }
+        } else {
+            handItem = null;
+        }
+    }
+
     private static void clear() {
+        handItem = null;
         ReclaimRules.clear();
         BAG.clear();
         OVERVIEW.clear();

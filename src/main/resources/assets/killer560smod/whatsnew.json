@@ -12,7 +12,8 @@
      "Dungeon sim: a key room that is not yet shown on the map is now judged insta cleared at the moment its wither door is clicked, not when the door blocks go, as Hypixel does.",
      "Auto Clear: with Blood Rush Split off, Full Clear now takes the rooms in the order that walks the fewest map tiles instead of always doing the rooms off the blood rush first (about 3% fewer ticks on the test floors). Blood Rush Split is unchanged.",
      "Auto Sell: new Keep 50% Skeleton Master Chestplates switch (on by default) stops Auto Sell from selling a Skeleton Master Chestplate that has the maximum 50% base stat boost.",
-     "Beacon Ready Alert: a title and a pling tell you when your foraging beacon can be tuned again (Misc, off by default)."
+     "Beacon Ready Alert: a title and a pling tell you when your foraging beacon can be tuned again (Misc, off by default).",
+     "Auto Reclaim: the Reclaim Inventory button and Pull And Reclaim now also reclaim armor pieces that carry Boosters (such as Fig armor), which they reported as nothing to reclaim; the stop line now says which kinds it knows."
     ]
    }
   ]

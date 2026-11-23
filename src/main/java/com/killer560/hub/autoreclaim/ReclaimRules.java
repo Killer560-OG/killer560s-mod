@@ -12,6 +12,9 @@ import java.util.WeakHashMap;
  * What Hypixel's /reclaim (SkyBlock 0.27.3) gives something back for, from the patch text only: a recombobulated
  * SPECIAL or VERY SPECIAL accessory (Recombobulator), an item with the old Divine Gift enchantment, an item with the old
  * Chance or Luck enchantment (books included). The patch names no item types for the enchantments, so any item matches.
+ * Boosters is not in the patch text: it comes from his own capture (2026-11-22, Fig armor carrying boosters was accepted
+ * with the claim "Boosters"), so only armor pieces (skyblock id ending HELMET, CHESTPLATE, LEGGINGS, BOOTS) with a
+ * non-empty {@code boosters} list match; whether tools take it too is not proven.
  * The answer is read once per stack (weak identity cache, render thread only) and dropped on world change.
  */
 public final class ReclaimRules {
@@ -21,7 +24,7 @@ public final class ReclaimRules {
     private ReclaimRules() {
     }
 
-    /** What /reclaim returns for {@code stack} ("Recombobulator", "Divine Gift", "Chance", "Luck", joined by ", "), or null. */
+    /** What /reclaim returns for {@code stack} ("Recombobulator", "Divine Gift", "Chance", "Luck", "Boosters", joined by ", "), or null. */
     public static String reason(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
             return null;
@@ -51,6 +54,11 @@ public final class ReclaimRules {
         add(sb, ench, "divine_gift", "Divine Gift");
         add(sb, ench, "chance", "Chance");
         add(sb, ench, "luck", "Luck");
+        String id = tag.getStringOr("id", "");
+        if (tag.getListOrEmpty("boosters").size() > 0 && (id.endsWith("HELMET") || id.endsWith("CHESTPLATE")
+                || id.endsWith("LEGGINGS") || id.endsWith("BOOTS"))) {
+            sb.append(sb.length() > 0 ? ", " : "").append("Boosters");
+        }
         return sb.toString();
     }
 

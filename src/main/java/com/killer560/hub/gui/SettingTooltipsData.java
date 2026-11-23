@@ -1399,7 +1399,7 @@ final class SettingTooltipsData {
         d.put("reforge helper/wanted color", "Color of the outline around an item with a wanted reforge.");
         d.put("revert master stars", "Turns the Master Star number on item names back into that many red stars.");
         d.put("inventory search", "Press Ctrl+F in any inventory to search; matching slots are filled red. Type a sum (5k*3, 2s+10) to use it as a calculator.");
-        d.put("auto reclaim", "Fills every item /reclaim gives something back for (recombobulated Special accessories, old Divine Gift, Chance and Luck) in any open container, and /autoreclaim lists them.");
+        d.put("auto reclaim", "Fills every item /reclaim gives something back for (recombobulated Special accessories, old Divine Gift, Chance and Luck, Boosters armor) in any open container, and /autoreclaim lists them.");
         d.put("pull and reclaim", "Cheat build: /autoreclaim also pulls each matching item out of your Ender Chest pages, backpacks and the first Accessory Bag page, then reclaims it through /reclaim one item at a time.");
         d.put("ignore case", "Makes the inventory search ignore upper and lower case.");
         d.put("item browser", "Shows a panel listing every Skyblock item beside your inventory. It filters by the Inventory Search bar at the bottom middle of the screen.");
