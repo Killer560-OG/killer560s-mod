@@ -96,6 +96,11 @@ public final class BlockHits {
         return box.clip(eye, eye.add(dir.scale(64.0))).map(eye::distanceTo).orElse(Double.POSITIVE_INFINITY);
     }
 
+    /** Distance from {@code eye} to where the look at {@code hit} enters {@code pos}'s full cube (what RotationPlace judges). */
+    public static double entry(BlockPos pos, Vec3 eye, BlockHitResult hit) {
+        return entry(new AABB(pos), eye, hit.getLocation().subtract(eye).normalize());
+    }
+
     private static double face(AABB o, Direction d) {
         return switch (d) {
             case UP -> o.maxY; case DOWN -> o.minY; case EAST -> o.maxX;

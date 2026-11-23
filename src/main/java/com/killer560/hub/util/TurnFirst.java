@@ -402,6 +402,14 @@ public final class TurnFirst {
             method = String.format(java.util.Locale.US,
                     "a walk-keyed look (yaw %.1f, pitch %.1f: the walk's path unchanged)", yaw, pitch);
         } else {
+            Vec3 eye = player.getEyePosition();
+            if (!ray.test(eye, eye.add(Vec3.directionFromRotation(pitch, yaw).scale(reach)))) {
+                // That look would not pass this very test either, so the turn would be held and renewed every tick with no
+                // click ever (ap-solo293-1122: a chest whose middle-aim entered its cube past 4.5 held him 166 ticks).
+                pending = false;
+                method = "deferred";
+                return false;
+            }
             method = String.format(java.util.Locale.US, "a body turn (yaw %.1f, pitch %.1f)", yaw, pitch);
         }
         if (!turned) {

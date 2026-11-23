@@ -343,6 +343,13 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   Measured (leverbest-1112): along a ray that hits the lever outline, a cube entry up to 4.60 from the real eye is clean
   and 4.70 flags on both configs; Lever Aura aims at the outline point with the soonest entry (`BlockHits.best`, up to
   0.17 sooner than the middle) and keeps 4.5. docs/AP3.md "Lever reach" has the table and the route-search rule.
+- **A turn-first aura must aim along a look that passes its own readiness test, or the turn is held for good**
+  (ap-solo293-1122, his F7 Solo at score 293): Secret Aura took a chest 4.40 away by box distance but aimed at its middle,
+  whose look enters the cube at 4.56; `readyBlock` refused that look every tick, `settle` re-turned to it and renewed the
+  hold, and the route's await node stood 166 ticks with "body turning first" and an unchanging yaw (the yaw WAS the turned
+  look). Secret Aura now falls back to `BlockHits.best` when the middle-aim enters past the range (held, nothing turned,
+  when even that does), `TurnFirst.settle` never turns to a look its ray test rejects, and Auto Secret leaves a route whose
+  await the aura has been stuck on for 2 s (`SecretAuraFeature.stuckTicks`). Testkit 62-argrim-1122-auraturnreach.
 - **A use-on-block (block place) has no rotation of its own: GrimAC 2.3.74 lends it the NEXT movement packet's only when
   that packet arrives within 15 ms** (`CheckManagerListener.handleQueuedPlaces`, javap), else judges it by the rotation
   before - RotationPlace "post-flying", then "pre-flying" on every later place (the buffer never drains). AP3 placed at

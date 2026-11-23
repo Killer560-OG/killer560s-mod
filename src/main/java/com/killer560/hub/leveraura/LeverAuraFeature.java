@@ -332,8 +332,7 @@ public final class LeverAuraFeature {
         LOGGER.info("[LeverAura] flick sent: lever {} ({}) face={} dist={} entry={} box={} powered={} swing={} tick={}",
                 pos.toShortString(), reason, hit.getDirection(), String.format(java.util.Locale.ROOT, "%.3f",
                         eye.distanceTo(hit.getLocation())),
-                String.format(java.util.Locale.ROOT, "%.3f", com.killer560.hub.util.BlockHits.entry(
-                        new net.minecraft.world.phys.AABB(pos), eye, hit.getLocation().subtract(eye).normalize())),
+                String.format(java.util.Locale.ROOT, "%.3f", com.killer560.hub.util.BlockHits.entry(pos, eye, hit)),
                 String.format(java.util.Locale.ROOT, "%.3f", Math.sqrt(com.killer560.hub.util.BlockHits.boxDistanceSq(eye, pos))),
                 client.level.getBlockState(pos).getBlock() == Blocks.LEVER
                         ? client.level.getBlockState(pos).getValue(net.minecraft.world.level.block.LeverBlock.POWERED) : null,
@@ -355,8 +354,7 @@ public final class LeverAuraFeature {
     private static BlockHitResult bestHit(Minecraft client, BlockPos pos, Vec3 eye) {
         BlockHitResult hit = com.killer560.hub.util.BlockHits.best(client.level, pos, eye);
         if (hit == null) return null;
-        double entry = com.killer560.hub.util.BlockHits.entry(new net.minecraft.world.phys.AABB(pos), eye,
-                hit.getLocation().subtract(eye).normalize());
+        double entry = com.killer560.hub.util.BlockHits.entry(pos, eye, hit);
         if (entry > client.player.blockInteractionRange()) {
             logHeld("entry", "lever " + pos.toShortString() + ": best look enters its block at "
                     + String.format(java.util.Locale.ROOT, "%.3f", entry) + " > " + client.player.blockInteractionRange());

@@ -170,6 +170,29 @@ public final class SecretAuraFeature {
         LOGGER.info("[SecretAura] click held: {} tick={}", detail, now);
     }
 
+    /** The target held back from its click for want of a look (turn or reach), and since which tick; see {@link #stuckTicks}. */
+    private static long stuckKey = Long.MIN_VALUE;
+    private static long stuckSince;
+    private static long stuckLast = Long.MIN_VALUE / 2;
+
+    private static void noteStuck(BlockPos pos) {
+        long now = tickNow();
+        if (pos.asLong() != stuckKey || now - stuckLast > 10) {
+            stuckKey = pos.asLong();
+            stuckSince = now;
+        }
+        stuckLast = now;
+    }
+
+    /**
+     * Ticks the aura has held one in-reach target back for want of a look that reaches it (body turning, reach), 0 when it
+     * is not (ap-solo293-1122: Auto Secret leaves a route whose secret await the aura cannot meet rather than stand on it).
+     */
+    public static long stuckTicks() {
+        long now = tickNow();
+        return now - stuckLast > 10 ? 0 : stuckLast - stuckSince;
+    }
+
     /** A candidate's state, logged when its reason code changes. */
     private static void logCand(long key, String code, String kind, BlockPos pos, double distSq, String extra) {
         if (code.equals(candReasonLogged.get(key))) {
@@ -479,12 +502,27 @@ public final class SecretAuraFeature {
             logHeld("noFace", "Redstone block has no face open to air from here pos=" + xyz(bestPos));
             return; // no exposed face from here: never click a face against another block
         }
+        // The click's look must also enter the block's full cube within the interaction range (TurnFirst.readyBlock, GrimAC
+        // RotationPlace). The aim at the middle can miss that while the box is in reach: a chest 4.40 away whose middle-aim
+        // entered its cube at 4.56 kept the body turned there for good and the route's await never met (ap-solo293-1122).
+        // Then the ray that enters soonest (BlockHits.best, as Lever Aura), or nothing turned while even that is beyond.
+        double reachCap = client.player.blockInteractionRange();
+        if (!node && hit != null && com.killer560.hub.util.BlockHits.entry(bestPos, client.player.getEyePosition(), hit) > reachCap) {
+            hit = com.killer560.hub.util.BlockHits.best(client.level, bestPos, client.player.getEyePosition());
+            if (hit == null || com.killer560.hub.util.BlockHits.entry(bestPos, client.player.getEyePosition(), hit) > reachCap) {
+                noteStuck(bestPos);
+                logHeld("entry", "no look enters the block within " + fmt(reachCap) + " target=" + bestKind + "@" + xyz(bestPos));
+                return;
+            }
+        }
         if (hit != null && !TURN.readyBlock(client.player, client.level, bestPos, hit.getLocation(),
                 Math.sqrt(bestDist) + 2.0)) {
+            noteStuck(bestPos);
             logHeld("turn", "body turning first (reported look does not reach) target=" + bestKind + "@" + xyz(bestPos)
                     + " yaw=" + fmt(client.player.getYRot()) + " pitch=" + fmt(client.player.getXRot()));
             return;
         }
+        stuckLast = Long.MIN_VALUE / 2;
         long key = bestPos.asLong();
         Attempt prev = attempts.get(key);
         int count = prev == null ? 1 : prev.count() + 1;

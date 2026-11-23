@@ -3685,6 +3685,9 @@ public final class AutoSecretFeature {
         }
     }
 
+    /** Ticks Secret Aura may hold an await node's secret for want of a look before the route is left (ap-solo293-1122). */
+    private static final int AURA_STUCK_TICKS = 40;
+
     /** Still ticks on the ground before a route that only his walk can go on is given up. */
     private static final int WALK_WAIT_TICKS = 10;
 
@@ -3723,6 +3726,17 @@ public final class AutoSecretFeature {
                 LOGGER.info("[AutoSecret] route {} {} - moving on", target,
                         walk ? "waits for a walk to its next node" : "stalled (no node begun)");
                 say(ModChat.bad("The route in "), ModChat.value(target), ModChat.dim(" stalled - moving on"));
+                setPhase(Phase.SETTLE);
+            } else if (RouteExecutor.secretAuraMayClick()
+                    && com.killer560.hub.cheatutils.SecretAuraFeature.stuckTicks() > AURA_STUCK_TICKS) {
+                // The node waits for a secret that Secret Aura has in reach but cannot click (no look reaches it): nothing
+                // will change while he stands there, so the run goes on elsewhere instead of standing until Route Stall
+                // (ap-solo293-1122: Solo stood 166 ticks at 293 on Lava Ravine's first node).
+                RouteExecutor.stop("Auto Secret: Secret Aura cannot reach the secret this node waits for");
+                secreted.add(target);
+                LOGGER.info("[AutoSecret] route {}: its secret await cannot be met by Secret Aura from here - moving on",
+                        target);
+                say(ModChat.bad("The route in "), ModChat.value(target), ModChat.dim(" waits for a secret out of reach - moving on"));
                 setPhase(Phase.SETTLE);
             }
             return;
