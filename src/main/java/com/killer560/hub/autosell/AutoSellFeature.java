@@ -292,12 +292,27 @@ public final class AutoSellFeature {
         waitTicks = randomTicks(cfg);
     }
 
+    /** Keep 50% Skeleton Master Chestplates: a max quality roll ({@code baseStatBoostPercentage} 50) gets an identity that is
+     *  on no list, so it is skipped like any unlisted stack (never clicked, one "not on the sell list" line). */
+    private static String keepOrIdentity(ItemStack stack, boolean keep) {
+        String id = identityOf(stack);
+        if (keep && "SKELETON_MASTER_CHESTPLATE".equals(id)) {
+            net.minecraft.nbt.CompoundTag tag = com.killer560.hub.util.ItemNbt.view(stack);
+            if (tag != null && tag.getIntOr("baseStatBoostPercentage", 0) >= 50) {
+                return id + "_MAX_ROLL";
+            }
+        }
+        return id;
+    }
+
+
     private static List<AutoSellVisit.Stack> stacksOf(List<Slot> slots) {
         List<AutoSellVisit.Stack> out = new ArrayList<>(slots.size());
+        boolean keep = AutoSellConfig.getInstance().isKeepMaxSkeletonMaster();
         for (Slot slot : slots) {
             ItemStack stack = slot.getItem();
             if (!stack.isEmpty()) {
-                out.add(new AutoSellVisit.Stack(slot.index, identityOf(stack), stack.getCount()));
+                out.add(new AutoSellVisit.Stack(slot.index, keepOrIdentity(stack, keep), stack.getCount()));
             }
         }
         return out;

@@ -55,6 +55,8 @@ public final class AutoSellConfig {
     private int toggleKeyCode = KeyUtil.NONE;
     /** Sell in any Hypixel NPC shop, not only screens the title pattern matches (killer560, 2026-11-01). */
     private boolean anyNpcMenu = true;
+    /** Skip a Skeleton Master Chestplate with the max quality roll, baseStatBoostPercentage 50 (killer560, 2026-11-22). */
+    private boolean keepMaxSkeletonMaster = true;
     /** Bumped on every change to either list (not saved): lets Auto Sell run again on a screen it already finished
      *  on when an item is added there (killer560, 2026-10-20). */
     private static int listVersion = 0;
@@ -92,6 +94,7 @@ public final class AutoSellConfig {
             readIdentities(obj, "neverSellIdentities", cfg.neverSellIdentities);
             cfg.toggleKeyCode = KeyUtil.sanitizeBind(ConfigJson.getInt(obj, "toggleKeyCode", cfg.toggleKeyCode));
             cfg.anyNpcMenu = ConfigJson.getBool(obj, "anyNpcMenu", true);
+            cfg.keepMaxSkeletonMaster = ConfigJson.getBool(obj, "keepMaxSkeletonMaster", true);
             instance = cfg;
             listVersion++;
         } catch (Exception e) {
@@ -131,6 +134,7 @@ public final class AutoSellConfig {
             obj.add("neverSellIdentities", never);
             obj.addProperty("toggleKeyCode", toggleKeyCode);
             obj.addProperty("anyNpcMenu", anyNpcMenu);
+            obj.addProperty("keepMaxSkeletonMaster", keepMaxSkeletonMaster);
             Files.writeString(CONFIG_PATH, GSON.toJson(obj), StandardCharsets.UTF_8);
         } catch (Exception ignored) {
         }
@@ -294,6 +298,14 @@ public final class AutoSellConfig {
             }
         }
         return added;
+    }
+
+    public boolean isKeepMaxSkeletonMaster() {
+        return keepMaxSkeletonMaster;
+    }
+
+    public void setKeepMaxSkeletonMaster(boolean v) {
+        keepMaxSkeletonMaster = v;
     }
 
     public boolean isAnyNpcMenu() {

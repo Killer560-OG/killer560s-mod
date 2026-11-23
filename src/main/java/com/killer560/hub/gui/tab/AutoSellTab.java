@@ -64,6 +64,10 @@ public class AutoSellTab extends BaseTab implements KeyCaptureTab {
                 null, contentX, y, contentWidth, 20));
         y += 24;
 
+        widgets.add(onOffButton("Keep 50% Skeleton Master Chestplates", cfg::isKeepMaxSkeletonMaster, cfg::setKeepMaxSkeletonMaster, cfg::save,
+                null, contentX, y, contentWidth, 20));
+        y += 24;
+
         // Random wait between two sell clicks, 0..10 ticks, one slider for each end (killer560, 2026-10-18).
         int tickRange = AutoSellConfig.MAX_TICKS;
         widgets.add(new ThemedSliderButton(contentX, y, contentWidth, 20, minTicksText(cfg),
