@@ -512,6 +512,7 @@ public final class InventoryWalkFeature {
                     inputText(mc0.player.getLastSentInput()), inputText(serverInput), mc0.player.isSprinting()));
             return true;
         }
+        standUpForMenu(mc0);
         if (!isClick || !active) {
             return false;
         }
@@ -531,6 +532,25 @@ public final class InventoryWalkFeature {
                 lastKeys, player == null ? "-" : fmt(player.position()), player != null && player.isSprinting(),
                 pause > 0 ? ", pausing " + pause + " tick(s)" : ""));
         return false;
+    }
+
+    /**
+     * His container click, close or button going out while the server still hears Auto Clear's etherwarp sneak is GrimAC
+     * MultiActionsC / D (ackilllogic-1122, 62-argrim-1122-same-plan-openclick). The server hears him stand up just before
+     * it, vanilla is told so, and the path yields its sneak through the next tick's input (so that input sends nothing:
+     * BadPacketsZ) and its warp waits for the sneak to be heard again. His packet goes at once.
+     */
+    private static void standUpForMenu(Minecraft mc) {
+        LocalPlayer p = mc.player;
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED || p == null || !mc.isSameThread()
+                || !p.getLastSentInput().shift() || !com.killer560.hub.livemap.autoclear.ClearExecutor.sneakIsOurs()) {
+            return;
+        }
+        Input in = p.getLastSentInput();
+        Input up = new Input(in.forward(), in.backward(), in.left(), in.right(), in.jump(), false, in.sprint());
+        sendRaw(new ServerboundPlayerInputPacket(up));
+        ((com.killer560.hub.blink.mixin.BlinkReminderAccessor) p).killer560$setLastSentInput(up);
+        com.killer560.hub.livemap.autoclear.ClearExecutor.menuStoodUp();
     }
 
     /**

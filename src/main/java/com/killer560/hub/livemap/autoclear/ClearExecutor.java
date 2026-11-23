@@ -1678,7 +1678,30 @@ public final class ClearExecutor {
     /** Called from the keyboard-input mixin: the reference forces shift while an etherwarp node is current or next. */
     public static boolean shouldForceSneak() {
         sneakMixinApplied = true;
-        return forceSneakNow();
+        boolean on = forceSneakNow() && menuStoodTick < clientTicks - 1;
+        if (on) {
+            sneakForcedTick = clientTicks;
+        }
+        return on;
+    }
+
+    /** The client tick Inventory Walk last stood him up for his menu packet ({@link #menuStoodUp}). */
+    private static long menuStoodTick = Long.MIN_VALUE;
+    /** The last client tick the keyboard input was given the path's sneak. */
+    private static long sneakForcedTick = Long.MIN_VALUE;
+
+    /** Whether the sneak the server hears may be the path's (given this tick or the last). */
+    public static boolean sneakIsOurs() {
+        return sneakForcedTick >= clientTicks - 1;
+    }
+
+    /**
+     * His container click, close or button went with the path's sneak heard, and Inventory Walk sent a stand-up before
+     * it: the path yields its sneak through the next tick's input, so that input sends nothing (a second input in one
+     * client tick is GrimAC BadPacketsZ) and the warp waits for the sneak to be heard again (62-argrim-1122-same-plan-openclick).
+     */
+    public static void menuStoodUp() {
+        menuStoodTick = clientTicks;
     }
 
     /** The client tick {@link #primeNextWarp} last asked on: the sneak stays down through the tick after it. */
@@ -1707,8 +1730,14 @@ public final class ClearExecutor {
     private static boolean forceSneakNow() {
         // Not under a screen, nor in the tick it closed (his last click there may have gone this tick): a click while the
         // server hears the sneak is GrimAC MultiActionsC (testkit 1122-hx-doorprime-same-click).
-        if (com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()) != null) {
+        net.minecraft.client.gui.screens.Screen screen = com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance());
+        if (screen != null) {
             screenTick = clientTicks;
+            if (screen instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>) {
+                // His menu is up: the warp waits unsneaked (ClearNode goes only once the sneak is heard), so none of his
+                // clicks, closes or buttons there meets the sneak (MultiActionsC/D, 62-argrim-1122-same-plan-openclick).
+                return false;
+            }
         } else if (primedTick >= clientTicks - 1 && screenTick < clientTicks - 1) {
             return true;
         }
@@ -2440,6 +2469,13 @@ public final class ClearExecutor {
         }
         if (com.killer560.hub.autoroutes.RouteExecutor.clickGapPending(player)) {
             waitReason = "the click-gap (a block click with this item went under two ticks ago)";
+            pendingHeldTicks++;
+            return;
+        }
+        if (com.killer560.hub.util.ActionGate.hisClickQueued(client.options.keyAttack)) {
+            // His attack goes out in this tick's handleKeybinds, after us: vanilla sends none after a use in one tick
+            // (GrimAC PacketOrderI, 62-argrim-1122-same-plan-attack). His goes now, the hop next tick.
+            waitReason = "letting his attack go first";
             pendingHeldTicks++;
             return;
         }

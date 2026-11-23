@@ -365,6 +365,7 @@ public final class AutoClearFeature {
         spotsKey = null;
         roomSpots = List.of();
         spotsSeen.clear();
+        resetRoomTargets(List.of());
         walkOffFor = -1;
         walkDecisionKey = null;
         walkDecisionPlan = null;
@@ -411,6 +412,7 @@ public final class AutoClearFeature {
         coverIds = null;
         coverSpots = List.of();
         coverMobs = List.of();
+        resetRoomTargets(List.of());
         planKey = Long.MIN_VALUE;
         positionPacketsSeen = positionPackets;
         executorCorrectionsSeen = ClearExecutor.serverCorrections();
@@ -949,7 +951,12 @@ public final class AutoClearFeature {
         roomMobs = mobs;
         noteSpawnSpots(layout, room, mobs);
         planRepositions(client, player, mobs, cfg.getWeapon(), layout, room);
-        Entity target = pickTarget(player, mobs, cfg.getWeapon());
+        killStep = cfg.getWeapon() == AutoClearConfig.Weapon.HYPERION ? killStepNow(client, player, cfg) : null;
+        Entity target = killStep != null ? killTarget(client, player) : null;
+        if (target == null) {
+            killStep = null;
+            target = pickTarget(player, mobs, cfg.getWeapon());
+        }
         if (target.getId() != targetId) {
             targetId = target.getId();
             targetName = target.getName().getString();
@@ -3135,11 +3142,63 @@ public final class AutoClearFeature {
             releaseUse(client);
             phase = Phase.IDLE;
         }
+        // The room's kill plan (KillPlanner) has the say over the in-place / across / hop / chain / trip choice below.
+        KillPlanner.Step ks = killStep;
+        killStand = null;
+        // (Also while the cast in place before it is still held: the old chain and trip go from there too, and a plan
+        // step not taken there is a plan left - k7, most of 59 plans left were the trip after a held cast.)
+        if (ks != null && weapon == AutoClearConfig.Weapon.HYPERION) {
+            if (ks.kind() == KillPlanner.CAST) {
+                Vec3 land = null;
+                float yaw = ks.yaw();
+                float pitch = ks.pitch();
+                // The planned look first; where he stands a little off the planned spot, the nearest look a few degrees
+                // off that still lands within a block of it with the step's mobs in its blast (k8: 5 of 29 casts).
+                for (int v = 0; player.onGround() && v < PLAN_CAST_NUDGES.length; v++) {
+                    float y = ks.yaw() + PLAN_CAST_NUDGES[v][0];
+                    float p = Mth.clamp(ks.pitch() + PLAN_CAST_NUDGES[v][1], -89f, 89f);
+                    Vec3 l = com.killer560.hub.roomsim.SimAbilities.dashTarget(client.level, player, feet,
+                            TeleportUtils.getLook(y, p), WeaponReach.HYPERION_TELEPORT);
+                    if (v == 0) {
+                        land = l;
+                    }
+                    if (l != null && l.distanceToSqr(ks.at()) < 1.0 && killsStillAt(client, l, ks.kills())) {
+                        land = l;
+                        yaw = y;
+                        pitch = p;
+                        break;
+                    }
+                }
+                if (land != null && land.distanceToSqr(ks.at()) < 1.0 && killsStillAt(client, land, ks.kills())) {
+                    action = "Wither Impact (room plan) -> " + targetName + " (" + Long.bitCount(ks.kills()) + " mobs)";
+                    castHop(client, player, feet, new WeaponReach.Aim(yaw, pitch, land, "Wither Impact (room plan)"),
+                            true);
+                    if (phase == Phase.HOP) {
+                        killPlanMoves++;
+                        planAt++;
+                        LOGGER.info("[AutoClear] Wither Impact (room plan) toward {}: {} mob(s) in its blast, ~{} ticks",
+                                targetName, Long.bitCount(ks.kills()), ks.ticks());
+                    }
+                    return;
+                }
+                if (player.onGround()) {
+                    LOGGER.info("[AutoClear] the room plan's cast no longer lands as planned ({}) - the old choice goes on",
+                            land == null ? "no dash" : land.distanceTo(ks.at()) >= 1.0 ? "lands elsewhere" : "its mobs moved");
+                    activePlan = null;
+                    killStep = null;
+                    ks = null;
+                }
+            } else if (ks.kind() == KillPlanner.ETHER && !noLandStands.contains(ks.stand())) {
+                killStand = ks.stand();
+            } else if (ks.kind() == KillPlanner.ETHER) {
+                ks = null;   // no trip landed there earlier in this room: the old choice decides
+            }
+        }
         if (cachedAttack != null) {
             // With the sceptre, a bat from here still has to FLY there: a far one can be slower than etherwarping onto
             // the plan's block and firing down. Never second-guessed once its use is held (no flip-flop mid-flight).
             boolean held = useHeld && phase == Phase.ATTACK;
-            if (weapon == AutoClearConfig.Weapon.HYPERION && !held && cfg.isHyperionHops() && hopsOffFor != targetId
+            if (weapon == AutoClearConfig.Weapon.HYPERION && !held && ks == null && cfg.isHyperionHops() && hopsOffFor != targetId
                     && player.onGround()) {
                 // Across, not straight down, when one look's landing blast reaches every mob straight down does and more.
                 WeaponReach.Cast across = bestCast(client, player, feet, target);
@@ -3147,6 +3206,7 @@ public final class AutoClearFeature {
                     action = "Wither Impact across -> " + targetName + " (" + across.mobs() + " mobs)";
                     castHop(client, player, feet, across.aim(), true);
                     if (phase == Phase.HOP) {
+                        askAfterCast(client, player, cfg, across.aim().expectFeet());
                         LOGGER.info("[AutoClear] Wither Impact across at {}: {} mob(s) in its blast", targetName,
                                 across.mobs());
                     }
@@ -3187,7 +3247,7 @@ public final class AutoClearFeature {
                 : warpsTo(feet, priceSpot);
         int etherTicks = tripTicks(warps);
         int hypeTicks = cachedHops > 0 ? 2 + USE_REPEAT_TICKS * (cachedHops - 1) : Integer.MAX_VALUE;
-        if (weapon == AutoClearConfig.Weapon.HYPERION && hyperionBatWins(client, player, target, box, etherTicks,
+        if (weapon == AutoClearConfig.Weapon.HYPERION && killStand == null && hyperionBatWins(client, player, target, box, etherTicks,
                 canHop ? hypeTicks : Integer.MAX_VALUE)) {
             holdingBatFlight = cachedBatTicks;
             if (waitForBatInFlight(client)) {
@@ -3207,7 +3267,7 @@ public final class AutoClearFeature {
         }
         // A hop's own landing blast is the kill; a trip still needs the weapon back and the cast after it.
         int etherKill = etherTicks + HYPERION_KILL_TICKS;
-        if (canHop && hypeTicks <= etherKill) {
+        if (killStand == null && canHop && hypeTicks <= etherKill) {
             WeaponReach.Aim hop = WeaponReach.hyperionHop(client.level, player, feet, box);
             // A hop is a reposition too: where the plan's block for this mob reaches others as well, the hop must reach
             // every one of them from where it lands, or it would cost a reposition the plan does not (killer560,
@@ -3219,6 +3279,7 @@ public final class AutoClearFeature {
                 action = hop.what() + " (" + cachedHops + " hop(s) ~" + hypeTicks + " ticks vs etherwarp ~" + etherTicks + ")";
                 castHop(client, player, feet, hop, false);
                 if (phase == Phase.HOP) {
+                    askAfterCast(client, player, cfg, hop.expectFeet());
                     LOGGER.info("[AutoClear] hop toward {} at {}: {} hop(s) ~{} ticks vs etherwarp ~{} ticks", targetName,
                             target.blockPosition().toShortString(), cachedHops, hypeTicks, etherTicks);
                 }
@@ -3231,7 +3292,8 @@ public final class AutoClearFeature {
         // longer), and is taken only where its measured price undercuts the trip: a turn tick, the learned use-to-standing
         // cost, and the fall after a dash that ends in the air (new5 priced a link a flat 2 ticks; it really cost a turn,
         // ~3 ticks to see the landing and up to 8 falling, so 22 chains made the floor 8% slower).
-        WeaponReach.Cast one = canHop && weapon == AutoClearConfig.Weapon.HYPERION ? bestCast(client, player, feet, target) : null;
+        WeaponReach.Cast one = killStand == null && canHop && weapon == AutoClearConfig.Weapon.HYPERION
+                ? bestCast(client, player, feet, target) : null;
         if (one != null && landingKeepsPlan(client, one.aim().expectFeet(), target)) {
             int link = (int) Math.round(1 + linkMean) + one.fall();
             // A tie goes to the chain: the trip's price leaves out its own swap ticks, and in the same layout a tied trip
@@ -3240,6 +3302,7 @@ public final class AutoClearFeature {
                 action = "Wither Impact chain -> " + targetName + " (" + one.mobs() + " mobs, ~" + link + " ticks vs etherwarp ~" + etherKill + ")";
                 castHop(client, player, feet, one.aim(), false);
                 if (phase == Phase.HOP) {
+                    askAfterCast(client, player, cfg, one.aim().expectFeet());
                     LOGGER.info("[AutoClear] Wither Impact chain toward {} at {}: {} mob(s) in its blast, ~{} ticks (turn 1, cast {}, fall {}) vs etherwarp ~{}",
                             targetName, target.blockPosition().toShortString(), one.mobs(), link,
                             String.format(Locale.US, "%.1f", linkMean), one.fall(), etherKill);
@@ -3247,9 +3310,9 @@ public final class AutoClearFeature {
                 return;
             }
         }
-        BlockPos planned = coverSpotFor(target);
+        BlockPos planned = killStand != null ? killStand : coverSpotFor(target);
         BlockPos spot = planned != null ? planned : WeaponReach.standSpot(client.level, player, box, cfg.getWeapon());
-        if (planned != null && BlockPos.containing(feet).below().equals(planned)) {
+        if (killStand == null && planned != null && BlockPos.containing(feet).below().equals(planned)) {
             // The room's plan is rebuilt at most every COVER_REPLAN_TICKS while a mob walks, so on the tick he lands on
             // the planned block it can still name that block for a mob that has walked out of its reach. Skipping the mob
             // there cost Balcony 8 s on 2026-10-19 (22:14:39-46: skipped, 46 ticks idle, two roams, back to this block).
@@ -3278,7 +3341,7 @@ public final class AutoClearFeature {
             targetId = -1;
             return;
         }
-        if (planned != null && spot.equals(planned)) {
+        if (planned != null && killStand == null && spot.equals(planned)) {
             // Of the blocks that reach what the plan's block reaches, one that a single warp from here lands on.
             spot = preferOneWarp(client, feet, planned);
         }
@@ -3325,6 +3388,13 @@ public final class AutoClearFeature {
             // Said (and counted) once the trip has really started: a body still turned back first (Phase.RELEASE) comes
             // through here again next tick, and used to log the same etherwarp twice.
             repositions++;
+            if (killStand != null) {
+                killPlanMoves++;
+                planAt++;
+            } else if (weapon == AutoClearConfig.Weapon.HYPERION) {
+                askPlan(client, player, cfg, new Vec3(goal.getX() + 0.5, goal.getY() + 1.0, goal.getZ() + 0.5),
+                        aliveTargets(player));
+            }
             LOGGER.info("[AutoClear] etherwarp toward {} at {}: stand {} (~{} ticks; hops {}){}", targetName,
                     target.blockPosition().toShortString(), goal.toShortString(), etherTicks, cachedHops,
                     planned != null ? " - the plan's block reaching " + coverCountFor(target) + " mob(s)"
@@ -4856,12 +4926,12 @@ public final class AutoClearFeature {
             spotsKey = key;
             spotsSeen.clear();
             roomSpots = new java.util.ArrayList<>();
-            if (key != null) {
-                for (net.minecraft.world.phys.AABB box : com.killer560.hub.bloodrush.BloodRushData.worldBoxes(name,
-                        new com.killer560.hub.autoroutes.RouteCoords.Frame(name, cr[0], cr[1], cr[2]))) {
-                    roomSpots.add(new Vec3((box.minX + box.maxX) / 2, box.minY, (box.minZ + box.maxZ) / 2));
-                }
+            List<AABB> boxes = key == null ? List.of() : com.killer560.hub.bloodrush.BloodRushData.worldBoxes(name,
+                    new com.killer560.hub.autoroutes.RouteCoords.Frame(name, cr[0], cr[1], cr[2]));
+            for (AABB box : boxes) {
+                roomSpots.add(new Vec3((box.minX + box.maxX) / 2, box.minY, (box.minZ + box.maxZ) / 2));
             }
+            resetRoomTargets(boxes);
         }
         for (Vec3 s : roomSpots) {
             if (spotsSeen.contains(s)) {
@@ -5369,6 +5439,275 @@ public final class AutoClearFeature {
             return 0;
         }
         return ETHER_FIXED_TICKS + ETHER_TICKS_PER_WARP * Math.max(1, Math.ceil(d / Math.max(1.0, ClearExecutor.hopRange())));
+    }
+
+    // ---- the room's kill plan (ackilllogic-1122, KillPlanner): in-place casts, casts across and etherwarps as one
+    // sequence of the fewest ticks, planned off the render thread over the room's known spawn spots ----
+
+    /** Yaw and pitch offsets tried, in order, for a planned cast from a spot a little off the planned one. */
+    private static final float[][] PLAN_CAST_NUDGES = {{0f, 0f}, {3f, 0f}, {-3f, 0f}, {0f, 4f}, {0f, -4f}, {6f, 0f},
+            {-6f, 0f}, {3f, 4f}, {-3f, 4f}};
+    /** At most this many targets a room (the plan's masks are longs). */
+    private static final int MAX_TARGETS = 63;
+    /**
+     * The room's targets, whose bits every plan mask uses: first one per known spawn spot (BloodRushData.worldBoxes), then
+     * any mob seen off every spot. A mob takes the target of the free spot box it stands in (1.5 blocks of slack) the first
+     * time it is seen and keeps it, so a sighting on a known spot changes no plan and a death only clears a bit. Reset on
+     * a new room, rotation or run.
+     */
+    private static final AABB[] targetZone = new AABB[MAX_TARGETS];
+    /** Where the target's mob stands (last seen), or a mob-sized box on the spot's floor while none has been seen. */
+    private static final AABB[] targetBox = new AABB[MAX_TARGETS];
+    private static final double[] spotX = new double[MAX_TARGETS];
+    private static final double[] spotY = new double[MAX_TARGETS];
+    private static final double[] spotZ = new double[MAX_TARGETS];
+    /** The entity id that took the target, 0 while none has. */
+    private static final int[] targetMob = new int[MAX_TARGETS];
+    private static int targetCount = 0;
+    /** Bumped on every reset: a plan made for an earlier room never matches. */
+    private static int targetsRoom = 0;
+    /** A spot this far from his eyes may hold a mob his client has not loaded: it counts as alive until seen. */
+    static final double SPOT_UNLOADED = 64.0;
+    /** The plan being followed and its next step; null when the old per-mob choice decides. */
+    private static KillPlanner.Plan activePlan = null;
+    private static KillPlanner.Plan lastTaken = null;
+    private static int planAt = 0;
+    /** The plan step for this decision, null when the old per-mob choice decides. */
+    private static KillPlanner.Step killStep = null;
+    /** The targets the step (or, for a trip, the cast after it) kills: the mob aimed at is one of them. */
+    private static long killTargets = 0;
+    /** The stand a planned trip goes to, for this attack() call. */
+    private static BlockPos killStand = null;
+    /** The last state a plan was asked for: never asked twice, never waited for. */
+    private static long askKey = 0;
+    private static Vec3 askFeet = null;
+    private static long askAlive = 0;
+    private static long askTick = Long.MIN_VALUE / 2;
+    /** A plan asked for where a move will end stands for any state there within this many ticks. */
+    private static final int ASK_FRESH_TICKS = 40;
+    private static long killPlanLogged = -1;
+    /** Casts and trips sent from a room plan, ever. */
+    private static int killPlanMoves = 0;
+
+    /** For the testkit: moves (casts across, trips) Auto Clear took from a room's kill plan so far (only goes up). */
+    public static int killPlanMoves() {
+        return killPlanMoves;
+    }
+
+    private static void resetRoomTargets(List<AABB> spots) {
+        targetCount = 0;
+        for (AABB b : spots) {
+            if (targetCount == MAX_TARGETS) {
+                break;
+            }
+            double x = (b.minX + b.maxX) / 2;
+            double z = (b.minZ + b.maxZ) / 2;
+            targetZone[targetCount] = b.inflate(1.5);
+            targetBox[targetCount] = new AABB(x - 0.3, b.minY, z - 0.3, x + 0.3, b.minY + 1.95, z + 0.3);
+            spotX[targetCount] = x;
+            spotY[targetCount] = b.minY;
+            spotZ[targetCount] = z;
+            targetMob[targetCount++] = 0;
+        }
+        targetsRoom++;
+        activePlan = null;
+        killStep = null;
+        askKey = 0;
+        askFeet = null;
+        KillPlanner.reset();
+    }
+
+    /** The target {@code e} took (it takes one the first time it is seen), or -1 when the room has no room for it. */
+    private static int targetOf(Entity e) {
+        int id = e.getId();
+        for (int i = 0; i < targetCount; i++) {
+            if (targetMob[i] == id) {
+                return i;
+            }
+        }
+        for (int i = 0; i < targetCount; i++) {
+            if (targetMob[i] == 0 && targetZone[i] != null && targetZone[i].contains(e.getX(), e.getY(), e.getZ())) {
+                targetMob[i] = id;
+                return i;
+            }
+        }
+        if (targetCount == MAX_TARGETS) {
+            return -1;
+        }
+        targetZone[targetCount] = null;
+        targetMob[targetCount] = id;
+        return targetCount++;
+    }
+
+    /** Bit i set when target i's mob is alive here now, or target i is a spot too far off for its mob to be loaded yet. */
+    private static long aliveTargets(LocalPlayer player) {
+        long m = 0;
+        for (Entity e : roomMobs) {
+            int i = targetOf(e);
+            if (i >= 0) {
+                m |= 1L << i;
+                targetBox[i] = e.getBoundingBox();
+            }
+        }
+        double ex = player.getX();
+        double ey = player.getEyeY();
+        double ez = player.getZ();
+        for (int i = 0; i < targetCount; i++) {
+            if (targetMob[i] == 0 && targetZone[i] != null) {
+                double dx = spotX[i] - ex;
+                double dy = spotY[i] - ey;
+                double dz = spotZ[i] - ez;
+                if (dx * dx + dy * dy + dz * dz > SPOT_UNLOADED * SPOT_UNLOADED) {
+                    m |= 1L << i;
+                }
+            }
+        }
+        return m;
+    }
+
+    private static long stepKills(List<KillPlanner.Step> steps, int i) {
+        KillPlanner.Step s = steps.get(i);
+        return s.kind() == KillPlanner.ETHER && i + 1 < steps.size() ? steps.get(i + 1).kills() : s.kills();
+    }
+
+    /**
+     * The step of the room plan he is following, or of the newest plan when it starts where he stands with no target
+     * alive that it did not plan for; null when the old per-mob choice decides (a plan for this state is then asked
+     * for, once, and never waited for). Steps whose targets are all dead already are passed over; standing anywhere but
+     * where the next step starts leaves the plan for the rest of it.
+     */
+    private static KillPlanner.Step killStepNow(Minecraft client, LocalPlayer player, AutoClearConfig cfg) {
+        if (roomMobs.isEmpty() || client.level == null) {
+            return null;
+        }
+        Vec3 feet = player.position();
+        long alive = aliveTargets(player);
+        KillPlanner.Plan p = KillPlanner.latest();
+        if (activePlan == null && p != null && p != lastTaken && p.room() == targetsRoom
+                && (alive & ~p.alive0()) == 0 && p.start().distanceToSqr(feet) < 2.25) {
+            if (p.steps().isEmpty()) {
+                if (p.job() != killPlanLogged) {
+                    killPlanLogged = p.job();
+                    LOGGER.info("[AutoClear] kill plan for {}: the old choice (~{} ticks) kept - no sequence beats it by {}"
+                            + " ({} node(s), {} ms)", roomName, p.oldTicks(), KillPlanner.margin(p.oldTicks()), p.nodes(),
+                            String.format(Locale.US, "%.1f", p.ms()));
+                }
+            } else {
+                activePlan = p;
+                lastTaken = p;
+                planAt = 0;
+                logKillPlan(p);
+            }
+        }
+        if (activePlan != null) {
+            List<KillPlanner.Step> st = activePlan.steps();
+            while (planAt < st.size() && (stepKills(st, planAt) & alive) == 0) {
+                planAt += st.get(planAt).kind() == KillPlanner.ETHER ? 2 : 1;
+            }
+            // An etherwarp step goes from anywhere near its start at about the same price (k10: Golden Oasis left its
+            // plan three times at 1.6-1.8 blocks); a cast needs its start, and the nudged looks check its landing anyway.
+            if (planAt < st.size() && st.get(planAt).from().distanceToSqr(feet)
+                    < (st.get(planAt).kind() == KillPlanner.ETHER ? 9.0 : 2.25)) {
+                killTargets = stepKills(st, planAt);
+                return st.get(planAt);
+            }
+            if (planAt < st.size()) {
+                LOGGER.info(String.format(Locale.US, "[AutoClear] left the kill plan for %s at step %d of %d: %.1f blocks"
+                        + " from where it starts - the old choice goes on", roomName, planAt + 1, st.size(),
+                        Math.sqrt(st.get(planAt).from().distanceToSqr(feet))));
+            }
+            activePlan = null;
+        }
+        askPlan(client, player, cfg, feet, alive);
+        return null;
+    }
+
+    /**
+     * Asks the planner for the room from {@code feet} with {@code alive} alive, unless that state, or a state there with
+     * every one of these alive, was asked for lately: called where a move of the old choice will end as it starts, so the
+     * plan is there when he lands.
+     */
+    private static void askPlan(Minecraft client, LocalPlayer player, AutoClearConfig cfg, Vec3 feet, long alive) {
+        if (alive == 0 || client.level == null) {
+            return;
+        }
+        long key = KillPlanner.posKey(feet) * 31 + alive * 17 + targetsRoom;
+        long now = ClearExecutor.clientTick();
+        if (key == askKey || askFeet != null && now - askTick < ASK_FRESH_TICKS && askFeet.distanceToSqr(feet) < 2.25
+                && (alive & ~askAlive) == 0) {
+            return;
+        }
+        askKey = key;
+        askFeet = feet;
+        askAlive = alive;
+        askTick = now;
+        int[] trip = new int[8];
+        for (int w = 1; w < trip.length; w++) {
+            trip[w] = tripTicks(w);
+        }
+        boolean casts = cfg.isHyperionHops() && hopsOffFor < 0
+                && ItemIdentity.findHotbarSlot(player, AutoClearConfig.Weapon.HYPERION.itemId()) >= 0;
+        // Never a stand no trip landed on earlier in this room (the old trip skips those, or walks).
+        long[] noLand = new long[noLandStands.size()];
+        int n = 0;
+        for (BlockPos b : noLandStands) {
+            noLand[n++] = b.asLong();
+        }
+        KillPlanner.submit(targetsRoom, java.util.Arrays.copyOf(targetBox, targetCount), alive, feet, noLand, trip,
+                (int) Math.round(1 + linkMean), HYPERION_KILL_TICKS, ESTIMATE_USE_TICKS, casts, client.level, player,
+                roomName);
+    }
+
+    /** {@link #askPlan} for where a cast of the old choice lands, its blast's targets dead. */
+    private static void askAfterCast(Minecraft client, LocalPlayer player, AutoClearConfig cfg, Vec3 land) {
+        if (cfg.getWeapon() != AutoClearConfig.Weapon.HYPERION || land == null) {
+            return;
+        }
+        long alive = aliveTargets(player);
+        for (int i = 0; i < targetCount; i++) {
+            if (WeaponReach.hyperionHits(land, targetBox[i])) {
+                alive &= ~(1L << i);
+            }
+        }
+        askPlan(client, player, cfg, land, alive);
+    }
+
+    /** The nearest live mob of the room whose target the plan step kills, or null. */
+    private static Entity killTarget(Minecraft client, LocalPlayer player) {
+        Entity best = null;
+        double bestD = Double.MAX_VALUE;
+        for (Entity e : roomMobs) {
+            int i = targetOf(e);
+            if (i >= 0 && (killTargets & (1L << i)) != 0 && e.isAlive()) {
+                double d = e.distanceToSqr(player);
+                if (d < bestD) {
+                    bestD = d;
+                    best = e;
+                }
+            }
+        }
+        return best;
+    }
+
+    /** Whether a blast with his feet at {@code land} still reaches at least one live mob of {@code kills}. */
+    private static boolean killsStillAt(Minecraft client, Vec3 land, long kills) {
+        for (Entity e : roomMobs) {
+            int i = targetOf(e);
+            if (i >= 0 && (kills & (1L << i)) != 0 && e.isAlive() && WeaponReach.hyperionHits(land, e.getBoundingBox())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static void logKillPlan(KillPlanner.Plan plan) {
+        List<String> parts = new java.util.ArrayList<>();
+        for (KillPlanner.Step s : plan.steps()) {
+            parts.add(s.describe());
+        }
+        LOGGER.info(String.format(Locale.US, "[AutoClear] kill plan for %s: %d step(s) ~%d ticks vs the old choice ~%d, %d"
+                        + " node(s), %d fan(s), %.1f ms: %s", roomName, plan.steps().size(), plan.ticks(), plan.oldTicks(),
+                plan.nodes(), plan.fans(), plan.ms(), String.join(", ", parts)));
     }
 
     private static String describePlan(List<BlockPos> order, List<Set<Integer>> reach) {

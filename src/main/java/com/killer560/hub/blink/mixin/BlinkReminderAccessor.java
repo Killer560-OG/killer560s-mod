@@ -17,4 +17,8 @@ public interface BlinkReminderAccessor {
     /** The yaw the last movement packet reported (util/PlaceRotationGuard#beforeUse). */
     @Accessor("yRotLast")
     float killer560$yRotLast();
+
+    /** What vanilla believes the server last heard (invwalk/InventoryWalkFeature#standUpForMenu). */
+    @Accessor("lastSentInput")
+    void killer560$setLastSentInput(net.minecraft.world.entity.player.Input input);
 }

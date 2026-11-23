@@ -451,3 +451,37 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   1122-hx-doorprime-same-* run the prime with his own action in its ticks on GrimAC. The primed sneak is never held
   under an open screen: his container click while the server hears sneaking is GrimAC MultiActionsC (56 flags in the
   first run of the click row).
+
+## Room kill plan from spawn spots (ackilllogic-1122)
+
+- A plan built from sightings came too late and planned against half a room; KillPlanner plans from the room's spawn
+  boxes (BloodRushData.worldBoxes, the same spots the sim fills), off-thread, asked for where an old-path move will END
+  so it is ready on landing. Sightings only take a spot (first sight inside a box inflated 1.5) or add an off-spot mob.
+- "Never slower" needs the old path priced by the SAME cost model as the plan, and that model must be faithful: a greedy
+  stand-in priced Museum at 65 ticks against a real 47 and let worse plans through. oldChoice copies the real order
+  (cast while anything is in the blast, RepositionPlanner's cover tour re-planned after each death, the one-warp swap,
+  then hop / chain cast / trip). The plan is taken only when it beats that by max(3, old/12).
+- A plan taken but left at once costs a re-plan each time: k10's Golden Oasis left its plan three times 1.6-1.8 blocks
+  from an etherwarp step's start (+17 ticks). An etherwarp step now accepts 3 blocks; a cast keeps 1.5, and the cast
+  is checked again with nudged looks before it is sent (5 of 29 planned casts missed without the nudges).
+- Ignoring the plan while a held in-place cast was on (useHeld && ATTACK) sent the following trip down the old path and
+  left 59 of 65 plans (k7). The plan applies whenever it has a step; the guided bat is off while a plan stand is set.
+- Room times are coupled: where one room ends changes the next room's time, so a per-room after table splits rooms
+  where a plan was taken from the rest (planrooms.py); judge the plan by the first group.
+- Measured (1020-sim-ac-speed, Hyperion, 6 floors / 91 rooms, second PC, deterministic base 3216 = 3216): plans 3216 ->
+  3086 ticks (-4.0%), no floor slower (F1 -9, F2 -30, F3 -26.5, F4 -7, F5 -0.5, F6 -57; 6/Steps -45). The four rooms
+  slower than the 4-tick base spread (2/Blue Skulls +9, 5/Banners +8, 5/Waterfall +7, 4/Overgrown +5) all ENTER from a
+  different spot than base (the room before ended elsewhere, usually faster), and each nets <= +3 with that room.
+  Carry-in, not a plan choice: compare entries (trip line + first decision) before blaming a room's own plan.
+- Pricing must be honest on BOTH sides or neither: pricing the old hop at its measured cost (link+1, the next decision
+  comes 4-5 ticks after a hop, not the link+fall 9-12 the model said) while plan casts kept link+fall, and plans waited
+  to land, cut taken plans from ~36 to 16 and the total got worse (3181 vs 3086). Price plan casts the same measured
+  way before changing the old hop's price.
+- Grim (62-argrim-1122-same-plan-openclick): his container click while the path's etherwarp sneak is heard is
+  MultiActionsC (GrimAC sets isSneaking from player_input at once). Inventory Walk sends a stand-up input just before
+  his packet, and the path YIELDS its sneak through the next tick's input (ClearExecutor.menuStoodUp): re-sending it
+  at once toggled the sneak every tick, two inputs in one client tick (BadPacketsZ, experimental) and one MultiActionsC
+  left. Under an open container screen the path never sneaks; its warp waits for the sneak to be heard again.
+  The path's hop goes at START, before handleKeybinds, so his queued attack went right after its use_item in one tick
+  (PacketOrderI, experimental, 62-argrim-1122-same-plan-attack): the hop now waits a tick while his attack is queued.
+  Same-tick rows for a yielding feature give his action every third tick, or the feature never gets a tick to act.

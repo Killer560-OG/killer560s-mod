@@ -148,8 +148,8 @@ public final class WeaponReach {
         return t;
     }
 
-    private static final float[] FAN_PITCHES = {0f, 12f, 25f, 40f, 55f, 70f};
-    private static final int FAN_YAWS = 24;
+    static final float[] FAN_PITCHES = {0f, 12f, 25f, 40f, 55f, 70f};
+    static final int FAN_YAWS = 24;
 
     /** The mobs and spots a blast with his feet at {@code at} reaches. */
     static Cast castFrom(Aim aim, Vec3 at, List<AABB> mobs, List<Vec3> spots) {
