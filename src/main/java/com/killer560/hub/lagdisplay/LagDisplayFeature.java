@@ -178,7 +178,7 @@ public final class LagDisplayFeature {
     /** @return current server TPS (capped at 20), or -1 when the server isn't ping-driven right now or
      *  there isn't enough data yet - same windowed-tick-time approach as {@code ChatCommandsFeature}'s
      *  own "!tps" command; see that method's doc for why this only ever trusts ping-driven ticks. */
-    private static double tps() {
+    public static double tps() {
         if (!perTickServer()) {
             return -1.0;
         }

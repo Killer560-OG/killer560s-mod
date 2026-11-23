@@ -113,7 +113,7 @@ public final class SearchCommands {
             Map.entry("killer560", "opens this menu"),
             Map.entry("k560tested", "testing build: marks a tab tested"),
             Map.entry("online", "opens the Online Now screen; Online Count has no card"),
-            Map.entry("bugreport", "builds the bug report zip; no setting"),
+            Map.entry("bugreport", "opens the bug report screen; no setting"),
             Map.entry("logreport", "same as bugreport"),
             Map.entry("reboot", "restarts the game; no setting"));
 

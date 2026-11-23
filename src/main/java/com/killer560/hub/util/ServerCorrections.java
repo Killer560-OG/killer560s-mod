@@ -54,6 +54,7 @@ public final class ServerCorrections {
     public static void reportEvent(String feature, String what) { say(feature, what, what + "."); }
 
     private static void say(String feature, String logText, String chatText) {
+        lastReport = java.time.LocalTime.now().withNano(0) + " " + feature + ": " + logText;
         int folded;
         synchronized (ServerCorrections.class) {
             reports++;
@@ -76,6 +77,10 @@ public final class ServerCorrections {
     }
 
     private static volatile double lastMoveDistance;
+    private static volatile String lastReport = "none";
+
+    /** The last correction announced in chat, with its time and feature (a bug report reads it). */
+    public static String lastReport() { return lastReport; }
     private static volatile int packetCount;
 
     /**

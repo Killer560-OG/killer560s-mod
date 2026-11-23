@@ -644,7 +644,8 @@ public class Killer560ModClient implements ClientModInitializer {
         ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) -> {
             dispatcher.register(ClientCommands.literal("leaporder")
                     .executes(context -> com.killer560.hub.leapmenu.LeapOrderScreen.openFromCommand()));
-            // /bugreport and /logreport build the same zip as "/killer560 bugreport" (killer560, 2026-11-15).
+            // /bugreport and /logreport open the bug report screen, as "/killer560 bugreport" does (killer560, 2026-11-15;
+            // the screen 2026-11-22); text after them goes in its Title box.
             for (String n : new String[] {"bugreport", "logreport"}) {
                 dispatcher.register(ClientCommands.literal(n)
                         .executes(context -> com.killer560.hub.bugreport.BugReportFeature.generate())

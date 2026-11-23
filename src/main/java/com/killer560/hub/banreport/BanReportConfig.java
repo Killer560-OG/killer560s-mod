@@ -73,7 +73,6 @@ public final class BanReportConfig {
         trim(cfg.reported);
         trim(cfg.sentAt);
         instance = cfg;
-        SessionLogTap.setActive(cfg.enabled);
     }
 
     private static <T> void trim(List<T> list) {
@@ -102,13 +101,9 @@ public final class BanReportConfig {
         return enabled;
     }
 
-    /** Also starts or stops the session log tap: nothing is kept in memory while this is off. */
+    /** Off, nothing is sent; the mod's in-memory log ({@link SessionLogTap}) is kept either way, for /bugreport. */
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
-        SessionLogTap.setActive(enabled);
-        if (!enabled) {
-            SessionLogTap.clear();
-        }
     }
 
     public boolean wasReported(String banKey) {

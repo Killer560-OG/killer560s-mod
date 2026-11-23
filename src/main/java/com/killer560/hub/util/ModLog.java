@@ -117,8 +117,9 @@ public final class ModLog {
     /**
      * Passes every call to {@code delegate} unchanged, and while {@link SessionRecorderSink#active()} (for a recorded
      * {@code feature}; null for every other logger) also hands the INFO, WARN and ERROR lines to the recorder, and while
-     * {@link SessionLogTap#wants} to the ban-report tap. INFO counts as enabled while either is on even where the
-     * delegate drops it (a release jar), so those lines still reach them without reaching the log.
+     * {@link SessionLogTap#wants} (every logger not in its SKIP list) to the in-memory session log that bug and ban
+     * reports read. INFO counts as enabled for those even where the delegate drops it (a release jar), so the lines still
+     * reach them without reaching the log.
      */
     private static final class RecordingLogger extends LegacyAbstractLogger {
 

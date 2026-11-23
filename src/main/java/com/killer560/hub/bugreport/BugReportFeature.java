@@ -14,7 +14,6 @@ import net.fabricmc.loader.api.ModContainer;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
 
-import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -132,79 +131,178 @@ public final class BugReportFeature {
     private BugReportFeature() {
     }
 
-    /** Wire this up as the {@code /killer560 bugreport} executor - see the class doc / handoff note for
-     *  exactly where. Never throws: every failure is reported in chat instead (requirement: must never
-     *  crash the game). Returns 1 (brigadier "success") either way since the command itself always ran. */
+    /** The relay refuses a zip over 3,000,000 bytes; a posted zip is trimmed to stay under this. */
+    static final int POST_LIMIT = 2_900_000;
+
+    /** What a report holds, in the order the screen lists it (also written into the zip as contents.txt). */
+    public static final List<String> CONTENTS = List.of(
+            "note.txt - your title and description",
+            "report.txt - mod, Minecraft, loader, Java and OS versions, memory, which jar, every loaded mod",
+            "mod-log.txt - the mod's own recent log lines (kept in memory, never other players' chat)",
+            "logs/latest.log - the game log",
+            "automation.txt - dungeon floor and phase, ping, server TPS, server corrections, sim and automation state",
+            "features-on.txt - every feature you have switched on",
+            "state.txt, sidebar.txt, readers.txt, hud.txt - what the mod sees right now",
+            "configs/ - every mod setting file, secrets removed");
+
+    /** What the screen shows while a report is saved or posted. Called on the client thread. */
+    public interface Listener {
+        void update(String status, boolean done, boolean ok);
+    }
+
+    /** /bugreport, /logreport and /killer560 bugreport: opens the bug report screen. Never throws. */
     public static int generate() {
         return generate("");
     }
 
-    /** Reads the client state here (client thread), then writes the zip on a worker thread. */
-    public static int generate(String note) {
+    /** As {@link #generate()}, with {@code title} typed in the Title box already. */
+    public static int generate(String title) {
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        // ChatScreen clears the screen right after a command returns, so the open is queued (docs/LESSONS-GUI.md).
+        mc.execute(() -> mc.setScreenAndShow(new BugReportScreen(com.killer560.hub.compat.McCompat.screen(mc)).title(title)));
+        return 1;
+    }
+
+    /**
+     * Saves one report: the client state is read here (client thread), the zip is built and written on a worker thread,
+     * and with {@code post} it is then sent to the relay, which posts it in the Discord's bug report forum. Every step is
+     * told to {@code listener} and in chat. Never throws.
+     */
+    public static void save(String title, String description, boolean post, Listener listener) {
         java.util.Map<String, String> snapshot;
         String reportText;
+        net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+        String self = mc.getUser() == null ? null : mc.getUser().getName();
+        String selfUuid = mc.getUser() == null || mc.getUser().getProfileId() == null ? null : mc.getUser().getProfileId().toString();
         try {
-            snapshot = ReportSnapshot.take(note);
+            snapshot = ReportSnapshot.take(title, description);
             reportText = buildReportText();
         } catch (RuntimeException e) {
             LOGGER.warn("Bug report snapshot failed", e);
-            ModChat.send("Bug Report", ModChat.bad("Couldn't generate a bug report: " + e.getMessage()));
-            return 1;
+            fail(listener, "Couldn't make a bug report: " + e.getMessage());
+            return;
         }
+        listener.update("Saving...", false, false);
         Thread t = new Thread(() -> {
+            Path zipPath;
+            java.util.Map<String, String> files;
             try {
-                Path zipPath = buildZip(snapshot, reportText);
-                net.minecraft.client.Minecraft.getInstance().execute(() -> {
-                    ModChat.send("Bug Report",
-                            ModChat.good("Saved: "), ModChat.value(zipPath.toString()),
-                            ModChat.text(" - drag that file into Discord."
-                                    + (note == null || note.isBlank() ? " Tip: /bugreport <what is wrong> adds your note to the report." : "")));
-                    tryOpenContainingFolder(zipPath);
-                });
+                files = collect(snapshot, reportText, self, selfUuid);
+                zipPath = writeZip(files);
             } catch (Exception e) {
                 LOGGER.warn("Bug report generation failed", e);
-                net.minecraft.client.Minecraft.getInstance().execute(() ->
-                        ModChat.send("Bug Report", ModChat.bad("Couldn't generate a bug report: " + e.getMessage())));
+                mc.execute(() -> fail(listener, "Couldn't save the bug report: " + e.getMessage()));
+                return;
+            }
+            mc.execute(() -> {
+                ModChat.send("Bug Report", ModChat.good("Saved: "), clickablePath(zipPath),
+                        ModChat.text(post ? " - posting it to the Discord..." : " - drag that file into Discord, or use Save and Post."));
+                listener.update(post ? "Saved. Posting to the Discord..." : "Saved: " + zipPath.getFileName(), !post, true);
+                if (!post) {
+                    tryOpenContainingFolder(zipPath);
+                }
+            });
+            if (post) {
+                BugReportPost.send(files, title, description, (ok, msg) -> mc.execute(() -> {
+                    if (ok) {
+                        ModChat.send("Bug Report", ModChat.good("Posted to the Discord. "), msg.startsWith("https://")
+                                ? link(msg.split(" ", 2)[0]) : ModChat.text(""),
+                                ModChat.text(msg.startsWith("https://") ? msg.substring(msg.split(" ", 2)[0].length()) : msg));
+                    } else {
+                        ModChat.send("Bug Report", ModChat.bad("Not posted: "), ModChat.text(msg + " The zip is saved."));
+                    }
+                    listener.update(ok ? "Posted: " + msg : "Saved, but not posted: " + msg, true, ok);
+                }));
             }
         }, "killer560smod-bugreport");
         t.setDaemon(true);
         t.start();
-        return 1;
     }
 
-    private static Path buildZip(java.util.Map<String, String> snapshot, String reportText) throws Exception {
-        Path bugReportsDir = ModPaths.config("bug-reports");
-        Files.createDirectories(bugReportsDir);
-        String timestamp = TIMESTAMP_FORMAT.format(LocalDateTime.now());
-        Path zipPath = bugReportsDir.resolve("killer560smod-bugreport-" + timestamp + ".zip");
+    private static void fail(Listener listener, String message) {
+        ModChat.send("Bug Report", ModChat.bad(message));
+        listener.update(message, true, false);
+    }
 
-        try (OutputStream fos = Files.newOutputStream(zipPath);
-             ZipOutputStream zos = new ZipOutputStream(fos)) {
+    /** The zip's path in chat; clicking it opens the folder. */
+    private static net.minecraft.network.chat.MutableComponent clickablePath(Path zip) {
+        return ModChat.value(zip.toString()).withStyle(s -> s.withUnderlined(true)
+                .withClickEvent(new net.minecraft.network.chat.ClickEvent.OpenFile(zip.getParent())));
+    }
 
-            writeEntry(zos, "report.txt", reportText);
-            snapshot.forEach((name, text) -> {
-                try {
-                    writeEntry(zos, name, text);
-                } catch (Exception e) {
-                    throw new java.io.UncheckedIOException(new java.io.IOException(e));
-                }
-            });
+    private static net.minecraft.network.chat.MutableComponent link(String url) {
+        return ModChat.value(url).withStyle(s -> s.withUnderlined(true)
+                .withClickEvent(new net.minecraft.network.chat.ClickEvent.OpenUrl(java.net.URI.create(url))));
+    }
 
-            for (Path configFile : listConfigFiles()) {
-                String redacted = redactConfigFile(configFile);
-                if (redacted != null) {
-                    writeEntry(zos, "configs/" + configFile.getFileName(), redacted);
-                }
-            }
-
-            if (BugReportConfig.getInstance().isIncludeLog()) {
-                String log = readRedactedLog();
-                if (log != null) {
-                    writeEntry(zos, "logs/latest.log", log);
-                }
+    /** Every file of the report, name -> text, not yet redacted ({@link #zip} redacts each one). Worker thread. */
+    static java.util.Map<String, String> collect(java.util.Map<String, String> snapshot, String reportText, String self,
+                                                 String selfUuid) {
+        java.util.Map<String, String> files = new java.util.LinkedHashMap<>();
+        files.put("report.txt", reportText);
+        files.putAll(snapshot);
+        files.put("features-on.txt", String.join("\n", com.killer560.hub.banreport.BanReportFeature.featuresOn()) + "\n");
+        files.put("mod-log.txt", modLog(self, selfUuid));
+        for (Path configFile : listConfigFiles()) {
+            String redacted = redactConfigFile(configFile);
+            if (redacted != null) {
+                files.put("configs/" + configFile.getFileName(), redacted);
             }
         }
+        if (BugReportConfig.getInstance().isIncludeLog()) {
+            String log = readRedactedLog();
+            if (log != null) {
+                files.put("logs/latest.log", log);
+            }
+        }
+        StringBuilder index = new StringBuilder("What this bug report holds:\n");
+        CONTENTS.forEach(c -> index.append("  ").append(c).append('\n'));
+        index.append("\nFiles:\n");
+        files.forEach((name, text) -> index.append("  ").append(name).append(" (").append(text.length()).append(" characters)\n"));
+        java.util.Map<String, String> out = new java.util.LinkedHashMap<>();
+        out.put("contents.txt", index.toString());
+        out.putAll(files);
+        return out;
+    }
+
+    /** The in-memory mod log ({@link com.killer560.hub.util.SessionLogTap}), each line redacted, other players' names out. */
+    private static String modLog(String self, String selfUuid) {
+        List<String> lines = com.killer560.hub.util.SessionLogTap.snapshot();
+        Set<String> names = com.killer560.hub.banreport.BanReportFeature.otherNames(self);
+        StringBuilder sb = new StringBuilder("The mod's own log lines this session (newest ")
+                .append(com.killer560.hub.util.SessionLogTap.MAX_LINES).append(" at most), ").append(lines.size()).append(" kept:\n");
+        for (String line : lines) {
+            sb.append(com.killer560.hub.banreport.BanReportFeature.scrub(redactLogLine(line), self, selfUuid, names)).append('\n');
+        }
+        return sb.toString();
+    }
+
+    private static Path writeZip(java.util.Map<String, String> files) throws Exception {
+        Path bugReportsDir = ModPaths.config("bug-reports");
+        Files.createDirectories(bugReportsDir);
+        Path zipPath = bugReportsDir.resolve("killer560smod-bugreport-" + TIMESTAMP_FORMAT.format(LocalDateTime.now()) + ".zip");
+        Files.write(zipPath, zip(files, Integer.MAX_VALUE));
         return zipPath;
+    }
+
+    /**
+     * The zip's bytes. {@code logBudget} keeps only the last that many characters of each log (latest.log and
+     * mod-log.txt), for a post that must fit the relay's size cap; {@link Integer#MAX_VALUE} keeps everything.
+     */
+    static byte[] zip(java.util.Map<String, String> files, int logBudget) throws Exception {
+        java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
+        try (ZipOutputStream zos = new ZipOutputStream(bytes)) {
+            for (java.util.Map.Entry<String, String> e : files.entrySet()) {
+                String text = e.getValue();
+                boolean log = e.getKey().equals("logs/latest.log") || e.getKey().equals("mod-log.txt");
+                if (log && text.length() > logBudget) {
+                    text = "[... " + (text.length() - logBudget) + " older characters left out to fit the Discord upload ...]\n"
+                            + text.substring(text.length() - logBudget);
+                }
+                writeEntry(zos, e.getKey(), text);
+            }
+        }
+        return bytes.toByteArray();
     }
 
     private static void writeEntry(ZipOutputStream zos, String name, String content) throws Exception {

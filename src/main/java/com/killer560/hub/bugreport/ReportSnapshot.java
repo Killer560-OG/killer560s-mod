@@ -32,11 +32,12 @@ final class ReportSnapshot {
     private ReportSnapshot() {
     }
 
-    /** File name to content, in zip order. {@code note} may be empty. */
-    static Map<String, String> take(String note) {
+    /** File name to content, in zip order. {@code title} and {@code description} may be empty. */
+    static Map<String, String> take(String title, String description) {
         Minecraft mc = Minecraft.getInstance();
         Map<String, String> out = new LinkedHashMap<>();
-        if (note != null && !note.isBlank()) out.put("note.txt", note.strip() + "\n");
+        out.put("note.txt", "Title: " + (title == null ? "" : title.strip()) + "\n\nDescription:\n"
+                + (description == null || description.isBlank() ? "(none)" : description.strip()) + "\n");
         guard(() -> {
             ScoreboardData.refresh(mc);
             return "";
@@ -45,7 +46,55 @@ final class ReportSnapshot {
         out.put("state.txt", guard(() -> state(mc)));
         out.put("readers.txt", guard(ChunkedStat::report));
         out.put("hud.txt", guard(() -> hud()));
+        out.put("automation.txt", automation());
         return out;
+    }
+
+    /** What the dungeon, network and automation state reads right now: one line each, read once (nothing per tick). */
+    private static String automation() {
+        StringBuilder sb = new StringBuilder();
+        line(sb, "In a dungeon", com.killer560.hub.secrets.DungeonState::isInDungeon);
+        line(sb, "Dungeon floor", com.killer560.hub.secrets.DungeonState::getFloor);
+        line(sb, "F7/M7 boss phase", com.killer560.hub.secrets.DungeonState::isBossPhaseActive);
+        line(sb, "Dungeon run", com.killer560.hub.secrets.DungeonRun::describe);
+        line(sb, "Ping measured (ms)", () -> com.killer560.hub.util.PingTracker.hasMeasurement()
+                ? com.killer560.hub.util.PingTracker.measuredMs() + ", best " + com.killer560.hub.util.PingTracker.bestMs()
+                + ", automation " + com.killer560.hub.util.PingTracker.automationMs() : "no measurement yet");
+        line(sb, "Server TPS estimate (-1 = unknown)", () -> String.format(java.util.Locale.US, "%.1f",
+                com.killer560.hub.lagdisplay.LagDisplayFeature.tps()));
+        line(sb, "Server corrections this session", com.killer560.hub.util.ServerCorrections::reports);
+        line(sb, "Last server correction", com.killer560.hub.util.ServerCorrections::lastReport);
+        line(sb, "Last server move (blocks)", com.killer560.hub.util.ServerCorrections::lastMoveDistance);
+        line(sb, "Sim active", com.killer560.hub.roomsim.SimState::isActive);
+        line(sb, "Sim run running", com.killer560.hub.roomsim.SimRun::isRunning);
+        line(sb, "Sim co-op host", com.killer560.hub.roomsim.SimHost::status);
+        if (BuildVariant.CHEAT_FEATURES_ENABLED) {
+            line(sb, "Auto Routes running", com.killer560.hub.autoroutes.RouteExecutor::isRunning);
+            line(sb, "Auto Routes room", com.killer560.hub.autoroutes.RouteExecutor::runningRoom);
+            line(sb, "Auto Routes last stop", com.killer560.hub.autoroutes.RouteExecutor::stopReason);
+            line(sb, "Auto Routes last completed room", com.killer560.hub.autoroutes.RouteExecutor::lastCompletedRoom);
+            line(sb, "AP3 running", com.killer560.hub.ap3.Ap3Executor::isRunning);
+            line(sb, "AP3 active node", () -> {
+                var n = com.killer560.hub.ap3.Ap3Executor.activeNode();
+                return n == null ? "none" : String.format(java.util.Locale.US, "%s at %.2f, %.2f, %.2f yaw %.1f pitch %.1f",
+                        n.type(), n.x(), n.y(), n.z(), n.yaw(), n.pitch());
+            });
+            line(sb, "AP3 last stop", com.killer560.hub.ap3.Ap3Executor::stopReason);
+            line(sb, "Auto Clear", com.killer560.hub.autoclear.AutoClearFeature::status);
+            line(sb, "Blink holding", com.killer560.hub.blink.BlinkFeature::isHolding);
+            line(sb, "Blink Charge active", com.killer560.hub.blink.BlinkCharge::isActive);
+        }
+        return sb.toString();
+    }
+
+    private static void line(StringBuilder sb, String label, Supplier<?> value) {
+        sb.append(label).append(": ");
+        try {
+            sb.append(value.get());
+        } catch (RuntimeException | LinkageError e) {
+            sb.append("error reading it: ").append(e);
+        }
+        sb.append('\n');
     }
 
     private static String guard(Supplier<String> s) {

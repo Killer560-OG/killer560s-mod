@@ -446,8 +446,8 @@ public final class Ap3Executor {
         return stopReason;
     }
 
-    /** The node currently being performed (for the renderer's active highlight), or null. */
-    static Ap3Node activeNode() {
+    /** The node currently being performed (for the renderer's active highlight and a bug report), or null. */
+    public static Ap3Node activeNode() {
         return activeNode;
     }
 
