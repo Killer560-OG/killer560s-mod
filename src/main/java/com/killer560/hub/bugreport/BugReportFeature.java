@@ -131,8 +131,12 @@ public final class BugReportFeature {
     private BugReportFeature() {
     }
 
-    /** The relay refuses a zip over 3,000,000 bytes; a posted zip is trimmed to stay under this. */
-    static final int POST_LIMIT = 2_900_000;
+    /** An extra entry for the testkit's large-report cases; null (never set) in play. */
+    private static volatile String fillerForTest;
+
+    public static void setFillerForTest(String text) {
+        fillerForTest = text;
+    }
 
     /** What a report holds, in the order the screen lists it (also written into the zip as contents.txt). */
     public static final List<String> CONTENTS = List.of(
@@ -203,7 +207,8 @@ public final class BugReportFeature {
                 }
             });
             if (post) {
-                BugReportPost.send(files, title, description, (ok, msg) -> mc.execute(() -> {
+                BugReportPost.send(zipPath, new java.util.ArrayList<>(files.keySet()), title, description,
+                        s -> mc.execute(() -> listener.update(s, false, false)), (ok, msg) -> mc.execute(() -> {
                     if (ok) {
                         ModChat.send("Bug Report", ModChat.good("Posted to the Discord. "), msg.startsWith("https://")
                                 ? link(msg.split(" ", 2)[0]) : ModChat.text(""),
@@ -235,7 +240,7 @@ public final class BugReportFeature {
                 .withClickEvent(new net.minecraft.network.chat.ClickEvent.OpenUrl(java.net.URI.create(url))));
     }
 
-    /** Every file of the report, name -> text, not yet redacted ({@link #zip} redacts each one). Worker thread. */
+    /** Every file of the report, name -> text, not yet redacted ({@link #writeZip} redacts each one). Worker thread. */
     static java.util.Map<String, String> collect(java.util.Map<String, String> snapshot, String reportText, String self,
                                                  String selfUuid) {
         java.util.Map<String, String> files = new java.util.LinkedHashMap<>();
@@ -243,6 +248,9 @@ public final class BugReportFeature {
         files.putAll(snapshot);
         files.put("features-on.txt", String.join("\n", com.killer560.hub.banreport.BanReportFeature.featuresOn()) + "\n");
         files.put("mod-log.txt", modLog(self, selfUuid));
+        if (fillerForTest != null) {
+            files.put("filler.txt", fillerForTest);
+        }
         for (Path configFile : listConfigFiles()) {
             String redacted = redactConfigFile(configFile);
             if (redacted != null) {
@@ -281,28 +289,13 @@ public final class BugReportFeature {
         Path bugReportsDir = ModPaths.config("bug-reports");
         Files.createDirectories(bugReportsDir);
         Path zipPath = bugReportsDir.resolve("killer560smod-bugreport-" + TIMESTAMP_FORMAT.format(LocalDateTime.now()) + ".zip");
-        Files.write(zipPath, zip(files, Integer.MAX_VALUE));
-        return zipPath;
-    }
-
-    /**
-     * The zip's bytes. {@code logBudget} keeps only the last that many characters of each log (latest.log and
-     * mod-log.txt), for a post that must fit the relay's size cap; {@link Integer#MAX_VALUE} keeps everything.
-     */
-    static byte[] zip(java.util.Map<String, String> files, int logBudget) throws Exception {
-        java.io.ByteArrayOutputStream bytes = new java.io.ByteArrayOutputStream();
-        try (ZipOutputStream zos = new ZipOutputStream(bytes)) {
+        // Straight to the file, whole: a report has no size limit and is never trimmed.
+        try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(zipPath))) {
             for (java.util.Map.Entry<String, String> e : files.entrySet()) {
-                String text = e.getValue();
-                boolean log = e.getKey().equals("logs/latest.log") || e.getKey().equals("mod-log.txt");
-                if (log && text.length() > logBudget) {
-                    text = "[... " + (text.length() - logBudget) + " older characters left out to fit the Discord upload ...]\n"
-                            + text.substring(text.length() - logBudget);
-                }
-                writeEntry(zos, e.getKey(), text);
+                writeEntry(zos, e.getKey(), e.getValue());
             }
         }
-        return bytes.toByteArray();
+        return zipPath;
     }
 
     private static void writeEntry(ZipOutputStream zos, String name, String content) throws Exception {

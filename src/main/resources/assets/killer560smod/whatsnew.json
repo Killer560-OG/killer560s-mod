@@ -36,7 +36,8 @@
      "Dungeons Autopilot no longer leaves a Wither Key behind when it drops in the moment a room is cleared: it waits a moment for the key and picks it up before going to the blood door, and it decides again when a Blood Key appears while it waits at the blood door",
      "/bugreport now opens a Bug Report screen: type a title and a description, then Save the zip or Save and Post it to the Discord's bug report forum with your description and the list of files; the zip now also holds the mod's recent log lines and the automation state.",
      "Zero Ping Etherwarp: a warp sent the tick right after you start sneaking, which Hypixel can cast from your standing eye height and land a block or two further, now counts as the warp's own landing instead of a miss, and when the server puts you anywhere but the exact predicted block, the warps still waiting behind it are predicted again from where you really are instead of dropped.",
-     "Blood Rush Helper no longer errors out and switches itself off when a miniboss is seen in a room whose rotation the map has not found yet; its look is recorded once the rotation is known."
+     "Blood Rush Helper no longer errors out and switches itself off when a miniboss is seen in a room whose rotation the map has not found yet; its look is recorded once the rotation is known.",
+     "Bug Report: a report has no size limit any more. Save always writes the whole zip, and Save and Post sends a zip over 7.5 MB in parts (the first in the post, the rest as replies in the same thread, with Posting part N of M on the screen)."
     ]
    }
   ]
