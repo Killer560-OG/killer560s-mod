@@ -652,6 +652,10 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
     private void play() {
         // A generated plan wins over the drawing, because it carries rotations the drawing cannot.
         if (generated != null) {
+            if (SimFloorGen.unreachable(generated.decoded()) > 0) {
+                status = "not built: some rooms cannot be reached from the Entrance";
+                return;
+            }
             String code = generated.code();
             // Which floor this is, as SimFloorGen.generate sets it - the mimic rule and the sidebar read it.
             SimState.setFloorLabel(floor.code);
@@ -668,6 +672,9 @@ public class SimMapEditorScreen extends Screen implements MenuThemedScreen {
         }
         Map<Integer, String> drawing = new LinkedHashMap<>(placements);
         int built = SimFloorGen.buildExplicit(this.minecraft, placements);
+        if (built == -2) {
+            status = "not built: some rooms cannot be reached from the Entrance (a puzzle or trap has one door)";
+        }
         if (built > 0) {
             int puzzles = 0;
             for (String name : drawing.values()) {

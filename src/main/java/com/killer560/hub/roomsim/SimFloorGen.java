@@ -481,6 +481,11 @@ public final class SimFloorGen {
     public static int buildExplicit(Minecraft client, Map<Integer, String> placements) {
         Planned planned = planExplicit(placements);
         if (planned == null) return -1;
+        int cut = unreachable(planned.decoded());
+        if (cut > 0) {
+            ModChat.send("Sim", ModChat.text("Not built: " + cut + " room(s) cannot be reached from the Entrance."));
+            return -2;
+        }
         ModChat.send("Sim", ModChat.text("Your map: "),
                 ModChat.value(String.valueOf(planned.decoded().nameTable().length)),
                 ModChat.text(" rooms, "), ModChat.value(String.valueOf(planned.bloodDistance())),
@@ -724,6 +729,41 @@ public final class SimFloorGen {
             }
         }
         return doors;
+    }
+
+    /** Rooms with no way over the door array from the Entrance (the first room when none is drawn); 0 = all joined. */
+    public static int unreachable(MapCode.Decoded d) {
+        int n = d.nameTable().length;
+        int[] up = new int[n];
+        int root = 0;
+        for (int i = 0; i < n; i++) {
+            up[i] = i;
+            if ("ENTRANCE".equalsIgnoreCase(typeOf(d.nameTable()[i]))) root = i;
+        }
+        int g = DungeonLayout.GRID;
+        int[] room = d.cellRoom();
+        for (int i = 0; i < room.length; i++) {
+            if (room[i] < 0) continue;
+            for (int off : new int[]{1, g}) {
+                int k = i + 2 * off;
+                if (k >= room.length || room[k] < 0 || off == 1 && k / g != i / g
+                        || d.cellDoor()[i + off] == DungeonLayout.DOOR_NONE) continue;
+                int x = room[i];
+                int y = room[k];
+                while (up[x] != x) x = up[x];
+                while (up[y] != y) y = up[y];
+                up[x] = y;
+            }
+        }
+        int r = root;
+        while (up[r] != r) r = up[r];
+        int cut = 0;
+        for (int i = 0; i < n; i++) {
+            int x = i;
+            while (up[x] != x) x = up[x];
+            if (x != r) cut++;
+        }
+        return cut;
     }
 
     /** Doors cut into room {@code room}'s sides on a drawn plan, or -1 when it touches no other room yet. */

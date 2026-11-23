@@ -245,3 +245,5 @@ THROUGH the puzzle (a puzzle in the middle of a cross) therefore leaves those ro
 tell a half-drawn map from a broken one, so it refuses only the placement that walls a puzzle or trap in
 (`SimFloorGen.doorsOf` == 0: every touching neighbor is a dead end or blood). The editor's drawn doors and the built world
 share one `cellDoor` array, so they agree. Testkit 1122-sim-puzzledoor.
+
+Play refuses a map with a room no door path reaches from the Entrance (simcross-1123): `SimFloorGen.unreachable(decoded)` joins rooms over the final door array and counts the rooms outside the Entrance's group (the first room when none is drawn). `buildExplicit` returns -2 with a chat line, the editor shows "not built" in its status line, and a Generate plan goes through the same check. The cross (a puzzle between four normal rooms) is refused this way, since the puzzle has one door. Testkit 1123-sim-crossdoor.
