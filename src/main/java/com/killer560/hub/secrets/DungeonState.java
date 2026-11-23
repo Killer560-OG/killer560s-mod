@@ -344,8 +344,18 @@ public final class DungeonState {
         }
     }
 
+    private static volatile int sidebarBloodTest = -2;
+
+    /** Test hook (testkit 1122-sim-ap-bloodkey-late; the sim has no Keys line): the sidebar's blood key, -2 = off. */
+    public static void testSidebarBloodKey(int v) {
+        sidebarBloodTest = v;
+    }
+
     /** The team's blood key as the sidebar shows it: 1 has it, 0 does not, -1 when there is no Keys line. */
     public static int sidebarBloodKey() {
+        if (sidebarBloodTest != -2) {
+            return sidebarBloodTest;
+        }
         java.util.regex.Matcher m = keysLine();
         return m == null ? -1 : "✓".equals(m.group(1)) ? 1 : 0;
     }

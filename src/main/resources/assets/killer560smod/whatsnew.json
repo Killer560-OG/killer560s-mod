@@ -32,7 +32,8 @@
      "Auto Melody's Harp no longer misses or mis-clicks notes at 150-320 ms ping: an early click is timed from when each step of the board arrives and goes on the first frame it falls due, instead of on game ticks",
      "Lever Aura: a frame that stalls between its body turn and the hand-back no longer swings the camera 180 degrees with the body.",
      "Dungeons Autopilot leaves a wither or blood door sooner: it no longer clicks a door that is already opening, readies the next etherwarp while the door's barriers stand, and plans its next trip the tick they go",
-     "Milestone Display now shows 0 from the start of a dungeon run, and counts the class-prefixed milestone lines (Archer, Healer, Berserk)"
+     "Milestone Display now shows 0 from the start of a dungeon run, and counts the class-prefixed milestone lines (Archer, Healer, Berserk)",
+     "Dungeons Autopilot no longer leaves a Wither Key behind when it drops in the moment a room is cleared: it waits a moment for the key and picks it up before going to the blood door, and it decides again when a Blood Key appears while it waits at the blood door"
     ]
    }
   ]

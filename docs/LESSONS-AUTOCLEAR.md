@@ -427,6 +427,11 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   `UNSEEN_WAIT_TICKS` (40), then click anyway. In the sim (no map item) `SimKeyRoom.unseen` answers: a key room armed with
   its door in counts as shown after `SEEN_TICKS` (8) server ticks in the room before it, and that door opening sooner
   insta clears it. Testkit 1122-sim-ac-witherkey-unseen / 1122-sim-ap-witherkey-unseen.
+- Key race (ap-keyrace-1122, 11-22): a key room's last mob dies and its key stand reaches the client 1-2 ticks later, so a
+  "nothing left" (FINISH) decision in that tick went to the blood door and left the key (Autopilot.holdFinishForKey now holds it
+  at most 500 ms, ended early by `finishHoldOver` when a stand shows). A blood door wait also decides again when a BLOOD key
+  appears (the at-door check compares the stand's kind with the door's kind). Testkit cases 1122-sim-ap-keyrace and 1122-sim-ap-bloodkey-late.
+
 
 ## Standing at an opening wither door (acrev-door-1122)
 

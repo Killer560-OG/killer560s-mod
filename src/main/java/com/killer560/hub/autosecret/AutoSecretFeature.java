@@ -474,7 +474,7 @@ public final class AutoSecretFeature {
             case PUZZLE_WAIT -> tickPuzzleWait();
             case QUIZ -> tickQuiz();
             case SETTLE -> {
-                if (phaseTicks >= SETTLE_TICKS) {
+                if (phaseTicks >= SETTLE_TICKS || Autopilot.finishHoldOver(client)) {
                     setPhase(Phase.DECIDE);
                 }
             }
@@ -2628,6 +2628,10 @@ public final class AutoSecretFeature {
             }
             o = Autopilot.beginDeferred();
         }
+        if (o.type() == Autopilot.Type.FINISH && Autopilot.holdFinishForKey(Minecraft.getInstance())) {
+            setPhase(Phase.SETTLE);
+            return;
+        }
         if (comeBackFirst(layout, rooms, dist, here, o)) {
             return;
         }
@@ -3232,9 +3236,9 @@ public final class AutoSecretFeature {
     /** A dropped Wither Key this door wait has not re-decided for yet (once per key). */
     private static boolean keyAppearedAtDoor(Minecraft client) {
         for (com.killer560.hub.doorkeys.DungeonKeys.Dropped k : com.killer560.hub.doorkeys.DungeonKeys.dropped(client)) {
-            if (!k.blood() && !Autopilot.keyGivenUp(k.id()) && keysSeenAtDoor.add(k.id())) {
-                LOGGER.info("[AutoSecret] waiting at the wither door at cell {}: Wither Key #{} appeared - deciding again",
-                        doorCell, k.id());
+            if (k.blood() == doorBlood && !Autopilot.keyGivenUp(k.id()) && keysSeenAtDoor.add(k.id())) {
+                LOGGER.info("[AutoSecret] waiting at the {} door at cell {}: key #{} appeared - deciding again",
+                        doorBlood ? "blood" : "wither", doorCell, k.id());
                 return true;
             }
         }
@@ -3442,7 +3446,7 @@ public final class AutoSecretFeature {
         if (!key && doorClicks > 0 && phaseTicks - doorLastClickTick < DOOR_OPENING_TICKS) {
             // Our click spent the key ("opened a WITHER door!") and the door is still on its way out.
             status = "Opening the " + kind + " door";
-        } else if (!key && !doorBlood && keyAppearedAtDoor(client)) {
+        } else if (!key && keyAppearedAtDoor(client)) {
             // A Wither Key dropped after the decision that brought him here (the room's last mob died that tick and its
             // key's stand came a tick later, simmobs2-1101): decide again now, not 5 s on, so it is picked up first.
             setPhase(Phase.DECIDE);

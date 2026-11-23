@@ -220,12 +220,36 @@ public final class SimKeyRoom {
         return out;
     }
 
+    private static volatile double dropFarForTest;
+
+    /** Test hook (testkit 1122-sim-ap-keyrace): a dropped key lands this many blocks further from the player than its mob stood (0 = off). */
+    public static void dropFarForTest(double blocks) {
+        dropFarForTest = blocks;
+    }
+
     /** {@code SimMobs.markClearedRooms}: {@code name} just cleared because its last starred mob died, at {@code at}. */
     static void onClearedByKills(String name, double[] at) {
         Armed a = name == null ? null : ARMED.get(key(name));
         if (a == null || a.lost || a.dropped || at == null) return;
         a.dropped = true;
         Vec3 pos = new Vec3(at[0], at[1], at[2]);
+        var player = Minecraft.getInstance().player;
+        if (dropFarForTest > 0 && player != null) {
+            // Away from him (along an axis when he stands on the spot), staying in the mob's room: a random floor can put
+            // the key in a wall, where no run could reach it.
+            Vec3 away = pos.subtract(player.position()).multiply(1, 0, 1);
+            DungeonLayout layout = DungeonLayout.capture();
+            int room = layout.roomAtWorld(pos.x, pos.z);
+            Vec3[] dirs = {away.lengthSqr() < 1.0E-4 ? new Vec3(1, 0, 0) : away.normalize(), new Vec3(1, 0, 0),
+                    new Vec3(-1, 0, 0), new Vec3(0, 0, 1), new Vec3(0, 0, -1)};
+            for (Vec3 d : dirs) {
+                Vec3 to = pos.add(d.scale(dropFarForTest));
+                if (layout.roomAtWorld(to.x, to.z) == room) {
+                    pos = to;
+                    break;
+                }
+            }
+        }
         LOGGER.info("Sim key room: {}'s last starred mob died - its {} drops at {}", name,
                 a.blood ? "Blood Key" : "Wither Key", BlockPos.containing(pos).toShortString());
         SimKeys.drop(Minecraft.getInstance(), pos, a.blood);

@@ -267,7 +267,7 @@ public final class KeyRooms {
     }
 
     /** A room whose mobs can drop a key: not the Entrance, a puzzle, the Blood or Fairy room (an unknown one may). */
-    private static boolean mayHoldKey(DungeonLayout layout, int room) {
+    public static boolean mayHoldKey(DungeonLayout layout, int room) {
         RoomEntry e = layout.entry(room);
         if (e == null || e.type == null) {
             return true;

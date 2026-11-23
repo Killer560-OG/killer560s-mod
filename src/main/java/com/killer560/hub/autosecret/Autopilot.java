@@ -364,6 +364,36 @@ final class Autopilot {
 
     private static long keyWaitLogged;
 
+    /** A key room's last mob died and its key stand reaches the client 1-2 ticks later: "nothing left" waits this long. */
+    private static final long FINISH_KEY_WAIT_MS = 500;
+    private static long finishHoldUntilMs;
+    /** Whether the CLEAR now running is of a room whose last mob may drop a key (a spare one too). */
+    private static boolean clearMayDropKey;
+
+    private static boolean keyStandShows(Minecraft client) {
+        for (DungeonKeys.Dropped k : DungeonKeys.dropped(client)) {
+            if (!keyGivenUp(k.id())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** True while a "nothing left" decision, right after a key room's clear, waits for its key's stand (bounded). */
+    static boolean holdFinishForKey(Minecraft client) {
+        if (finishHoldUntilMs == 0 || System.currentTimeMillis() > finishHoldUntilMs || keyStandShows(client)) {
+            finishHoldUntilMs = 0;
+            return false;
+        }
+        LOGGER.info("[Autopilot] nothing left, but the cleared room's key is still dropping - waiting up to {} ms", FINISH_KEY_WAIT_MS);
+        return true;
+    }
+
+    /** The wait above ends early once a key stand shows. */
+    static boolean finishHoldOver(Minecraft client) {
+        return finishHoldUntilMs != 0 && keyStandShows(client);
+    }
+
     private static final long KEY_DROP_WAIT_MS = 1500;
     private static long clearEndedMs;
     /** Whether the CLEAR now running is of a room {@link com.killer560.hub.autoclear.KeyRooms} says holds a key. */
@@ -558,6 +588,8 @@ final class Autopilot {
         // Only a room holding a shut door's key drops one at its last death; any other clear has nothing to wait for.
         clearHoldsKey = p.kind() == AutopilotPlanner.Kind.CLEAR && room != null
                 && com.killer560.hub.autoclear.KeyRooms.guardOf(layout, room.room()) != null;
+        clearMayDropKey = p.kind() == AutopilotPlanner.Kind.CLEAR && room != null
+                && com.killer560.hub.autoclear.KeyRooms.mayHoldKey(layout, room.room());
         // A failure noted while no action was open (after closeAction, say) belongs to no action, not to this one.
         currentFailed = false;
         currentStartMs = System.currentTimeMillis();
@@ -656,6 +688,7 @@ final class Autopilot {
         } else if (current.kind() == AutopilotPlanner.Kind.CLEAR) {
             clearSeconds = clearSeconds * (1 - LEARN) + work * LEARN;
             clearEndedMs = clearHoldsKey ? System.currentTimeMillis() : 0;
+            finishHoldUntilMs = clearMayDropKey ? System.currentTimeMillis() + FINISH_KEY_WAIT_MS : 0;
         } else if (current.kind() == AutopilotPlanner.Kind.SECRET && currentNodes > 0) {
             routeSecondsPerNode = routeSecondsPerNode * (1 - LEARN) + (work / currentNodes) * LEARN;
         }
