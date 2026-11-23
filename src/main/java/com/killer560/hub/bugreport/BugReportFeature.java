@@ -77,6 +77,8 @@ public final class BugReportFeature {
     // wherever it appears, a "word: value" / "word=value" pair is redacted by value only (keeps the log
     // readable), and as a last resort a whole line is dropped if it contains one of the bare keywords in
     // a shape neither of those patterns caught - better an unreadable line than a leaked token.
+    /** The server a game log says it connects to (host, or host:port); a private server address is personal. */
+    private static final Pattern CONNECT_HOST = Pattern.compile("(?i)(connecting to |server address |lost connection to )[^,\\s]+");
     private static final Pattern JWT_PATTERN =
             Pattern.compile("eyJ[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]{5,}\\.[A-Za-z0-9_-]{5,}");
     private static final Pattern KEY_VALUE_PATTERN = Pattern.compile(
@@ -172,7 +174,21 @@ public final class BugReportFeature {
      * and with {@code post} it is then sent to the relay, which posts it in the Discord's bug report forum. Every step is
      * told to {@code listener} and in chat. Never throws.
      */
-    public static void save(String title, String description, boolean post, Listener listener) {
+    public static void save(String title, String description, boolean post, Listener screen) {
+        if (running) {
+            ModChat.send("Bug Report", ModChat.bad("A bug report is still sending; wait for it to finish."));
+            return;
+        }
+        running = true;
+        statusNow = "Saving...";
+        // The job belongs to this class, not the screen: closing the screen, another screen or a world change never stops it.
+        Listener listener = (text, done, ok) -> {
+            statusNow = text;
+            if (done) {
+                running = false;
+            }
+            screen.update(text, done, ok);
+        };
         java.util.Map<String, String> snapshot;
         String reportText;
         net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
@@ -202,9 +218,7 @@ public final class BugReportFeature {
                 ModChat.send("Bug Report", ModChat.good("Saved: "), clickablePath(zipPath),
                         ModChat.text(post ? " - posting it to the Discord..." : " - drag that file into Discord, or use Save and Post."));
                 listener.update(post ? "Saved. Posting to the Discord..." : "Saved: " + zipPath.getFileName(), !post, true);
-                if (!post) {
-                    tryOpenContainingFolder(zipPath);
-                }
+                tryOpenContainingFolder(zipPath);
             });
             if (post) {
                 BugReportPost.send(zipPath, new java.util.ArrayList<>(files.keySet()), title, description,
@@ -222,6 +236,19 @@ public final class BugReportFeature {
         }, "killer560smod-bugreport");
         t.setDaemon(true);
         t.start();
+    }
+
+    private static volatile boolean running;
+    private static volatile String statusNow = "";
+
+    /** True while a report is being saved or posted (the screen shows this when reopened). */
+    public static boolean running() {
+        return running;
+    }
+
+    /** The latest progress line of the running or last report. */
+    public static String statusNow() {
+        return statusNow;
     }
 
     private static void fail(Listener listener, String message) {
@@ -258,11 +285,12 @@ public final class BugReportFeature {
             }
         }
         if (BugReportConfig.getInstance().isIncludeLog()) {
-            String log = readRedactedLog();
+            String log = readRedactedLog(self, selfUuid);
             if (log != null) {
                 files.put("logs/latest.log", log);
             }
         }
+        files.replaceAll((name, text) -> noOwnUuid(text, selfUuid));
         StringBuilder index = new StringBuilder("What this bug report holds:\n");
         CONTENTS.forEach(c -> index.append("  ").append(c).append('\n'));
         index.append("\nFiles:\n");
@@ -432,9 +460,24 @@ public final class BugReportFeature {
         return false;
     }
 
+    /** The reporter's own UUID, dashed or not, is replaced everywhere in the report (their name stays). */
+    static String noOwnUuid(String text, String uuid) {
+        if (uuid == null || text == null) {
+            return text;
+        }
+        if (!uuid.equals(ownUuid)) {
+            ownUuid = uuid;
+            ownUuidPattern = Pattern.compile("(?i)" + Pattern.quote(uuid) + "|" + Pattern.quote(uuid.replace("-", "")));
+        }
+        return ownUuidPattern.matcher(text).replaceAll("<uuid>");
+    }
+
+    private static String ownUuid;
+    private static Pattern ownUuidPattern;
+
     /** @return the redacted contents of {@code logs/latest.log} from the run directory, or {@code null}
      *  if it doesn't exist / can't be read - never throws. */
-    private static String readRedactedLog() {
+    static String readRedactedLog(String self, String selfUuid) {
         Path logPath = FabricLoader.getInstance().getGameDir().resolve("logs").resolve("latest.log");
         if (!Files.isRegularFile(logPath)) {
             return null;
@@ -444,8 +487,14 @@ public final class BugReportFeature {
             // with a stray non-UTF-8 byte (e.g. from a foreign-language server MOTD) still comes through.
             String content = Files.readString(logPath, StandardCharsets.UTF_8);
             StringBuilder out = new StringBuilder(content.length());
+            Set<String> names = com.killer560.hub.banreport.BanReportFeature.otherNames(self);
             for (String line : content.split("\n", -1)) {
-                out.append(redactLogLine(line)).append('\n');
+                int chat = line.indexOf("[CHAT] ");
+                if (chat >= 0) {
+                    line = line.substring(0, chat + 7) + "<chat removed>";
+                }
+                line = noOwnUuid(CONNECT_HOST.matcher(line).replaceAll("$1<server>"), selfUuid);
+                out.append(com.killer560.hub.banreport.BanReportFeature.scrub(redactLogLine(line), self, selfUuid, names)).append('\n');
             }
             // split(..., -1) + trailing append('\n') adds one extra blank line at the end - harmless in a
             // log file, not worth a special case.

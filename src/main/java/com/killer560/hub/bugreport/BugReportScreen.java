@@ -28,6 +28,8 @@ public final class BugReportScreen extends Screen implements MenuThemedScreen {
     static final int TITLE_MAX = 100;
     static final int DESCRIPTION_MAX = 3000;
     private static final int TITLE_MIN_FOR_POST = 4;
+    /** The one line under the description (tested by 1122-ui-bugreport-menu). */
+    static final String PRIVACY_LINE = "This report contains none of your personal information.";
 
     private final Screen parent;
     private String titleText = "";
@@ -80,8 +82,7 @@ public final class BugReportScreen extends Screen implements MenuThemedScreen {
 
         int buttonY = panelY + panelH - PAD - 20;
         statusY = buttonY - 13;
-        int listH = LINE_H * (BugReportFeature.CONTENTS.size() + 1);
-        listY = statusY - 6 - listH;
+        listY = statusY - 6 - LINE_H;
         descY = titleY + 11 + 20 + 8;
         descH = Math.max(30, listY - 8 - (descY + 11));
         descBox = MultiLineEditBox.builder().setX(x + 2).setY(descY + 13)
@@ -108,6 +109,10 @@ public final class BugReportScreen extends Screen implements MenuThemedScreen {
                 + "Discord's bug report forum under your Minecraft name.")));
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Close"), b -> onClose())
                 .bounds(cx + bw / 2 + 8, buttonY, bw, 20).build());
+        if (BugReportFeature.running()) { // a send started earlier (screen closed meanwhile) is still going
+            busy = true;
+            setStatus(BugReportFeature.statusNow(), MenuStyle.DIM);
+        }
         save.active = post.active = !busy;
         McInput.textInputWhileOpen(this);
         setInitialFocus(titleText.isEmpty() ? titleBox : descBox);
@@ -149,6 +154,15 @@ public final class BugReportScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+        if (busy) { // follows a send this screen did not start (reopened while one runs); a plain read per frame
+            if (BugReportFeature.running()) {
+                status = BugReportFeature.statusNow();
+            } else {
+                busy = false;
+                save.active = post.active = true;
+                status = BugReportFeature.statusNow();
+            }
+        }
         ScreenChrome.backdrop(g, this.width, this.height);
         ScreenChrome.frame(g, panelX, panelY, panelW, panelH);
         ScreenChrome.header(g, panelX, panelY, panelW, "Bug Report");
@@ -156,14 +170,8 @@ public final class BugReportScreen extends Screen implements MenuThemedScreen {
         int w = panelW - 2 * PAD;
         ScreenChrome.text(g, "Title", x, titleY, MenuStyle.TXT_SOFT);
         ScreenChrome.text(g, "Description", x, descY, MenuStyle.TXT_SOFT);
-        String count = descText.length() + " / " + DESCRIPTION_MAX;
-        ScreenChrome.text(g, count, x + w - MenuStyle.font().width(count), descY, MenuStyle.DIM);
         ScreenChrome.well(g, x, descY + 11, w, descH);
-        ScreenChrome.text(g, "The zip will hold:", x, listY, MenuStyle.TXT_SOFT);
-        for (int i = 0; i < BugReportFeature.CONTENTS.size(); i++) {
-            ScreenChrome.text(g, MenuStyle.ellipsize(BugReportFeature.CONTENTS.get(i), w - 8), x + 8, listY + LINE_H * (i + 1),
-                    MenuStyle.DIM);
-        }
+        ScreenChrome.text(g, PRIVACY_LINE, x, listY, MenuStyle.DIM);
         if (!status.isEmpty()) {
             ScreenChrome.text(g, MenuStyle.ellipsize(status, w), x, statusY, statusColour);
         }
