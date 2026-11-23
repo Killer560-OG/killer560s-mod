@@ -86,6 +86,15 @@ public final class ZeroPingEtherwarp {
     static final double STANDING_EYE = 1.62;
     /** Client tick whose input packet first carried the sneak (the shift going down on the wire). */
     private static long sneakSentTick = Long.MIN_VALUE / 2;
+
+    /**
+     * The sneak went out this client tick or the one before, so a warp sent now may be cast from {@link #STANDING_EYE}.
+     * The senders (Auto Clear, Auto Secret, Pathfinding) aim so both eyes land on the planned block while this holds
+     * ({@code RightClick.aimForBothEyes}); tracked whether or not Zero Ping Etherwarp is on.
+     */
+    public static boolean sneakFresh() {
+        return clientTick - sneakSentTick <= 1;
+    }
     private static boolean shiftSent;
     private static long standingHits;
     private static long rebased;
@@ -245,6 +254,13 @@ public final class ZeroPingEtherwarp {
 
     /** {@code mixin/ZpewSendMixin}: every packet this client makes, read-only, render thread. */
     public static void onPacketSent(Packet<?> packet) {
+        if (packet instanceof net.minecraft.network.protocol.game.ServerboundPlayerInputPacket in) {
+            if (in.input().shift() && !shiftSent) {
+                sneakSentTick = clientTick;
+            }
+            shiftSent = in.input().shift();
+            return;
+        }
         if (!tracks()) return;
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
@@ -255,13 +271,6 @@ public final class ZeroPingEtherwarp {
                 LOGGER.info("[ZPEW] use-on-block {} with an etherwarp item (not predicted: the use packet that follows is)",
                         McPackets.useItemOnHitResult(useOn).getBlockPos().toShortString());
             }
-            return;
-        }
-        if (packet instanceof net.minecraft.network.protocol.game.ServerboundPlayerInputPacket in) {
-            if (in.input().shift() && !shiftSent) {
-                sneakSentTick = clientTick;
-            }
-            shiftSent = in.input().shift();
             return;
         }
         if (!(packet instanceof ServerboundUseItemPacket use)) return;
@@ -312,7 +321,7 @@ public final class ZeroPingEtherwarp {
         Vec3 landing = landingOn(shot.pos());
         // A sneak sent the tick before (or this tick): the server may still cast from the standing eye (STANDING_EYE).
         Vec3 standing = null;
-        if (!chained && clientTick - sneakSentTick <= 1) {
+        if (!chained && sneakFresh()) {
             TeleportUtils.RaycastResult up = cast(from, STANDING_EYE, yaw, pitch, range);
             standing = up == null || up.pos().equals(shot.pos()) ? null : landingOn(up.pos());
         }

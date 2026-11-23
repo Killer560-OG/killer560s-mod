@@ -453,6 +453,39 @@ public final class RightClick {
         return best;
     }
 
+    /**
+     * The look to warp onto {@code target} while the sneak is fresh ({@code ZeroPingEtherwarp.sneakFresh}): Hypixel casts such
+     * a warp from the standing eye 1.62 or the crouched one, so the look must land on {@code target} from both. The planned
+     * look when it already does (the usual case, no cost), else the nearest look at a point of the block that does for both
+     * and is pairable; no tick is spent either way. Null when no look holds for both: the caller waits one tick for the
+     * sneak to age (zpew-standeye-senders, 2026-11-23; his logs: 13 of 60 such warps landed 1-3 blocks further).
+     */
+    public static float[] aimForBothEyes(Minecraft client, LocalPlayer player, Vec3 serverFeet, Vec3 feet, BlockPos target,
+                                         double dist, float yaw, float pitch) {
+        Vec3 up = feet.add(0, 1.62, 0);
+        Vec3 down = feet.add(0, com.killer560.hub.livemap.autoclear.TeleportUtils.eyeHeight(true), 0);
+        if (com.killer560.hub.livemap.autoclear.TeleportUtils.landsOn(up, yaw, pitch, dist, target)) {
+            return new float[]{yaw, pitch};
+        }
+        float[] best = null;
+        double bestCost = Double.MAX_VALUE;
+        for (double[] o : REAIM_POINTS) {
+            com.killer560.hub.livemap.autoclear.TeleportUtils.Rotation r = com.killer560.hub.livemap.autoclear.TeleportUtils
+                    .getDirection(down, new Vec3(target.getX() + o[0], target.getY() + o[1], target.getZ() + o[2]));
+            if (r == null) continue;
+            float ny = yaw + Mth.wrapDegrees(r.yaw() - yaw);
+            float np = Mth.clamp(r.pitch(), -90f, 90f);
+            double cost = Math.abs(ny - yaw) + Math.abs(np - pitch);
+            if (cost < bestCost && com.killer560.hub.livemap.autoclear.TeleportUtils.holdsOn(down, ny, np, dist, target)
+                    && com.killer560.hub.livemap.autoclear.TeleportUtils.holdsOn(up, ny, np, dist, target)
+                    && !unpairable(client, player, serverFeet, ny, np)) {
+                bestCost = cost;
+                best = new float[]{ny, np};
+            }
+        }
+        return best;
+    }
+
     /** Points inside the target block's faces a re-aimed etherwarp may aim at: a 5x5 grid on the top, 3x3 on each side. */
     private static final double[][] REAIM_POINTS = reaimPoints();
 

@@ -281,7 +281,7 @@ public final class TeleportUtils {
     }
 
     /** Whether the etherwarp cast from {@code from} along {@code yaw}/{@code pitch} for {@code dist} lands on {@code to}. */
-    private static boolean landsOn(Vec3 from, float yaw, float pitch, double dist, BlockPos to) {
+    public static boolean landsOn(Vec3 from, float yaw, float pitch, double dist, BlockPos to) {
         Vec3 end = getLook(yaw, pitch).scale(dist).add(from);
         RaycastResult real = traverseVoxels(from.x, from.y, from.z, end.x, end.y, end.z, true);
         return real.succeeded() && to.equals(real.pos());

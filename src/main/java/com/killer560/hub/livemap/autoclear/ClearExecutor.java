@@ -2461,8 +2461,32 @@ public final class ClearExecutor {
             interact = new float[]{Mth.wrapDegrees(reaim[0]), reaim[1]};
             pendingInteract = interact;
         }
-        final float yaw = reaim != null ? reaim[0] : yaw0;
-        final float pitch = reaim != null ? reaim[1] : pitch0;
+        float yaw1 = reaim != null ? reaim[0] : yaw0;
+        float pitch1 = reaim != null ? reaim[1] : pitch0;
+        // A warp sent while the sneak is still fresh may be cast from his standing eye (1.62, not 1.27): aim where both eyes
+        // land on the planned block, no tick spent; with no such look the hop waits one tick for the sneak to age. Not a wait
+        // by default: routes never wait, so the look moves rather than the tick (zpew-standeye-senders).
+        if (pendingBlock != null && com.killer560.hub.zpew.ZeroPingEtherwarp.sneakFresh()) {
+            float[] both = com.killer560.hub.util.RightClick.aimForBothEyes(client, player, serverFeet, aimFeet, pendingBlock,
+                    hopRange(), yaw1, pitch1);
+            if (both == null) {
+                waitReason = "the sneak reaching the server (no look lands on the block from both the standing and the crouched eye)";
+                pendingHeldTicks++;
+                return;
+            }
+            if (both[0] != yaw1 || both[1] != pitch1) {
+                LOGGER.info("[Path] Warp: sneak still fresh - re-aimed {} / {} -> {} / {} so the standing eye lands on {} too",
+                        String.format(java.util.Locale.ROOT, "%.2f", Mth.wrapDegrees(yaw1)), String.format(java.util.Locale.ROOT, "%.2f", pitch1),
+                        String.format(java.util.Locale.ROOT, "%.2f", Mth.wrapDegrees(both[0])), String.format(java.util.Locale.ROOT, "%.2f", both[1]),
+                        pendingBlock.toShortString());
+                pendingInteract = new float[]{Mth.wrapDegrees(both[0]), both[1]};
+                standingReaims++;
+            }
+            yaw1 = both[0];
+            pitch1 = both[1];
+        }
+        final float yaw = yaw1;
+        final float pitch = pitch1;
         // A block click with the item this warp uses went under two ticks ago: Hypixel drops a warp one tick after such a
         // click (45 of 69 on 2026-10-19), so the hop waits, as Auto Routes' click-gap hold does.
         if (com.killer560.hub.playerstats.PlayerStatsFeature.manaTooLowForAotv()) {
@@ -2587,6 +2611,10 @@ public final class ClearExecutor {
     private static long lastIssueTick;
     /** {@code RightClick.itemUsesSent()} when this tick began (before every START handler): one hop use per tick. */
     private static int itemUsesAtTickStart;
+    /** Hops re-aimed so the standing eye lands on the block too (the sneak was fresh); read by the testkit. */
+    private static int standingReaims;
+
+    public static int standingReaims() { return standingReaims; }
 
     public static List<Long> hopSendTicks() {
         return List.copyOf(hopSendTicks);

@@ -1049,7 +1049,13 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   same direction); with the sneak 2+ ticks old about 1 in 100, chained warps 2 in 754. ZPEW now also casts the standing
   eye for such a use and counts that landing as a hit, and any hit off the predicted block recasts the chain behind it
   from the real landing (testkit 1122-zpew-standeye, hx `dungeon.standingEye`). The senders (Auto Clear, Auto Secret,
-  Pathfinding, Auto Routes) still aim from 1.27 on a one-tick-old sneak: WORKQUEUE zpew-standeye-senders.
+  Pathfinding: every hop through `ClearExecutor.doInteract`) now aim with the sneak still fresh
+  (`ZeroPingEtherwarp.sneakFresh()`, the same one-tick window) from a look that lands on the planned block from BOTH the
+  crouched and the standing eye (`RightClick.aimForBothEyes`: the planned look if it does, else the nearest look at a point
+  of the block that does; no tick spent, routes never wait), and only when no look holds for both does the hop wait the one
+  tick for the sneak to age. Flat floor: a block under ~3 blocks away has such a look, one farther never does (the two
+  eyes' hits differ by 28% of the distance), so those hops wait one tick (testkit 1123-hx-standeye-senders-*, hx
+  `dungeon.standingEye fresh`). Auto Routes (RouteExecutor) is not covered yet.
 - A shot replays banked ticks inside one real tick, so a feature that steers him per tick must run inside it: a 20-tick AP3
   release on the keys chosen at the END before ran him 18.75 blocks straight off S2's platform (Mod Only Test log
   2026-10-27 00:15:34). `BlinkCharge.addShotTickEndHook` runs after each shot tick's movement and tick-end, and
