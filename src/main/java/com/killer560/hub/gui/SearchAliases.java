@@ -14,6 +14,9 @@ public final class SearchAliases {
     // of it ("eta", "etab") - not only the full word.
     // Map.ofEntries, not Map.of: Map.of stops at ten pairs, and the list reached ten on 2026-10-19.
     private static final Map<String, String> ALIASES = Map.ofEntries(
+            Map.entry("picture", "gif player"),
+            Map.entry("png", "gif player"),
+            Map.entry("still image", "gif player"),
             Map.entry("etable", "experiment"),
             Map.entry("auto harp", "auto melody's harp"),
             Map.entry("harp keybinds", "melody's harp helper"),

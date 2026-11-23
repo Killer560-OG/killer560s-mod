@@ -90,6 +90,8 @@ public final class GifPlayerFeature {
     private static final ConcurrentLinkedQueue<Decoded> ready = new ConcurrentLinkedQueue<>();
     /** Name -> stamp of the decode in flight (render thread only). A result that does not match is stale and dropped. */
     private static final Map<String, Long> pending = new HashMap<>();
+    /** Name -> stamp of a file that failed to decode: not tried (or logged) again until the file changes (render thread only). */
+    private static final Map<String, Long> failed = new HashMap<>();
 
     private static final class LoadedGif {
         final String elementId;
@@ -148,6 +150,7 @@ public final class GifPlayerFeature {
         }
 
         Set<String> foundNames = found.stream().map(p -> p.getFileName().toString()).collect(Collectors.toSet());
+        failed.keySet().retainAll(foundNames);
         Set<String> known = new HashSet<>(loaded.keySet());
         known.addAll(pending.keySet());
         for (String knownName : known) {
@@ -183,16 +186,18 @@ public final class GifPlayerFeature {
             return;
         }
         Long inFlight = pending.get(name);
-        if (inFlight != null && inFlight == stamp) {
+        if (inFlight != null && inFlight == stamp || failed.containsKey(name) && failed.get(name) == stamp) {
             return;
         }
+        failed.remove(name);
         pending.put(name, stamp);
         DECODER.execute(() -> {
             GifDecoder.GifImage image = null;
             try {
                 image = file == null ? decodeBuiltin() : GifDecoder.decode(file);
             } catch (Exception | OutOfMemoryError e) {
-                LOGGER.error("Failed to load GIF: {}", name, e);
+                // A file the player dropped in that cannot be read is expected, not a mod error: one WARN line.
+                LOGGER.warn("Skipped {} (unreadable or too large): {}", name, e.toString());
             }
             ready.add(new Decoded(name, stamp, image));
         });
@@ -208,6 +213,7 @@ public final class GifPlayerFeature {
             }
             pending.remove(d.name());
             if (d.gif() == null) {
+                failed.put(d.name(), d.stamp());
                 unload(d.name());
                 continue;
             }

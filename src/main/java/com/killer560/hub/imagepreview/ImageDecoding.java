@@ -22,7 +22,7 @@ import java.util.List;
  * <p>The size is read from the header BEFORE anything is decoded, so a small file that claims a huge picture (a
  * "decompression bomb") is refused without allocating it. What is kept is scaled down to texture size.
  */
-final class ImageDecoding {
+public final class ImageDecoding {
 
     /** Refused above either: a side over 8192 px or 40 million pixels in one frame. */
     static final int MAX_SIDE = 8192;
@@ -82,6 +82,15 @@ final class ImageDecoding {
             throw new ImageFetcher.FetchException(format.toUpperCase(java.util.Locale.ROOT) + " not supported");
         }
         return it.next();
+    }
+
+    /** A still picture file for the GIF Player as a one-frame GIF image (same size limits and texture bound as the preview). */
+    public static GifDecoder.GifImage stillImage(java.nio.file.Path file) throws IOException {
+        if (java.nio.file.Files.size(file) > 64L * 1024 * 1024) {
+            throw new IOException("Picture file too large: " + file);
+        }
+        Decoded d = decode(java.nio.file.Files.readAllBytes(file));
+        return new GifDecoder.GifImage(d.width(), d.height(), List.of(new GifDecoder.Frame(d.frames().get(0), 1000)));
     }
 
     static Decoded decode(byte[] bytes) throws IOException {

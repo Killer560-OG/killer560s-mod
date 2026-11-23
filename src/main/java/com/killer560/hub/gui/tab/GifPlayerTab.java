@@ -139,12 +139,12 @@ public class GifPlayerTab extends BaseTab {
         y += 28;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                Component.literal("GIFs (toggle which ones show at once):"), Minecraft.getInstance().font));
+                Component.literal("GIFs and pictures (toggle which ones show at once):"), Minecraft.getInstance().font));
         y += 14;
         List<String> gifFiles = GifPlayerFeature.listedFileNames();
         if (gifFiles.isEmpty()) {
             widgets.add(new StringWidget(contentX, y, contentWidth, 12,
-                    Component.literal("§7No .gif files found."), Minecraft.getInstance().font));
+                    Component.literal("§7No GIF or picture files found."), Minecraft.getInstance().font));
             y += FILE_ROW_H;
         }
         for (String name : gifFiles) {

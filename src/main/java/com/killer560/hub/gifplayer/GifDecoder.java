@@ -32,6 +32,9 @@ public final class GifDecoder {
     }
 
     public static GifImage decode(Path file) throws IOException {
+        if (!file.getFileName().toString().toLowerCase(Locale.US).endsWith(".gif")) {
+            return com.killer560.hub.imagepreview.ImageDecoding.stillImage(file);
+        }
         try (ImageInputStream stream = ImageIO.createImageInputStream(file.toFile())) {
             return decode(stream, String.valueOf(file));
         }
@@ -160,8 +163,11 @@ public final class GifDecoder {
         return null;
     }
 
+    /** A file the GIF Player plays: a GIF, or a still picture (PNG, JPEG, WebP, BMP) shown as a one-frame GIF. */
     public static boolean isGif(Path file) {
-        return file.getFileName().toString().toLowerCase(Locale.US).endsWith(".gif");
+        String n = file.getFileName().toString().toLowerCase(Locale.US);
+        return n.endsWith(".gif") || n.endsWith(".png") || n.endsWith(".jpg") || n.endsWith(".jpeg")
+                || n.endsWith(".webp") || n.endsWith(".bmp");
     }
 
     private GifDecoder() {
