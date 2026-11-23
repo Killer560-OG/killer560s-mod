@@ -88,6 +88,7 @@ public final class BloodRushHelperFeature {
         Entity tag;
         int tagGoneAt = -1;
         boolean dead;
+        boolean looked;
 
         Mob(int id, Vec3 first, AABB body, int room, Entity entity, Entity tag) {
             this.id = id;
@@ -498,6 +499,7 @@ public final class BloodRushHelperFeature {
         for (Entity e : scan ? com.killer560.hub.mobesp.MobEspFeature.starredMobs(client) : List.<Entity>of()) {
             Mob m = MOBS.get(e.getId());
             if (m != null) {
+                recordLook(client, layout, m, e);
                 if (m.entity == null) {
                     // Back in view, even if its old entity was dropped as a kill while he was near (a teleport re-sends
                     // it): the scan only finds living mobs, so one it finds is not dead. Hypixel keeps a mob's id.
@@ -510,13 +512,9 @@ public final class BloodRushHelperFeature {
             }
             Vec3 at = e.position();
             int room = layout.roomAtWorld(at.x, at.z);
-            MOBS.put(e.getId(), new Mob(e.getId(), at, e.getBoundingBox(), room, e, tagOf(client, e)));
-            if (e instanceof net.minecraft.world.entity.player.Player p && room >= 0 && layout.name(room) != null) {
-                // A miniboss: remember where it stood, for the Dungeon Sim's Real Mob Looks (once a room).
-                int[] cr = layout.clayRotation(room);
-                com.killer560.hub.roomsim.SimMobLooks.recordMiniboss(layout.name(room),
-                        new RouteCoords.Frame(layout.name(room), cr[0], cr[1], cr[2]), p, client.level.players());
-            }
+            Mob nm = new Mob(e.getId(), at, e.getBoundingBox(), room, e, tagOf(client, e));
+            MOBS.put(e.getId(), nm);
+            recordLook(client, layout, nm, e);
         }
         Vec3 me = client.player.position();
         for (Mob m : MOBS.values()) {
@@ -533,6 +531,36 @@ public final class BloodRushHelperFeature {
                 m.entity = null;
                 m.tag = null;
             }
+        }
+    }
+
+    /** The frame a miniboss's look is recorded in: the room's name and clay corner + rotation, or null while the map has not found them. */
+    private static RouteCoords.Frame minibossFrame(DungeonLayout layout, int room) {
+        String name = room < 0 ? null : layout.name(room);
+        int[] cr = name == null ? null : layout.clayRotation(room);
+        return cr == null ? null : new RouteCoords.Frame(name, cr[0], cr[1], cr[2]);
+    }
+
+    /** Test hook (testkit 1122-logic-bloodrush-minirot): whether a frame exists for the room named {@code name} on the live map now. */
+    public static boolean testMinibossFrameKnown(String name) {
+        DungeonLayout layout = DungeonLayout.capture();
+        for (int r = 0; r < layout.roomCount(); r++) {
+            if (name.equals(layout.name(r))) {
+                return minibossFrame(layout, r) != null;
+            }
+        }
+        throw new IllegalStateException("no room " + name);
+    }
+
+    /** A miniboss: remember where it stood, for the Dungeon Sim's Real Mob Looks (once a room, retried until the room's rotation is known). */
+    private static void recordLook(Minecraft client, DungeonLayout layout, Mob m, Entity e) {
+        if (m.looked || !(e instanceof net.minecraft.world.entity.player.Player p)) {
+            return;
+        }
+        RouteCoords.Frame f = minibossFrame(layout, m.room);
+        if (f != null) {
+            m.looked = true;
+            com.killer560.hub.roomsim.SimMobLooks.recordMiniboss(f.roomName(), f, p, client.level.players());
         }
     }
 
