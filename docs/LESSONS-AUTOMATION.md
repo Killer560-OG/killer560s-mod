@@ -75,7 +75,16 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   (`KeyMapping.clickCount` > 0 at START): his click goes this tick, the aura next. His scroll / hotbar key between ticks
   is sent by `gameMode.tick` AFTER the START actors, so a raw `startPrediction` use_item (Auto Routes, Auto Clear, ZPEW
   Aimed Warps) went out with his OLD item and the slot after it: PacketOrderE (62-argrim-1105-same-chain-swap,
-  experimental). Every raw use now calls `ensureHasSentCarriedItem` first, as vanilla `useItem` does. Auto Routes takes
+  experimental). Every raw use now calls `ensureHasSentCarriedItem` first, as vanilla `useItem` does.
+  That alone left the Interactive Map / Auto Clear hop (queued at one START, sent at the next) going out with HIS new
+  slot (empty hand, no warp), and the path's `swapById` then put the AOTV back after that use: PacketOrderE x5
+  (62-argrim-1117-same-chain-swap, experimental, ordere-1123). `ClearExecutor.doInteract` now re-checks the queued
+  hop's items and selects them BEFORE the use (holding a tick while `swapWouldFlag()`), and `swapById` never swaps
+  behind a use in one server tick. Auto Clear's held Hyperion hop had the same hole (its held use repeated with his stick
+  and never landed, so it fell back to an etherwarp); it re-selects the Hyperion before each held use. Both send his
+  pending slot first (`ClearExecutor.sendHisSlotFirst`: slot, slot, use is an order vanilla sends), so his scroll still
+  reaches the server and the tick is clean on both Grim configs. A route case's tick bound must follow Auto Routes' click-gap hold (3 ticks after a
+  click with the warp's own item since 82b4f8cf6, 11-19): 62-argrim-1116-ar-ordere kept a fixed 2 and failed on every jar after it. Auto Routes takes
   his left click mid-chain (held for the next await), so no hand dig of his reaches the wire then. Coverage table and open gaps:
   killer560s-mod-logs/grimsame-1105-audit.md. His swap / use during a 20/s route chain and during the boss auras is clean.
   grimgapC-1105 closed the container-click and hotbar/drop gaps with no mod change and no flag on either Grim config:

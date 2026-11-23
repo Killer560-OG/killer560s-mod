@@ -1454,8 +1454,9 @@ public final class ClearExecutor {
      * from where he stands when it goes (he falls while he waits - the hop is planned from a landing 1.05 up), the way Auto
      * Routes' {@code reaimIfMoved} does.
      */
-    public static void queueInteract(float yaw, float pitch, Vec3 from, BlockPos block) {
+    public static void queueInteract(float yaw, float pitch, Vec3 from, BlockPos block, String[] items) {
         pendingInteract = new float[]{yaw, pitch};
+        pendingItems = items;
         pendingFrom = from;
         pendingBlock = block;
         pendingHeldTicks = 0;
@@ -1463,6 +1464,8 @@ public final class ClearExecutor {
 
     private static Vec3 pendingFrom;
     private static BlockPos pendingBlock;
+    /** The items the queued hop may use (its node's), checked in hand again when it goes. */
+    private static String[] pendingItems;
     /** Quiet re-plans this goal has made for a held hop that had no ray left ({@link #MAX_HELD_REPLANS} at most). */
     private static int heldReplans;
     private static final int MAX_HELD_REPLANS = 2;
@@ -2485,6 +2488,17 @@ public final class ClearExecutor {
             pendingHeldTicks++;
             return;
         }
+        // His scroll between ticks moved the hand off the warp item since the hop was queued: the item goes back first, in
+        // vanilla's order (slot, then use). Sent with his slot, the use was made with the wrong item and the swap back
+        // after it was GrimAC PacketOrderE (62-argrim-1117-same-chain-swap, experimental).
+        if (pendingItems != null && !holdingAny(pendingItems)) {
+            if (com.killer560.hub.util.HotbarSelect.swapWouldFlag() || !sendHisSlotFirst(client) || !swapById(pendingItems)
+                    || !holdingAny(pendingItems)) {
+                waitReason = "the warp item back in hand (he scrolled off it)";
+                pendingHeldTicks++;
+                return;
+            }
+        }
         pendingInteract = null;
         pendingHeldTicks = 0;
         // Never a hop from inside a trap room (killer560, 2026-10-06: "it shouldn't be able to etherwarp in trap - just
@@ -2653,6 +2667,19 @@ public final class ClearExecutor {
         return false;
     }
 
+    /**
+     * Before automation takes the hand back from his scroll: his slot, still pending from between ticks, goes out first,
+     * so the server hears his choice and the order is one vanilla itself sends (his slot from {@code gameMode.tick}, a
+     * hotbar key's slot, then the use). Inside a tick only; outside one vanilla sends the final slot anyway.
+     * @return always true (for use in a condition chain)
+     */
+    public static boolean sendHisSlotFirst(Minecraft client) {
+        if (com.killer560.hub.util.HotbarSelect.inTick() && client.gameMode instanceof MultiPlayerGameModeInvoker invoker) {
+            invoker.killer560smod$invokeEnsureHasSentCarriedItem();
+        }
+        return true;
+    }
+
     /** The reference {@code SwapManager.swapById}: hotbar only, at most one swap per tick. */
     static boolean swapById(String[] ids) {
         Minecraft client = Minecraft.getInstance();
@@ -2670,7 +2697,8 @@ public final class ClearExecutor {
                     if (player.getInventory().getSelectedSlot() == i) {
                         return true;
                     }
-                    if (hasSwappedThisTick) {
+                    // Never a slot change behind a use / click this server tick (GrimAC PacketOrderE): it goes next tick.
+                    if (hasSwappedThisTick || com.killer560.hub.util.HotbarSelect.swapWouldFlag()) {
                         return false;
                     }
                     // Through vanilla's own ensureHasSentCarriedItem, as Auto Routes' RouteExecutor.select does, so

@@ -669,7 +669,15 @@ public final class AutoClearFeature {
                 planKey = Long.MIN_VALUE;
                 LOGGER.info("[AutoClear] a Hyperion hop toward {} never landed - etherwarping to it instead", targetName);
             } else {
-                // Keep holding along the same look until the landing is seen.
+                // Keep holding along the same look until the landing is seen. His scroll between ticks moved the hand off
+                // the Hyperion: it goes back before this tick's held use (slot, then use, vanilla's order), else the
+                // dash repeated with his item and never landed (62-argrim-1117-same-chain-swap, ordere-1123).
+                int hype = ItemIdentity.findHotbarSlot(player, AutoClearConfig.Weapon.HYPERION.itemId());
+                if (hype >= 0 && player.getInventory().getSelectedSlot() != hype
+                        && !com.killer560.hub.util.HotbarSelect.swapWouldFlag()) {
+                    com.killer560.hub.livemap.autoclear.ClearExecutor.sendHisSlotFirst(client);
+                    select(client, player, hype);
+                }
                 holdUse(client);
                 return;
             }

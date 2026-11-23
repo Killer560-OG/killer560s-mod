@@ -74,7 +74,8 @@ public abstract class ClearNode {
             return false; // wait until the server has seen the sneak state
         }
         if (!ClearExecutor.holdingAny(items) && !ClearExecutor.swapById(items)) {
-            return cancel();
+            // A swap that would follow this tick's use waits a tick (GrimAC PacketOrderE); only a missing item cancels.
+            return com.killer560.hub.util.HotbarSelect.swapWouldFlag() ? false : cancel();
         }
         Vec3 from = new Vec3(playerPos[0], playerPos[1] + TeleportUtils.eyeHeight(sneak), playerPos[2]);
         TeleportUtils.RaycastResult res = raycast.cast(from);
@@ -86,7 +87,7 @@ public abstract class ClearNode {
         }
         // An etherwarp hop says which block it expects, so the sim can tell a hop that landed off-plan.
         ClearExecutor.queueInteract(yaw, pitch, new Vec3(playerPos[0], playerPos[1], playerPos[2]),
-                sneak ? res.pos() : null);
+                sneak ? res.pos() : null, items);
         playerPos[0] = res.pos().getX() + 0.5;
         playerPos[1] = res.pos().getY() + yOff;
         playerPos[2] = res.pos().getZ() + 0.5;
