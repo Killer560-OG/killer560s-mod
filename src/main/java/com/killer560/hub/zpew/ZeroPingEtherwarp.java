@@ -44,9 +44,11 @@ import java.util.Locale;
  * landing (Chain From Prediction). A use with no landing predicts nothing.
  *
  * <p><b>The server's answer.</b> Each server position packet is matched against the oldest pending prediction: within
- * {@link #MATCH_BLOCKS} it is a hit (logged with the error and the round trip); anything else is a miss or a correction,
- * and every pending prediction is dropped - the camera is where he really is on the next frame. A prediction with no
- * answer after the timeout is dropped the same way.
+ * {@link #MATCH_BLOCKS} it is a hit (logged with the error and the round trip), and so is the standing-eye landing of a
+ * use sent right after the sneak ({@link #STANDING_EYE}); a hit that is not exactly the predicted landing casts the rest
+ * of the chain again from where he really is. Anything else is a miss or a correction, and every pending prediction is
+ * dropped - the camera is where he really is on the next frame. A prediction with no answer after the timeout is dropped
+ * the same way.
  *
  * <p><b>Works For</b> (2026-10-27): every sender of an etherwarp marks its use with {@link #sending} around the send, and
  * a use is predicted only when its {@link ZpewSource.Group}'s switch is on (an unmarked use is {@link ZpewSource#MANUAL};
@@ -71,8 +73,22 @@ public final class ZeroPingEtherwarp {
     /** {@code camera}: Zero Ping Etherwarp draws from it. A prediction without it is kept only so Multi Warps can cast its
      *  extra warps from the landing before (Zero Ping Etherwarp off, or not working for that source). */
     private record Prediction(long sentMs, long sentTick, Vec3 from, Vec3 landing, BlockPos block, float yaw, float pitch,
-                              ZpewSource source, boolean camera) {
+                              ZpewSource source, boolean camera, double range, Vec3 standing) {
     }
+
+    /**
+     * The eye Hypixel casts a warp from when the sneak reached it in the same server tick as the use: the standing 1.62.
+     * Its etherwarp is armed by the shift input at once, but the ray starts at the server's POSE eye, which crouches only
+     * on its next player tick. His 26.3 logs (11-15..11-22): with the sneak sent the tick before the use, 13 of 60 warps
+     * landed one block further along the look, and the standing eye lands exactly there in every flat-floor case (21 of 21);
+     * with the sneak older, about 1 in 100. {@code standing} in a {@link Prediction} is that landing when it differs.
+     */
+    static final double STANDING_EYE = 1.62;
+    /** Client tick whose input packet first carried the sneak (the shift going down on the wire). */
+    private static long sneakSentTick = Long.MIN_VALUE / 2;
+    private static boolean shiftSent;
+    private static long standingHits;
+    private static long rebased;
 
     /** The sender marking the use packets it sends right now (render thread only), or null: the player's own click. */
     private static ZpewSource current;
@@ -171,6 +187,7 @@ public final class ZeroPingEtherwarp {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             deferredClicks = 0;
             fallbackSaid = false;
+            shiftSent = false;
             synchronized (PENDING) {
                 PENDING.clear();
             }
@@ -240,6 +257,13 @@ public final class ZeroPingEtherwarp {
             }
             return;
         }
+        if (packet instanceof net.minecraft.network.protocol.game.ServerboundPlayerInputPacket in) {
+            if (in.input().shift() && !shiftSent) {
+                sneakSentTick = clientTick;
+            }
+            shiftSent = in.input().shift();
+            return;
+        }
         if (!(packet instanceof ServerboundUseItemPacket use)) return;
         ItemStack held = player.getItemInHand(McPackets.useItemHand(use));
         double range = etherwarpRange(held);
@@ -276,22 +300,26 @@ public final class ZeroPingEtherwarp {
         // An extra warp of Warps Per Tick is always cast from the one before it: that is where the server will cast it from.
         boolean chained = last != null && (ZeroPingEtherwarpConfig.getInstance().isChain() || extraSending);
         Vec3 from = chained ? last.landing() : player.position();
-        Vec3 eye = new Vec3(from.x, from.y + TeleportUtils.eyeHeight(true), from.z);
         float yaw = McPackets.useItemYRot(use);
         float pitch = Mth.clamp(McPackets.useItemXRot(use), -90f, 90f);
-        TeleportUtils.RaycastResult shot = TeleportUtils.getEtherPos(eye, yaw, pitch, range);
-        if (shot == null || !shot.succeeded() || shot.pos() == null) {
+        TeleportUtils.RaycastResult shot = cast(from, TeleportUtils.eyeHeight(true), yaw, pitch, range);
+        if (shot == null) {
             noLanding++;
             LOGGER.info(String.format(Locale.ROOT, "[ZPEW] use from %s%s yaw %.2f pitch %.2f range %.0f: no landing - not predicted",
                     fmt(from), chained ? " (chained)" : "", Mth.wrapDegrees(yaw), pitch, range));
             return;
         }
-        double standY = EtherwarpOverlayFeature.standYOn(mc.level, shot.pos());
-        Vec3 landing = new Vec3(shot.pos().getX() + 0.5, standY + 0.05, shot.pos().getZ() + 0.5);
+        Vec3 landing = landingOn(shot.pos());
+        // A sneak sent the tick before (or this tick): the server may still cast from the standing eye (STANDING_EYE).
+        Vec3 standing = null;
+        if (!chained && clientTick - sneakSentTick <= 1) {
+            TeleportUtils.RaycastResult up = cast(from, STANDING_EYE, yaw, pitch, range);
+            standing = up == null || up.pos().equals(shot.pos()) ? null : landingOn(up.pos());
+        }
         int depth;
         synchronized (PENDING) {
             PENDING.addLast(new Prediction(System.currentTimeMillis(), clientTick, from, landing, shot.pos(), yaw, pitch, source,
-                    camera));
+                    camera, range, standing));
             depth = PENDING.size();
         }
         predictions++;
@@ -300,9 +328,9 @@ public final class ZeroPingEtherwarp {
         }
         maxChained = Math.max(maxChained, depth);
         LOGGER.info(String.format(Locale.ROOT, "[ZPEW] predicted #%d (%s%s): from %s%s yaw %.2f pitch %.2f -> block %s, land %s "
-                        + "(%.1f blocks); %d pending, tick %d", predictions, source.label(), camera ? "" : ", no camera", fmt(from), chained ? " (chained)" : "",
-                Mth.wrapDegrees(yaw), pitch, shot.pos().toShortString(), fmt(landing), from.distanceTo(landing), depth,
-                clientTick));
+                        + "(%.1f blocks)%s; %d pending, tick %d", predictions, source.label(), camera ? "" : ", no camera", fmt(from), chained ? " (chained)" : "",
+                Mth.wrapDegrees(yaw), pitch, shot.pos().toShortString(), fmt(landing), from.distanceTo(landing),
+                standing == null ? "" : ", standing eye " + fmt(standing), depth, clientTick));
         // Warps Per Tick: his own warp (a right click or Left Click Etherwarp) owes N - 1 more, this tick, at this look.
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && !extraSending
                 && source.group() == ZpewSource.Group.MANUAL) {
@@ -446,10 +474,7 @@ public final class ZeroPingEtherwarp {
                     stop = "nothing pending to chain from";
                     break;
                 }
-                Vec3 eye = new Vec3(last.landing().x, last.landing().y + TeleportUtils.eyeHeight(true), last.landing().z);
-                TeleportUtils.RaycastResult shot = TeleportUtils.getEtherPos(eye, owedYaw, Mth.clamp(owedPitch, -90f, 90f),
-                        range);
-                if (shot == null || !shot.succeeded() || shot.pos() == null) {
+                if (cast(last.landing(), TeleportUtils.eyeHeight(true), owedYaw, Mth.clamp(owedPitch, -90f, 90f), range) == null) {
                     stop = "the next warp from " + fmt(last.landing()) + " would land nowhere";
                     break;
                 }
@@ -699,21 +724,28 @@ public final class ZeroPingEtherwarp {
             head = PENDING.peekFirst();
             if (head == null) return;
             double err = to == null ? Double.MAX_VALUE : head.landing().distanceTo(to);
+            boolean standing = err > 0.01 && head.standing() != null && head.standing().distanceTo(to) <= 0.01;
             long latency = System.currentTimeMillis() - head.sentMs();
-            if (err <= MATCH_BLOCKS) {
+            if (err <= MATCH_BLOCKS || standing) {
                 PENDING.removeFirst();
-                left = PENDING.size();
                 hits++;
                 HIT[head.source().ordinal()]++;
-                lastErrorBlocks = err;
+                lastErrorBlocks = standing ? 0 : err;
                 lastLatencyMs = latency;
                 if (head.camera()) { // only a camera warp is Smooth Teleport's to skip (claims)
                     lastMatchedLanding = to;
                     lastMatchedNanos = System.nanoTime();
                 }
-                LOGGER.info(String.format(Locale.ROOT, "[ZPEW] server landed him at %s, predicted %s: hit, %.3f blocks off, "
-                        + "%d ms after the use, %d tick(s); %d still pending", fmt(to), fmt(head.landing()), err, latency,
-                        clientTick - head.sentTick(), left));
+                if (standing) {
+                    standingHits++;
+                }
+                // Not where predicted (the standing eye, or a neighbor within MATCH_BLOCKS): the server casts every later
+                // warp from where it really put him, so the rest of the chain is cast again from there.
+                String again = err > 0.01 && !PENDING.isEmpty() ? rebase(to, standing, head.sentTick()) : "";
+                left = PENDING.size();
+                LOGGER.info(String.format(Locale.ROOT, "[ZPEW] server landed him at %s, predicted %s: hit%s, %.3f blocks off, "
+                        + "%d ms after the use, %d tick(s); %d still pending%s", fmt(to), fmt(head.landing()),
+                        standing ? " (standing eye)" : "", err, latency, clientTick - head.sentTick(), left, again));
                 return;
             }
             misses++;
@@ -725,12 +757,50 @@ public final class ZeroPingEtherwarp {
         }
     }
 
+    /**
+     * Casts every warp still pending again, in order, from {@code at} (where the server really put him), each with its own
+     * look and range. Those sent in the matched warp's tick ({@code tick}) reach the server in its tick too, so after a
+     * standing-eye hit they are cast from the standing eye as well. One with no landing drops it and the rest. Holds PENDING.
+     */
+    private static String rebase(Vec3 at, boolean standing, long tick) {
+        Prediction[] rest = PENDING.toArray(new Prediction[0]);
+        PENDING.clear();
+        Vec3 from = at;
+        for (Prediction p : rest) {
+            double eye = standing && p.sentTick() == tick ? STANDING_EYE : TeleportUtils.eyeHeight(true);
+            TeleportUtils.RaycastResult shot = cast(from, eye, p.yaw(), p.pitch(), p.range());
+            if (shot == null) {
+                return String.format(Locale.ROOT, "; %d recast from %s, then %d dropped (no landing)", PENDING.size(),
+                        fmt(at), rest.length - PENDING.size());
+            }
+            Vec3 landing = landingOn(shot.pos());
+            PENDING.addLast(new Prediction(p.sentMs(), p.sentTick(), from, landing, shot.pos(), p.yaw(), p.pitch(), p.source(),
+                    p.camera(), p.range(), null));
+            from = landing;
+        }
+        rebased += rest.length;
+        return " (recast from " + fmt(at) + ", now ending at " + fmt(from) + ")";
+    }
+
+    /** The etherwarp from {@code feet} at {@code eye} along a look, or null when it lands nowhere. */
+    private static TeleportUtils.RaycastResult cast(Vec3 feet, double eye, float yaw, float pitch, double range) {
+        TeleportUtils.RaycastResult shot = TeleportUtils.getEtherPos(new Vec3(feet.x, feet.y + eye, feet.z), yaw, pitch, range);
+        return shot == null || !shot.succeeded() || shot.pos() == null ? null : shot;
+    }
+
+    /** Where the server puts his feet for a warp onto {@code block}. */
+    private static Vec3 landingOn(BlockPos block) {
+        double standY = EtherwarpOverlayFeature.standYOn(Minecraft.getInstance().level, block);
+        return new Vec3(block.getX() + 0.5, standY + 0.05, block.getZ() + 0.5);
+    }
+
     /** True when this server teleport is (or was just) a predicted warp, so Smooth Teleport does not glide it. */
     public static boolean claims(Vec3 to) {
         if (!on() || to == null) return false;
         synchronized (PENDING) {
             Prediction head = PENDING.peekFirst();
-            if (head != null && head.camera() && head.landing().distanceTo(to) <= MATCH_BLOCKS) return true;
+            if (head != null && head.camera() && (head.landing().distanceTo(to) <= MATCH_BLOCKS
+                    || head.standing() != null && head.standing().distanceTo(to) <= 0.01)) return true;
         }
         Vec3 m = lastMatchedLanding;
         return m != null && System.nanoTime() - lastMatchedNanos < 200_000_000L && m.distanceTo(to) <= 0.01;
@@ -817,6 +887,11 @@ public final class ZeroPingEtherwarp {
     public static long skippedBy(String source) { return SKIPPED[ZpewSource.valueOf(source).ordinal()]; }
 
     public static int maxChained() { return maxChained; }
+
+    /** Server landings that matched the standing-eye cast, and pending warps cast again from a real landing (testkit). */
+    public static long standingHits() { return standingHits; }
+
+    public static long rebased() { return rebased; }
 
     /** Warps Per Tick, for the testkit: extra warps sent, bursts cut short, and the most etherwarp uses seen in one tick. */
     public static long extraWarpsSent() { return extraSent; }

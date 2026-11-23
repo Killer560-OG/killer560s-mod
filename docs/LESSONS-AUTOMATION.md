@@ -1026,6 +1026,14 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   `pressKey`, which holds each press a tick (ZPEW log: predictions at ticks 1991 and 1992); 1027-zpewmt-* has the real
   same-tick case). When the server just ignores a use (no teleport at all), the camera stays on the
   predicted landing for Give Up After (1000 ms default) and then snaps back; any position packet ends it at once.
+- Hypixel ARMS an etherwarp from the shift input at once but CASTS it from the server's pose eye, which crouches only on
+  its next player tick (zpew-ideas-1122, his 26.3 logs 11-15..11-22 with the logger mod's [MT] input lines): with the
+  sneak sent the tick before the use, 13 of 60 warps landed 1-3 blocks further along the look, and casting from the
+  standing 1.62 eye reproduces the server's block in all 21 flat-floor cases (the rest were one block higher on a wall,
+  same direction); with the sneak 2+ ticks old about 1 in 100, chained warps 2 in 754. ZPEW now also casts the standing
+  eye for such a use and counts that landing as a hit, and any hit off the predicted block recasts the chain behind it
+  from the real landing (testkit 1122-zpew-standeye, hx `dungeon.standingEye`). The senders (Auto Clear, Auto Secret,
+  Pathfinding, Auto Routes) still aim from 1.27 on a one-tick-old sneak: WORKQUEUE zpew-standeye-senders.
 - A shot replays banked ticks inside one real tick, so a feature that steers him per tick must run inside it: a 20-tick AP3
   release on the keys chosen at the END before ran him 18.75 blocks straight off S2's platform (Mod Only Test log
   2026-10-27 00:15:34). `BlinkCharge.addShotTickEndHook` runs after each shot tick's movement and tick-end, and
