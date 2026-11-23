@@ -18,7 +18,8 @@
      "Dungeons Autopilot: the estimate of how long clearing a room takes is now a running mean over the whole session instead of an average of the last two or three rooms, so room order is no longer ranked on a swinging figure",
      "Dungeons Autopilot: Ice Fill First now works under the Autopilot (an Ice Fill found mid-run is the very next trip), and a Quiz countdown is filled with a route that still fits instead of standing at the Quiz, never with a room that needs a key room cleared first",
      "Bug Report: the screen no longer lists what the zip holds and says instead that the report contains none of your personal information; the description counter shows once; Save and Save and Post both open the bug reports folder; the report keeps sending after you close the menu (a second one is refused while one sends); the game log in the report loses all chat text, the server address, addresses, e-mails, your own account ID and other players' names.",
-     "Auto Clear and the Interactive Map: scrolling off the Aspect of the Void or the Hyperion while a warp or a Hyperion hop is under way no longer makes it go with the wrong item (no teleport) or swap back after the use, which an anticheat could flag; the item is put back in hand first"
+     "Auto Clear and the Interactive Map: scrolling off the Aspect of the Void or the Hyperion while a warp or a Hyperion hop is under way no longer makes it go with the wrong item (no teleport) or swap back after the use, which an anticheat could flag; the item is put back in hand first",
+     "Auto Routes: a path warp held because a block now stands in its line is flown round at once: the new warps from where you stand go as soon as they are found, instead of after up to 1.5 s spent proving they are the fewest."
     ]
    }
   ]

@@ -284,6 +284,13 @@ public final class EtherwarpPathfinder {
      * hand-over so the Interactive Map's planner thread is not held).
      */
     public static final long PATH_EXACT_NANOS = 1_500_000_000L;
+    /**
+     * A saved path hop held mid-flight and planned again from where he stands (RouteExecutor.replanHops): the floor
+     * graph's plan flies at once, unproved; the exact search gets {@link #PATH_EXACT_NANOS} only when the graph has no
+     * plan. His 2026-11-22 Slime #7 stood 17 ticks while the proof (842 ms) showed the graph's 5 warps, found in 1.6 ms,
+     * were already the fewest (arholds-1123). Negative = this rule.
+     */
+    public static final long HOLD_EXACT_NANOS = -PATH_EXACT_NANOS;
     /** The exact search never looks for routes longer than this when the graph has no plan to bound it. */
     private static final int EXACT_MAX_WARPS = 16;
 
@@ -503,8 +510,9 @@ public final class EtherwarpPathfinder {
         // A path node wants the block itself: the graph's "already there" (within five blocks of it) is not.
         boolean onIt = BlockPos.containing(from.x, from.y - 0.5, from.z).equals(to);
         boolean graphOff = path != null && (graph.endedNear || graphs.usedExact || (onBlock && path.isEmpty() && !onIt));
+        long budget = exactNanos >= 0 ? exactNanos : path != null && !graphOff ? 0 : -exactNanos;
         List<EtherSearch.Hop> fewer = exactRefine(level, view, () -> AirOverride.wrap(new LevelEtherGrid(level), air),
-                start, to, tile6, goal.deadEnd, path, graphOff, exactNanos,
+                start, to, tile6, goal.deadEnd, path, graphOff, budget,
                 onBlock ? Integer.MAX_VALUE : MAP_EXACT_MAX_GRAPH_WARPS, onBlock, t0);
         if (fewer != null) {
             return toNodes(fewer);

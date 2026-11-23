@@ -290,8 +290,9 @@ public final class RoutePathPlanner {
      * The rest of {@code src}'s pair planned again from {@code from} (where he stands), for one flight only: a saved hop
      * that cannot go from its spot any more (a block now in its line, its landing block gone) is flown round instead of
      * held (acslow-1115). Nothing is saved and no proof is handed over: the saved pair stays as he planned it. Same
-     * search, config, range and breaker blocks as {@link #plan}, with the plan's proof budget. {@code done} runs on the
-     * client thread with the hops, or null when there is no way from here.
+     * search, config, range and breaker blocks as {@link #plan}; the floor graph's plan flies at once, unproved, and the
+     * exact search runs only when the graph has none ({@link EtherwarpPathfinder#HOLD_EXACT_NANOS}). {@code done} runs on
+     * the client thread with the hops, or null when there is no way from here.
      */
     public static void planFrom(Route route, RouteCoords.Frame frame, RouteNode src, Vec3 from, boolean standingSolid,
                                 Consumer<List<RouteNode.PathHop>> done) {
@@ -316,7 +317,7 @@ public final class RoutePathPlanner {
             List<EtherwarpPathfinder.Node> path = null;
             try {
                 path = EtherwarpPathfinder.findOptimalPath(from, goal, cfg, range, layout,
-                        EtherwarpPathfinder.PATH_EXACT_NANOS, air);
+                        EtherwarpPathfinder.HOLD_EXACT_NANOS, air);
             } catch (Throwable e) {
                 LOGGER.warn("[AutoRoutes] Path search from here failed: {}", e.toString());
             }
