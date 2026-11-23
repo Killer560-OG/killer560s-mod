@@ -200,6 +200,7 @@ public final class ModPaths {
         // Every other Mining feature's settings (killer560smod-mining-<feature>.json, islands/IslandConfig.of("mining",
         // ...)) in one folder; the longer rows above still win for their own files.
         t.put("mining-", "skyblock/mining");
+        t.put("foraging-", "skyblock/foraging");
         // The pre-2.0 mining features (miningqol/, 2026-11-01).
         t.put("miningqol", "skyblock/miningqol");
         t.put("carnival", "skyblock/carnival");

@@ -3207,6 +3207,9 @@ final class SettingTooltipsData {
         d.put("auto melody's harp", "Plays any song you open in Melody's Harp by itself, to the end (cheat build only).");
         d.put("auto melody's harp/auto detect lag", "Follows how fast the note rows really move (a laggy server moves them slower) instead of assuming a fixed speed, to decide how early a click must go.");
         d.put("auto melody's harp/auto detect ping", "Clicks early by your measured ping when it is longer than half a note step, so the click reaches the server while the note is still there.");
+        d.put("beacon ready alert", "When the tab list's foraging beacon widget says Cooldown: AVAILABLE, a Beacon Ready title tells you it can be tuned again.");
+        d.put("beacon ready alert/alert sound", "Also plays a pling with the title.");
+        d.put("beacon ready alert/repeat after", "While the beacon stays available, the title comes back after this many minutes.");
         d.put("melody's harp helper", "Helpers for Melody's Harp: keys for the notes, a GUI scale, a progress tracker, key labels, hidden tooltips and Quick Restart. Off by default.");
         d.put("melody's harp helper/key binds", "While a song is open, a key (or mouse button) per note column plays that column's button at once, even when the press lands in the same tick as another. Default keys 1 to 7.");
         d.put("melody's harp helper/key 1", "The key or mouse button that plays note column 1 (the first from the left). Click, then press it; Escape clears it.");

@@ -240,6 +240,7 @@ final class CardBlurbsData {
         d.put("AutoAnvilTab", "Combines enchant books at the anvil.");
         d.put("AutoHarpTab", "Plays Melody's Harp for you.");
         d.put("HarpHelperTab", "Harp keys and a tracker.");
+        d.put("BeaconReadyAlertTab", "Tells you when your beacon is ready again.");
         d.put("AutoGfsTab", "Refills dungeon items from sacks.");
         d.put("AutoSellTab", "Sells your sell list on its own.");
         d.put("BazaarFlipTab", "Buy and sell flips.");
