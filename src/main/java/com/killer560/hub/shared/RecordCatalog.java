@@ -310,21 +310,12 @@ public final class RecordCatalog {
 
     /** The player's best uploaded time for each of the website's five boards: {@code {"f7": {"ms": N, "at": N}, ...}}. The faster one
      *  always wins, so two instances never undo each other (modlb5-1120). */
-    /** No real F7 P3 (Terminals + Goldor) is under 25 s: 48 of his own runs span 37.6-71.5 s (killer560s-mod-logs/p3board-1123-times.md), so a P3 time below this is a bad measurement and never a board entry. */
-    public static final long P3_MIN_MS = 25_000L;
-
-    /** Drops board entries that cannot be real: a P3 under {@link #P3_MIN_MS} (a saved file may hold one from before the limit). */
-    public static JsonObject withoutImpossibleBoards(JsonObject bests) {
-        if (bests != null && bests.has("p3") && bests.get("p3").isJsonObject() && bests.getAsJsonObject("p3").get("ms").getAsLong() < P3_MIN_MS) bests.remove("p3");
-        return bests;
-    }
-
     public static final Kind BOARD_BESTS = new Kind("killer560smod-board-bests.json", null, "board-bests.json",
             Scope.ACCOUNT, new JsonMerge.Policy() {
         @Override
         public JsonObject custom(JsonObject disk, JsonObject base, JsonObject mine) {
             if (mine == null) return null;
-            JsonObject out = disk == null ? new JsonObject() : withoutImpossibleBoards(disk.deepCopy());
+            JsonObject out = disk == null ? new JsonObject() : disk.deepCopy();
             for (String k : mine.keySet()) {
                 if (!out.has(k) || mine.getAsJsonObject(k).get("ms").getAsLong() < out.getAsJsonObject(k).get("ms").getAsLong()) {
                     out.add(k, mine.get(k).deepCopy());
