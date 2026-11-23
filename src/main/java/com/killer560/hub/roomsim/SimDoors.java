@@ -506,6 +506,7 @@ public final class SimDoors {
             for (BlockPos p : door.blocks()) {
                 level.setBlockAndUpdate(p, Blocks.BARRIER.defaultBlockState());
             }
+            SimKeyRoom.doorClicked(server, door.blocks());
         });
         PENDING.put(door, OPEN_DELAY_TICKS);
         return true;

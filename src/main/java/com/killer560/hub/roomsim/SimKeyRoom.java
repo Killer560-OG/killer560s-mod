@@ -208,6 +208,12 @@ public final class SimKeyRoom {
             a.clickTick = server.getTickCount();
             LOGGER.info("Sim key room: the wither door into {} clicked {} the map showed it (click tick {}, shown tick {})",
                     a.name, a.revealTick >= 0 ? "after" : "BEFORE", a.clickTick, a.revealTick);
+            if (!a.seen && !a.entered && !a.lost && !a.dropped) {
+                // Hypixel judges the insta clear at the click, not when the blocks go a few ticks later.
+                a.lost = true;
+                SimRoomState.markCleared(a.name);
+                LOGGER.info("Sim key room: {} insta cleared at the click - its {} is lost", a.name, a.blood ? "Blood Key" : "Wither Key");
+            }
         }
     }
 
