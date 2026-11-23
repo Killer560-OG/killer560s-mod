@@ -12,7 +12,7 @@ import net.minecraft.client.Minecraft;
  * <p>
  * Used from an element's {@link HudElement#layoutPosition()}: when its own box ({@link HudElementRegistry#ownPosition},
  * its drawn scale) meets the other element's drawn box, it goes just below that box, else just above it, else just to
- * its right - keeping its own x (or y) - and otherwise stays exactly where it is. Only while the other element has
+ * its right ({@link #clearBeside}: to its right first) - keeping its own x (or y) - and otherwise stays exactly where it is. Only while the other element has
  * really drawn in the last {@link #LIVE_MS} ({@link HudSeen}), so leaving the dungeon puts it straight back. Never in
  * the HUD editor (the caller returns null there): what he drags is his own saved position, which this never writes.
  */
@@ -45,6 +45,16 @@ public final class HudAvoid {
 
     /** Where {@code self} draws so it does not cover the element {@code otherId}, or null to use its own position. */
     public static int[] clear(HudElement self, String otherId) {
+        return clear(self, otherId, false);
+    }
+
+    /** {@link #clear}, trying just to the other element's right first: for an element whose spot below it is where the
+     *  player keeps other HUDs (Advanced Position under a Dungeon Map moved to the top left, mapname-1122). */
+    public static int[] clearBeside(HudElement self, String otherId) {
+        return clear(self, otherId, true);
+    }
+
+    private static int[] clear(HudElement self, String otherId, boolean besideFirst) {
         long now = System.currentTimeMillis();
         Memo memo = MEMO.get(self.id());
         if (memo != null && memo.otherId.equals(otherId) && now - memo.atMs < MEMO_MS) {
@@ -52,7 +62,7 @@ public final class HudAvoid {
         }
         int[] out;
         try {
-            out = compute(self, otherId, now);
+            out = compute(self, otherId, now, besideFirst);
         } catch (RuntimeException e) {
             out = null; // never let a measuring problem move or break an element
         }
@@ -65,7 +75,7 @@ public final class HudAvoid {
         return out;
     }
 
-    private static int[] compute(HudElement self, String otherId, long now) {
+    private static int[] compute(HudElement self, String otherId, long now, boolean besideFirst) {
         HudElement other = HudElementRegistry.byId(otherId);
         if (other == null || other == self || HudSeen.msSince(otherId, now) > LIVE_MS) {
             return null;
@@ -89,6 +99,11 @@ public final class HudAvoid {
         }
         int screenW = window.getGuiScaledWidth();
         int screenH = window.getGuiScaledHeight();
+        int right = ox1 + GAP;
+        int[] beside = right + w <= screenW ? new int[]{right, Math.max(0, Math.min(p[1], screenH - h))} : null;
+        if (besideFirst && beside != null) {
+            return beside;
+        }
         int below = oy1 + GAP;
         if (below + h <= screenH) {
             return new int[]{p[0], below};
@@ -97,7 +112,6 @@ public final class HudAvoid {
         if (above >= 0) {
             return new int[]{p[0], above};
         }
-        int right = ox1 + GAP;
-        return right + w <= screenW ? new int[]{right, Math.max(0, Math.min(p[1], screenH - h))} : null; // no room anywhere: leave it where he put it
+        return beside; // null, no room anywhere: leave it where he put it
     }
 }

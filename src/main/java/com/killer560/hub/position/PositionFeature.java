@@ -310,6 +310,14 @@ public final class PositionFeature {
         @Override
         public boolean isEnabledInSettings() { return PositionConfig.getInstance().isEnabled(); }
 
+        /** In game never under the Dungeon Map (killer560's F7 run, 2026-11-22: at its default spot, under his map moved to
+         *  the top left, its white lines showed through the map's see-through background between the rooms and smeared
+         *  Supertall's name); to the map's right, where nothing of his sits. In the HUD editor its own position. */
+        @Override
+        public int[] layoutPosition() {
+            return HudVisibility.editorOpen() ? null : com.killer560.hub.hud.HudAvoid.clearBeside(this, "live_map");
+        }
+
         @Override
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             PositionConfig cfg = PositionConfig.getInstance();
