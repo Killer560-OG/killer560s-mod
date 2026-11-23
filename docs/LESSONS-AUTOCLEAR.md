@@ -485,3 +485,10 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   The path's hop goes at START, before handleKeybinds, so his queued attack went right after its use_item in one tick
   (PacketOrderI, experimental, 62-argrim-1122-same-plan-attack): the hop now waits a tick while his attack is queued.
   Same-tick rows for a yielding feature give his action every third tick, or the feature never gets a tick to act.
+- Room order (acroomorder-1122, 1020-sim-ac-speed Hyperion, the six fixed floors, second PC): the same jar twice gave run
+  totals 3408 and 3474 (room clocks swing with the entry side), so a run-tick delta under ~70 is noise; the entry-leg sum
+  (first trip of each room, legs.py) repeated within 6 (758/764) and is the order metric to trust. A least-tile tour that
+  keeps the off-path-first rule did not beat the old order (legs 739-770, run 3442-3454); the same tour without the rule
+  gave legs 655/646 and run 3304 twice with no floor slower. He answered 2026-11-22 (Blood Rush Split off "should be able to clear whatever is fastest"): Full Clear now uses that tour with nothing forced first; Split ON keeps its rush order. The ONE_TOUR switch is gone. Testkit 131 case 6 asserts the tour costs no more than the plain order.
+- Pricing the plan's casts at link+1 like the old hop (ackillprice-1122, with k14-pricing.patch) made the old order slower
+  (room ticks 3173 vs 3048/3119, run 3544): not shipped; patch kept at C:\kmtest\jars\acroomorder-1122\pricing-P.patch.

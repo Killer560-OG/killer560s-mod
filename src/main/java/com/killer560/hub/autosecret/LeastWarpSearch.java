@@ -177,7 +177,7 @@ public final class LeastWarpSearch {
     }
 
     /** Local search, iterated local search and branch and bound, whatever the room count (the bench checks it on small ones). */
-    static Snapshot branchAndBound(double[] fromHere, double[][] between, BooleanSupplier cancelled) {
+    public static Snapshot branchAndBound(double[] fromHere, double[][] between, BooleanSupplier cancelled) {
         Solver s = new Solver(fromHere, between, cancelled == null ? () -> false : cancelled);
         int[] start = s.localSearch(s.nearest());
         s.seed(start, "nearest room next, improved by moves");

@@ -15,6 +15,8 @@ import java.util.Set;
  */
 public final class AutoClearTargets {
 
+    private static final org.slf4j.Logger LOGGER = com.killer560.hub.util.ModLog.get("killer560smod-autoclear");
+
     private AutoClearTargets() {
     }
 
@@ -204,6 +206,88 @@ public final class AutoClearTargets {
         }
         List<Integer> out = new ArrayList<>(off);
         out.addAll(path);
+        // Blood Rush Split keeps its rush order (its rooms are all on the path); Full Clear tours every room he can reach
+        // in the fewest tiles, with no room forced first (killer560 2026-11-22: "it should be able to clear whatever is fastest").
+        boolean split = AutoClearConfig.getInstance().getMode() == AutoClearConfig.Mode.BLOOD_RUSH_SPLIT;
+        return toured(layout, candidates, out, split ? off : out, split ? off : List.of());
+    }
+
+    private static final double FIRST_PENALTY = 1000;
+    private static DungeonLayout memoLayout;
+    private static List<Integer> memoCandidates = List.of();
+    private static int memoTile = -1;
+    private static List<Integer> memoOrder;
+
+    /**
+     * {@code order} with the rooms of {@code group} he can reach through open doors taken first, in the order with the
+     * fewest map tiles walked, every room of {@code first} before any other (acroomorder-1122, killer560 2026-11-22:
+     * "also which rooms it goes to and what order it does them in"); every other room keeps its place behind them, so
+     * the wither-door fallback of {@link #choose} reads the same. Rooms-away counted a 1x4 room as one step and sent him
+     * across the floor past nearer rooms (f1 Lots Of Floors, 22 ticks after Crypt). Worked out once per pick (the same
+     * layout, rooms and tile answer the next callers).
+     */
+    private static List<Integer> toured(DungeonLayout layout, List<Integer> candidates, List<Integer> order,
+                                        List<Integer> group, List<Integer> first) {
+        int start = playerTile(layout);
+        if (layout == memoLayout && start == memoTile && candidates.equals(memoCandidates)) {
+            return memoOrder;
+        }
+        int[] dist = start < 0 ? null : tileDistances(layout);
+        List<Integer> reach = new ArrayList<>();
+        for (int r : group) {
+            if (dist != null && nearest(layout, dist, start * TILES, r) < UNREACHED) {
+                reach.add(r);
+            }
+        }
+        List<Integer> out = order;
+        if (reach.size() > 1) {
+            int n = reach.size();
+            double[] from = new double[n];
+            double[][] between = new double[n][n];
+            boolean anyFirst = false;
+            for (int r : reach) {
+                anyFirst |= first.contains(r);
+            }
+            for (int i = 0; i < n; i++) {
+                // A room not in {@code first} taken while one of them is left costs a penalty no saving outweighs.
+                boolean later = anyFirst && !first.contains(reach.get(i));
+                from[i] = nearest(layout, dist, start * TILES, reach.get(i)) + (later ? FIRST_PENALTY : 0);
+                int[] tiles = layout.tiles(reach.get(i));
+                for (int j = 0; j < n; j++) {
+                    double sum = 0;
+                    for (int c : tiles) {
+                        sum += nearest(layout, dist, cellTile(c) * TILES, reach.get(j));
+                    }
+                    between[i][j] = i == j ? 0 : sum / tiles.length
+                            + (later && first.contains(reach.get(j)) ? FIRST_PENALTY : 0);
+                }
+            }
+            long until = System.nanoTime() + 3_000_000L;
+            int[] best = (n <= 12 ? com.killer560.hub.autosecret.LeastWarpSearch.solve(from, between, null)
+                    : com.killer560.hub.autosecret.LeastWarpSearch.branchAndBound(from, between,
+                    () -> System.nanoTime() > until)).order();
+            out = new ArrayList<>(order.size());
+            for (int i : best) {
+                out.add(reach.get(i));
+            }
+            for (int r : order) {
+                if (!out.contains(r)) {
+                    out.add(r);
+                }
+            }
+            int[] old = new int[n];
+            for (int i = 0; i < n; i++) {
+                old[i] = i;
+            }
+            LOGGER.info(String.format(java.util.Locale.US, "[AutoClear] room order: %s est %.1f tiles vs old rule %.1f",
+                    out.subList(0, n).stream().map(layout::name).toList(),
+                    com.killer560.hub.autosecret.TourPlanner.travel(best, from, between),
+                    com.killer560.hub.autosecret.TourPlanner.travel(old, from, between)));
+        }
+        memoLayout = layout;
+        memoTile = start;
+        memoCandidates = List.copyOf(candidates);
+        memoOrder = out;
         return out;
     }
 
@@ -285,6 +369,77 @@ public final class AutoClearTargets {
             }
         }
         return dist;
+    }
+
+    private static final int TILES = 36;
+    private static final int UNREACHED = 999;
+
+    /** The 6x6 tile of a map cell (rooms' tiles sit on the even cells of the 11x11 grid). */
+    private static int cellTile(int cell) {
+        return (cell / DungeonLayout.GRID / 2) * 6 + (cell % DungeonLayout.GRID) / 2;
+    }
+
+    /** The tile he stands on, as {@link DungeonLayout#roomAtWorld} reads it; a tile of the room he is in when that one
+     *  is no room (a doorway's gap); -1 outside every room. */
+    private static int playerTile(DungeonLayout layout) {
+        int room = layout.currentRoom();
+        net.minecraft.world.entity.player.Player p = net.minecraft.client.Minecraft.getInstance().player;
+        if (room < 0 || p == null) {
+            return -1;
+        }
+        int ix = Math.max(0, Math.min(5, (int) Math.round((p.getX() - 0.5 - LiveMapFeature.START_X) / 32.0)));
+        int iz = Math.max(0, Math.min(5, (int) Math.round((p.getZ() - 0.5 - LiveMapFeature.START_Z) / 32.0)));
+        int t = iz * 6 + ix;
+        return layout.roomOfCell(iz * 2 * DungeonLayout.GRID + ix * 2) == room ? t : cellTile(layout.tiles(room)[0]);
+    }
+
+    /** Tiles walked between every two tiles ({@code [from * 36 + to]}): a step joins two tiles of one room, or two
+     *  rooms over an open door; {@link #UNREACHED} past locked doors. */
+    private static int[] tileDistances(DungeonLayout layout) {
+        int[] dist = new int[TILES * TILES];
+        java.util.Arrays.fill(dist, UNREACHED);
+        int[] queue = new int[TILES];
+        for (int s = 0; s < TILES; s++) {
+            if (layout.roomOfCell((s / 6) * 2 * DungeonLayout.GRID + (s % 6) * 2) < 0) {
+                continue;
+            }
+            int head = 0;
+            int tail = 0;
+            dist[s * TILES + s] = 0;
+            queue[tail++] = s;
+            while (head < tail) {
+                int t = queue[head++];
+                int x = t % 6;
+                int z = t / 6;
+                int room = layout.roomOfCell(z * 2 * DungeonLayout.GRID + x * 2);
+                for (int k = 0; k < 4; k++) {
+                    int dx = k == 0 ? 1 : k == 1 ? -1 : 0;
+                    int dz = k == 2 ? 1 : k == 3 ? -1 : 0;
+                    int nx = x + dx;
+                    int nz = z + dz;
+                    int u = nz * 6 + nx;
+                    if (nx < 0 || nx > 5 || nz < 0 || nz > 5 || dist[s * TILES + u] != UNREACHED) {
+                        continue;
+                    }
+                    int next = layout.roomOfCell(nz * 2 * DungeonLayout.GRID + nx * 2);
+                    int door = (z * 2 + dz) * DungeonLayout.GRID + x * 2 + dx;
+                    if (next >= 0 && (next == room || (layout.isDoor(door) && !layout.isLocked(door)))) {
+                        dist[s * TILES + u] = dist[s * TILES + t] + 1;
+                        queue[tail++] = u;
+                    }
+                }
+            }
+        }
+        return dist;
+    }
+
+    /** Fewest tiles from the tile whose row starts at {@code row} in {@code dist} to any tile of {@code room}. */
+    private static int nearest(DungeonLayout layout, int[] dist, int row, int room) {
+        int best = UNREACHED;
+        for (int c : layout.tiles(room)) {
+            best = Math.min(best, dist[row + cellTile(c)]);
+        }
+        return best;
     }
 
     /** Rooms joined to {@code room} by any door, locked or not - DungeonMapPathfinder's neighbor rule. */

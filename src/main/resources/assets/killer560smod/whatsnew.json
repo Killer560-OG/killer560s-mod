@@ -9,7 +9,8 @@
     "items": [
      "GIF Player: still pictures (PNG, JPG, WebP, BMP) in the GIF folder are now listed and shown like a GIF, with the same size and position settings. An unreadable or oversized picture is skipped with one log line.",
      "Secret Aura no longer stands turned toward a secret it can never click: a chest in reach whose middle is just too far for the click (an Autopilot route stood on one at 293 score) is now clicked along the nearest look that reaches it, and Dungeons Autopilot leaves a route whose secret Secret Aura is stuck on after 2 s instead of standing there.",
-     "Dungeon sim: a key room that is not yet shown on the map is now judged insta cleared at the moment its wither door is clicked, not when the door blocks go, as Hypixel does."
+     "Dungeon sim: a key room that is not yet shown on the map is now judged insta cleared at the moment its wither door is clicked, not when the door blocks go, as Hypixel does.",
+     "Auto Clear: with Blood Rush Split off, Full Clear now takes the rooms in the order that walks the fewest map tiles instead of always doing the rooms off the blood rush first (about 3% fewer ticks on the test floors). Blood Rush Split is unchanged."
     ]
    }
   ]
