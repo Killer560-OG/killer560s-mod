@@ -1752,7 +1752,7 @@ public final class TerminalSolverFeature {
      *  and a covered terminal is actually open right now). */
     public static boolean isCustomGuiActive() {
         TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
-        return currentType != null && cfg.isEnabled() && cfg.isCustomGuiEnabled();
+        return solverShows() && cfg.isCustomGuiEnabled();
     }
 
     public static void renderOverlay(GuiGraphicsExtractor graphics) {
@@ -1762,7 +1762,7 @@ public final class TerminalSolverFeature {
         if (!isCustomGuiActive()) {
             // Melody has nothing to show outside Custom GUI mode - no solving logic means no
             // vanilla-overlay outlines to draw either.
-            if (currentType != TerminalType.MELODY && !currentHighlights.isEmpty() && TerminalSolverConfig.getInstance().isEnabled()) {
+            if (currentType != TerminalType.MELODY && !currentHighlights.isEmpty() && solverShows()) {
                 renderVanillaHighlights(graphics, screen);
             }
             return;
@@ -2278,8 +2278,11 @@ public final class TerminalSolverFeature {
                 lastUnmatchedTitle = rawTitle;
                 StringBuilder cps = new StringBuilder();
                 rawTitle.codePoints().limit(80).forEach(cp -> cps.append(String.format(Locale.ROOT, "%04X ", cp)));
-                LOGGER.info("{} title looks like a terminal but matched no pattern (or its type is off): '{}' normalized '{}'"
-                        + " code points {}", DIAG_TAG, rawTitle, normalized, cps.toString().trim());
+                TerminalType known = null;
+                for (TerminalType t : TYPES) if (t.titlePattern().matcher(normalized).matches()) known = t;
+                String why = known == null ? "matched no pattern" : known + " is off (solver and auto)";
+                LOGGER.info("{} title looks like a terminal but {}: '{}' normalized '{}' code points {}",
+                        DIAG_TAG, why, rawTitle, normalized, cps.toString().trim());
                 return;
             }
         }
@@ -2313,7 +2316,7 @@ public final class TerminalSolverFeature {
     private static int enabledMask(TerminalSolverConfig cfg) {
         int m = 0;
         for (TerminalType type : TYPES) {
-            if (isTypeEnabled(type, cfg)) {
+            if (isDetected(type, cfg)) {
                 m |= 1 << type.ordinal();
             }
         }
@@ -2322,10 +2325,21 @@ public final class TerminalSolverFeature {
 
     private static TerminalType matchType(String title, TerminalSolverConfig cfg) {
         for (TerminalType type : TYPES) {
-            if (!isTypeEnabled(type, cfg)) continue;
+            if (!isDetected(type, cfg)) continue;
             if (type.titlePattern().matcher(title).matches()) return type;
         }
         return null;
+    }
+
+    /** A type is tracked when the solver shows it or Auto Terminals clicks it: auto runs without the solver. */
+    private static boolean isDetected(TerminalType type, TerminalSolverConfig cfg) {
+        return isTypeEnabled(type, cfg) || cfg.isAutoTerminalsEnabled() && isAutoTypeEnabled(type, cfg);
+    }
+
+    /** The solver's own drawing for the open terminal: its master and that type's switch (tracking alone is not enough). */
+    public static boolean solverShows() {
+        TerminalSolverConfig cfg = TerminalSolverConfig.getInstance();
+        return currentType != null && cfg.isEnabled() && isTypeEnabled(currentType, cfg);
     }
 
     private static boolean isTypeEnabled(TerminalType type, TerminalSolverConfig cfg) {
