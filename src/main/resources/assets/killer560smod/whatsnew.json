@@ -33,7 +33,8 @@
      "Auto Trap: the built-in Old Trap route no longer throws a pearl and now walks out of the room.",
      "Auto Trap: the built-in Old Trap route now works in every room rotation.",
      "Auto Anvil now also combines Karma, Petalfall, Bug Blender, Feast, Lapidary, Respite and Smarty Pants books, which it used to skip, and tells you in chat which book types it left alone because it has no rule for them.",
-     "Simon Says no longer says the device broke after a teammate finishes it while you were just watching."
+     "Simon Says no longer says the device broke after a teammate finishes it while you were just watching.",
+     "Reclaim Inventory now finds every item you can reclaim Boosters from, not only armor."
     ]
    }
   ]

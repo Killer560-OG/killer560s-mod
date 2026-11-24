@@ -113,7 +113,7 @@ public final class ReclaimMenu {
             st = St.RECLAIM_OPEN;
             ticks = -1; // not sent yet
             if (pending.isEmpty()) {
-                stop("nothing in your inventory that Auto Reclaim knows /reclaim takes (Recombobulator, Divine Gift, Chance, Luck, Boosters armor)");
+                stop("nothing in your inventory that Auto Reclaim knows /reclaim takes (Recombobulator, Divine Gift, Chance, Luck, Boosters)");
             }
         } else {
             lastPull = -100;

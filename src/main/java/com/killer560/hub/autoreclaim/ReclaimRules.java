@@ -13,8 +13,8 @@ import java.util.WeakHashMap;
  * SPECIAL or VERY SPECIAL accessory (Recombobulator), an item with the old Divine Gift enchantment, an item with the old
  * Chance or Luck enchantment (books included). The patch names no item types for the enchantments, so any item matches.
  * Boosters is not in the patch text: it comes from his own capture (2026-11-22, Fig armor carrying boosters was accepted
- * with the claim "Boosters"), so only armor pieces (skyblock id ending HELMET, CHESTPLATE, LEGGINGS, BOOTS) with a
- * non-empty {@code boosters} list match; whether tools take it too is not proven.
+ * with the claim "Boosters") and the owner's answer
+ * (2026-11-23: "every possible item you can reclaim"): ANY item with a non-empty {@code boosters} list matches, whatever its type.
  * The answer is read once per stack (weak identity cache, render thread only) and dropped on world change.
  */
 public final class ReclaimRules {
@@ -54,9 +54,7 @@ public final class ReclaimRules {
         add(sb, ench, "divine_gift", "Divine Gift");
         add(sb, ench, "chance", "Chance");
         add(sb, ench, "luck", "Luck");
-        String id = tag.getStringOr("id", "");
-        if (tag.getListOrEmpty("boosters").size() > 0 && (id.endsWith("HELMET") || id.endsWith("CHESTPLATE")
-                || id.endsWith("LEGGINGS") || id.endsWith("BOOTS"))) {
+        if (tag.getListOrEmpty("boosters").size() > 0) {
             sb.append(sb.length() > 0 ? ", " : "").append("Boosters");
         }
         return sb.toString();
