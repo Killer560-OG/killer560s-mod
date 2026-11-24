@@ -90,6 +90,8 @@ public final class ProfileManager {
             // Shared-store records (RecordCatalog): sim mob looks, Carnival history - records, not settings.
             "killer560smod-sim-mob-looks.json",
             "killer560smod-carnival-history.json",
+            // Death Patterns record (shared store) - history, not a setting.
+            "killer560smod-death-patterns.json",
             "killer560smod-sim-device-practice.json",
             "killer560smod-sim-room-drills.json",
             "killer560smod-room-costs.json",
