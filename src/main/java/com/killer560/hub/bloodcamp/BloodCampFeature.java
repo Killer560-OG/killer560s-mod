@@ -1469,6 +1469,7 @@ public final class BloodCampFeature {
      * weapon's beam (and Hypixel's other left-click abilities) fire on. The attack-speed cap is the caller's.
      */
     private static Click click(Minecraft client, Entity melee) {
+        BloodCampStats.noteAction(client);
         if (com.killer560.hub.util.AttackCooldown.isShortbow(client.player.getMainHandItem())) {
             client.gameMode.useItem(client.player, net.minecraft.world.InteractionHand.MAIN_HAND);
             CLICKS_BY_KIND[Click.USE.ordinal()]++;
@@ -2597,7 +2598,7 @@ public final class BloodCampFeature {
      * ({@link #resolveAttackTarget}, {@link #lookTarget}), so no attack packet names a mob his look misses. The Aura keeps
      * {@link #aimedAt}.
      */
-    private static boolean aimedAtRoughly(Minecraft client, AABB box) {
+    static boolean aimedAtRoughly(Minecraft client, AABB box) {
         Vec3 eyes = client.player.getEyePosition();
         if (!visible(client, box)) {
             return false;

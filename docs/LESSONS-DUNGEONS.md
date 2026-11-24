@@ -176,6 +176,8 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
 
 ## Blood Camp
 
+- **Camping is his class too (bloodcamp-nonmage-1123).** `BloodCampStats.camped` was "in the Blood Room after the kill timer", so an Archer who leaped to the Mage's camp sent "Blood Camp: 261 ticks lost" to the party as his own (his 11-23 17:00 run, class ARCHER, Trigger Bot held by Mage Only 7 blocks from the mobs). It now needs `PartyTracker.selfClass()` to be Mage or unknown, or (owner 11-23: an Archer who really kills them camps) `BloodCampStats.OWN_KILLS_TO_CAMP` = 3 blood mobs that died with his look on them (`aimedAtRoughly`) and his left button held, a use of an item or a mod click in the 8 ticks before (`noteAction`, no per-tick work outside the camp phases); Send For Any Class still sends. Everything else the stats and HUD read (mob ticks, camp lag, Watcher bar, out-of-range) comes from the Watcher's lines and the mobs' entities, not from who camps. Testkit 1123-bloodcamp-nonmage-stats.
+
 - Blood Camp's prediction is the (killer560 asked for it, 2026-10-07), including a Kotlin quirk: the reference sums
   `packet.xa / 4096` with a Short and an Int, which is INTEGER division, so a blood mob's sub-block step adds nothing and the
   trip starts at the skull's spot in the wall. Ours divided by 4096.0, started one packet out of the wall, and landed the

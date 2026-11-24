@@ -68,12 +68,21 @@ public final class BloodCampStats {
 
     static void register() {
         com.killer560.hub.util.PerTickServerClock.register();
+        net.fabricmc.fabric.api.event.player.UseItemCallback.EVENT.register((player, level, hand) -> {
+            if (level.isClientSide()) {
+                noteAction(Minecraft.getInstance());
+            }
+            return net.minecraft.world.InteractionResult.PASS;
+        });
         // One step per server tick of util.PerTickServerClock (not ServerTickClock, which an anticheat's ~15 pings a
         // second already make "ping-driven"), stepped at the end of each client tick.
         net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents.END_CLIENT_TICK.register(client -> {
             long now = com.killer560.hub.util.PerTickServerClock.now();
             long steps = Math.max(0L, Math.min(200L, now - lastClock));
             lastClock = now;
+            if (client.player != null && client.options.keyAttack.isDown()) {
+                noteAction(client);
+            }
             for (long i = 0; i < steps; i++) {
                 onServerTick();
             }
@@ -100,6 +109,7 @@ public final class BloodCampStats {
         firstKillTicks = -1L;
         campLagMs = 0L;
         camped = false;
+        OWN_KILLS.clear();
         sentThisRun = false;
         WatcherBar.reset();
     }
@@ -136,6 +146,7 @@ public final class BloodCampStats {
 
     /** A tagged blood mob died (seen dead, or removed by the server while dead / close to him). */
     static void onBloodMobDied(int id) {
+        noteOwnKill(id);
         if (phase == Phase.ALIVE && firstKillTicks < 0) {
             firstKillTicks = ticksLost;
             BloodCampFeature.LOGGER.info("[BloodCampStats] first blood mob #{} died {} counted ticks after the first spawn"
@@ -172,10 +183,51 @@ public final class BloodCampStats {
         phase = Phase.DONE;
     }
 
-    /** He is in the Blood Room this tick (from BloodCampFeature): after the kill timer that is camping it. */
-    static void noteInRoom(boolean inRoom) {
-        if (inRoom && (phase == Phase.WAITING_SPAWN || phase == Phase.ALIVE)) {
+    /** Blood mobs that died with his look on them and a swing or use of his in the 8 ticks before: his kills. */
+    private static final java.util.Set<Integer> OWN_KILLS = new java.util.HashSet<>();
+    /** His own kills that make a non-Mage a camper (one or two are a leap through the Mage's camp). */
+    static final int OWN_KILLS_TO_CAMP = 3;
+    private static long lastActionTick = Long.MIN_VALUE;
+
+    /** His left button held (end of every client tick), his item use (UseItemCallback) or a click the mod sent for him, only
+     *  while a camp is being counted. */
+    static void noteAction(Minecraft client) {
+        if (client.level != null && (phase == Phase.WAITING_SPAWN || phase == Phase.ALIVE)) {
+            lastActionTick = client.level.getGameTime();
+        }
+    }
+
+    private static void noteOwnKill(int id) {
+        Minecraft client = Minecraft.getInstance();
+        if (camped || client.level == null || client.player == null || !(phase == Phase.WAITING_SPAWN || phase == Phase.ALIVE)
+                || client.level.getGameTime() - lastActionTick > 8) {
+            return;
+        }
+        net.minecraft.world.entity.Entity e = client.level.getEntity(id);
+        if (e != null && BloodCampFeature.aimedAtRoughly(client, e.getBoundingBox())) {
+            ownKill(id);
+        }
+    }
+
+    private static void ownKill(int id) {
+        if (OWN_KILLS.add(id) && OWN_KILLS.size() >= OWN_KILLS_TO_CAMP) {
             camped = true;
+            BloodCampFeature.LOGGER.info("[BloodCampStats] {} blood mobs killed by him: counted as camping", OWN_KILLS.size());
+        }
+    }
+
+    /** Testkit: as if he killed blood mob {@code id} (the swing and aim test is {@link #noteOwnKill}). */
+    public static void ownKillForTest(int id) {
+        ownKill(id);
+    }
+
+    /** He is in the Blood Room this tick (from BloodCampFeature): after the kill timer that is camping it, unless his class is
+     *  known and is not Mage (an Archer leaping in on the Mage's camp is not camping; Send For Any Class still sends). A
+     *  non-Mage who killed {@link #OWN_KILLS_TO_CAMP} blood mobs himself did camp ({@link #noteOwnKill}). */
+    static void noteInRoom(boolean inRoom) {
+        if (inRoom && !camped && (phase == Phase.WAITING_SPAWN || phase == Phase.ALIVE)) {
+            com.killer560.hub.dungeonclass.DungeonClass cls = com.killer560.hub.leapmenu.PartyTracker.selfClass();
+            camped = cls == null || cls == com.killer560.hub.dungeonclass.DungeonClass.MAGE;
         }
     }
 
