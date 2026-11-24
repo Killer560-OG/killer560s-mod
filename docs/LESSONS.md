@@ -188,6 +188,7 @@ project CLAUDE.md. Compiling lessons
   found nothing. Fix (maskswap-1102): pick only from the masks in the inventory half, read on every press; only a proc
   cooldown refuses. Testkit 1889 holds the client helmet stale and must still alternate six presses.
 
+- **The stakes pick waits for a settled menu and logs every tier** (superpairs-stakes-1124, killer560 11-24: Superpairs started on Grand with nothing logged; cause not proven, no recording of that menu existed). `ExperimentNavigator` picks only when the menu's state id has not moved since the last pass and 2+ tier items exist (6 s cap, WARN), and writes one INFO line per pick: each tier's slot, open/LOCKED and its cost/lock lore lines. If it happens again, read that line first. Testkit 1124-menu-exp-superpairs-stakes.
 - **Superpairs powerups come in two kinds, told apart by lore.** "Instant powerup!" (the `+479,095 XP` lapis
   block, "Gained +3 Clicks") applies on the spot; only "Powerup for next click!" (Instant Find) matches the next
   click. Arming on both spent a lone click on an Enchanted Book and reserved it, blocking its pair (2026-10-01).

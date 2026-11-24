@@ -58,6 +58,7 @@ final class ExperimentNavigator {
             "Metaphysical", "Transcendent", "Supreme", "Grand", "High", "Beginner");
     private static final List<String> LOCKED_LORE_MARKERS = List.of(
             "Enchanting level too low!", "Not enough experience!", "Practice mode has no rewards");
+    private static final Pattern HINT_LORE = Pattern.compile("(?i)afford|level|experience|requir|locked|cost|practice");
     private static final Pattern ROUNDS_NEEDED_PATTERN = Pattern.compile("(?:Chain|Series) of (\\d{1,9}):");
     private static final Pattern RENEWED_TODAY_PATTERN = Pattern.compile("You've renewed (\\d{1,9})/3 charges today!");
     private static final Pattern BAZAAR_PRICE_PATTERN = Pattern.compile("Bazaar (?:Buy )?Price: ([0-9][0-9,]*(?:\\.[0-9]+)?) Coins");
@@ -70,6 +71,8 @@ final class ExperimentNavigator {
     private static final Pattern BARE_COINS_PATTERN = Pattern.compile("^([0-9][0-9,]*(?:\\.[0-9]+)?) Coins$");
     private static final Pattern XP_COST_PATTERN = Pattern.compile("(\\d{1,9})\\s*XP Levels");
     private static final long MENU_ACTION_DELAY_MS = 1000;
+    /** A stakes screen still receiving packets after this long is picked from anyway, with a WARN. */
+    private static final long STAKES_SETTLE_MAX_MS = 6000;
     /** Distinct from -1 ("nothing to do right now") - means the navigator wants to back out right now
      *  (e.g. an unaffordable Titanic bottle purchase) and {@link ExperimentsFeature} should actually
      *  close the screen (through the same jittered {@code scheduleAction} every other action goes
@@ -95,6 +98,10 @@ final class ExperimentNavigator {
     private boolean superpairsDoneThisRun = false;
     private long lastNavClickAtMs = 0;
     private String lastLoggedTitle = null;
+    /** Stakes screen settle check: the menu's state id at the last pass (it changes with every content or slot packet
+     *  the server sends) and when this visit first saw it still changing. */
+    private int stakesStateId = -1;
+    private long stakesChangedSinceMs = 0;
     private int pendingRoundsNeeded = -1;
     /** Solver Only's own per-tier-name threshold cache - see {@link #peekTierScreenForRoundsNeeded}/
      *  {@link #getRoundsNeededForTitle} for why this exists separately from {@link #pendingRoundsNeeded}
@@ -148,6 +155,8 @@ final class ExperimentNavigator {
             // before the navigator acts on it.
             lastNavClickAtMs = now;
             titanicPurchasedThisVisit = false;
+            stakesStateId = screen.getMenu().getStateId();
+            stakesChangedSinceMs = 0;
             return -1;
         }
         if (now - lastNavClickAtMs < MENU_ACTION_DELAY_MS) {
@@ -369,6 +378,20 @@ final class ExperimentNavigator {
                     || title.startsWith("Superpairs");
             if (!midPuzzle && !runComplete && looksLikeGameScreen) {
                 TierScan scan = scanTiers(menu);
+                // Pick only once the server has stopped sending this menu (no content or slot packet since the last
+                // pass) and at least two tier items are there: never from a half-loaded screen.
+                int stateId = menu.getStateId();
+                boolean moving = stateId != stakesStateId || scan.tiers() < 2;
+                stakesStateId = stateId;
+                if (moving) {
+                    if (stakesChangedSinceMs == 0) stakesChangedSinceMs = now;
+                    if (now - stakesChangedSinceMs < STAKES_SETTLE_MAX_MS) {
+                        lastNavClickAtMs = now;
+                        return -1;
+                    }
+                    LOGGER.warn("{} stakes: still loading after {} ms ({} tier item(s)), picking from what is there",
+                            title, STAKES_SETTLE_MAX_MS, scan.tiers());
+                }
                 if (scan.betterLockedByExperience() && titanicMaxPriceCoins > 0) {
                     pendingTitanicPurchase = true;
                     return CLOSED_SIGNAL;
@@ -377,6 +400,12 @@ final class ExperimentNavigator {
                     pendingRoundsNeeded = readMaxClickBonusRounds(scan.bestStack());
                     result = scan.bestSlot();
                     reason = "tier pick";
+                    LOGGER.info("{}: options [{}] -> picked {} (slot {}) because {}", title, scan.options(),
+                            TIER_NAMES.get(scan.bestRank()), scan.bestSlot(), scan.bestRank() == 0
+                                    ? "it is the top tier and open"
+                                    : "every higher tier is locked or not offered (see options)");
+                } else {
+                    LOGGER.warn("{}: options [{}] -> no open tier to pick", title, scan.options());
                 }
             }
         }
@@ -518,7 +547,8 @@ final class ExperimentNavigator {
      *  none), and {@code betterLockedByExperience} whether some tier ranked better than {@code bestSlot}
      *  exists but is locked specifically by "Not enough experience!" (as opposed to a real Enchanting-
      *  level gate or "Practice mode has no rewards", neither of which a Titanic bottle purchase fixes). */
-    private record TierScan(int bestSlot, ItemStack bestStack, boolean betterLockedByExperience) {
+    private record TierScan(int bestSlot, ItemStack bestStack, boolean betterLockedByExperience, int bestRank, int tiers,
+            String options) {
     }
 
     /** Field-tested (2026-09-06): picking "whichever non-locked tier item has the highest column"
@@ -535,6 +565,8 @@ final class ExperimentNavigator {
         int bestRank = Integer.MAX_VALUE;
         ItemStack bestStack = null;
         int bestExperienceLockedRank = Integer.MAX_VALUE;
+        int tiers = 0;
+        String[] state = new String[TIER_NAMES.size()];
         for (Slot slot : menu.slots) {
             if (slot.index >= containerSlotCount) continue;
             ItemStack stack = slot.getItem();
@@ -542,6 +574,8 @@ final class ExperimentNavigator {
             String name = stack.getHoverName().getString();
             int rank = tierRank(name);
             if (rank < 0) continue;
+            tiers++;
+            state[rank] = "slot " + slot.index + (isLocked(stack) ? " LOCKED" : " open") + " " + hintLines(stack);
             if (isLockedForExperience(stack)) {
                 if (rank < bestExperienceLockedRank) {
                     bestExperienceLockedRank = rank;
@@ -555,7 +589,24 @@ final class ExperimentNavigator {
                 bestStack = stack;
             }
         }
-        return new TierScan(bestSlot, bestStack, bestExperienceLockedRank < bestRank);
+        StringBuilder options = new StringBuilder();
+        for (int i = 0; i < state.length; i++) {
+            options.append(i > 0 ? "; " : "").append(TIER_NAMES.get(i)).append(": ").append(state[i] == null ? "not offered" : state[i]);
+        }
+        return new TierScan(bestSlot, bestStack, bestExperienceLockedRank < bestRank, bestRank, tiers, options.toString());
+    }
+
+    /** The cost / requirement / lock lines of a tier item, for the pick log. */
+    private static String hintLines(ItemStack stack) {
+        ItemLore lore = stack.get(DataComponents.LORE);
+        StringBuilder sb = new StringBuilder();
+        if (lore != null) {
+            for (Component line : lore.lines()) {
+                String text = line.getString();
+                if (HINT_LORE.matcher(text).find()) sb.append(sb.length() > 0 ? " | " : "").append(text);
+            }
+        }
+        return sb.toString();
     }
 
     /** @return the item's rank against {@link #TIER_NAMES} (0 = Metaphysical, the best) or -1 if the
