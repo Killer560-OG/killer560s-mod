@@ -34,7 +34,8 @@
      "Auto Trap: the built-in Old Trap route now works in every room rotation.",
      "Auto Anvil now also combines Karma, Petalfall, Bug Blender, Feast, Lapidary, Respite and Smarty Pants books, which it used to skip, and tells you in chat which book types it left alone because it has no rule for them.",
      "Simon Says no longer says the device broke after a teammate finishes it while you were just watching.",
-     "Reclaim Inventory now finds every item you can reclaim Boosters from, not only armor."
+     "Reclaim Inventory now finds every item you can reclaim Boosters from, not only armor.",
+     "Invisibug Highlight: a new Galatea setting (off by default) boxes where each Invisibug is, found from the one circling particle it gives off, and drops the box 2 seconds after the particles stop."
     ]
    }
   ]

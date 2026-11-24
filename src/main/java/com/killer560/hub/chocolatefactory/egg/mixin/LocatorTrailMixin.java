@@ -37,5 +37,10 @@ public abstract class LocatorTrailMixin {
         } catch (RuntimeException e) {
             // Same: never disconnect over a particle.
         }
+        try {
+            com.killer560.hub.foraging.InvisibugHighlight.onParticlePacket(packet);
+        } catch (RuntimeException e) {
+            // Same.
+        }
     }
 }

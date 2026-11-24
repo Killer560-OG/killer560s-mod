@@ -301,6 +301,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.mining.fetchur.FetchurSolver.register();
         com.killer560.hub.mining.puzzler.PuzzlerSolver.register();
         com.killer560.hub.mining.cold.ColdOverlay.register();
+        com.killer560.hub.foraging.InvisibugHighlight.register();
         com.killer560.hub.mineshaft.Mineshaft.register();
         HudElementRegistry.register(com.killer560.hub.mineshaft.Mineshaft.HUD);
         com.killer560.hub.mining.skymall.SkyMallDisplay.register();

@@ -49,6 +49,7 @@ final class CardBlurbsData {
         d.put("FetchurSolverTab", "Names Fetchur's item.");
         d.put("PuzzlerSolverTab", "Marks the Puzzler's block.");
         d.put("ColdOverlayTab", "Frost on screen as Cold rises.");
+        d.put("InvisibugHighlightTab", "Marks Invisibugs.");
         d.put("FossilSolverTab", "Where to dig for the fossil.");
         d.put("MiningEventsTab", "Mining event alerts and timers.");
         d.put("MiningProfitTab", "Mining profit per hour.");
