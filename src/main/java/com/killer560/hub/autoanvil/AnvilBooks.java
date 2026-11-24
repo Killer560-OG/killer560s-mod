@@ -82,7 +82,11 @@ public final class AnvilBooks {
                 "efficiency", "harvesting", "woodsplitter",
                 // fishing rods (pyroclasm is on both the sword and rod lists)
                 "angler", "blessing", "caster", "frail", "luck_of_the_sea", "lure", "magnet", "piscary",
-                "pyroclasm", "spiked_hook"}) {
+                "pyroclasm", "spiked_hook",
+                // axes (Bazaar lists I-V; his Karma and Petalfall I books combined nothing, 2026-11-23)
+                "karma", "petalfall",
+                // wiki "can be combined on an Anvil up to X V" and the Bazaar lists I-V (checked 2026-11-23)
+                "bug_blender", "feast", "lapidary", "respite", "smarty_pants"}) {
             t.put(id, range(2, 5));
         }
         // Table enchants that stop at IV.
@@ -154,6 +158,31 @@ public final class AnvilBooks {
         // Smoldering, Divine Gift, Rainbow, ...), One For All, the Kuudra vitality/mana books (the wiki does not say
         // which levels drop), and every enchant the six tables above do not list at all.
         return Map.copyOf(t);
+    }
+
+    /**
+     * Every other enchant id the bundled Bazaar list (assets/killer560smod/bazaar/products.json) knows: deliberately never
+     * combined. The testkit case 1123-menu-anvil-table-complete fails on a Bazaar enchant that is in neither this set nor
+     * {@link #ANVIL_RESULTS}, so a new enchant is decided on instead of skipped silently. To combine one, move it to the table
+     * once both the wiki ("can be combined on an Anvil up to ...") and the Bazaar levels confirm it.
+     */
+    static final Set<String> NO_COMBINE = Set.of(
+            // one level only (or no anvil levels)
+            "absorb", "aqua_affinity", "curse_of_vanishing", "delicate", "frost_walker", "looting_new", "magmarizer",
+            "piercing", "replenish", "silk_touch", "smelting_touch", "toxophilite", "true_protection",
+            "ultimate_one_for_all", "wither_hunter",
+            // the wiki says these cannot be combined, or ten-level books that are bought, not made
+            "champion", "compact", "cultivating", "expertise", "hecatomb",
+            // levels come from auctions, drops, slayers, the dark auction or Experiments, not two books
+            "big_brain", "counter_strike", "divine_gift", "mana_steal", "small_brain", "smoldering", "vicious",
+            "stealth", "sunder",
+            // renamed or removed enchants, or ones only one source confirmed (left out on purpose, 2026-11-23)
+            "aiming", "arcane", "dragon_hunter", "syphon", "pristine", "ferocious_mana", "hardened_mana",
+            "mana_vampire", "strong_mana");
+
+    /** Whether the table or NO_COMBINE decides this enchant: false means a book of it is skipped only for lack of data. */
+    public static boolean known(String enchant) {
+        return ANVIL_RESULTS.containsKey(enchant) || NO_COMBINE.contains(enchant);
     }
 
     private static Set<Integer> range(int from, int to) {

@@ -297,6 +297,17 @@ public final class AutoAnvilFeature {
                 }
                 int[] pair = AnvilBooks.pickPair(candidates, budget);
                 if (pair == null) {
+                    // Once per run: book types left alone only because the mod has no rule for them (a new enchant).
+                    java.util.TreeSet<String> unknown = new java.util.TreeSet<>();
+                    for (AnvilBooks.Candidate c : candidates) {
+                        if (!AnvilBooks.known(c.book().enchant())) {
+                            unknown.add(c.book().enchant());
+                        }
+                    }
+                    if (!unknown.isEmpty()) {
+                        ModChat.send("AutoAnvil", ModChat.bad("Skipped: "),
+                                ModChat.text("no combine rule for " + String.join(", ", unknown) + " yet"));
+                    }
                     if (combined == 0) {
                         LOGGER.info("[AutoAnvil] no pair to combine; books in the inventory: {}", booksSeen(menu));
                     }
