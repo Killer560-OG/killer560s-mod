@@ -646,6 +646,7 @@ public final class ProfileManager {
                 com.killer560.hub.ap3.Ap3Config::load,
                 com.killer560.hub.ap3.Ap3Store::reloadIfSwitched,
                 com.killer560.hub.leapcounter.LeapCounterConfig::load,
+                com.killer560.hub.kitcheck.KitCheckConfig::load,
                 com.killer560.hub.milestone.MilestoneConfig::load,
                 com.killer560.hub.itemhighlight.DungeonItemHighlightConfig::load,
                 com.killer560.hub.armourdye.ArmourDyeConfig::load,

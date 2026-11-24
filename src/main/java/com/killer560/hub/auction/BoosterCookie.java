@@ -47,6 +47,15 @@ public final class BoosterCookie {
     private BoosterCookie() {
     }
 
+    /** The tab list footer with its color codes stripped, or null when there is none. */
+    public static String footer(Minecraft client) {
+        if (McCompat.tabList(client) instanceof CustomScoreboardTabOverlayAccessor accessor) {
+            Component f = accessor.killer560smod$getFooter();
+            return f == null ? null : ChatObserver.stripCodes(f.getString());
+        }
+        return null;
+    }
+
     public static State state(Minecraft client) {
         try {
             return read(client);
@@ -60,11 +69,7 @@ public final class BoosterCookie {
             return State.UNKNOWN;
         }
         PlayerTabOverlay overlay = McCompat.tabList(client);
-        String footer = null;
-        if (overlay instanceof CustomScoreboardTabOverlayAccessor accessor) {
-            Component f = accessor.killer560smod$getFooter();
-            footer = f == null ? null : ChatObserver.stripCodes(f.getString());
-        }
+        String footer = footer(client);
         State fromFooter = fromFooter(footer);
         if (fromFooter != State.UNKNOWN) {
             return fromFooter;

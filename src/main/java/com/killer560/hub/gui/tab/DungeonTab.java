@@ -27,6 +27,7 @@ public class DungeonTab extends FolderTab {
                 new WitherDoorsTab(),
                 new LeapMenuTab(),
                 new LeapCounterTab(),
+                new KitCheckTab(),
                 new MilestoneTab(),
                 new DungeonItemHighlighterTab(),
                 new DungeonQueueTab(),

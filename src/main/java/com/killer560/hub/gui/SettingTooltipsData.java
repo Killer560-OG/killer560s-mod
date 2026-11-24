@@ -1245,6 +1245,14 @@ final class SettingTooltipsData {
         d.put("show invuln timer", "Shows a HUD countdown of Livid's opening invulnerability.");
         d.put("blessings/boss only", "Shows the Blessings HUD only in the floor's boss room.");
         d.put("livid solver/timer unit", "Livid's invuln timer in ticks (120t) or in seconds (6.0s).");
+        d.put("kit check", "When the dungeon countdown starts, shows a title and a chat line if your inventory is short of what you set below. It only looks: nothing is clicked or equipped for you.");
+        d.put("check from floor", "Floors below this one are not checked. Click for the next floor, right click for the one before.");
+        d.put("spirit leaps at least", "Warns if you carry fewer Spirit Leaps than this (Off = not checked). Sacks are not visible to the mod, only your inventory.");
+        d.put("superboom tnt at least", "Warns if you carry fewer Superboom TNT than this (Off = not checked).");
+        d.put("decoys at least", "Warns if you carry fewer Decoys than this (Off = not checked).");
+        d.put("arrows at least", "Warns if your quiver holds fewer arrows than this (Off = not checked).");
+        d.put("check god potion", "Warns if the tab list shows effects but no God Potion among them. Nothing is said while the tab list has not loaded.");
+        d.put("check booster cookie", "Warns if the tab list says your Booster Cookie is not active.");
         d.put("quiver display", "Shows how many arrows you have left in a HUD line.");
         d.put("quiver text color", "Color of the Quiver Display's HUD line.");
         d.put("low arrow alert", "Shows a title on screen once your arrows drop below the threshold.");

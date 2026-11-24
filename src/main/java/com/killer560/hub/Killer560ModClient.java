@@ -384,6 +384,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.crosshair.CustomCrosshairFeature.register();
         com.killer560.hub.ap3.Ap3Keybinds.register();
         com.killer560.hub.leapcounter.LeapCounterFeature.register();
+        com.killer560.hub.kitcheck.KitCheckFeature.register();
         com.killer560.hub.milestone.MilestoneFeature.register();
         HudElementRegistry.register(com.killer560.hub.milestone.MilestoneFeature.HUD);
         com.killer560.hub.sounddisabler.SoundDisabler.register();

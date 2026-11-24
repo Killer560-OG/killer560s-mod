@@ -122,6 +122,18 @@ public final class QuiverDisplayFeature {
 
     public static String lastAlertTitle() { return lastAlertTitle; }
 
+    /** The arrows your quiver stack says it holds, or -1 when no such stack is in the inventory. */
+    public static int arrowCount(Player player) {
+        for (int i = 0; i < 36; i++) {
+            ItemStack stack = player.getInventory().getItem(i);
+            String text = isQuiverItem(stack) ? readArrowsRemaining(stack) : null;
+            if (text != null) {
+                return Integer.parseInt(text.replace(",", ""));
+            }
+        }
+        return -1;
+    }
+
     private static boolean isQuiverItem(ItemStack stack) {
         return !stack.isEmpty() && (stack.is(Items.FEATHER) || stack.is(Items.ARROW));
     }
