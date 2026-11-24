@@ -37,7 +37,9 @@ were read from their sources.
 
 - `pv/neu/*`: from [NotEnoughUpdates](https://github.com/NotEnoughUpdates/NotEnoughUpdates) (`pv_bg.png`,
   `pv_elements.png`, `pv_basic.png`, `pv_dung.png`, `pv_invs.png`, `pv_pets.png`, `pv_cols.png`, `pv_dropdown.png`, `slot.png` (one cell of `pv_invs.png`), and
-  `inv_tab.png`, `inv_tab_on.png`, `pet_sel.png` (one `pv_elements.png` cell: as drawn, turned, and tinted as NEU tints it)), Copyright NotEnoughUpdates contributors, licensed under the
+  `inv_tab.png`, `inv_tab_on.png`, `pet_sel.png` (one `pv_elements.png` cell: as drawn, turned, and tinted as NEU tints it),
+  `recent_top.png`, `recent_top_on.png`, `recent.png`, `recent_on.png` (`pv_elements.png` cells), `pv_ironman.png`, `pv_bingo.png`,
+  `pv_stranded.png`), Copyright NotEnoughUpdates contributors, licensed under the
   GNU Lesser General Public License v3.0 (https://www.gnu.org/licenses/lgpl-3.0.html).
 - `pv/sbpv/light`, `pv/sbpv/dark`, `pv/sbpv/clear`: from [SkyBlockPv](https://github.com/meowdding/skyblock-pv)
   (its default, darkmode and neu theme sprites; `slot.png` is one cell of each theme's `inventory/mono.png`, `side_tab.png` and

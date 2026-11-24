@@ -6,6 +6,7 @@ import com.killer560.hub.profileviewer.ProfileViewerFeature;
 import com.killer560.hub.profileviewer.api.ProfileViewerApi;
 import com.killer560.hub.profileviewer.data.AccessoryBagView;
 import com.killer560.hub.profileviewer.data.LevelTables;
+import com.killer560.hub.profileviewer.data.SkyblockWeight;
 import com.killer560.hub.profileviewer.data.ProfileExtras;
 import com.killer560.hub.profileviewer.data.SbProfile;
 import com.killer560.hub.gui.MenuStyle;
@@ -208,6 +209,21 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         };
     }
 
+    /** The Basic page of a loaded profile carries the Status control itself (under the Joined row, the NEU player
+     *  box, or in SkyBlockPV's box under the player); every other page keeps it in the header. */
+    boolean statusInPage() {
+        return state == State.READY && page == PAGE_BASIC && profile() != null;
+    }
+
+    /** A Status button at {@code x, y, w} on the Basic page, remembered for the popup and the testkit. */
+    private void statusButtonAt(GuiGraphicsExtractor g, int x, int y, int w, int mx, int my) {
+        statusButton[0] = x;
+        statusButton[1] = y;
+        statusButton[2] = w;
+        statusButton[3] = 16;
+        button(g, x, y, w, 16, "Status ▾", mx, my, statusOpen, this::toggleStatus);
+    }
+
     private void toggleStatus() {
         statusOpen = !statusOpen;
         if (!statusOpen || uuid == null || ProfileViewerApi.getCachedStatus(uuid) != null || statusPending) return;
@@ -224,13 +240,28 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     }
 
     private void drawStatus(GuiGraphicsExtractor g) {
+        if (sbpvStyle()) return; // SkyBlockPV shows the text inside its own box
         List<String> lines = statusLines();
-        int w = 60;
-        for (String s : lines) w = Math.max(w, this.font.width(s) + 12);
+        boolean inPage = statusInPage();
+        int w = inPage ? statusButton[2] : 60;
+        if (inPage) { // under the player / the Joined row: wrapped to the button's width, never wider than it
+            List<String> wrapped = new ArrayList<>();
+            for (String s : lines) {
+                while (!s.isEmpty()) {
+                    String part = this.font.plainSubstrByWidth(s, w - 8);
+                    if (part.isEmpty()) part = s.substring(0, 1);
+                    wrapped.add(part);
+                    s = s.substring(part.length()).stripLeading();
+                }
+            }
+            lines = wrapped;
+        } else {
+            for (String s : lines) w = Math.max(w, this.font.width(s) + 12);
+        }
         int h = lines.size() * 12 + 6;
-        int x = Math.max(4, Math.min(statusButton[0], this.width - 4 - w));
+        int x = inPage ? statusButton[0] : Math.max(4, Math.min(statusButton[0], this.width - 4 - w));
         int y = statusButton[1] + statusButton[3] + 1;
-        if (y + h > this.height) y = Math.max(0, statusButton[1] - 1 - h);
+        if (y + h > (inPage ? panelY + panelH : this.height)) y = Math.max(0, statusButton[1] - 1 - h);
         popup(g, x, y, w, h);
         for (int i = 0; i < lines.size(); i++) {
             tx(g, lines.get(i), x + 6, y + 4 + i * 12, i == 0 ? VALUE : DIM);
@@ -431,7 +462,8 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             // NEU Classic: in pv_basic's model frame; otherwise at the top of the left box.
             boolean neu = pvStyle == ProfileViewerConfig.Style.NEU;
             int[] m = PvStyleChrome.NEU_BASIC_MODEL;
-            int skinH = neu ? m[3] - 8 : Math.min(120, contentH - 90);
+            // NEU draws the player at scale 36 standing on (63, 135) under the name at y 54 (BasicPage.java:636-643).
+            int skinH = neu ? 78 : Math.min(120, contentH - 90);
             if (pvStyle != ProfileViewerConfig.Style.DEFAULT && !neu) { // SkyBlockPV: in its player frame, middle column
                 int w = (int) (panelW * 0.2), h = (int) (w * 1.1);
                 PlayerSkinWidget skin = new PlayerSkinWidget(w, h - h / 10, this.minecraft.getEntityModels(),
@@ -441,8 +473,8 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             } else if (skinH >= 50) {
                 PlayerSkinWidget skin = new PlayerSkinWidget(skinH / 2 + 10, skinH, this.minecraft.getEntityModels(),
                         this.minecraft.getSkinManager().createLookup(skinProfile, false));
-                skin.setPosition(neu ? panelX + m[0] + (m[2] - (skinH / 2 + 10)) / 2 : contentX + (118 - (skinH / 2 + 10)) / 2,
-                        neu ? panelY + m[1] + 4 : contentY + 4);
+                skin.setPosition(neu ? panelX + 63 - (skinH / 2 + 10) / 2 : contentX + (118 - (skinH / 2 + 10)) / 2,
+                        neu ? panelY + 138 - skinH : contentY + 4);
                 addRenderableWidget(skin);
             }
         }
@@ -451,7 +483,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         // squeezes the main content or overlaps the edge of the window on a small screen.
         int margin = (this.width - panelW) / 2;
         int gap = SIDEBAR_GAP + (pvStyle == ProfileViewerConfig.Style.DEFAULT || pvStyle == ProfileViewerConfig.Style.NEU ? 0 : 24); // SkyBlockPV's right tabs
-        sidebarVisible = margin >= gap + SIDEBAR_W;
+        // NEU Classic has no sidebar: recent players are tabs on the panel's right edge and the name box sits under the
+        // panel's right corner, 100 wide (GuiProfileViewer.java:325, :722-776).
+        boolean neuChrome = pvStyle == ProfileViewerConfig.Style.NEU;
+        sidebarVisible = !neuChrome && margin >= gap + SIDEBAR_W;
         switchBox = null;
         invSearch = new ThemedEditBox(this.font, 0, 0, 90, 14, Component.literal("Search items")).hint("Search items...");
         invSearch.setMaxLength(40);
@@ -462,13 +497,15 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         });
         invSearch.visible = false;
         addRenderableWidget(invSearch);
-        if (sidebarVisible) {
+        if (sidebarVisible || neuChrome) {
             sidebarX = panelX + panelW + gap;
             sidebarY = panelY;
             sidebarW = Math.min(SIDEBAR_W_WANTED, margin - gap - 2);
             sidebarH = panelH;
-            switchBox = new ThemedEditBox(this.font, sidebarX + 4, sidebarY + 16, sidebarW - 8, 14, Component.literal("Player name"))
-                    .hint("Name...");
+            switchBox = neuChrome
+                    ? new ThemedEditBox(this.font, panelX + panelW - 100, panelY + panelH + 5, 100, 20, Component.literal("Player name"))
+                    : new ThemedEditBox(this.font, sidebarX + 4, sidebarY + 16, sidebarW - 8, 14, Component.literal("Player name"));
+            ((ThemedEditBox) switchBox).hint("Name...");
             switchBox.setMaxLength(16);
             switchBox.setValue(switchBoxText);
             switchBox.setResponder(text -> {
@@ -633,7 +670,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                 dropdownOpen = false;
                 return true;
             }
-            if (statusOpen) { // a click outside the Status button closes the popup (the button itself toggles it)
+            if (statusOpen && !sbpvStyle()) { // a click outside the Status button closes the popup (the button itself toggles it)
                 boolean onButton = inside(event.x(), event.y(), statusButton[0], statusButton[1], statusButton[2], statusButton[3]);
                 if (!onButton) {
                     statusOpen = false;
@@ -809,8 +846,12 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             // NEU draws its unpressed tabs behind the panel; SkyBlockPV draws all of them over it (drawIconTabs).
             if (pvStyle == ProfileViewerConfig.Style.NEU) {
                 drawIconTabs(g, mouseX, mouseY, true);
+                drawNeuRecent(g, mouseX, mouseY, false);
             }
             PvStyleChrome.frame(g, pvStyle, panelX, panelY, panelW, panelH);
+            if (pvStyle == ProfileViewerConfig.Style.NEU) {
+                drawNeuRecent(g, mouseX, mouseY, true);
+            }
             Identifier over = !neuPage() ? null : switch (page) { // The Mining page has none: plain pv_bg
                 case PAGE_BASIC -> PvStyleChrome.NEU_BASIC;
                 case PAGE_DUNGEONS -> PvStyleChrome.NEU_DUNG;
@@ -872,7 +913,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
         super.extractRenderState(g, mouseX, mouseY, partialTick);
 
-        if (sidebarVisible) {
+        if (switchBox != null) {
             drawSuggestions(g, mouseX, mouseY);
         }
 
@@ -908,14 +949,20 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             nameX = panelX + 16 + this.font.width("Profile Viewer");
             tx(g, "·", nameX - 4, panelY + 8, DIM);
         }
-        if (!neuPage() || page == PAGE_BASIC) { // The reference draws the name on its Basic page only
+        boolean neuChrome = pvStyle == ProfileViewerConfig.Style.NEU;
+        if (!neuChrome || state != State.READY) { // NEU Classic draws the name over the player on its Basic page only
             tx(g, displayName == null ? "" : displayName, nameX + 4, panelY + 8, VALUE);
         }
 
         SbProfile p = profile();
-        String profileLabel = p == null ? null : "Profile: " + p.cuteName + gameModeTag(p) + " ▾";
+        // NEU's profile button says only the profile's name, its gamemode icon 21 px left of it (:333-350).
+        String profileLabel = p == null ? null : neuChrome ? p.cuteName : "Profile: " + p.cuteName + gameModeTag(p) + " ▾";
         String styleLabel = "Style: " + pvStyle.label;
-        String refresh = "⟳ Refresh";
+        String refresh = neuChrome ? "Refresh" : "⟳ Refresh";
+        Identifier modeIcon = neuChrome && p != null ? PvStyleChrome.neuGameMode(p.gameMode) : null;
+        if (modeIcon != null) {
+            g.blitSprite(RenderPipelines.GUI_TEXTURED, modeIcon, panelX - 21, panelY + panelH + 5, 16, 16);
+        }
         int bh, rx, ry, rw, px, py, pw, sx, sy, sw, stx, sty;
         String statusLabel = "Status ▾";
         int stw = this.font.width(statusLabel) + 10;
@@ -949,11 +996,13 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             sx = 5; sy = 5;
             stx = px - stw - 4; sty = ry;
         }
-        statusButton[0] = stx;
-        statusButton[1] = sty;
-        statusButton[2] = stw;
-        statusButton[3] = bh;
-        button(g, stx, sty, stw, bh, statusLabel, mx, my, statusOpen, this::toggleStatus);
+        if (!statusInPage()) {
+            statusButton[0] = stx;
+            statusButton[1] = sty;
+            statusButton[2] = stw;
+            statusButton[3] = bh;
+            button(g, stx, sty, stw, bh, statusLabel, mx, my, statusOpen, this::toggleStatus);
+        }
         button(g, rx, ry, rw, bh, refresh, mx, my, false, () -> load(true));
         if (result != null && state == State.READY && inside(mx, my, rx, ry, rw, bh) && !dropdownOpen) {
             long age = (System.currentTimeMillis() - result.fetchedAt()) / 1000;
@@ -1022,19 +1071,22 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         int x0 = panelX + PvStyleChrome.tabX0(pvStyle);
         int step = Math.min(PvStyleChrome.tabStep(pvStyle), (panelX + panelW - x0) / PAGES.length);
         int ty = panelY - PvStyleChrome.tabRise(pvStyle);
-        for (int i = 0; i < PAGES.length; i++) {
+        boolean neu = pvStyle == ProfileViewerConfig.Style.NEU;
+        for (int slot = 0; slot < PAGES.length; slot++) {
+            int i = neu ? NEU_TAB_ORDER[slot] : slot;
             if ((i == page) == unpressed) continue;
-            int tx = x0 + i * step;
-            PvStyleChrome.tab(g, pvStyle, i, tx, ty, i == page, inside(mx, my, tx, ty, w, h) && !dropdownOpen);
+            int tx = x0 + slot * step;
+            PvStyleChrome.tab(g, pvStyle, slot, tx, ty, i == page, inside(mx, my, tx, ty, w, h) && !dropdownOpen);
         }
         if (unpressed) return;
-        for (int i = 0; i < PAGES.length; i++) {
-            int tx = x0 + i * step;
-            g.item(pageIcon(i), tx + PvStyleChrome.iconDx(pvStyle), ty + PvStyleChrome.iconDy(pvStyle, i == page));
+        for (int slot = 0; slot < PAGES.length; slot++) {
+            int i = neu ? NEU_TAB_ORDER[slot] : slot;
+            int tx = x0 + slot * step;
+            g.item(neu ? neuPageIcon(i) : pageIcon(i), tx + PvStyleChrome.iconDx(pvStyle), ty + PvStyleChrome.iconDy(pvStyle, i == page));
             final int idx = i;
             hotspots.add(new Hotspot(tx, ty, w, h, () -> setPage(idx)));
             if (inside(mx, my, tx, ty, w, h) && !dropdownOpen) {
-                pendingTooltip = List.of(Component.literal(PAGES[i]).withStyle(style(VALUE)));
+                pendingTooltip = neu ? neuTabTip(i) : List.of(Component.literal(PAGES[i]).withStyle(style(VALUE)));
             }
         }
         PvStyleChrome.pageTitle(g, pvStyle, PAGES[page], panelX, panelY, panelW, panelH);
@@ -1058,6 +1110,68 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             icon = PAGE_ICONS[page] = newPageIcon(page);
         }
         return icon;
+    }
+
+    /** NEU Classic's tab order (GuiProfileViewer.ProfileViewerPage): Basic, Dungeon, Extra (our Misc), Inventories,
+     *  Collections, Pets, Mining, Bestiary, Crimson, Museum, Rift, Garden; our Networth and Weight pages after them. */
+    static final int[] NEU_TAB_ORDER = {0, 1, 12, 2, 4, 3, 5, 6, 7, 8, 9, 10, 11, 13};
+    private static final ItemStack[] NEU_ICONS = new ItemStack[PAGES.length];
+    private static final List<?>[] NEU_TIPS = new List<?>[PAGES.length];
+
+    /** NEU Classic's tab icons and their one-line colored hover names. */
+    private static ItemStack neuPageIcon(int page) {
+        ItemStack icon = NEU_ICONS[page];
+        if (icon == null) {
+            icon = NEU_ICONS[page] = new ItemStack(switch (page) {
+                case PAGE_BASIC -> Items.PAPER;
+                case PAGE_DUNGEONS -> Items.DEAD_BUSH;
+                case PAGE_MISC -> Items.BOOK;
+                case PAGE_INVENTORIES -> Items.ENDER_CHEST;
+                case PAGE_COLLECTIONS -> Items.PAINTING;
+                case PAGE_PETS -> Items.BONE;
+                case PAGE_MINING -> Items.IRON_PICKAXE;
+                case PAGE_BESTIARY -> Items.IRON_SWORD;
+                case PAGE_CRIMSON -> Items.NETHERRACK;
+                case PAGE_MUSEUM -> Items.LEATHER_CHESTPLATE;
+                case PAGE_RIFT -> Items.ENDER_EYE;
+                case PAGE_FARMING -> Items.GRASS_BLOCK;
+                case PAGE_NETWORTH -> Items.GOLD_INGOT;
+                default -> Items.ANVIL;
+            });
+        }
+        return icon;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static List<Component> neuTabTip(int page) {
+        List<?> tip = NEU_TIPS[page];
+        if (tip == null) {
+            String name = switch (page) {
+                case PAGE_BASIC -> "Skills";
+                case PAGE_DUNGEONS -> "Dungeoneering";
+                case PAGE_MISC -> "Profile Stats";
+                case PAGE_INVENTORIES -> "Storage";
+                case PAGE_MINING -> "Heart of the Mountain";
+                case PAGE_CRIMSON -> "Crimson Isle";
+                case PAGE_FARMING -> "Garden";
+                default -> PAGES[page];
+            };
+            int color = switch (page) {
+                case PAGE_BASIC -> 0xFF5555FF;
+                case PAGE_DUNGEONS -> 0xFFFFFF55;
+                case PAGE_MISC -> 0xFFAAAAAA;
+                case PAGE_INVENTORIES -> 0xFF55FFFF;
+                case PAGE_PETS -> 0xFF55FF55;
+                case PAGE_MINING, PAGE_RIFT -> 0xFFAA00AA;
+                case PAGE_BESTIARY -> 0xFFFF5555;
+                case PAGE_CRIMSON -> 0xFFAA0000;
+                case PAGE_FARMING -> 0xFF00AA00;
+                case PAGE_WEIGHT -> 0xFFFFFFFF;
+                default -> 0xFFFFAA00; // Collections, Museum, Networth
+            };
+            tip = NEU_TIPS[page] = List.of(Component.literal(name).withStyle(style(color)));
+        }
+        return (List<Component>) tip;
     }
 
     private static ItemStack newPageIcon(int page) {
@@ -1110,6 +1224,37 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             if (v.uuid().equals(self.uuid()) || y + SIDEBAR_ROW_H > bottom) continue;
             y = sidebarRow(g, x, y, v.uuid(), v.name(), mx, my, () -> open(new ProfileViewerFeature.Target(
                     LIVE_NAME_CACHE.getOrDefault(v.uuid(), v.name()), v.uuid())));
+        }
+    }
+
+    /** NEU Classic's recent players: tabs on the panel's right edge, 28 px apart from its top, your own head first;
+     *  hover shows the name. The open player's tab goes in front of the panel ({@code front}), the rest behind it. */
+    private void drawNeuRecent(GuiGraphicsExtractor g, int mx, int my, boolean front) {
+        ProfileViewerFeature.Target self = ProfileViewerFeature.self();
+        int x = panelX + panelW;
+        neuRecentRow(g, x, panelY, true, self.uuid(), self.name(), mx, my, front, null);
+        int i = 1;
+        for (ProfileViewerConfig.RecentView v : ProfileViewerConfig.getInstance().getRecentViews()) {
+            if (i >= NEU_RECENT_MAX) break;
+            if (v.uuid().equals(self.uuid())) continue;
+            neuRecentRow(g, x, panelY + i * 28, false, v.uuid(), v.name(), mx, my, front, v);
+            i++;
+        }
+    }
+
+    private static final int NEU_RECENT_MAX = 7;
+
+    private void neuRecentRow(GuiGraphicsExtractor g, int x, int y, boolean top, UUID id, String storedName,
+                              int mx, int my, boolean front, ProfileViewerConfig.RecentView v) {
+        boolean selected = id.equals(this.uuid);
+        if (selected == front) PvStyleChrome.neuRecentTab(g, x, y, top, selected);
+        if (!front) return;
+        g.item(headFor(id), x + 3, y + 6);
+        if (inside(mx, my, x, y, 28, 28) && !dropdownOpen) {
+            String name = LIVE_NAME_CACHE.getOrDefault(id, storedName);
+            pendingTooltip = List.of(Component.literal(name).withStyle(style(VALUE)));
+            hotspots.add(new Hotspot(x, y, 28, 28, () -> open(v == null ? ProfileViewerFeature.self()
+                    : new ProfileViewerFeature.Target(LIVE_NAME_CACHE.getOrDefault(id, name), id))));
         }
     }
 
@@ -1219,61 +1364,218 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     }
 
     /** SkyBlockPV's main page (MainScreen): Info on the left, the player in the middle 20 %, Skills and Slayer chips on
-     *  the right, each a label (title bar over a box). Its Essence section and status button stay empty (no data). */
+     *  the right then Essence, each a label (title bar over a box) 10 below the top; lines and chips have their hovers. */
     private void drawSbpvBasic(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         int middle = (int) (panelW * 0.2), side = (panelW - middle) / 2, text = PvStyleChrome.sbpvText(pvStyle);
         int fh = (int) (middle * 1.1), fy = sbpvPlayerY();
         PvStyleChrome.playerFrame(g, pvStyle, panelX + side, fy, middle, fh);
-        PvStyleChrome.playerFrame(g, pvStyle, panelX + side, fy + fh + 5, middle, 20);
-        // Info: the gray lines in a block centered in the column.
-        double sum = 0;
-        int count = 0;
-        if (p.skillXp != null) {
-            for (String id : LevelTables.SKILL_ORDER) {
-                if (LevelTables.countsForAverage(id) && LevelTables.skill(id) != null) {
-                    sum += LevelTables.skillLevel(id, p.skillXp.getOrDefault(id, 0L), p.skillCaps.getOrDefault(id, -1)).level();
-                    count++;
+        int sx = panelX + side, sy = fy + fh + 5;
+        PvStyleChrome.playerFrame(g, pvStyle, sx, sy, middle, 20);
+        // The empty box under the player holds the status: "Status" until clicked, then the fetched text (full text on hover).
+        String full = statusOpen ? String.join(", ", statusLines()) : "Status";
+        centeredIn(g, this.font.plainSubstrByWidth(full, middle - 8), sx, middle, sy + 6, PvStyleChrome.sbpvText(pvStyle));
+        statusButton[0] = sx;
+        statusButton[1] = sy;
+        statusButton[2] = middle;
+        statusButton[3] = 20;
+        hotspots.add(new Hotspot(sx, sy, middle, 20, this::toggleStatus));
+        if (inside(mx, my, sx, sy, middle, 20) && !dropdownOpen) {
+            pendingTooltip = List.of(Component.literal(full).withStyle(style(VALUE)),
+                    Component.literal(statusOpen ? "Click to hide" : "Click to check status").withStyle(style(DIM)));
+        }
+        // Info: the gray lines centered in the column, 10 below the top (MainScreen's spacer); all text built once.
+        ProfileExtras ex = p.extras().isDone() && !p.extras().isCompletedExceptionally() ? p.extras().getNow(null) : null;
+        ExtraPages.NetworthState nw = extraPages.networthState(p);
+        long worth = nw.result() != null ? nw.result().total(ProfileViewerConfig.getInstance().getNetworthView()) : nw.failed() ? -2 : -1;
+        SbpvMain m = sbpvMain;
+        if (m == null || m.profile != p || m.worth != worth || m.extras != ex) {
+            m = sbpvMain = new SbpvMain(p, worth, ex);
+        }
+        int maxW = 0;
+        for (String line : m.info) {
+            maxW = Math.max(maxW, this.font.width(line));
+        }
+        int y = sbpvLabel(g, "Info", panelX, contentY + 10, side, 7 + m.info.length * 11 - 2 + 7, text);
+        int lx = panelX + (side - maxW) / 2;
+        for (int i = 0; i < m.info.length; i++) {
+            if (m.infoTips[i] != null && !dropdownOpen && inside(mx, my, lx, y - 1, this.font.width(m.info[i]), 10)) {
+                pendingTooltip = m.infoTips[i];
+            }
+            if (i == m.info.length - 1) {
+                hotspots.add(new Hotspot(lx, y - 1, this.font.width(m.info[i]), 10, () -> setPage(PAGE_NETWORTH)));
+            }
+            y = sbpvLine(g, m.info[i], lx, y, side - 20, text);
+        }
+        // Skills, Slayer, then Essence (only when there is any): chip sections side - 20 wide, 10 apart from the top.
+        int rx = panelX + side + middle;
+        int ry = contentY + 10;
+        for (SbpvChips c : m.sections) {
+            ry = sbpvChips(g, c, rx, ry, side - 20, mx, my, text) + 10;
+        }
+    }
+
+    private SbpvMain sbpvMain;
+
+    /** One SkyBlockPV chip section: its title, and per chip the icon, the text and the hover (null for none). */
+    private record SbpvChips(String title, ItemStack[] icons, String[] values, List<Component>[] tips) {
+    }
+
+    /** Everything SkyBlockPV's main page writes, built once per profile, net worth and extras (MainScreen.kt). */
+    private static final class SbpvMain {
+        final SbProfile profile;
+        final long worth;
+        final ProfileExtras extras;
+        final String[] info;
+        final List<Component>[] infoTips;
+        final List<SbpvChips> sections = new ArrayList<>();
+
+        @SuppressWarnings("unchecked")
+        SbpvMain(SbProfile p, long worth, ProfileExtras ex) {
+            this.profile = p;
+            this.worth = worth;
+            this.extras = ex;
+            double sum = 0;
+            int count = 0;
+            if (p.skillXp != null) {
+                for (String id : LevelTables.SKILL_ORDER) {
+                    if (LevelTables.countsForAverage(id) && LevelTables.skill(id) != null) {
+                        sum += LevelTables.skillLevel(id, p.skillXp.getOrDefault(id, 0L), p.skillCaps.getOrDefault(id, -1)).level();
+                        count++;
+                    }
+                }
+            }
+            String sb = p.sbLevel + (p.sbLevelProgress > 0 ? "." + String.format(Locale.ROOT, "%02d", p.sbLevelProgress) : "");
+            List<String> lines = new ArrayList<>();
+            List<List<Component>> tips = new ArrayList<>();
+            lines.add("Purse: " + commas(p.purse));
+            tips.add(null);
+            String solo = p.personalBank > 0 ? shorten(p.personalBank) : null, coop = p.bank > 0 ? shorten(p.bank) : null;
+            lines.add("Bank: " + (p.bank < 0 ? "API off" : solo != null && coop != null ? solo + "/" + coop : solo != null ? solo : coop != null ? coop : "0"));
+            tips.add(p.bank < 0 ? null : List.of(Component.literal("§7Solo Bank: §6" + commas(Math.max(0, p.personalBank))),
+                    Component.literal("§7Profile Bank: §6" + commas(Math.max(0, p.bank)))));
+            lines.add("SkyBlock Level: " + sb);
+            tips.add(List.of(Component.literal("§7Progress: " + p.sbLevelProgress + "/100")));
+            if (p.firstJoin > 0) {
+                java.time.ZonedDateTime at = Instant.ofEpochMilli(p.firstJoin).atZone(ZoneId.systemDefault());
+                lines.add("First Join: " + SBPV_JOIN.format(at));
+                tips.add(List.of(Component.literal(SBPV_JOIN_FULL.format(at))));
+            }
+            if (count > 0) {
+                lines.add("Skill Avg: " + String.format(Locale.ROOT, "%.2f", sum / count));
+                tips.add(null);
+            }
+            lines.add("Fairy Souls: " + p.fairySouls);
+            tips.add(null);
+            if (ex != null) {
+                long kills = 0, deaths = 0;
+                for (long v : ex.misc.kills().values()) kills = Math.max(kills, v);
+                for (long v : ex.misc.deaths().values()) deaths = Math.max(deaths, v);
+                lines.add("K/D: " + shorten(kills) + "/" + shorten(deaths) + " ("
+                        + (deaths == 0 ? "∞" : String.format(Locale.ROOT, "%.2f", (double) kills / deaths)) + ")");
+                tips.add(null);
+            }
+            lines.add("Net Worth: " + (worth >= 0 ? shorten(worth) : worth == -2 ? "Failed to load" : "Loading..."));
+            tips.add(worth >= 0 ? List.of(Component.literal("§eNetworth: §a" + commas(worth)),
+                    Component.literal("§7Click for the Networth page")) : null);
+            info = lines.toArray(new String[0]);
+            infoTips = tips.toArray(new List[0]);
+
+            if (p.skillXp != null) {
+                List<String> ids = LevelTables.SKILL_ORDER;
+                int n = ids.size();
+                ItemStack[] icons = new ItemStack[n];
+                String[] values = new String[n];
+                List<Component>[] chipTips = new List[n];
+                for (int i = 0; i < n; i++) {
+                    String id = ids.get(i);
+                    long xp = p.skillXp.getOrDefault(id, 0L);
+                    int cap = p.skillCaps.getOrDefault(id, -1);
+                    LevelTables.Level lvl = LevelTables.skillLevel(id, xp, cap);
+                    LevelTables.Skill def = LevelTables.skill(id);
+                    icons[i] = skillIcon(id);
+                    values[i] = String.valueOf(lvl.level());
+                    List<Component> t = new ArrayList<>();
+                    t.add(Component.literal("§e" + (def != null ? def.name() : SbProfile.titleCase(id))));
+                    t.add(Component.literal("§7Exp: " + shorten(xp)));
+                    boolean capped = def != null && cap > 0 && cap < def.maxLevel() && lvl.maxed();
+                    t.add(Component.literal("§7Progress: " + (lvl.maxed() && !capped ? "§cMaxed!" : capped ? "§5Reached max skill cap!"
+                            : "§a" + String.format(Locale.ROOT, "%.2f", lvl.progress() * 100) + "% to next")));
+                    if (def != null && def.totalXp().length > 0 && lvl.level() != def.maxLevel()) {
+                        long need = def.totalXp()[Math.min(def.maxLevel(), def.totalXp().length) - 1];
+                        t.add(Component.literal("§7Progress to max: §e" + commas(xp) + "§6/§e" + shorten(need)
+                                + "§a (" + String.format(Locale.ROOT, "%.2f", xp * 100.0 / need) + "%)"));
+                    }
+                    chipTips[i] = List.copyOf(t);
+                }
+                sections.add(new SbpvChips("Skills", icons, values, chipTips));
+            }
+            List<LevelTables.Slayer> slayers = LevelTables.slayers();
+            int n = slayers.size();
+            ItemStack[] icons = new ItemStack[n];
+            String[] values = new String[n];
+            List<Component>[] chipTips = new List[n];
+            for (int i = 0; i < n; i++) {
+                LevelTables.Slayer s = slayers.get(i);
+                SbProfile.SlayerStat st = p.slayers.get(s.apiId());
+                long xp = st == null ? 0 : st.xp();
+                LevelTables.Level lvl = LevelTables.slayerLevel(s, xp);
+                icons[i] = slayerIcon(s.apiId());
+                values[i] = String.valueOf(lvl.level());
+                long last = s.leveling().length == 0 ? 0 : s.leveling()[s.leveling().length - 1];
+                StringBuilder kills = new StringBuilder("§7Kills: ");
+                int tiers = s.bossXp() == null ? 5 : s.bossXp().length;
+                for (int t = 0; t < tiers; t++) {
+                    Integer k = st == null ? null : st.kills().get(t);
+                    kills.append(t == 0 ? "§7" : "§8/§7").append(commas(k == null ? 0 : k));
+                }
+                List<Component> t = new ArrayList<>();
+                t.add(Component.literal("§e" + SbProfile.titleCase(s.key())));
+                t.add(Component.literal(kills.toString()));
+                t.add(Component.literal("§7Exp: §e" + commas(xp) + (last > 0 && xp >= last ? " §cMaxed!"
+                        : "§6/§e" + commas(last) + "§a (" + String.format(Locale.ROOT, "%.2f", last <= 0 ? 0 : xp * 100.0 / last) + "%)")));
+                if (!lvl.maxed() && lvl.level() < s.leveling().length) {
+                    long next = s.leveling()[lvl.level()];
+                    t.add(Component.literal("§7Next Level: §e" + commas(xp) + "§6/§e" + commas(next)
+                            + "§a (" + String.format(Locale.ROOT, "%.2f", xp * 100.0 / Math.max(1, next)) + "%)"));
+                }
+                chipTips[i] = List.copyOf(t);
+            }
+            sections.add(new SbpvChips("Slayer", icons, values, chipTips));
+            if (ex != null && !ex.misc.essence().isEmpty()) {
+                List<Map.Entry<String, Long>> es = new ArrayList<>(ex.misc.essence().entrySet());
+                long total = 0;
+                for (Map.Entry<String, Long> e : es) total += e.getValue();
+                if (total > 0) {
+                    int k = es.size();
+                    ItemStack[] ei = new ItemStack[k];
+                    String[] ev = new String[k];
+                    for (int i = 0; i < k; i++) {
+                        ei[i] = essenceIcon(es.get(i).getKey());
+                        ev[i] = shorten(es.get(i).getValue());
+                    }
+                    sections.add(new SbpvChips("Essence", ei, ev, new List[k]));
                 }
             }
         }
-        ExtraPages.NetworthState nw = extraPages.networthState(p);
-        Networth.View nonCos = ProfileViewerConfig.getInstance().getNetworthView();
-        String[] info = {"Purse: " + commas(p.purse),
-                "Bank: " + (p.bank < 0 ? "API off" : p.personalBank > 0 && p.bank > 0 ? shorten(p.personalBank) + "/" + shorten(p.bank)
-                        : shorten(Math.max(0, p.bank) + Math.max(0, p.personalBank))),
-                "SkyBlock Level: " + p.sbLevel + (p.sbLevelProgress > 0 ? "." + String.format(Locale.ROOT, "%02d", p.sbLevelProgress) : ""),
-                p.firstJoin > 0 ? "First Join: " + SBPV_JOIN.format(Instant.ofEpochMilli(p.firstJoin).atZone(ZoneId.systemDefault())) : null,
-                count == 0 ? null : "Skill Avg: " + String.format(Locale.ROOT, "%.2f", sum / count),
-                "Fairy Souls: " + p.fairySouls,
-                "Networth: " + (nw.result() != null ? shorten(nw.result().total(nonCos)) : nw.failed() ? "-" : "...")};
-        int n = 0, maxW = 0;
-        for (String line : info) {
-            if (line != null) {
-                n++;
-                maxW = Math.max(maxW, this.font.width(line));
-            }
-        }
-        int y = sbpvLabel(g, "Info", panelX, contentY, side, 7 + n * 11 - 2 + 7, text);
-        int lx = panelX + (side - maxW) / 2;
-        for (String line : info) {
-            if (line != null) {
-                y = sbpvLine(g, line, lx, y, side - 20, text);
-            }
-        }
-        // Skills, then Slayer: chips of icon + level, as many to a row as fit in side - 20.
-        int rx = panelX + side + middle;
-        int ry = contentY;
-        if (p.skillXp != null) {
-            List<String> ids = LevelTables.SKILL_ORDER;
-            ry = sbpvChips(g, "Skills", rx, ry, side, ids.size(), i -> skillIcon(ids.get(i)),
-                    i -> LevelTables.skillLevel(ids.get(i), p.skillXp.getOrDefault(ids.get(i), 0L), p.skillCaps.getOrDefault(ids.get(i), -1)).level(), text) + 10;
-        }
-        List<LevelTables.Slayer> slayers = LevelTables.slayers();
-        sbpvChips(g, "Slayer", rx, ry, side, slayers.size(), i -> slayerIcon(slayers.get(i).apiId()), i -> {
-            SbProfile.SlayerStat st = p.slayers.get(slayers.get(i).apiId());
-            return LevelTables.slayerLevel(slayers.get(i), st == null ? 0 : st.xp()).level();
-        }, text);
     }
+
+    /** A vanilla stand-in for each essence's head (SkyBlockPV shows the essence item itself). */
+    private static ItemStack essenceIcon(String type) {
+        return new ItemStack(switch (type.toUpperCase(Locale.ROOT)) {
+            case "WITHER" -> Items.WITHER_SKELETON_SKULL;
+            case "UNDEAD" -> Items.SKELETON_SKULL;
+            case "DRAGON" -> Items.DRAGON_HEAD;
+            case "GOLD" -> Items.GOLD_NUGGET;
+            case "DIAMOND" -> Items.DIAMOND;
+            case "ICE" -> Items.ICE;
+            case "SPIDER" -> Items.SPIDER_EYE;
+            case "CRIMSON" -> Items.CRIMSON_FUNGUS;
+            default -> Items.PAPER;
+        });
+    }
+
+    private static final DateTimeFormatter SBPV_JOIN_FULL = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm", Locale.US);
+
 
     private static final DateTimeFormatter SBPV_JOIN = DateTimeFormatter.ofPattern("yyyy.MM.dd", Locale.US);
 
@@ -1374,32 +1676,34 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         return y + 27;
     }
 
-    /** A SkyBlockPV createSection: chips (rounded_box_thin, 2 px in: a 12 px icon, 1 px, the level) 5 apart, as many to
-     *  a row as fit (w - 20) / (widest + 10), each row centered; returns the label's bottom. */
-    private int sbpvChips(GuiGraphicsExtractor g, String title, int x, int y, int w, int n,
-                          java.util.function.IntFunction<ItemStack> icon, java.util.function.IntUnaryOperator level, int text) {
-        int chipW = 0;
-        for (int i = 0; i < n; i++) {
-            chipW = Math.max(chipW, 17 + this.font.width(String.valueOf(level.applyAsInt(i))));
+    /** A SkyBlockPV createSection: chips (rounded_box_thin, 2 px in: a 12 px icon, 1 px, the text) 5 apart, as many to
+     *  a row as fit (w - 20) / (widest + 10), each row centered, each chip's hover its tooltip; returns the label's bottom. */
+    private int sbpvChips(GuiGraphicsExtractor g, SbpvChips c, int x, int y, int w, int mx, int my, int text) {
+        int n = c.values().length, chipW = 0;
+        for (String v : c.values()) {
+            chipW = Math.max(chipW, 17 + this.font.width(v));
         }
         int perRow = Math.max(1, (w - 20) / (chipW + 10)), rows = (n + perRow - 1) / perRow;
-        int cy = sbpvLabel(g, title, x, y, w, 14 + rows * 16 + (rows - 1) * 5, text);
+        int cy = sbpvLabel(g, c.title(), x, y, w, 14 + rows * 16 + (rows - 1) * 5, text);
         for (int r = 0; r < rows; r++) {
             int k0 = r * perRow, k1 = Math.min(n, k0 + perRow), rowW = -5;
             for (int i = k0; i < k1; i++) {
-                rowW += 22 + this.font.width(String.valueOf(level.applyAsInt(i)));
+                rowW += 22 + this.font.width(c.values()[i]);
             }
             int cx = x + 10 + (w - 20 - rowW) / 2;
             for (int i = k0; i < k1; i++) {
-                String lv = String.valueOf(level.applyAsInt(i));
+                String lv = c.values()[i];
                 int cw = 17 + this.font.width(lv);
                 PvStyleChrome.chip(g, pvStyle, cx, cy, cw, 16);
                 g.pose().pushMatrix();
                 g.pose().translate(cx + 2, cy + 2);
                 g.pose().scale(0.75f, 0.75f);
-                g.item(icon.apply(i), 0, 0);
+                g.item(c.icons()[i], 0, 0);
                 g.pose().popMatrix();
                 g.text(this.font, lv, cx + 15, cy + 4, text, false);
+                if (c.tips()[i] != null && !dropdownOpen && inside(mx, my, cx, cy, cw, 16)) {
+                    pendingTooltip = c.tips()[i];
+                }
                 cx += cw + 5;
             }
             cy += 21;
@@ -1412,17 +1716,18 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             drawSbpvBasic(g, p, mx, my);
             return;
         }
+        if (neuPage()) {
+            drawNeuBasic(g, p, mx, my);
+            return;
+        }
         minRowScale = 1f;
         int leftW = 118;
         box(g, contentX, contentY, leftW, contentH);
-        // NEU Classic puts the stats in pv_basic's middle box and the skills in its right one (the skin is in its frame).
-        boolean neu = neuPage();
-        int[] nst = PvStyleChrome.NEU_BASIC_STATS, nsk = PvStyleChrome.NEU_BASIC_SKILLS;
         int skinBottom = contentY + 4 + (skinProfile != null && ProfileViewerConfig.getInstance().isShowSkin()
                 ? Math.min(120, contentH - 90) + 4 : 0);
-        int y = neu ? panelY + nst[1] + 5 : Math.max(skinBottom, contentY + 6);
-        int lx = neu ? panelX + nst[0] + 6 : contentX + 6;
-        int sw = neu ? nst[2] - 12 : 106;
+        int y = Math.max(skinBottom, contentY + 6);
+        int lx = contentX + 6;
+        int sw = 106;
         y = stat2(g, lx, y, sw, "SB Level", p.sbLevel + (p.sbLevelProgress > 0 ? "." + String.format(Locale.ROOT, "%02d", p.sbLevelProgress) : ""));
         y = stat2(g, lx, y, sw, "Fairy Souls", String.valueOf(p.fairySouls));
         y = stat2(g, lx, y, sw, "Purse", shorten(p.purse));
@@ -1459,17 +1764,19 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                     .format(Instant.ofEpochMilli(p.firstJoin).atZone(ZoneId.systemDefault())));
         }
         if (p.memberCount > 1) {
-            stat2(g, lx, y, sw, "Co-op", p.memberCount + " members");
+            y = stat2(g, lx, y, sw, "Co-op", p.memberCount + " members");
         }
+        // directly under the last stat row (Joined), the panel's width
+        statusButtonAt(g, lx, Math.min(y + 3, contentY + contentH - 18), sw, mx, my);
 
-        int rx = neu ? panelX + nsk[0] : contentX + leftW + 6;
-        int rw = neu ? nsk[2] : contentW - leftW - 6;
-        int rh = neu ? nsk[3] : contentH;
+        int rx = contentX + leftW + 6;
+        int rw = contentW - leftW - 6;
+        int rh = contentH;
         box(g, rx, contentY, rw, contentH);
 
         // Skills: 6 rows, then Slayers: 2 rows; rows close up (21 -> 17) to fit the 202 px panel.
         int rowH = Math.max(17, Math.min(21, (rh - 31) / 8));
-        int sy = (neu ? panelY + nsk[1] : contentY) + 5;
+        int sy = contentY + 5;
         if (p.skillXp == null) {
             tx(g, "Skills", rx + 6, sy, ACCENT);
             tx(g, "Skills API is disabled.", rx + 6, sy + 14, DIM);
@@ -1536,6 +1843,195 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         }
         String total = "Total XP " + commas(totalXp);
         tx(g, total, rx + rw - 6 - this.font.width(total), sy, VALUE);
+    }
+
+    /** NEU Classic's Basic Info (BasicPage): the name on a dark strip over the model, the two weights and the net
+     *  worth above it, the SkyBlock level block, Social, and the 2 x 8 skill and slayer grid, all at its own panel
+     *  positions. Everything drawn is built once per profile and net worth value ({@link NeuBasic}). */
+    private void drawNeuBasic(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
+        ExtraPages.NetworthState nw = extraPages.networthState(p);
+        long worth = nw.result() != null ? nw.result().total(ProfileViewerConfig.getInstance().getNetworthView()) : nw.failed() ? -2 : -1;
+        lastBasicNetworth = worth >= 0 ? worth : null;
+        NeuBasic nb = neuBasic;
+        if (nb == null || nb.profile != p || nb.worth != worth || !java.util.Objects.equals(nb.name, displayName)) {
+            nb = neuBasic = new NeuBasic(p, worth, displayName, uuid);
+        }
+        var f = this.font;
+        int gx = panelX, gy = panelY;
+        boolean hov = !dropdownOpen;
+        if (!nb.name.isEmpty()) {
+            int half = f.width(nb.name) / 2;
+            g.fill(gx + 63 - half - 1, gy + 53, gx + 63 + half + 1, gy + 62, 0x40000000);
+            g.text(f, nb.name, gx + 63 - half, gy + 54, 0xFFFFFFFF, true);
+        }
+        for (int i = 0; i < 2; i++) {
+            String w = nb.weights[i];
+            int wx = gx + 63 - f.width(w) / 2, wy = gy + 14 + i * 10;
+            g.text(f, w, wx, wy, 0xFFFFFFFF, true);
+            if (hov && inside(mx, my, wx, wy - 2, f.width(w), 9)) pendingTooltip = nb.weightTips[i];
+        }
+        int nwW = f.width(nb.worthLine);
+        int nwX = nwW >= 117 ? gx + 8 : gx + 68 - nwW / 2;
+        g.text(f, nb.worthLine, nwX, gy + 34, 0xFFFFFFFF, true);
+        if (hov && inside(mx, my, nwX, gy + 32, nwW, 12)) {
+            pendingTooltip = nb.worthTip;
+        }
+        hotspots.add(new Hotspot(nwX, gy + 32, nwW, 12, () -> setPage(PAGE_NETWORTH)));
+        statusButtonAt(g, gx + PvStyleChrome.NEU_BASIC_MODEL[0], gy + PvStyleChrome.NEU_BASIC_MODEL[1]
+                + PvStyleChrome.NEU_BASIC_MODEL[3] + 3, PvStyleChrome.NEU_BASIC_MODEL[2], mx, my);
+
+        // SkyBlock level: the skull at 1.5x, its number above it at 1.5x, "NN/100" at 0.9x and the bar
+        g.pose().pushMatrix();
+        g.pose().translate(gx + 162, gy + 74);
+        g.pose().scale(1.5f, 1.5f);
+        g.item(headFor(uuid), 0, 0);
+        g.pose().popMatrix();
+        g.pose().pushMatrix();
+        g.pose().translate(gx + 171 - f.width(nb.sbLevel) * 0.75f, gy + 62 - 6f);
+        g.pose().scale(1.5f, 1.5f);
+        g.text(f, nb.sbLevel, 0, 0, PvStyleChrome.sbLevelColor(p.sbLevel), true);
+        g.pose().popMatrix();
+        g.pose().pushMatrix();
+        g.pose().translate(gx + 132, gy + 94);
+        g.pose().scale(0.9f, 0.9f);
+        g.text(f, nb.sbProgress, 0, 0, 0xFFFFFF55, true);
+        g.pose().popMatrix();
+        PvStyleChrome.neuBar(g, gx + 132, gy + 104, 80, p.sbLevelProgress / 100f, false);
+
+        if (nb.cells == null) {
+            g.text(f, "Skills API not enabled!", gx + 322 - f.width("Skills API not enabled!") / 2, gy + 97, 0xFFFF5555, true);
+        }
+        for (NeuCell c : nb.cells == null ? nb.slayersOnly : nb.cells) {
+            int x = gx + c.x, y = gy + c.y;
+            PvStyleChrome.neuAligned(g, c.name, c.color, c.level, 0xFFFFFFFF, x + 14, y - 4, 60);
+            PvStyleChrome.neuBar(g, x, y + 6, 80, c.progress, c.maxed);
+            g.pose().pushMatrix();
+            g.pose().translate(x, y - 6);
+            g.pose().scale(0.7f, 0.7f);
+            g.item(c.icon, 0, 0);
+            g.pose().popMatrix();
+            if (hov && mx > x && mx < x + 80 && my > y - 4 && my < y + 13) {
+                pendingTooltip = c.tip;
+            }
+        }
+    }
+
+    private NeuBasic neuBasic;
+
+    /** One NEU skill or slayer cell: its panel position, the text and bar it draws and its hover. */
+    private record NeuCell(int x, int y, ItemStack icon, String name, int color, String level, float progress, boolean maxed,
+                           List<Component> tip) {
+    }
+
+    /** Everything NEU's Basic page draws, built off the render path once per profile, net worth and name. */
+    private static final class NeuBasic {
+        final SbProfile profile;
+        final long worth;
+        final String name, worthLine, sbLevel, sbProgress;
+        final String[] weights = new String[2];
+        @SuppressWarnings("unchecked")
+        final List<Component>[] weightTips = (List<Component>[]) new List<?>[2];
+        final List<Component> worthTip;
+        final List<NeuCell> cells, slayersOnly;
+
+        /** NEU's skill grid, column by column (BasicPage via ProfileViewer.skillToSkillDisplayMap); Social goes
+         *  under the SkyBlock level instead of taking a grid cell. */
+        private static final String[] SKILLS = {"TAMING", "MINING", "FORAGING", "ENCHANTING", "CARPENTRY", "FARMING", "COMBAT",
+                "FISHING", "ALCHEMY", "RUNECRAFTING"};
+        private static final String[] SKILL_NAMES = {"Taming", "Mining", "Foraging", "Enchanting", "Carpentry", "Farming",
+                "Combat", "Fishing", "Alchemy", "Runecrafting"};
+        private static final int[] SKILL_COLORS = {0xFFFF55FF, 0xFFAAAAAA, 0xFF00AA00, 0xFF55FF55, 0xFFAA0000, 0xFFFFFF55,
+                0xFFFF5555, 0xFF55FFFF, 0xFF5555FF, 0xFFAA00AA};
+        private static final String[] SLAYERS = {"zombie", "spider", "wolf", "enderman", "blaze", "vampire"};
+        private static final String[] SLAYER_NAMES = {"Rev Slayer", "Tara Slayer", "Sven Slayer", "Ender Slayer",
+                "Blaze Slayer", "Vampire Slayer"};
+
+        NeuBasic(SbProfile p, long worth, String name, UUID uuid) {
+            this.profile = p;
+            this.worth = worth;
+            this.name = name == null ? "" : name;
+            SkyblockWeight.Both both = SkyblockWeight.compute(p);
+            SkyblockWeight.Result[] rs = {both.senither(), both.lily()};
+            String[] labels = {"Senither Weight: ", "Lily Weight: "};
+            for (int i = 0; i < 2; i++) {
+                SkyblockWeight.Result r = rs[i];
+                weights[i] = "§a" + labels[i] + "§6" + commas(Math.round(r.total()));
+                weightTips[i] = List.of(lit("§aSkills: §6" + commas(Math.round(r.skills().total()))),
+                        lit("§aSlayer: §6" + commas(Math.round(r.slayers().total()))),
+                        lit("§aDungeons: §6" + commas(Math.round(r.dungeons().total()))));
+            }
+            worthLine = "§aNet Worth: " + (worth >= 0 ? "§6" + commas(worth) : worth == -1 ? "§eLoading..." : "§cAn error occurred");
+            worthTip = List.of(lit(worth >= 0 ? "§6" + commas(worth) + " coins (estimate)" : worthLine),
+                    lit("§7Click for the Networth page"));
+            sbLevel = String.valueOf(p.sbLevel);
+            sbProgress = p.sbLevelProgress + "/100";
+
+            List<NeuCell> slayerCells = new ArrayList<>();
+            List<LevelTables.Slayer> all = LevelTables.slayers();
+            for (int i = 0; i < SLAYERS.length; i++) {
+                LevelTables.Slayer def = null;
+                for (LevelTables.Slayer s : all) if (s.apiId().equals(SLAYERS[i])) def = s;
+                if (def == null) continue;
+                SbProfile.SlayerStat stat = p.slayers.get(def.apiId());
+                long xp = stat == null ? 0 : stat.xp();
+                LevelTables.Level lvl = LevelTables.slayerLevel(def, xp);
+                long maxXp = def.leveling().length == 0 ? 0 : def.leveling()[def.leveling().length - 1];
+                List<Component> tip = tip(SLAYER_NAMES[i], 0xFFFFAA00, lvl, xp, maxXp, def.leveling().length);
+                int tiers = def.bossXp() == null ? 5 : Math.min(5, def.bossXp().length);
+                for (int t = 0; t < tiers; t++) {
+                    Integer k = stat == null ? null : stat.kills().get(t);
+                    tip.add(lit("§7T" + (t + 1) + " Kills: §c" + (k == null ? 0 : k)));
+                }
+                slayerCells.add(new NeuCell(237 + 86, 24 + 21 * (i + 2), new ItemStack(SLAYER_ICONS[i]), SLAYER_NAMES[i], 0xFFFFAA00,
+                        String.valueOf(lvl.level()), (float) lvl.progress(), lvl.maxed(), List.copyOf(tip)));
+            }
+            slayersOnly = List.copyOf(slayerCells);
+            if (p.skillXp == null) {
+                cells = null;
+                return;
+            }
+            List<NeuCell> out = new ArrayList<>();
+            for (int i = 0; i < SKILLS.length; i++) {
+                out.add(skillCell(p, SKILLS[i], SKILL_NAMES[i], SKILL_COLORS[i], 237 + 86 * (i / 8), 24 + 21 * (i % 8), SKILL_ICONS[i]));
+            }
+            out.add(skillCell(p, "SOCIAL", "Social", 0xFF00AA00, 132, 124, Items.EMERALD));
+            out.addAll(slayerCells);
+            cells = List.copyOf(out);
+        }
+
+        private static final net.minecraft.world.item.Item[] SKILL_ICONS = {Items.GHAST_SPAWN_EGG, Items.STONE_PICKAXE,
+                Items.OAK_SAPLING, Items.ENCHANTING_TABLE, Items.CRAFTING_TABLE, Items.GOLDEN_HOE, Items.STONE_SWORD,
+                Items.FISHING_ROD, Items.BREWING_STAND, Items.MAGMA_CREAM};
+        private static final net.minecraft.world.item.Item[] SLAYER_ICONS = {Items.ROTTEN_FLESH, Items.SPIDER_EYE, Items.BONE,
+                Items.ENDER_PEARL, Items.BLAZE_ROD, Items.REDSTONE};
+
+        private static NeuCell skillCell(SbProfile p, String id, String name, int color, int x, int y, net.minecraft.world.item.Item icon) {
+            long xp = p.skillXp.getOrDefault(id, 0L);
+            int cap = p.skillCaps.getOrDefault(id, -1);
+            LevelTables.Level lvl = LevelTables.skillLevel(id, xp, cap);
+            LevelTables.Skill def = LevelTables.skill(id);
+            int maxLevel = def == null ? 0 : Math.min(def.totalXp().length, cap > 0 ? cap : def.maxLevel());
+            long maxXp = maxLevel == 0 ? 0 : def.totalXp()[maxLevel - 1];
+            return new NeuCell(x, y, new ItemStack(icon), name, color, String.valueOf(lvl.level()), (float) lvl.progress(),
+                    lvl.maxed(), List.copyOf(tip(name, color, lvl, xp, maxXp, maxLevel)));
+        }
+
+        /** NEU's skill hover: the name, Progress (cur/max to the next level, or MAXED!) and Total XP to the max level. */
+        private static List<Component> tip(String name, int color, LevelTables.Level lvl, long xp, long maxXp, int maxLevel) {
+            List<Component> tip = new ArrayList<>();
+            tip.add(Component.literal(name).withStyle(style(color)));
+            if (lvl.maxed()) {
+                tip.add(lit("§7Progress: §6MAXED!"));
+            } else {
+                tip.add(lit("§7Progress: §5" + PvStyleChrome.neuShort(lvl.xpIntoLevel()) + "/" + PvStyleChrome.neuShort(lvl.xpForLevel())
+                        + "§8 (" + PvStyleChrome.neuTenths(lvl.progress() * 100) + "% to " + (lvl.level() + 1) + ")"));
+            }
+            tip.add(lit("§7Total XP: §5" + commas(xp) + "§8 (" + PvStyleChrome.neuTenths(maxXp <= 0 ? 100 : Math.min(100, xp * 100.0 / maxXp))
+                    + "% to " + maxLevel + ")"));
+            return tip;
+        }
+
+        private static Component lit(String s) { return Component.literal(s); }
     }
 
     /** Icon + "Name Level" + progress bar, the reference style. Hover shows XP numbers. */

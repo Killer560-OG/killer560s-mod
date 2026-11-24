@@ -66,7 +66,7 @@ final class PvStyleChrome {
             NEU_COLS = id("neu/pv_cols"), NEU_CRIMSON = id("neu/pv_crimson"),
             NEU_MUSEUM = id("neu/pv_museum"), NEU_BESTIARY = id("neu/pv_bestiary"), NEU_RIFT = id("neu/pv_rift"), NEU_GARDEN = id("neu/pv_garden");
     /** The boxes, {x, y, w, h} from the panel corner, measured off the two textures' painted areas. */
-    static final int[] NEU_BASIC_MODEL = {23, 44, 81, 108}, NEU_BASIC_STATS = {128, 49, 89, 95}, NEU_BASIC_SKILLS = {232, 15, 181, 172};
+    static final int[] NEU_BASIC_MODEL = {23, 44, 81, 108};
     static final int[] NEU_DUNG_LEVEL = {16, 16, 124, 55}, NEU_DUNG_STATS = {16, 76, 124, 57}, NEU_DUNG_CLASS = {16, 138, 124, 48},
             NEU_DUNG_FLOORS = {154, 16, 124, 170}, NEU_DUNG_CLASSES = {292, 16, 124, 170};
 
@@ -165,13 +165,122 @@ final class PvStyleChrome {
         g.blitSprite(RenderPipelines.GUI_TEXTURED, t, x, y, tabW(s), tabH(s) + (s == Style.NEU && selected ? 1 : 0));
     }
 
-    /** A button: NEU's dropdown face, or the dark button SkyBlockPv's profile dropdown uses; white text with shadow. */
+    /** A button: NEU's dropdown face with its teal text, or the dark button SkyBlockPv's profile dropdown uses with
+     *  white text; both with shadow. */
     static void button(GuiGraphicsExtractor g, Style s, int x, int y, int w, int h, String label, boolean hover, boolean selected) {
         Sprites sp = of(s);
         g.blitSprite(RenderPipelines.GUI_TEXTURED, hover || selected ? sp.buttonHover : sp.button, x, y, w, h);
         String t = MenuStyle.ellipsize(label, w - 6);
-        g.text(MenuStyle.font(), t, x + (w - MenuStyle.font().width(t)) / 2, y + (h - 8) / 2, 0xFFFFFFFF, true);
+        g.text(MenuStyle.font(), t, x + (w - MenuStyle.font().width(t)) / 2, y + (h - 8) / 2,
+                s == Style.NEU ? NEU_BUTTON_TEXT : 0xFFFFFFFF, true);
     }
+
+    /** NEU's skill bar (GuiProfileViewer.renderBar): vanilla's 182 x 5 boss bar, the left half of the width from the
+     *  sprite's left end and the right half from its right end, filled in 5% steps; a maxed one is gold all through
+     *  (NEU tints it gold with a shader; vanilla's yellow bar is the same shape). Both sprites are vanilla's own. */
+    static void neuBar(GuiGraphicsExtractor g, int x, int y, int w, float done, boolean maxed) {
+        int half = w / 2;
+        int fill = maxed ? w : Math.round(Math.round(Math.max(0f, Math.min(1f, done)) * 20f) / 20f * w);
+        neuBarPart(g, BOSS_BG, x, y, half, w, w);
+        neuBarPart(g, maxed ? BOSS_GOLD : BOSS_PINK, x, y, half, w, fill);
+    }
+
+    private static void neuBarPart(GuiGraphicsExtractor g, Identifier sprite, int x, int y, int half, int w, int upTo) {
+        int left = Math.min(upTo, half);
+        if (left > 0) g.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, 182, 5, 0, 0, x, y, left, 5);
+        int right = upTo - half;
+        if (right > 0) g.blitSprite(RenderPipelines.GUI_TEXTURED, sprite, 182, 5, 182 - (w - half), 0, x + half, y, right, 5);
+    }
+
+    private static final Identifier BOSS_BG = Identifier.withDefaultNamespace("boss_bar/pink_background"),
+            BOSS_PINK = Identifier.withDefaultNamespace("boss_bar/pink_progress"),
+            BOSS_GOLD = Identifier.withDefaultNamespace("boss_bar/yellow_progress");
+
+    /** NEU's soft text outline (Utils.renderAlignedString / renderShadowedString): the text in black at the twelve
+     *  half-pixel offsets around it (alpha 200 one step out, 100 two steps out), then the text itself, no shadow. */
+    static void neuOutlined(GuiGraphicsExtractor g, String text, float x, float y, int color) {
+        for (int i = 0; i < OUTLINE.length; i += 3) {
+            g.pose().pushMatrix();
+            g.pose().translate(x + OUTLINE[i], y + OUTLINE[i + 1]);
+            g.text(MenuStyle.font(), text, 0, 0, (int) OUTLINE[i + 2] << 24, false);
+            g.pose().popMatrix();
+        }
+        g.pose().pushMatrix();
+        g.pose().translate(x, y);
+        g.text(MenuStyle.font(), text, 0, 0, color, false);
+        g.pose().popMatrix();
+    }
+
+    /** dx, dy, alpha for {@link #neuOutlined}: offsets -2..2 halved where |dx| != |dy|. */
+    private static final float[] OUTLINE = {
+            -1f, 0f, 100, 1f, 0f, 100, 0f, -1f, 100, 0f, 1f, 100,
+            -0.5f, 0f, 200, 0.5f, 0f, 200, 0f, -0.5f, 200, 0f, 0.5f, 200,
+            -1f, -0.5f, 100, -1f, 0.5f, 100, 1f, -0.5f, 100, 1f, 0.5f, 100,
+            -0.5f, -1f, 100, 0.5f, -1f, 100, -0.5f, 1f, 100, 0.5f, 1f, 100};
+
+    /** NEU's renderAlignedString: name at x and value right-aligned to x + len, or both joined and centered when they
+     *  do not fit. */
+    static void neuAligned(GuiGraphicsExtractor g, String name, int nameColor, String value, int valueColor, int x, int y, int len) {
+        var f = MenuStyle.font();
+        if (f.width(name) + f.width(" ") + f.width(value) >= len) {
+            String both = name + " " + value;
+            neuOutlined(g, both, x + len / 2f - f.width(both) / 2f, y, nameColor);
+            return;
+        }
+        neuOutlined(g, name, x, y, nameColor);
+        neuOutlined(g, value, x + len - f.width(value), y, valueColor);
+    }
+
+    /** Hypixel's SkyBlock level colors, one per 40 levels (gray, white, yellow, green, dark green, aqua, cyan, blue,
+     *  pink, purple, gold, red, dark red), as NEU's sblevel_colours. */
+    static int sbLevelColor(int level) {
+        return SB_LEVEL[Math.max(0, Math.min(SB_LEVEL.length - 1, level / 40))];
+    }
+    private static final int[] SB_LEVEL = {0xFFAAAAAA, 0xFFFFFFFF, 0xFFFFFF55, 0xFF55FF55, 0xFF00AA00, 0xFF55FFFF, 0xFF00AAAA,
+            0xFF5555FF, 0xFFFF55FF, 0xFFAA00AA, 0xFFFFAA00, 0xFFFF5555, 0xFFAA0000};
+
+    /** NEU's short numbers: whole under 1000, else floored to tenths with k/m/b/t, the tenth dropped from 10 up or
+     *  when it is 0 (1500 -> 1.5k, 12345 -> 12k). */
+    static String neuShort(double n) {
+        if (n < 0) return "-" + neuShort(-n);
+        if (n < 1000) return n % 1 == 0 ? Long.toString((long) n) : String.format(java.util.Locale.ROOT, "%.2f", n);
+        int suffix = 0;
+        double d = Math.floor(n / 100) / 10;
+        while (d >= 1000 && suffix < 3) {
+            suffix++;
+            d = Math.floor(d / 100) / 10;
+        }
+        boolean whole = d % 1 == 0 || d > 9.99;
+        return (whole ? Long.toString((long) d) : Double.toString(d)) + "kmbt".charAt(suffix);
+    }
+
+    /** NEU's "#.#": one decimal at most, none when it is 0. */
+    static String neuTenths(double v) {
+        double r = Math.round(v * 10) / 10.0;
+        return r % 1 == 0 ? Long.toString((long) r) : Double.toString(r);
+    }
+
+    /** NEU's profile and second button text color (GuiProfileViewer :333-340, Color(63, 224, 208)). */
+    static final int NEU_BUTTON_TEXT = 0xFF3FE0D0;
+
+    /** NEU's gamemode icons beside the profile button (pv_ironman, pv_bingo, pv_stranded; 16 x 16). */
+    static Identifier neuGameMode(String mode) {
+        return switch (mode == null ? "" : mode) {
+            case "ironman" -> NEU_IRONMAN;
+            case "bingo" -> NEU_BINGO;
+            case "island" -> NEU_STRANDED;
+            default -> null;
+        };
+    }
+    private static final Identifier NEU_IRONMAN = id("neu/pv_ironman"), NEU_BINGO = id("neu/pv_bingo"), NEU_STRANDED = id("neu/pv_stranded");
+
+    /** NEU's recent-player tab on the panel's right edge (pv_elements u 196-256, v 144-200: the top one, a lower one,
+     *  each selected or not), 32 x 28 drawn 3 px left of the edge. */
+    static void neuRecentTab(GuiGraphicsExtractor g, int x, int y, boolean top, boolean selected) {
+        g.blitSprite(RenderPipelines.GUI_TEXTURED, top ? (selected ? NEU_RT_TOP_ON : NEU_RT_TOP) : (selected ? NEU_RT_ON : NEU_RT), x - 3, y, 32, 28);
+    }
+    private static final Identifier NEU_RT_TOP = id("neu/recent_top"), NEU_RT_TOP_ON = id("neu/recent_top_on"),
+            NEU_RT = id("neu/recent"), NEU_RT_ON = id("neu/recent_on");
 
     /** SkyBlockPv's text color: dark_gray, which its Dark and NEU themes set to #B5B5B5 (themes/*.json "colors"). */
     static int sbpvText(Style s) { return s == Style.SBPV_LIGHT ? 0xFF555555 : 0xFFB5B5B5; }
