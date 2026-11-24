@@ -24,6 +24,9 @@ public enum ProfitTracker {
     CROESUS("Dungeon Profit", "Croesus dungeon chests", List.of("croesus", "dungeon"),
             parent -> new CroesusTrackerScreen(parent, CroesusTrackerScreen.View.OVERVIEW),
             ProfitTracker::croesusSummary),
+    /** Coins per hour per floor from the run history and the Croesus claims (idea bestfloor-1124). */
+    FLOORS("Best Floor To Farm", "Coins per hour for each floor", List.of("floors", "bestfloor"),
+            BestFloorProfitScreen::new, ProfitTracker::floorsSummary),
     EXPERIMENTS("Experimentation Table", "Superpairs, Chronomatron, Ultrasequencer", List.of("etable", "experiments"),
             ExperimentsProfitScreen::new, ProfitTracker::experimentsSummary),
     /** How Lucky Are You (doc-rng-1101): drops against the odds; also {@code /luck}. */
@@ -146,6 +149,15 @@ public enum ProfitTracker {
         }
         return new Summary(ProfitPanels.signedCoins(profit) + " profit, " + chests + " chests",
                 profit >= 0 ? ProfitPanels.GOOD : ProfitPanels.BAD);
+    }
+
+    private static Summary floorsSummary() {
+        List<FloorRates.Row> rows = FloorRates.live(false);
+        if (rows.isEmpty() || !rows.get(0).enough()) {
+            return new Summary("Not enough data yet", ProfitPanels.DIM);
+        }
+        return new Summary(rows.get(0).floor() + " is best: " + ProfitPanels.coins(rows.get(0).perHour()) + "/h",
+                ProfitPanels.GOOD);
     }
 
     private static Summary miningSummary() {
