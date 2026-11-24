@@ -120,6 +120,8 @@ public class AutoClearTab extends BaseTab {
         toggle(w, contentX, y[0], half, "Walk When Faster", clear::isWalkWhenFaster, clear::setWalkWhenFaster, saveClear);
         toggle(w, colB, y[0], right, "Predictive Bats", clear::isPredictiveBats, clear::setPredictiveBats, saveClear);
         y[0] += ROW;
+        toggle(w, contentX, y[0], half, "Learned Room Costs", clear::isLearnedRoomCosts, clear::setLearnedRoomCosts, saveClear);
+        y[0] += ROW;
         int mSpan = AutoClearConfig.MAX_MOB_TIMEOUT_TICKS - AutoClearConfig.MIN_MOB_TIMEOUT_TICKS;
         slider(w, contentX, y[0], contentWidth, () -> String.format(Locale.US, "Mob Timeout: %.1fs", clear.getMobTimeoutTicks() / 20.0),
                 (clear.getMobTimeoutTicks() - AutoClearConfig.MIN_MOB_TIMEOUT_TICKS) / (double) mSpan,

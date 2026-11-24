@@ -800,7 +800,7 @@ final class Autopilot {
             if (clears && !r.cleared() && !clearsDone.contains(r.name()) && AutoClearFeature.isMobRoom(layout, r.room())
                     && !com.killer560.hub.autoclear.ChestClearRule.clearedInItsEyes(layout, r.room())) {
                 out.add(new AutopilotPlanner.Candidate(AutopilotPlanner.Kind.CLEAR, key, AutopilotScore.roomValue(s),
-                        travel + clearSeconds, mate, rushIndex));
+                        travel + com.killer560.hub.autoclear.RoomCosts.seconds(r.name(), clearSeconds), mate, rushIndex));
             }
             // Blood First leaves every puzzle until the blood door is open (killer560, 2026-11-18: "if it is on blood rush
             // first that should ignore quiz until after blood rush same with things like ice fill"); crossing one is a path.

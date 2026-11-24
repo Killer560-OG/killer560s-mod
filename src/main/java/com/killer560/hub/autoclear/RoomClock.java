@@ -160,6 +160,9 @@ final class RoomClock {
         LOGGER.info(String.format(Locale.US, "[AutoClear] room time: %s %d ticks (%s; last death %d): trips %d"
                         + " (%d ticks, %d warp use(s)), weapon uses %d, kills %d%s", room, total, how, lastDeath, trips,
                 tripTicks, tripWarps, weaponUses, kills, sb));
+        if ("cleared".equals(how)) {
+            RoomCosts.record(room, total / 20.0);
+        }
         room = null;
         lastDeath = -1;
         startTick = -1;

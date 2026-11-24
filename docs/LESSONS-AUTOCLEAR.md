@@ -151,6 +151,7 @@ there); Auto Routes is in [LESSONS-ROUTES.md](LESSONS-ROUTES.md); the sim's side
 
 ## Auto Clear
 
+- Learned Room Costs (idea-roomcosts-1124): `RoomClock.end("cleared")` records the room's seconds into `RoomCosts` (shared record `room-costs.json`, last 9 per room name, median read at 3+ clears; 1 s to 300 s only; given-up and left rooms are never recorded). Readers: `estimateSeconds` before the run's first clear and Dungeons Autopilot's CLEAR candidate (its running mean is the fallback). Hop and landing code is untouched. Testkit 1124-logic-roomcosts.
 - Generated sim floors have no mobs and clear every room on entry, so an Auto Clear comparison there measures nothing.
   Testkit 1016-sim-fullclear `-PfullclearMobs=N` places starred mobs (seeded by map code) and turns clear-on-entry off;
   `-PfullclearNoTraps=true` keeps trap rooms out (his trap routes do not work yet).

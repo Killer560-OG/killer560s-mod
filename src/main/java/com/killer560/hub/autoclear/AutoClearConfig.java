@@ -88,6 +88,8 @@ public final class AutoClearConfig {
     private OneTap oneTap = OneTap.AT_ONCE;
     /** Only wither doors toward Blood: no rooms, mobs or secrets; stops once the Blood door is open (killer560, 2026-11-15). */
     private boolean doorOnly = false;
+    /** Plan and time clears from how long each room really took before (killer560, 2026-11-23). */
+    private boolean learnedRoomCosts = true;
 
     private AutoClearConfig() {
     }
@@ -113,6 +115,7 @@ public final class AutoClearConfig {
             cfg.predictiveBats = ConfigJson.getBool(o, "predictiveBats", cfg.predictiveBats);
             cfg.oneTap = ConfigJson.getEnum(o, "oneTap", OneTap.class, cfg.oneTap);
             cfg.doorOnly = ConfigJson.getBool(o, "doorOnly", cfg.doorOnly);
+            cfg.learnedRoomCosts = ConfigJson.getBool(o, "learnedRoomCosts", cfg.learnedRoomCosts);
             // "statusHud" (the old Clear Status HUD switch) is read no more: one Status HUD serves every auto clear
             // since 2026-10-15, switched in Auto Secret's config (AutoSecretConfig.statusHud).
         }
@@ -131,6 +134,7 @@ public final class AutoClearConfig {
         o.addProperty("predictiveBats", predictiveBats);
         o.addProperty("oneTap", oneTap.name());
         o.addProperty("doorOnly", doorOnly);
+        o.addProperty("learnedRoomCosts", learnedRoomCosts);
         ConfigJson.write(CONFIG_PATH, o);
     }
 
@@ -172,6 +176,8 @@ public final class AutoClearConfig {
     public void setPickUpKeys(boolean v) { pickUpKeys = v; }
 
     public boolean isWalkWhenFaster() { return walkWhenFaster; }
+    public boolean isLearnedRoomCosts() { return learnedRoomCosts; }
+    public void setLearnedRoomCosts(boolean v) { learnedRoomCosts = v; }
     public void setWalkWhenFaster(boolean v) { walkWhenFaster = v; }
 
     public boolean isPredictiveBats() { return predictiveBats; }

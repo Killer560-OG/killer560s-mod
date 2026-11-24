@@ -1445,7 +1445,7 @@ public final class AutoClearFeature {
             double dx = c.getX() + 0.5 - x;
             double dz = c.getZ() + 0.5 - z;
             total += com.killer560.hub.autoroutes.RunPlan.tripSeconds(Math.sqrt(dx * dx + dz * dz), hop, 1)
-                    + CLEAR_SECONDS_GUESS;
+                    + RoomCosts.seconds(layout.name(r), CLEAR_SECONDS_GUESS);
             x = c.getX() + 0.5;
             z = c.getZ() + 0.5;
         }

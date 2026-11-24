@@ -325,9 +325,18 @@ public final class RecordCatalog {
         }
     });
 
+    /** Learned Room Costs (idea-roomcosts-1124): per room name {"s": the last clear times in seconds, "n": clears counted}. */
+    public static final Kind ROOM_COSTS = new Kind("killer560smod-room-costs.json", null, "room-costs.json",
+            Scope.GLOBAL, new JsonMerge.Policy() {
+        @Override
+        public JsonMerge.NumberMode number(String path) {
+            return JsonMerge.matches(path, "*.n") ? JsonMerge.NumberMode.COUNTER : JsonMerge.NumberMode.STATE;
+        }
+    });
+
     public static final List<Kind> ALL = List.of(CROESUS_LOG, CROESUS_RUNS, RNG_ITEM_LOG, EXPERIMENTS, BAZAAR_FLIP,
             NPC_SOLD, RUN_HISTORY, BEST_FRIENDS, EGG_TRACKER, LUCK, CARRY, SIM_MOB_LOOKS, CARNIVAL, ACCOUNT_ACTIVITY, GUILD_LIST, BOARD_BESTS,
-            SIM_DEVICE_PRACTICE);
+            SIM_DEVICE_PRACTICE, ROOM_COSTS);
 
     /** Sorts the array {@code key} of {@code root} by a field (numbers, or ISO timestamps as strings); returns it. */
     static JsonArray sortBy(JsonObject root, String key, String field, boolean descending) {
