@@ -41,7 +41,8 @@
      "Item Protect: a protected item can now be put in the anvil to upgrade it; it is still blocked from being the sacrificed item.",
      "Auto Dialogue works again: it now clicks the Trapper's YES/NO question and numbered NPC options, and never a give-item button, another player's message or any other command.",
      "Order Helper: a partly filled Bazaar order no longer lights up green; only a completely filled one does, and a partly filled order with items to claim now shows a small % mark on its slot.",
-     "Leap Order: applying a profile no longer puts an old copy of your picks, pins and run memory back (it read as a changed party and reset the classes mid-run), a class you set on a player now stays until you change it (a tab-list class change no longer clears it or shows the reset notice), and each player's Class button is now a drop-down where you pick Auto or a class directly."
+     "Leap Order: applying a profile no longer puts an old copy of your picks, pins and run memory back (it read as a changed party and reset the classes mid-run), a class you set on a player now stays until you change it (a tab-list class change no longer clears it or shows the reset notice), and each player's Class button is now a drop-down where you pick Auto or a class directly.",
+     "Auto Anvil now also combines Gravity, Prismatic, Stealth (up to V) and the four Vitality books (up to X)."
     ]
    }
   ]

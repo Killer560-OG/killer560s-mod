@@ -86,7 +86,10 @@ public final class AnvilBooks {
                 // axes (Bazaar lists I-V; his Karma and Petalfall I books combined nothing, 2026-11-23)
                 "karma", "petalfall",
                 // wiki "can be combined on an Anvil up to X V" and the Bazaar lists I-V (checked 2026-11-23)
-                "bug_blender", "feast", "lapidary", "respite", "smarty_pants"}) {
+                "bug_blender", "feast", "lapidary", "respite", "smarty_pants",
+                // ids are the old names, the wiki's pages are renamed: Gravity = dragon_hunter (VI is bought or an
+                // Experiments drop), Prismatic = pristine, Stealth (VI is a drop); each "combined on an Anvil up to V"
+                "dragon_hunter", "pristine", "stealth"}) {
             t.put(id, range(2, 5));
         }
         // Table enchants that stop at IV.
@@ -104,6 +107,10 @@ public final class AnvilBooks {
             t.put(id, range(2, 2));
         }
         // "Combining Books" levels in the wiki tables.
+        // Vitality (reworked mid-2026 from the Mana enchants, ids unchanged): "combined on an Anvil up to X"
+        for (String id : new String[]{"ferocious_mana", "hardened_mana", "mana_vampire", "strong_mana"}) {
+            t.put(id, range(2, 10));
+        }
         t.put("infinite_quiver", range(2, 10));          // I-V table, VI-VII chest or combining, VIII-X combining
         Set<Integer> feather = new java.util.HashSet<>(range(2, 5));
         feather.addAll(range(7, 10));                    // VI is a dungeon drop; VII-X "Combining Feather Falling VI Books"
@@ -175,10 +182,10 @@ public final class AnvilBooks {
             "champion", "compact", "cultivating", "expertise", "hecatomb",
             // levels come from auctions, drops, slayers, the dark auction or Experiments, not two books
             "big_brain", "counter_strike", "divine_gift", "mana_steal", "small_brain", "smoldering", "vicious",
-            "stealth", "sunder",
-            // renamed or removed enchants, or ones only one source confirmed (left out on purpose, 2026-11-23)
-            "aiming", "arcane", "dragon_hunter", "syphon", "pristine", "ferocious_mana", "hardened_mana",
-            "mana_vampire", "strong_mana");
+            "sunder",
+            // not on the wiki as combinable: Aiming (now Dragon Tracer), Arcane (now Woodsplitter, in the table), Syphon (now
+            // Drain: table I-III, IV Experiments, V shop); Sunder was removed in 2026 (2026-11-23)
+            "aiming", "arcane", "syphon");
 
     /** Whether the table or NO_COMBINE decides this enchant: false means a book of it is skipped only for lack of data. */
     public static boolean known(String enchant) {
