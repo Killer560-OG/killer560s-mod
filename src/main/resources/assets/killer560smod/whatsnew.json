@@ -12,7 +12,8 @@
      "Dungeon sim: a new floor no longer shows chunks of the floor before it, so Room Prediction no longer rules out the right room early in a floor.",
      "Regenerating Trees now outlines a log you break yourself and clears a box when the log comes back as chunk data instead of a block update.",
      "Auto Clear: it now remembers how long each room really took to clear and, once a room has been cleared 3 times, uses that time for the clear-time estimate and for Dungeons Autopilot's choice of what to do next, instead of one 12 second guess for every room (new Learned Room Costs switch, on by default, cheat build).",
-     "Custom Scoreboard: the Copper and Sowdust lines now read the Garden's tab list even when the sidebar has no such line (the tab shows them indented), accept symbols before the label and abbreviated values, show whenever a source has a value, keep the last value while you stay in the Garden, and count a Garden named only by the sidebar. Bug reports list the last Copper read with its time and island."
+     "Custom Scoreboard: the Copper and Sowdust lines now read the Garden's tab list even when the sidebar has no such line (the tab shows them indented), accept symbols before the label and abbreviated values, show whenever a source has a value, keep the last value while you stay in the Garden, and count a Garden named only by the sidebar. Bug reports list the last Copper read with its time and island.",
+     "Croesus: new Reroll Advice switch (off by default) writes under the Reroll Chest button whether a fresh chest of this floor is worth more than the one on screen once the Kismet Feather is paid, from the average and median of the chests you claimed, and says so when there are fewer than 10 claims; the cheat build's Auto Croesus can reroll by that verdict instead of its fixed Reroll Below."
     ]
    }
   ]

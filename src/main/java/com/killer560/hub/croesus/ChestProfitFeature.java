@@ -270,7 +270,7 @@ public final class ChestProfitFeature {
         }
     }
 
-    private static String floorForChestScreen() {
+    public static String floorForChestScreen() {
         if (DungeonState.isInDungeon() && DungeonState.getFloor() != null) {
             return DungeonState.getFloor();
         }

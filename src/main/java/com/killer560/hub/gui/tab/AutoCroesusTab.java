@@ -155,6 +155,9 @@ public class AutoCroesusTab extends BaseTab {
                     }
                 });
                 y += 24;
+                widgets.add(onOffButton("Reroll By Expected Value", cfg::isAutoRerollByValue, cfg::setAutoRerollByValue, cfg::save,
+                        null, contentX + INDENT, y, contentWidth - INDENT, 18));
+                y += 22;
                 // Reroll Floors: which floors a Kismet may be spent on (killer560, 2026-11-01), 7 a row
                 widgets.add(label(contentX + INDENT, y, contentWidth - INDENT, "§7Reroll on floors:"));
                 y += 12;

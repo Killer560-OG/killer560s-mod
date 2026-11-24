@@ -155,6 +155,10 @@ public final class CroesusConfig {
     private int rerollProtectAboveK = 5_000;
     /** The Kismet Feathers he carries, drawn as the reroll button's stack number (the reference "Kismet Amount"). */
     private boolean kismetCount = false;
+    /** Reroll Advice: the reroll button reads whether a fresh chest is worth more, on average, than this one (advice only). */
+    private boolean rerollAdvice = false;
+    /** Auto Croesus rerolls by that same advice instead of the fixed Reroll Below (falls back to it with too few claims). */
+    private boolean autoRerollByValue = false;
     /** Croesus Chests HUD: Hypixel's tab line " Unclaimed chests: N" as "N/60", and his Kismet Feathers, outside the menu. */
     private boolean chestCountHud = false;
     /** A chat warning once the unclaimed count reaches this ("Chest Warning Threshold", 55). */
@@ -236,6 +240,8 @@ public final class CroesusConfig {
             cfg.rerollProtection = ConfigJson.getBool(obj, "rerollProtection", cfg.rerollProtection);
             cfg.rerollProtectAboveK = clamp(ConfigJson.getInt(obj, "rerollProtectAboveK", cfg.rerollProtectAboveK), 0, MAX_MIN_PROFIT_K);
             cfg.kismetCount = ConfigJson.getBool(obj, "kismetCount", cfg.kismetCount);
+            cfg.rerollAdvice = ConfigJson.getBool(obj, "rerollAdvice", cfg.rerollAdvice);
+            cfg.autoRerollByValue = ConfigJson.getBool(obj, "autoRerollByValue", cfg.autoRerollByValue);
             cfg.chestCountHud = ConfigJson.getBool(obj, "chestCountHud", cfg.chestCountHud);
             cfg.chestWarnAt = clamp(ConfigJson.getInt(obj, "chestWarnAt", cfg.chestWarnAt), 1, MAX_CHEST_WARN_AT);
             // Same min <= max invariant the setters enforce (a hand-edit could otherwise load min > max).
@@ -281,6 +287,8 @@ public final class CroesusConfig {
         obj.addProperty("rerollProtection", rerollProtection);
         obj.addProperty("rerollProtectAboveK", rerollProtectAboveK);
         obj.addProperty("kismetCount", kismetCount);
+        obj.addProperty("rerollAdvice", rerollAdvice);
+        obj.addProperty("autoRerollByValue", autoRerollByValue);
         obj.addProperty("chestCountHud", chestCountHud);
         obj.addProperty("chestWarnAt", chestWarnAt);
         ConfigJson.write(CONFIG_PATH, obj);
@@ -576,6 +584,26 @@ public final class CroesusConfig {
 
     public void setKismetCount(boolean v) {
         this.kismetCount = v;
+    }
+
+    public boolean isRerollAdvice() {
+        return rerollAdvice && com.killer560.hub.util.SkyblockGate.allows();
+    }
+
+    public boolean isRerollAdviceRaw() {
+        return rerollAdvice;
+    }
+
+    public void setRerollAdvice(boolean v) {
+        this.rerollAdvice = v;
+    }
+
+    public boolean isAutoRerollByValue() {
+        return autoRerollByValue;
+    }
+
+    public void setAutoRerollByValue(boolean v) {
+        this.autoRerollByValue = v;
     }
 
     public boolean isChestCountHud() {

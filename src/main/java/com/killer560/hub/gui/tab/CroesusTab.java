@@ -34,7 +34,7 @@ public class CroesusTab extends BaseTab {
     @Override
     public List<com.killer560.hub.gui.SettingsButtonWidget> masterToggles(List<AbstractWidget> built) {
         return switchRows(built, "Chest Profit", "Croesus Profit Logger", "Hide Opened Runs", "Reroll Protection",
-                "Kismet Count", "Croesus Chests HUD");
+                "Kismet Count", "Reroll Advice", "Croesus Chests HUD");
     }
 
     @Override
@@ -117,6 +117,8 @@ public class CroesusTab extends BaseTab {
             y += 20;
         }
         widgets.add(onOffButton("Kismet Count", cfg::isKismetCountRaw, cfg::setKismetCount, cfg::save, null, contentX, y, contentWidth, 18));
+        y += 20;
+        widgets.add(onOffButton("Reroll Advice", cfg::isRerollAdviceRaw, cfg::setRerollAdvice, cfg::save, null, contentX, y, contentWidth, 18));
         y += 20;
         widgets.add(onOffButton("Croesus Chests HUD", cfg::isChestCountHudRaw, cfg::setChestCountHud, cfg::save, requestRebuild, contentX, y, contentWidth, 18));
         y += 20;

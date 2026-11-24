@@ -220,6 +220,11 @@ public final class DungeonChestValuer {
         return build(type, slot, cost, items, opened, requiresKey);
     }
 
+    /** Bazaar price of one Kismet Feather, or null while prices haven't loaded. */
+    public static Long kismetPrice() {
+        return price("Kismet Feather", "KISMET_FEATHER");
+    }
+
     /** Bazaar price of one Dungeon Chest Key, or null while prices haven't loaded. */
     public static Long dungeonChestKeyPrice() {
         return price("Dungeon Chest Key", DUNGEON_CHEST_KEY_ID);

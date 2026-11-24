@@ -36,6 +36,7 @@ public abstract class CroesusSlotMixin {
                                             CallbackInfo ci) {
         ChestProfitFeature.drawRunGlyph(graphics, (AbstractContainerScreen<?>) (Object) this, slot);
         com.killer560.hub.croesus.CroesusExtras.drawKismetCount(graphics, (AbstractContainerScreen<?>) (Object) this, slot);
+        com.killer560.hub.croesus.RerollAdvice.draw(graphics, (AbstractContainerScreen<?>) (Object) this, slot);
     }
 
     @Inject(method = "extractSlot(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/world/inventory/Slot;II)V",

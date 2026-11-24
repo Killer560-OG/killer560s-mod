@@ -638,7 +638,10 @@ public final class AutoCroesusFeature {
             ChestValue bedrock = chests.stream().filter(c -> !c.opened() && c.slot() >= 0 && c.type() == ChestType.BEDROCK
                     && !refusedChests.contains(chestKey(c.slot()))).findFirst().orElse(null);
             long rerollBelow = cfg.getAutoRerollBelowK() * 1000L;
-            if (bedrock != null && !bedrock.requiresKey() && bedrock.profit() < rerollBelow) {
+            // Reroll By Expected Value: his claim log decides (RerollAdvice); with too few claims of this floor the fixed
+            // Reroll Below still applies.
+            Boolean byValue = bedrock != null && cfg.isAutoRerollByValue() ? RerollAdvice.autoVerdict(currentRunFloor, bedrock) : null;
+            if (bedrock != null && !bedrock.requiresKey() && (byValue != null ? byValue : bedrock.profit() < rerollBelow)) {
                 if (!click(client, screen, bedrock.slot())) {
                     return;
                 }
