@@ -95,6 +95,11 @@ public final class P3SectionTracker {
         return section > s || (section == s && sectionTotal > 0 && sectionCurrent >= sectionTotal);
     }
 
+    /** True while P3 has started and section 1 is the active section (not finished). I3 Leap's window (with standing in S3). */
+    public static boolean s1Active() {
+        return running() && section == 1 && !sectionDone(1);
+    }
+
     /** Whether "The gate has been destroyed!" was seen in the current section. */
     public static boolean gateDestroyed() {
         return sectionGate;

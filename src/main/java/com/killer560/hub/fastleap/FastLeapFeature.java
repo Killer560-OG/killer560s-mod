@@ -6,6 +6,7 @@ import com.killer560.hub.fastleap.FastLeapConfig.LeapGroup;
 import com.killer560.hub.fastleap.FastLeapConfig.LeapTarget;
 import com.killer560.hub.fastleap.Floor7Tracker.Phase;
 import com.killer560.hub.fastleap.Floor7Tracker.Stage;
+import com.killer560.hub.leveraura.P3SectionTracker;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ModChat;
@@ -60,6 +61,7 @@ public final class FastLeapFeature {
     private static final Pattern DOOR_OPEN_REGEX = Pattern.compile("^(?:\\[[^]]{1,32}] )?([A-Za-z0-9_]{1,16}) opened a (?:WITHER|Blood) door!");
 
     private static long lastClick = 0L;
+    private static long lastI3Leap = 0L;
     private static int arghCount = 0;
     private static int oofCount = 0;
     private static boolean pickedUpRelic = false;
@@ -84,7 +86,7 @@ public final class FastLeapFeature {
                 if (cfg.isOnlyWhenGateBlown()) {
                     return;
                 }
-                handleP3Leap(stage);
+                handleP3Leap(stage, isEarlyI3(Floor7Tracker.getStageAt()));
             }
 
             @Override
@@ -98,6 +100,16 @@ public final class FastLeapFeature {
                     return;
                 }
                 handleP3Leap(stage);
+            }
+        });
+        // Auto I3 Leap: your own "completed a device!" line in section 3 before section 1 is finished.
+        P3SectionTracker.register();
+        P3SectionTracker.addObjectiveListener((section, name, kind, cur, tot) -> {
+            Minecraft mc = Minecraft.getInstance();
+            FastLeapConfig cfg = FastLeapConfig.getInstance();
+            if (section == 3 && "device".equals(kind) && mc.player != null && name.equalsIgnoreCase(mc.player.getName().getString())
+                    && cfg.isEnabled() && cfg.isLeapAuto(LeapGroup.P3) && Floor7Tracker.inPhaseAt(Phase.P3)) {
+                handleP3Leap(Stage.S3, isEarlyI3(Floor7Tracker.getStageAt()));
             }
         });
         ChatObserver.subscribe(FastLeapFeature::onChat);
@@ -331,7 +343,8 @@ public final class FastLeapFeature {
             if (!cfg.isLeapFast(LeapGroup.P3) || !Floor7Tracker.inF7Boss()) {
                 return true;
             }
-            handleP3Leap(Floor7Tracker.getStageAt());
+            Stage at = Floor7Tracker.getStageAt();
+            handleP3Leap(at, isEarlyI3(at));
         }
         lastClick = now;
         return true;
@@ -389,14 +402,43 @@ public final class FastLeapFeature {
      * be off of where i am not what section it actively is"), not the one that just finished; outside S1-S4 it does not leap.
      */
     private static void handleP3Leap(Stage completedStage) {
+        handleP3Leap(completedStage, false);
+    }
+
+    /**
+     * I3 Leap (leap-p3-labels-i3-1124, killer560: "only ever be able to leap while s1 is active but you are in s3"):
+     * standing anywhere in the S3 area (the box {@link Floor7Tracker#getStageAt} uses) while P3 has started and section 1
+     * is the active, unfinished section. Never before P3 starts, never once S1 is done. It only picks a different
+     * target, and falls back to the S3 pick while I3 Leap has none set.
+     */
+    private static boolean isEarlyI3(Stage at) {
+        P3SectionTracker.register();
+        P3SectionTracker.poll(Minecraft.getInstance());
+        return at == Stage.S3 && P3SectionTracker.s1Active();
+    }
+
+    private static boolean i3PickSet(FastLeapConfig cfg) {
+        return cfg.getTargetMode(LeapTarget.I3) == FastLeapConfig.TargetMode.POSMSG || cfg.getTargetClass(LeapTarget.I3) != null
+                || !cfg.getTargetName(LeapTarget.I3).isBlank()
+                || cfg.isUseClassTargets() && cfg.getClassTarget(LeapTarget.I3, com.killer560.hub.leapmenu.PartyTracker.selfClass()) != null;
+    }
+
+    private static void handleP3Leap(Stage completedStage, boolean earlyI3) {
         Stage currentStage = Floor7Tracker.getStageAt();
         LeapTarget target = switch (currentStage) {
             case S1 -> LeapTarget.S1;
             case S2 -> LeapTarget.S2;
-            case S3 -> LeapTarget.S3;
+            case S3 -> earlyI3 && i3PickSet(FastLeapConfig.getInstance()) ? LeapTarget.I3 : LeapTarget.S3;
             case S4 -> LeapTarget.S4;
             default -> null;
         };
+        if (target == LeapTarget.I3) {
+            long now = System.currentTimeMillis();
+            if (now - lastI3Leap < 2000L) {
+                return; // the device line and the section completing on the same line leap once
+            }
+            lastI3Leap = now;
+        }
         if (target != null) {
             LOGGER.info("[FastLeap] P3 leap for completed {} (standing in {})", completedStage, currentStage);
             leapToConfigured(target);

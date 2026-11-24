@@ -398,9 +398,9 @@ public final class FastLeapSection {
         return y;
     }
 
-    /** A grid row's name: "Crystal", "P3 S1"; also the start of its cyclers' labels ("Crystal Target: Tank"). */
+    /** A grid row's name: "Crystal", "S1 to S2"; also the start of its cyclers' labels ("Crystal Target: Tank"). */
     static String cellName(LeapTarget t) {
-        return t.group == LeapGroup.P3 ? "P3 " + t.label : t.group.label;
+        return t.group == LeapGroup.P3 ? t.label : t.group.label;
     }
 
     /** A grid row's name at the left, dim while the leap is Off. */

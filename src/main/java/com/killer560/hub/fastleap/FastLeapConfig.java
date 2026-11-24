@@ -77,7 +77,7 @@ public final class FastLeapConfig {
         }
     }
 
-    /** One configurable target (the per-leap name/class). The P3 group has four (S1-S4); DOOR has none. */
+    /** One configurable target (the per-leap name/class). The P3 group has five (I3 Leap, then S1 to S2 .. S4 to Core); DOOR has none. */
     public enum LeapTarget {
         P1(LeapGroup.P1, "Target", null, "p2, storm"),
         PREDEV(LeapGroup.PREDEV, "Target", null, "ss, simon says, predev, pre dev"),
@@ -86,10 +86,11 @@ public final class FastLeapConfig {
         PURPLE(LeapGroup.PURPLE, "Target", null, "purple"),
         PY_HEALER(LeapGroup.PY_HEALER, "Target", null, "py, healer py"),
         STORM_DEATH(LeapGroup.STORM_DEATH, "Target", null, "p3, s1, ss"),
-        S1(LeapGroup.P3, "S1", DungeonClass.HEALER, "ee2, hee2, s2"),
-        S2(LeapGroup.P3, "S2", DungeonClass.ARCHER, "ee3, hee3, s3"),
-        S3(LeapGroup.P3, "S3", DungeonClass.MAGE, "core, ee4, s4"),
-        S4(LeapGroup.P3, "S4", DungeonClass.MAGE, "tunnel, inside core, in core"),
+        I3(LeapGroup.P3, "I3 Leap", null, "i3, early i3"),
+        S1(LeapGroup.P3, "S1 to S2", DungeonClass.HEALER, "ee2, hee2, s2"),
+        S2(LeapGroup.P3, "S2 to S3", DungeonClass.ARCHER, "ee3, hee3, s3"),
+        S3(LeapGroup.P3, "S3 to S4", DungeonClass.MAGE, "core, ee4, s4"),
+        S4(LeapGroup.P3, "S4 to Core", DungeonClass.MAGE, "tunnel, inside core, in core"),
         MIDDLE(LeapGroup.MIDDLE, "Target", null, "mid, middle, necron's platform, platform"),
         P4(LeapGroup.P4, "Target", null, "p5"),
         RELIC(LeapGroup.RELIC, "Target", null, "relic, p5");

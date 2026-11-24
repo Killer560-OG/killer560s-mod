@@ -750,7 +750,7 @@ final class SettingTooltipsData {
         d.put("purple pad leap", "F7 P2 purple pad: fast leap to its target; in Auto mode, leaps on Storm's 1st crush.");
         d.put("py healer leap", "F7 P2 healer PY spot: fast leap to its target; in Auto mode, leaps when a teammate reaches it.");
         d.put("storm death leap", "F7 P2 off the pads: fast leap to its target; in Auto mode, leaps when Storm dies.");
-        d.put("p3 leap", "F7 P3: leaps to the target for the section you just finished; in Auto mode, leaps when it completes.");
+        d.put("p3 leap", "F7 P3: fast leap to the target for the section you stand in (I3 Leap while in section 3 before section 1 is done); in Auto mode, leaps when a section completes.");
         d.put("middle leap", "F7 P4 outside the middle: fast leap to its target; in Auto mode, leaps on Necron's 'impressive trick' line.");
         d.put("p4 leap", "F7 P4 in the middle: fast leap to its target; in Auto mode, leaps on Necron's 2nd 'ARGH!'.");
         d.put("relic leap", "F7/M7 P5: fast leap to its target; in Auto mode, leaps as soon as you pick up a relic.");
@@ -2290,8 +2290,10 @@ final class SettingTooltipsData {
             d.put("fast/auto leap/" + s[0], "Who " + s[1] + " goes to." + pick);
             leapCells(d, s[0], s[1]);
         }
-        for (int sec = 1; sec <= 4; sec++) {
-            leapCells(d, "p3 s" + sec, "the P3 leap after section " + sec);
+        leapCells(d, "i3 leap", "the I3 Leap (standing anywhere in section 3 while section 1 is active (P3 started, S1 not finished): a Fast Leap click goes there, and on Auto it leaps there when you complete the section 3 device; None = the S3 to S4 pick is used)");
+        String[] p3 = {"s1 to s2", "s2 to s3", "s3 to s4", "s4 to core"};
+        for (int sec = 0; sec < 4; sec++) {
+            leapCells(d, p3[sec], "the P3 leap while you stand in section " + (sec + 1));
         }
         d.put("fast/auto leap/click delay", "Minimum time between fast leap clicks, 100-500 ms (cheat build only).");
         d.put("fast/auto leap/leap timeout", "How long a leap waits for the Spirit Leap menu, then for the target's head, before it gives up and gives you your inputs back, 0.5-5 s in 0.25 s steps, 2 s by default (cheat build only).");
