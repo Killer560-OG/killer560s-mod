@@ -10,6 +10,6 @@ import java.util.List;
 public class ForagingTab extends FolderTab {
 
     public ForagingTab() {
-        super("Foraging", List.of(new AgathaContestOverlayTab(), new BeaconReadyAlertTab(), new BeeheemothHighlightTab(), new InvisibugHighlightTab(), new TreeGiftMessagesTab(), new TreeRegenTab()));
+        super("Foraging", List.of(new AgathaContestOverlayTab(), new BeaconReadyAlertTab(), new BeaconTunerTab(), new BeeheemothHighlightTab(), new InvisibugHighlightTab(), new TreeGiftMessagesTab(), new TreeRegenTab()));
     }
 }

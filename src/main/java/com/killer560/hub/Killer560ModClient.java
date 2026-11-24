@@ -581,6 +581,7 @@ public class Killer560ModClient implements ClientModInitializer {
         }
         com.killer560.hub.islands.HarpHelperFeature.register();
         com.killer560.hub.foraging.BeaconReadyAlert.register();
+        com.killer560.hub.foraging.BeaconTuner.register();
         com.killer560.hub.foraging.BeeheemothHighlight.register();
         com.killer560.hub.foraging.AgathaContest.register();
         com.killer560.hub.foraging.TreeRegen.register();

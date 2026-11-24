@@ -3219,6 +3219,9 @@ final class SettingTooltipsData {
         d.put("tree gift messages/keep rare drops", "Keeps the BONUS GIFT lines and any mob that fell from the tree visible. Off hides the whole block.");
         d.put("beacon ready alert/alert sound", "Also plays a pling with the title.");
         d.put("beacon ready alert/repeat after", "While the beacon stays available, the title comes back after this many minutes.");
+        d.put("beacon tuner", "In the Moonglade Beacon tuning menu, outlines the button to press for each of Color, Speed and Pitch that does not match yet and shows how many presses it needs. It never clicks for you.");
+        d.put("beacon tuner/auto tune", "Cheat build. In the Tune Frequency and Upgrade Signal Strength menus, clicks your Color, Speed and Pitch buttons to match the beacon's beat, then uses Pause to put your pane in the same slot as the beacon's and finishes with the last Pitch click. One click at a time, spaced by Click Delay; your own clicks are never held. It stops when you close the menu.");
+        d.put("beacon tuner/click delay", "The fewest ticks between two Auto Tune clicks (20 ticks is one second).");
         d.put("melody's harp helper", "Helpers for Melody's Harp: keys for the notes, a GUI scale, a progress tracker, key labels, hidden tooltips and Quick Restart. Off by default.");
         d.put("melody's harp helper/key binds", "While a song is open, a key (or mouse button) per note column plays that column's button at once, even when the press lands in the same tick as another. Default keys 1 to 7.");
         d.put("melody's harp helper/key 1", "The key or mouse button that plays note column 1 (the first from the left). Click, then press it; Escape clears it.");

@@ -255,6 +255,9 @@ public final class ActionGate {
          *  2026-10-07). Shop-side convenience, same bucket as Auto Sell; wired in {@code AutoAnvilFeature#click},
          *  its only click site. */
         AUTO_ANVIL(Kind.SCREEN),
+        /** Auto Tune (cheat build, 2026-11-23) clicking the Color, Speed, Pitch and Pause buttons of the Moonglade Beacon's
+         *  Tune Frequency / Upgrade Signal Strength menus. {@code foraging.BeaconAutoTuner#click} is its only caller. */
+        BEACON_TUNE(Kind.SCREEN),
         /** Auto Melody's Harp middle-clicking the note slots of a "Harp - song" menu. Wired in
          *  {@code islands.AutoHarpFeature}, its only click site. */
         ISLAND_HARP(Kind.SCREEN),

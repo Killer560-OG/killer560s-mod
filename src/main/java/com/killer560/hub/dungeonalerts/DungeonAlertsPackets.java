@@ -41,6 +41,7 @@ public final class DungeonAlertsPackets {
         // rather than adding a second mixin for the same packet.
         guard("sound/ragaxe", com.killer560.hub.ragaxe.RagAxeFeature::onSoundPacket, packet);
         guard("sound/abilitycooldown", com.killer560.hub.abilitycooldown.AbilityCooldownFeature::onSoundPacket, packet);
+        guard("sound/beacontuner", com.killer560.hub.foraging.BeaconTuner::onSoundPacket, packet);
     }
 
     public static void onTakeItem(ClientboundTakeItemEntityPacket packet, ClientLevel level) {
