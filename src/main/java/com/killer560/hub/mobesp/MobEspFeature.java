@@ -630,19 +630,35 @@ public final class MobEspFeature {
         if (byId != null && !(byId instanceof ArmorStand) && isValidMob(client, byId)) {
             mob = byId;
         } else {
-            List<Entity> below = client.level.getEntities(stand, stand.getBoundingBox().move(0.0, -1.0, 0.0),
-                    e -> !(e instanceof ArmorStand) && !(e instanceof ExperienceOrb));
-            for (Iterator<Entity> it = below.iterator(); it.hasNext() && mob == null; ) {
-                Entity e = it.next();
-                if (isValidMob(client, e) && !standToMob.containsValue(e.getId())) {
-                    mob = e;
-                }
+            // A fast mob outruns its tag by a block or more (Small Stairs, 11-23: a starred Speedy Skeleton Soldier whose
+            // tag stood beside it was never starred), so after the box under the tag comes a wider one around it.
+            AABB box = stand.getBoundingBox();
+            mob = nearestFreeMob(client, stand, box.move(0.0, -1.0, 0.0));
+            if (mob == null) {
+                mob = nearestFreeMob(client, stand, box.inflate(TAG_LAG, 0.0, TAG_LAG).expandTowards(0.0, -3.0, 0.0));
             }
         }
         if (mob != null) {
             standToMob.put(stand.getId(), mob.getId());
         }
         return mob;
+    }
+
+    /** How far a name tag may trail its mob sideways and still be matched to it. */
+    private static final double TAG_LAG = 2.0;
+
+    /** The closest real mob inside {@code box} that no other tag has claimed, or null. */
+    private static Entity nearestFreeMob(Minecraft client, ArmorStand stand, AABB box) {
+        Entity best = null;
+        double bestDist = Double.MAX_VALUE;
+        for (Entity e : client.level.getEntities(stand, box, x -> !(x instanceof ArmorStand) && !(x instanceof ExperienceOrb))) {
+            double d = e.distanceToSqr(stand);
+            if (d < bestDist && isValidMob(client, e) && !standToMob.containsValue(e.getId())) {
+                best = e;
+                bestDist = d;
+            }
+        }
+        return best;
     }
 
     /** Only real living, non-bat, non-wither entities (never a dropped item, projectile or you) count as a star mob. */

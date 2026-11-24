@@ -36,7 +36,8 @@
      "Simon Says no longer says the device broke after a teammate finishes it while you were just watching.",
      "Reclaim Inventory now finds every item you can reclaim Boosters from, not only armor.",
      "Invisibug Highlight: a new Galatea setting (off by default) boxes where each Invisibug is, found from the one circling particle it gives off, and drops the box 2 seconds after the particles stop.",
-     "Auto Terminals Melody: the lookahead no longer sends clicks the server ignores when Hypixel shows the next row late, and the false 2.5 s 'pacing dropped' stall note is gone."
+     "Auto Terminals Melody: the lookahead no longer sends clicks the server ignores when Hypixel shows the next row late, and the false 2.5 s 'pacing dropped' stall note is gone.",
+     "Auto Clear: a starred mob whose name tag trails behind it (fast mobs such as the Speedy Skeleton Soldier) is now recognized as starred, instead of Auto Clear teleporting around the room looking for a mob that stands next to you."
     ]
    }
   ]

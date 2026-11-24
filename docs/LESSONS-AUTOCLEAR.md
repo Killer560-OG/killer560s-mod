@@ -537,3 +537,15 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   Prison Cell's route came to 100. The log does not say which mob rooms were weighed (quizGapMobClear logs nothing when it picks
   none), so whether a cut-short clear would have paid is unproven; filling such gaps means a shorter spare or arriving late,
   his call. Not changed.
+
+## A name tag that trails its mob (dropaudit-acstarred, Small Stairs 13:21 on 11-23)
+- `MobEspFeature.resolveMob` tied a starred tag to its mob by id - 1, else by a box one block under the tag. A tag that is a NEW stand
+  (no body at its id - 1) next to a fast mob (Speedy Skeleton Soldier, tag 1+ blocks off) matched nothing, so Auto Clear's mob list
+  dropped to 0 while the starred mob stood beside him and it gave up "no starred mob is visible". Now a second, wider search (2 blocks
+  sideways, 3 below) takes the nearest mob no other tag has claimed (`nearestFreeMob`). The real tag/body ids were not logged that day
+  (the logger's TG lines came later), so the sim case 1123-sim-ac-taglag swaps a zombie's tag for a later-id stand 1.8 blocks aside; it
+  gives up on origin and kills the zombie on the fix.
+- Tombstone 13:02 (give-up with m=0 and the room not green) is NOT this: its starred mobs were dead and three unstarred "[Lv173] Undead
+  Skeleton 360k" stands were in the room; whether those keep the room open is unproven (needs the TG/GS logger lines of a real visit).
+- A "wrong Quiz answer" at 13:00:06 was his own click: Hypixel changed "How many Fairy Souls are there in Hub?" (options 83/81/85, ours
+  says 80), so Auto Quiz pressed nothing. quiz-answers.json waits for the real number (83 or 81).
