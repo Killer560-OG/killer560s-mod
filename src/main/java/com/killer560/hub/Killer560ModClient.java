@@ -586,6 +586,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.foraging.BeeheemothHighlight.register();
         com.killer560.hub.foraging.AgathaContest.register();
         com.killer560.hub.foraging.TreeRegen.register();
+        com.killer560.hub.foraging.SweepOverlay.register();
         com.killer560.hub.autoanvil.AutoAnvilFeature.register();
         com.killer560.hub.bazaarflip.BazaarFlipFeature.register();
         com.killer560.hub.bazaaradvisor.BazaarAdvisorFeature.register();

@@ -31,7 +31,9 @@ public abstract class TreeRegenLevelMixin {
 
     private void change(BlockPos pos, BlockState state) {
         try {
-            TreeRegen.onChange(this, pos, ((ClientLevel) (Object) this).getBlockState(pos), state);
+            BlockState old = ((ClientLevel) (Object) this).getBlockState(pos);
+            TreeRegen.onChange(this, pos, old, state);
+            com.killer560.hub.foraging.SweepOverlay.onChange(old, state);
         } catch (RuntimeException e) {
             // never break the packet path
         }
