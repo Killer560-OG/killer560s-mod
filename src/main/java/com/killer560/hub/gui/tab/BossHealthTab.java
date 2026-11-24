@@ -27,6 +27,7 @@ public class BossHealthTab extends BaseTab {
         w.add(toggle(contentX, y, contentWidth, "Show Percent", cfg::isShowPercent, cfg::setShowPercent));
         y += 22;
         w.add(toggle(contentX, y, contentWidth, "Show Minions", cfg::isShowMinions, cfg::setShowMinions));
+        hudTextRows(w, "boss_health", "", true, contentX, contentWidth);
         return w;
     }
 

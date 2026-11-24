@@ -31,6 +31,7 @@ public final class MaskInvincibilityConfig {
     private boolean announceToParty = false;
     /** A title on screen when a mask procs (killer560, 2026-11-03: "not a title that pops up"). */
     private boolean procTitle = true;
+    private boolean procSound = false;
     private boolean showSpirit = true;
     private boolean showBonzo = true;
     private boolean showPhoenix = true;
@@ -115,6 +116,7 @@ public final class MaskInvincibilityConfig {
             .add("enabled", false, c -> c.enabled, (c, v) -> c.enabled = v)
             .add("announceToParty", false, c -> c.announceToParty, (c, v) -> c.announceToParty = v)
             .add("procTitle", true, c -> c.procTitle, (c, v) -> c.procTitle = v)
+            .add("procSound", false, c -> c.procSound, (c, v) -> c.procSound = v)
             .add("showSpirit", true, c -> c.showSpirit, (c, v) -> c.showSpirit = v)
             .add("showBonzo", true, c -> c.showBonzo, (c, v) -> c.showBonzo = v)
             .add("showPhoenix", true, c -> c.showPhoenix, (c, v) -> c.showPhoenix = v)
@@ -192,6 +194,10 @@ public final class MaskInvincibilityConfig {
      *  own toggle next to the client-side one (same shape as {@code BlessingTracker}'s pair) and default OFF,
      *  so nothing starts typing in his party until he turns it on. */
     public boolean isProcTitle() { return procTitle; }
+
+    public boolean isProcSound() { return procSound; }
+
+    public void setProcSound(boolean v) { this.procSound = v; }
 
     public void setProcTitle(boolean procTitle) { this.procTitle = procTitle; }
 

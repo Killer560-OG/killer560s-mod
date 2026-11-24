@@ -132,6 +132,9 @@ public final class MaskInvincibilityFeature {
                     com.killer560.hub.compat.McCompat.setTitle(mc, net.minecraft.network.chat.Component.literal("\u00a7c\u00a7l" + t.label + " Popped!"));
                     com.killer560.hub.compat.McCompat.setSubtitle(mc, net.minecraft.network.chat.Component.literal(""));
                 }
+                if (cfg.isProcSound()) {
+                    com.killer560.hub.dungeonalerts.DungeonAlertsFeature.playSound(net.minecraft.sounds.SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f, 0.8f);
+                }
                 if (cfg.isAnnounceToParty()) {
                     sendPartyChat(t.label + " popped!");
                 }
@@ -391,7 +394,7 @@ public final class MaskInvincibilityFeature {
                 }
                 // Center the 8px-tall line against a 16px icon; without icons keep the old flush-top layout.
                 int textY = icons ? lineY + 4 : lineY;
-                graphics.text(Minecraft.getInstance().font, rowText(t), textX, textY, color, false);
+                graphics.text(Minecraft.getInstance().font, rowText(t), textX, textY, color, com.killer560.hub.hud.HudTextStyle.shadow(id(), false));
                 lineY += row;
             }
             if (lineY != y) {

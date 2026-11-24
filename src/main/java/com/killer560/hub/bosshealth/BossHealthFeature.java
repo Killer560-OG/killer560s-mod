@@ -251,7 +251,7 @@ public final class BossHealthFeature {
             Minecraft client = Minecraft.getInstance();
             List<String> rows = rows();
             for (int i = 0; i < rows.size(); i++) {
-                graphics.text(client.font, rows.get(i), x, y + i * 10, 0xFFFFFFFF, true);
+                graphics.text(client.font, rows.get(i), x, y + i * 10, 0xFFFFFFFF, com.killer560.hub.hud.HudTextStyle.shadow(id(), true));
             }
             if (!rows.isEmpty() && !(McCompat.screen(client) instanceof HudEditorScreen)) {
                 HudSeen.markDrawn(id());

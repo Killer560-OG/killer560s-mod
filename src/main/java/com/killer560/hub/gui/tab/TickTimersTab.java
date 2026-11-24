@@ -84,6 +84,7 @@ public class TickTimersTab extends BaseTab {
         widgets.add(colorButton(contentX, y, colW, "Pad Color", cfg.getCrushPadColor(), TickTimersConfig.DEFAULT_PAD_COLOR,
                 argb -> cfg.setCrushPadColor(argb)));
 
+        hudTextRows(widgets, "tick_timers", "", false, contentX, contentWidth);
         return widgets;
     }
 

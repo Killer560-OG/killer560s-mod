@@ -429,10 +429,11 @@ public final class TickTimersFeature {
             if (!TickTimersConfig.getInstance().isEnabled() || HudVisibility.hidesHud()) return;
             int lineY = y;
             List<String> shown = activeLines();
+            boolean shadow = com.killer560.hub.hud.HudTextStyle.shadow(id(), false);
             int boxW = shown.isEmpty() ? 0 : com.killer560.hub.hud.HudText.width(shown);
             for (String line : shown) {
                 int dx = (boxW - com.killer560.hub.hud.HudText.width(line)) / 2;
-                graphics.text(Minecraft.getInstance().font, line, x + Math.max(0, dx), lineY, 0xFFFFFFFF, false);
+                graphics.text(Minecraft.getInstance().font, line, x + Math.max(0, dx), lineY, 0xFFFFFFFF, shadow);
                 lineY += 12;
             }
             if (lineY != y) {

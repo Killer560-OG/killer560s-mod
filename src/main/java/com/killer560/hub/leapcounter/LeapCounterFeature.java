@@ -174,7 +174,7 @@ public final class LeapCounterFeature {
                 }
             }
             HudSeen.markDrawn(id());
-            graphics.text(client.font, line, x, y, 0xFFFFFFFF, true);
+            graphics.text(client.font, line, x, y, 0xFFFFFFFF, com.killer560.hub.hud.HudTextStyle.shadow(id(), true));
         }
     }
 }

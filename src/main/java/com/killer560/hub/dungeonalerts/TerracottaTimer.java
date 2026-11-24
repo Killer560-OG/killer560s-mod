@@ -104,9 +104,12 @@ final class TerracottaTimer {
         if (SPAWNS.isEmpty() || !active()) {
             return;
         }
+        DungeonAlertsConfig cfg = DungeonAlertsConfig.getInstance();
+        boolean ticks = cfg.terracottaTicks;
+        float scale = cfg.terracottaScale;
         for (Terracotta t : SPAWNS) {
             Vec3 c = Vec3.atCenterOf(t.pos);
-            DungeonAlertsFeature.renderWorldText(context, label(t.ticksLeft), c.x, c.y, c.z, 2f);
+            DungeonAlertsFeature.renderWorldText(context, label(t.ticksLeft, ticks), c.x, c.y, c.z, scale);
         }
     }
 
@@ -115,17 +118,19 @@ final class TerracottaTimer {
     // 300 ticks): the old 64-slot table was keyed on ticksLeft mod 64, so several spawns whose counts collided
     // evicted each other and re-formatted every frame.
     private static final String[] LABELS = new String[301];
+    private static final String[] TICK_LABELS = new String[301];
 
-    private static String label(int ticksLeft) {
+    static String label(int ticksLeft, boolean inTicks) {
         boolean cached = ticksLeft >= 0 && ticksLeft < LABELS.length;
-        if (cached && LABELS[ticksLeft] != null) {
-            return LABELS[ticksLeft];
+        String[] table = inTicks ? TICK_LABELS : LABELS;
+        if (cached && table[ticksLeft] != null) {
+            return table[ticksLeft];
         }
         float seconds = ticksLeft / 20f;
         char color = seconds > 5f ? 'a' : seconds > 2f ? '6' : 'c';
-        String text = "§" + color + String.format(Locale.US, "%.2f", seconds) + "s";
+        String text = "§" + color + (inTicks ? ticksLeft + "t" : String.format(Locale.US, "%.2f", seconds) + "s");
         if (cached) {
-            LABELS[ticksLeft] = text;
+            table[ticksLeft] = text;
         }
         return text;
     }

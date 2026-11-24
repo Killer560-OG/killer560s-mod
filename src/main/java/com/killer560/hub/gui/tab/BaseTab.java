@@ -30,6 +30,25 @@ public abstract class BaseTab {
      * An ON/OFF switch row. A click flips the setting and saves, then rebuilds the tab when {@code rebuild} is given,
      * or else relabels the button from the getter (so a setter that refuses or clamps shows what it kept).
      */
+    /** The shared HUD Text pair (gaps-sounds-hud-1124): a header and Text Shadow / Background switches for HUD {@code id}, placed
+     *  under the lowest widget built so far ({@code defShadow} is what that HUD drew before the setting existed). Returns the
+     *  pixel just below the rows. */
+    protected static int hudTextRows(List<AbstractWidget> widgets, String id, String prefix, boolean defShadow, int x, int width) {
+        int y = 0;
+        for (AbstractWidget a : widgets) {
+            y = Math.max(y, a.getY() + a.getHeight());
+        }
+        y += 6;
+        widgets.add(com.killer560.hub.gui.SectionHeaders.row(x, y, width, prefix + "HUD Text", false));
+        y += 16;
+        int half = (width - 8) / 2;
+        widgets.add(onOffButton("Text Shadow", () -> com.killer560.hub.hud.HudTextStyle.shadow(id, defShadow),
+                v -> com.killer560.hub.hud.HudTextStyle.setShadow(id, v), () -> { }, null, x, y, half, 18));
+        widgets.add(onOffButton("Background", () -> com.killer560.hub.hud.HudTextStyle.background(id),
+                v -> com.killer560.hub.hud.HudTextStyle.setBackground(id, v), () -> { }, null, x + half + 8, y, half, 18));
+        return y + 22;
+    }
+
     protected static SettingsButtonWidget onOffButton(String label, BooleanSupplier get, Consumer<Boolean> set,
             Runnable save, Runnable rebuild, int x, int y, int w, int h) {
         return SettingsButtonWidget.builder(onOff(label, get.getAsBoolean()), btn -> {

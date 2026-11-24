@@ -114,13 +114,30 @@ public final class DungeonAlertsConfig {
     public boolean duplicateClassParty = false;
     public boolean witherKingStatueBox = false;
     public boolean dimensionalSlashAlert = false;
+    // Alert sound switches (gaps-sounds-hud-1124): each alert's pling, ON as before.
+    public boolean rareRoomSound = true;
+    public boolean rareDropSound = true;
+    public boolean duplicateClassSound = true;
+    public boolean dimensionalSlashSound = true;
+    public boolean keySpawnSound = true;
+    public boolean roomAlertsSound = true;
+    /** Terracotta Timer: text size 1..4 (2 as before) and Ticks instead of seconds (OFF as before). */
+    public float terracottaScale = 2.0f;
+    public boolean terracottaTicks = false;
     private static final BoolFields<DungeonAlertsConfig> BOOLS = new BoolFields<DungeonAlertsConfig>()
             .add("rareRoomAlert", false, c -> c.rareRoomAlert, (c, v) -> c.rareRoomAlert = v)
             .add("rareDropAlert", false, c -> c.rareDropAlert, (c, v) -> c.rareDropAlert = v)
             .add("duplicateClassAlert", false, c -> c.duplicateClassAlert, (c, v) -> c.duplicateClassAlert = v)
             .add("duplicateClassParty", false, c -> c.duplicateClassParty, (c, v) -> c.duplicateClassParty = v)
             .add("witherKingStatueBox", false, c -> c.witherKingStatueBox, (c, v) -> c.witherKingStatueBox = v)
-            .add("dimensionalSlashAlert", false, c -> c.dimensionalSlashAlert, (c, v) -> c.dimensionalSlashAlert = v);
+            .add("dimensionalSlashAlert", false, c -> c.dimensionalSlashAlert, (c, v) -> c.dimensionalSlashAlert = v)
+            .add("rareRoomSound", true, c -> c.rareRoomSound, (c, v) -> c.rareRoomSound = v)
+            .add("rareDropSound", true, c -> c.rareDropSound, (c, v) -> c.rareDropSound = v)
+            .add("duplicateClassSound", true, c -> c.duplicateClassSound, (c, v) -> c.duplicateClassSound = v)
+            .add("dimensionalSlashSound", true, c -> c.dimensionalSlashSound, (c, v) -> c.dimensionalSlashSound = v)
+            .add("keySpawnSound", true, c -> c.keySpawnSound, (c, v) -> c.keySpawnSound = v)
+            .add("roomAlertsSound", true, c -> c.roomAlertsSound, (c, v) -> c.roomAlertsSound = v)
+            .add("terracottaTicks", false, c -> c.terracottaTicks, (c, v) -> c.terracottaTicks = v);
 
     private DungeonAlertsConfig() {
     }
@@ -170,6 +187,7 @@ public final class DungeonAlertsConfig {
                 cfg.keySpawnAlert = bool(o, "keySpawnAlert", cfg.keySpawnAlert);
                 cfg.breakerChargesHud = bool(o, "breakerChargesHud", cfg.breakerChargesHud);
                 BOOLS.load(cfg, o);
+                cfg.terracottaScale = clamp(flt(o, "terracottaScale", cfg.terracottaScale), 1f, 4f);
                 cfg.roomAlertsDisplaySeconds = clamp(flt(o, "roomAlertsDisplaySeconds", cfg.roomAlertsDisplaySeconds), 0.5f, 3.0f);
                 // A "Dungeon Alerts as a whole" switch (2026-10-13) sat over both alerts and is gone (2026-10-15): they
                 // are independent. A file saved with it OFF had both standing down, so they load OFF; saved ON (or
@@ -210,6 +228,7 @@ public final class DungeonAlertsConfig {
             o.addProperty("roomAlertsSecretsColor", roomAlertsSecretsColor);
             o.addProperty("shadowAssassinColor", shadowAssassinColor);
             o.addProperty("roomAlertsDisplaySeconds", roomAlertsDisplaySeconds);
+            o.addProperty("terracottaScale", terracottaScale);
             o.addProperty("lowHealthEnabled", lowHealthEnabled);
             o.addProperty("lowHealthOnlyHealer", lowHealthOnlyHealer);
             o.addProperty("lowHealthSound", lowHealthSound);

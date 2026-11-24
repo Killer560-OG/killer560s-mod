@@ -66,7 +66,11 @@ public class MaskInvincibilityTab extends BaseTab {
         widgets.add(onOffButton("Proc Title", cfg::isProcTitle, cfg::setProcTitle, cfg::save,
                 null, contentX, y, contentWidth, 18));
         y += 24;
+        widgets.add(onOffButton("Proc Sound", cfg::isProcSound, cfg::setProcSound, cfg::save,
+                null, contentX, y, contentWidth, 18));
+        y += 24;
 
+        hudTextRows(widgets, "mask_invincibility", "", false, contentX, contentWidth);
         return widgets;
     }
 }

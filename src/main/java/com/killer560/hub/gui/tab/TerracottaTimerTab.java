@@ -1,7 +1,9 @@
 package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.dungeonalerts.DungeonAlertsConfig;
+import com.killer560.hub.gui.SettingsButtonWidget;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -17,6 +19,10 @@ public class TerracottaTimerTab extends BaseTab {
         super("Terracotta Timer");
     }
 
+    private static String unit(DungeonAlertsConfig cfg) {
+        return cfg.terracottaTicks ? "Ticks" : "Seconds";
+    }
+
     @Override
     public List<AbstractWidget> buildWidgets(int contentX, int contentY, int contentWidth, Runnable requestRebuild) {
         List<AbstractWidget> w = new ArrayList<>();
@@ -24,6 +30,15 @@ public class TerracottaTimerTab extends BaseTab {
 
         w.add(onOffButton("Terracotta Timer", () -> cfg.terracottaEnabled, v -> cfg.terracottaEnabled = v, cfg::save, null, contentX, contentY, contentWidth, 20));
 
+        int y = contentY + 24;
+        w.add(valueSlider(contentX, y, contentWidth, "Text Size", "x", 1, 4, 0.5, 1,
+                () -> cfg.terracottaScale, v -> cfg.terracottaScale = (float) v, cfg::save));
+        y += 22;
+        w.add(SettingsButtonWidget.cycling(Component.literal("Show: " + unit(cfg)), (btn, dir) -> {
+                    cfg.terracottaTicks = !cfg.terracottaTicks;
+                    cfg.save();
+                    btn.setMessage(Component.literal("Show: " + unit(cfg)));
+                }).bounds(contentX, y, contentWidth, 18).build());
         return w;
     }
 }

@@ -402,7 +402,7 @@ public final class KingRelicsFeature {
             String text = text();
             if (text == null) return;
             HudSeen.markDrawn(id());
-            graphics.text(client.font, text, x, y, 0xFFFFFFFF, true);
+            graphics.text(client.font, text, x, y, 0xFFFFFFFF, com.killer560.hub.hud.HudTextStyle.shadow(id(), true));
         }
     }
 }

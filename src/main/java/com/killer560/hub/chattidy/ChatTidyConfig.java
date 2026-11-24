@@ -55,6 +55,9 @@ public final class ChatTidyConfig {
     private boolean hideDungeonBreaker = false;
     private boolean hideMelodyProgress = false;
     private boolean muteMelody = false;
+    /** Custom hide list (gaps-sounds-hud-1124): words or lines separated by '|', typed in the tab. */
+    private String hideCustom = "";
+    private String[] hideCustomLower = new String[0];
 
     private ChatTidyConfig() {
     }
@@ -98,6 +101,7 @@ public final class ChatTidyConfig {
                 cfg.hideBlessings = ConfigJson.getBool(obj, "hideBlessings", false);
                 cfg.hideOthersPickups = ConfigJson.getBool(obj, "hideOthersPickups", false);
                 cfg.hideAbilitySpam = ConfigJson.getBool(obj, "hideAbilitySpam", false);
+                cfg.setHideCustom(ConfigJson.getString(obj, "hideCustom", ""));
                 cfg.hideDungeonBreaker = ConfigJson.getBool(obj, "hideDungeonBreaker", false);
                 cfg.hideMelodyProgress = ConfigJson.getBool(obj, "hideMelodyProgress", false);
                 cfg.muteMelody = ConfigJson.getBool(obj, "muteMelody", false);
@@ -164,10 +168,47 @@ public final class ChatTidyConfig {
         obj.addProperty("hideDungeonBreaker", hideDungeonBreaker);
         obj.addProperty("hideMelodyProgress", hideMelodyProgress);
         obj.addProperty("muteMelody", muteMelody);
+        obj.addProperty("hideCustom", hideCustom);
         ConfigJson.write(CONFIG_PATH, obj);
     }
 
     // ---- gated (what the features read): master AND rule AND Skyblock Only ------------------------------------
+
+    public String getHideCustom() {
+        return hideCustom;
+    }
+
+    /** Sets the custom list: entries split on '|', trimmed, empty ones dropped, at most 50 of 100 characters each. */
+    public void setHideCustom(String v) {
+        String[] parts = (v == null ? "" : v).split("[|]");
+        java.util.List<String> keep = new java.util.ArrayList<>();
+        for (String p : parts) {
+            String t = p.trim();
+            if (!t.isEmpty() && keep.size() < 50) {
+                keep.add(t.length() > 100 ? t.substring(0, 100) : t);
+            }
+        }
+        hideCustom = String.join(" | ", keep);
+        hideCustomLower = keep.stream().map(x -> x.toLowerCase(java.util.Locale.ROOT)).toArray(String[]::new);
+    }
+
+    public boolean hidesAnyCustom() {
+        return hideCustomLower.length > 0 && isEnabled();
+    }
+
+    /** True when the Chat Hider is on and {@code plain} contains one of the player's own entries (any case). */
+    public boolean hidesCustom(String plain) {
+        if (hideCustomLower.length == 0 || !isEnabled()) {
+            return false;
+        }
+        String low = plain.toLowerCase(java.util.Locale.ROOT);
+        for (String e : hideCustomLower) {
+            if (low.contains(e)) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     private boolean on(boolean rule) {
         return enabled && rule && SkyblockGate.allows();

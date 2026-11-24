@@ -496,6 +496,7 @@ public final class ProfileManager {
                 com.killer560.hub.secrettrigger.SecretTriggerbotConfig::load,
                 com.killer560.hub.doorhelpers.DoorHelpersConfig::load,
                 com.killer560.hub.realtime.RealTimeConfig::load,
+                com.killer560.hub.hud.HudTextStyle::load,
                 com.killer560.hub.spotify.SpotifyHudConfig::load,
                 com.killer560.hub.spotify.SpotifyControlsConfig::load,
                 com.killer560.hub.scoreboard.CustomScoreboardConfig::load,

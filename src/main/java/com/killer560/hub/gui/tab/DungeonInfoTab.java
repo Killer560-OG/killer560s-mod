@@ -55,6 +55,7 @@ public class DungeonInfoTab extends BaseTab {
                     }));
                 }).bounds(contentX, y, 220, 20).build());
 
+        hudTextRows(widgets, "dungeon_info", "", false, contentX, contentWidth);
         return widgets;
     }
 

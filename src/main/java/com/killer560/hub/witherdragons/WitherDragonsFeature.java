@@ -619,7 +619,7 @@ public final class WitherDragonsFeature {
             if (!WitherDragonsConfig.getInstance().isEnabled() || HudVisibility.hidesHud()) return;
             int lineY = y;
             for (String line : lines()) {
-                graphics.text(client.font, line, x, lineY, 0xFFFFFFFF, true);
+                graphics.text(client.font, line, x, lineY, 0xFFFFFFFF, com.killer560.hub.hud.HudTextStyle.shadow(id(), true));
                 lineY += 12;
             }
             if (lineY != y) {

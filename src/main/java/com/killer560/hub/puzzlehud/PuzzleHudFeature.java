@@ -302,9 +302,10 @@ public final class PuzzleHudFeature {
                 return;
             }
             Minecraft client = Minecraft.getInstance();
-            graphics.text(client.font, b.header(), x, y, ThemeAccent.accent(0xFFFFAA00), true);
+            boolean shadow = com.killer560.hub.hud.HudTextStyle.shadow(id(), true);
+            graphics.text(client.font, b.header(), x, y, ThemeAccent.accent(0xFFFFAA00), shadow);
             for (int i = 0; i < b.rows().size(); i++) {
-                graphics.text(client.font, b.rows().get(i), x, y + (i + 1) * HudText.ROW, 0xFFFFFFFF, true);
+                graphics.text(client.font, b.rows().get(i), x, y + (i + 1) * HudText.ROW, 0xFFFFFFFF, shadow);
             }
             HudSeen.markDrawn(id());
         }

@@ -54,7 +54,9 @@ public final class KeySpawnAlert {
         lastAlertTitle = title;
         alertsFired++;
         DungeonAlertsFeature.showTitle(Component.literal(title), Component.empty(), 0, 30, 5);
-        DungeonAlertsFeature.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f, 1.5f);
+        if (DungeonAlertsConfig.getInstance().keySpawnSound) {
+            DungeonAlertsFeature.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f, 1.5f);
+        }
     }
 
     static void onWorldChange() {

@@ -779,10 +779,11 @@ public final class SplitTimersFeature {
         public void render(GuiGraphicsExtractor graphics, int x, int y) {
             if (!isEnabledInSettings() || HudVisibility.hidesHud() || DungeonRun.holding()) return;
             List<Line> lines = layout();
+            boolean shadow = com.killer560.hub.hud.HudTextStyle.shadow(id(), false);
             for (Line line : lines) {
-                graphics.text(Minecraft.getInstance().font, line.text(), x + line.dx(), y + line.dy(), 0xFFFFFFFF, false);
+                graphics.text(Minecraft.getInstance().font, line.text(), x + line.dx(), y + line.dy(), 0xFFFFFFFF, shadow);
                 if (line.time() != null) {
-                    graphics.text(Minecraft.getInstance().font, line.time(), x + line.timeDx(), y + line.dy(), 0xFFFFFFFF, false);
+                    graphics.text(Minecraft.getInstance().font, line.time(), x + line.timeDx(), y + line.dy(), 0xFFFFFFFF, shadow);
                 }
             }
             if (!lines.isEmpty()) {

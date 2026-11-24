@@ -168,10 +168,15 @@ public final class ChatTidy {
         boolean looted = cfg.isHideAlreadyLooted();
         boolean uncovered = com.killer560.hub.powdermining.PowderMiningConfig.getInstance().isHideTreasureUncovered();
         boolean useless = cfg.isHideUselessMessages();
-        if (!damage && !dungeon && !mining && !sacks && !uncovered && !looted && !useless) {
+        boolean custom = cfg.hidesAnyCustom();
+        if (!damage && !dungeon && !mining && !sacks && !uncovered && !looted && !useless && !custom) {
             return false;
         }
         String plain = ChatObserver.strip(message);
+        if (custom && cfg.hidesCustom(plain)) {
+            hidden++;
+            return true;
+        }
         if (useless && BLOCKS_IN_THE_WAY.equals(plain.trim())) {
             // Hidden here, not in ObjectHiderFeature's ALLOW_GAME: Auto Creeper Beams reads it (an Instant Transmission
             // refused or cut short), and dropping it there starved that reader (his run 2026-11-18, every line unseen).

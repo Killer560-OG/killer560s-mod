@@ -120,7 +120,21 @@ public final class DungeonAlertsFeature {
         LAST_ALERT.put(key, title);
         ALERT_COUNT.merge(key, 1, Integer::sum);
         showTitle(title, subtitle, 0, 30, 5);
-        playSound(net.minecraft.sounds.SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f, 1.5f);
+        if (soundOn(key)) {
+            playSound(net.minecraft.sounds.SoundEvents.NOTE_BLOCK_PLING.value(), 1.0f, 1.5f);
+        }
+    }
+
+    /** The sound switch behind an {@link #alert} key. */
+    static boolean soundOn(String key) {
+        DungeonAlertsConfig c = DungeonAlertsConfig.getInstance();
+        return switch (key) {
+            case RareRoomAlert.KEY -> c.rareRoomSound;
+            case RareDropAlert.KEY -> c.rareDropSound;
+            case DuplicateClassAlert.KEY -> c.duplicateClassSound;
+            case WitherKingAlerts.KEY -> c.dimensionalSlashSound;
+            default -> true;
+        };
     }
 
     /** For the testkit: alerts shown for a key since the client started, and the last one's title. */
@@ -169,8 +183,16 @@ public final class DungeonAlertsFeature {
 
     /** Local UI sound, same call the {@code playSoundAtPlayer} / Essential's {@code USound.playSoundStatic} make. */
     public static void playSound(SoundEvent sound, float volume, float pitch) {
+        soundsPlayed++;
         Minecraft client = Minecraft.getInstance();
         client.execute(() -> client.getSoundManager().play(SimpleSoundInstance.forUI(sound, pitch, volume)));
+    }
+
+    private static volatile int soundsPlayed;
+
+    /** For the testkit: sounds requested through {@link #playSound} since the client started. */
+    public static int soundsPlayed() {
+        return soundsPlayed;
     }
 
     /** Billboarded, see-through world text - same transform BloodCampFeature.renderTimerText uses (proven on

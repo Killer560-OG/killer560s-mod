@@ -244,6 +244,7 @@ public final class HudElementRegistry {
         try {
             graphics.pose().translate(pos[0], pos[1]);
             graphics.pose().scale(scale, scale);
+            HudTextStyle.drawBackground(graphics, element);
             element.render(graphics, 0, 0);
         } catch (RuntimeException e) {
             // One broken element must never take down the whole HUD frame.

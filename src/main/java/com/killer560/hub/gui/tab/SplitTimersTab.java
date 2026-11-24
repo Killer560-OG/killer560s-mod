@@ -84,6 +84,7 @@ public class SplitTimersTab extends BaseTab {
                 }).bounds(contentX, y, 220, 18).build());
         y += 26;
 
+        hudTextRows(widgets, "split_timers", "", false, contentX, contentWidth);
         return widgets;
     }
 

@@ -117,6 +117,7 @@ public class LeapCounterTab extends BaseTab {
         toggle(w, contentX, y[0], half, "Leap HUD", cfg::isHud, cfg::setHud, cfg);
         toggle(w, colB, y[0], half, "Show At Zero", cfg::isHudShowAtZero, cfg::setHudShowAtZero, cfg);
         y[0] += 24;
+        hudTextRows(w, "leap_counter", "", true, contentX, contentWidth);
         return w;
     }
 

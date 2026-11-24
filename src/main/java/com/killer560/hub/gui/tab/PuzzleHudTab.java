@@ -23,6 +23,7 @@ public class PuzzleHudTab extends BaseTab {
         int colW = (contentWidth - 8) / 2;
         widgets.add(onOffButton("Puzzle Times", cfg::isShowTimes, cfg::setShowTimes, cfg::save, null, contentX, contentY + 24, colW, 18));
         widgets.add(onOffButton("Solver Names", cfg::isShowWho, cfg::setShowWho, cfg::save, null, contentX + colW + 8, contentY + 24, colW, 18));
+        hudTextRows(widgets, "puzzle_hud", "", true, contentX, contentWidth);
         return widgets;
     }
 }

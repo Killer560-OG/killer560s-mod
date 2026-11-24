@@ -3500,6 +3500,16 @@ final class SettingTooltipsData {
         d.put("inventory walk/screens", "Containers: movement keys work in chests, menus and your inventory. All Screens: in every screen except chat and other text boxes.");
         d.put("inventory walk/pause after click", "After a click in a menu, stops your movement keys for this many game ticks. Off sends no pause.");
         d.put("mask invincibility/proc title", "Shows a title when a mask's invincibility pops (for example Bonzo's Mask Popped!).");
+        d.put("room alert sound", "Plays a pling when a Room Cleared or Secrets Done alert shows. Off keeps the alert silent.");
+        d.put("key spawn sound", "Plays a pling when a Wither or Blood Key spawns. Off keeps the alert silent.");
+        d.put("rare room sound", "Plays a pling when a rare room alert shows. Off keeps the alert silent.");
+        d.put("rare drop sound", "Plays a pling when a rare drop alert shows. Off keeps the alert silent.");
+        d.put("duplicate class sound", "Plays a pling when the Duplicate Class alert shows. Off keeps the alert silent.");
+        d.put("dimensional slash sound", "Plays a pling when the Dimensional Slash alert shows. Off keeps the alert silent.");
+        d.put("mask invincibility/proc sound", "Plays a pling when a mask's invincibility pops. Off by default.");
+        d.put("terracotta timer/text size", "How large the countdown text over each terracotta is, from 1x to 4x (2x by default).");
+        d.put("terracotta timer/show", "Shows the countdown in seconds (like 12.34s) or in server ticks (like 247t); click to switch.");
+        d.put("custom hide list", "Words or whole lines to hide from chat, separated by |. Any chat line containing one of them (any capitals) is hidden while Chat Hider is on.");
         d.put("golden goblin", "On a mining island, boxes the Golden and Diamond Goblins and draws a line to each. Draw only; nothing is clicked.");
         d.put("golden goblin/highlight box", "Outlines each Golden and Diamond Goblin in your colors while it is in plain sight.");
         d.put("golden goblin/tracer", "Draws a line from your crosshair to each Golden and Diamond Goblin.");

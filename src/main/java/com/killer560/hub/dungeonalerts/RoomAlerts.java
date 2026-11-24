@@ -146,7 +146,9 @@ final class RoomAlerts {
         alertText = text;
         alertColor = rgb & 0xFFFFFF;
         alertUntilMs = System.currentTimeMillis() + Math.round(cfg.roomAlertsDisplaySeconds * 1000.0);
-        DungeonAlertsFeature.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), 0.25f, 1f);
+        if (cfg.roomAlertsSound) {
+            DungeonAlertsFeature.playSound(SoundEvents.NOTE_BLOCK_PLING.value(), 0.25f, 1f);
+        }
     }
 
     /** For the testkit: the text and color of the alert last raised (blank before any). */

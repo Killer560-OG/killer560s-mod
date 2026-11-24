@@ -60,6 +60,7 @@ public class DungeonAlertsTab extends BaseTab {
         // --- Room Alerts --- killer560 (2026-09-27): only Room Cleared + Secrets Done now - see RoomAlerts.
         header(w, contentX, y, contentWidth, "Room Alerts");
         master(w, contentX, y, contentWidth, "Room Alerts", () -> cfg.roomAlertsEnabled, v -> cfg.roomAlertsEnabled = v, requestRebuild);
+        sound(w, contentX, y, contentWidth, "Room Alert Sound", () -> cfg.roomAlertsSound, v -> cfg.roomAlertsSound = v);
         if (cfg.roomAlertsEnabled) {
             toggle(w, contentX, y[0], half, "Room Cleared", () -> cfg.roomAlertsRoomCleared, v -> cfg.roomAlertsRoomCleared = v);
             toggle(w, colB, y[0], half, "Secrets Done", () -> cfg.roomAlertsSecretsDone, v -> cfg.roomAlertsSecretsDone = v);
@@ -87,14 +88,18 @@ public class DungeonAlertsTab extends BaseTab {
         // --- Key Spawn Alert (2026-10-25) --- a title when a Wither or Blood Key appears; see KeySpawnAlert.
         header(w, contentX, y, contentWidth, "Key Spawn Alert");
         master(w, contentX, y, contentWidth, "Key Spawn Alert", cfg::isKeySpawnAlert, cfg::setKeySpawnAlert, requestRebuild);
+        sound(w, contentX, y, contentWidth, "Key Spawn Sound", () -> cfg.keySpawnSound, v -> cfg.keySpawnSound = v);
 
         // --- featB-1108 --- Rare Room, Rare Drop, Duplicate Class (+ optional party line) and the two Wither King alerts.
         header(w, contentX, y, contentWidth, "Rare Room Alerts");
         master(w, contentX, y, contentWidth, "Rare Room Alerts", () -> cfg.rareRoomAlert, v -> cfg.rareRoomAlert = v, requestRebuild);
+        sound(w, contentX, y, contentWidth, "Rare Room Sound", () -> cfg.rareRoomSound, v -> cfg.rareRoomSound = v);
         header(w, contentX, y, contentWidth, "Rare Drop Alerts");
         master(w, contentX, y, contentWidth, "Rare Drop Alerts", () -> cfg.rareDropAlert, v -> cfg.rareDropAlert = v, requestRebuild);
+        sound(w, contentX, y, contentWidth, "Rare Drop Sound", () -> cfg.rareDropSound, v -> cfg.rareDropSound = v);
         header(w, contentX, y, contentWidth, "Duplicate Class Alert");
         master(w, contentX, y, contentWidth, "Duplicate Class Alert", () -> cfg.duplicateClassAlert, v -> cfg.duplicateClassAlert = v, requestRebuild);
+        sound(w, contentX, y, contentWidth, "Duplicate Class Sound", () -> cfg.duplicateClassSound, v -> cfg.duplicateClassSound = v);
         if (cfg.duplicateClassAlert) {
             toggle(w, contentX, y[0], contentWidth, "Party Message (Duplicate Class)", () -> cfg.duplicateClassParty, v -> cfg.duplicateClassParty = v);
             y[0] += 22;
@@ -102,6 +107,7 @@ public class DungeonAlertsTab extends BaseTab {
         header(w, contentX, y, contentWidth, "Wither King (M7)");
         master(w, contentX, y, contentWidth, "Wither King Statue Box", () -> cfg.witherKingStatueBox, v -> cfg.witherKingStatueBox = v, requestRebuild);
         master(w, contentX, y, contentWidth, "Dimensional Slash Alert", () -> cfg.dimensionalSlashAlert, v -> cfg.dimensionalSlashAlert = v, requestRebuild);
+        sound(w, contentX, y, contentWidth, "Dimensional Slash Sound", () -> cfg.dimensionalSlashSound, v -> cfg.dimensionalSlashSound = v);
 
         return w;
     }
@@ -119,6 +125,12 @@ public class DungeonAlertsTab extends BaseTab {
         w.add(onOffButton(label,
                 get::get, set, () -> DungeonAlertsConfig.getInstance().save(), requestRebuild, x, y[0], width, 20));
         y[0] += 24;
+    }
+
+    private static void sound(List<AbstractWidget> w, int x, int[] y, int width, String label, Supplier<Boolean> get,
+                              Consumer<Boolean> set) {
+        toggle(w, x, y[0], width, label, get, set);
+        y[0] += 22;
     }
 
     private static void toggle(List<AbstractWidget> w, int x, int y, int width, String label, Supplier<Boolean> get,

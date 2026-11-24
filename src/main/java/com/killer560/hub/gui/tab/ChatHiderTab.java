@@ -2,7 +2,10 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.chattidy.ChatTidyConfig;
 import com.killer560.hub.gui.SectionHeaders;
+import com.killer560.hub.gui.CommitEditBox;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -73,6 +76,20 @@ public class ChatHiderTab extends BaseTab {
                 "Compact Melody Messages", cfg::getHideMelodyProgressRaw, cfg::setHideMelodyProgress);
         toggle(widgets, contentX, contentWidth, y, cfg, requestRebuild,
                 "Mute Melody Messages", cfg::getMuteMelodyRaw, cfg::setMuteMelody);
+
+        // Custom list (gaps-sounds-hud-1124): any chat line containing one of your own words or phrases is hidden.
+        header(widgets, contentX, contentWidth, y, "Custom");
+        CommitEditBox box = new CommitEditBox(Minecraft.getInstance().font, contentX, y[0], contentWidth, 18,
+                Component.literal("Custom Hide List"));
+        box.setMaxLength(1000);
+        box.setHint(Component.literal("§8words or lines to hide, separated by |"));
+        box.setValue(cfg.getHideCustom());
+        box.setResponder(text -> {
+            cfg.setHideCustom(text);
+            cfg.save();
+        });
+        widgets.add(box);
+        CommitEditBox.withSet(widgets, box);
         return widgets;
     }
 

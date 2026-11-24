@@ -157,6 +157,8 @@ public class WitherDragonsTab extends BaseTab {
             y[0] += 26;
         }
 
+        hudTextRows(w, "wither_dragon_timers", "Dragon Timers ", true, contentX, contentWidth);
+        hudTextRows(w, "king_relic_timer", "King Relic Timer ", true, contentX, contentWidth);
         return w;
     }
 
