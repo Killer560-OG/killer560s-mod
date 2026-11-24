@@ -6,7 +6,7 @@ import com.killer560.hub.foraging.SweepOverlay;
 public class SweepOptimalTab extends IslandFeatureTab {
 
     public SweepOptimalTab() {
-        super("Highlight Optimal Blocks", SweepOverlay.OPT, false, "Boxes the best log to hit.");
+        super("Highlight Optimal Blocks", SweepOverlay.OPT, false, "Boxes all the best logs.");
     }
 
     @Override

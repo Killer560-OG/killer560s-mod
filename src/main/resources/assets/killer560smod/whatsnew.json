@@ -31,7 +31,8 @@
      "Dungeon Sim (cheat build): with mobs on, rooms you load on their own are timed from the end of loading to the last starred mob dying, your best and average time per room is kept, and Route Practice has a new Weak Rooms set that steps through your five slowest rooms (it turns mobs on); a Room Drill Timer shows the time.",
      "Queue Leap tests now check the wire is split into client ticks before every tick check.",
      "Regenerating Trees now highlights only the logs that are still standing in a tree you are chopping, not the ones that are coming back, and has a Style setting: Fill, Fill + Outline, Outline or Recolor Block.",
-     "Applying a profile no longer treats the Death Patterns record file as a setting."
+     "Applying a profile no longer treats the Death Patterns record file as a setting.",
+     "Foraging: Highlight Optimal Blocks now shows the whole plan from the start: every log you should hit to fell the tree in the fewest swings is boxed at once, the next one to hit also filled, and each box goes when its log is gone."
     ]
    }
   ]

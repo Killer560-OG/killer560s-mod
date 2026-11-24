@@ -13,7 +13,7 @@ import java.util.function.LongPredicate;
  * Sweep threshold of the tree's kind that the player's Sweep stat reaches (the wiki's "Required Sweep" table, 20 entries a
  * kind), spreading outward from the hit log through all 26 neighbors, nearest layer first. Checked against his hand swings of
  * 11-23 on fig at Sweep 285 (every threshold reached, so 21 logs): the predicted 21 matched 20 to 21 of the first 21 logs the
- * server removed on three recorded trees. A thrown axe halves the count.
+ * server removed on three recorded trees. A thrown axe halves the count. {@link #plan} lists the swings that fell a tree.
  */
 public final class SweepRule {
 
@@ -82,5 +82,49 @@ public final class SweepRule {
             }
         }
         return out.toLongArray();
+    }
+
+    /**
+     * The swing targets that fell every log of {@code tree} in few swings at {@code n} logs a swing, in hit order. Greedy:
+     * each swing is the log whose fill (over the logs still standing) fells the most, ties the log with the fewest standing
+     * neighbors (the end of a run, which leaves no split behind), then the lowest position; its fill is then removed.
+     */
+    public static long[] plan(long[] tree, int n) {
+        LongOpenHashSet rem = new LongOpenHashSet(tree);
+        LongArrayList out = new LongArrayList();
+        while (n > 0 && !rem.isEmpty()) {
+            long best = 0;
+            int bestSize = 0, bestNb = 0;
+            for (long c : rem) {
+                int size = fill(c, n, rem::contains).length;
+                if (size < bestSize) {
+                    continue;
+                }
+                int nb = neighbors(c, rem);
+                if (size > bestSize || nb < bestNb || (nb == bestNb && c < best)) {
+                    best = c;
+                    bestSize = size;
+                    bestNb = nb;
+                }
+            }
+            out.add(best);
+            for (long f : fill(best, n, rem::contains)) {
+                rem.remove(f);
+            }
+        }
+        return out.toLongArray();
+    }
+
+    private static int neighbors(long c, LongOpenHashSet in) {
+        BlockPos p = BlockPos.of(c);
+        int k = 0;
+        for (int dx : D) {
+            for (int dy : D) {
+                for (int dz : D) {
+                    k += in.contains(BlockPos.asLong(p.getX() + dx, p.getY() + dy, p.getZ() + dz)) ? 1 : 0;
+                }
+            }
+        }
+        return k;
     }
 }

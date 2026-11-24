@@ -3263,7 +3263,7 @@ final class SettingTooltipsData {
         d.put("sweep overlay/color", "The outline color. Left alone it follows the menu theme.");
         d.put("sweep overlay/sweep override", "Uses this Sweep value instead of the one read from the tab list. 0 reads the tab list. Highlight Optimal Blocks uses it too.");
         d.put("sweep overlay/thrown axe", "Thrown axes fell half as many logs; turn this on while you throw. It is not detected.");
-        d.put("highlight optimal blocks", "On Galatea, boxes the log within reach of the tree you are at whose swing fells the most logs (the nearest when several tie), using the same Sweep rule as Sweep Overlay and its Sweep override and Thrown axe settings. A bonus log from the Chop attribute can fall beyond it.");
+        d.put("highlight optimal blocks", "On Galatea, boxes every log you should hit to fell the tree you are at in the fewest swings, all shown from the start (the next one to hit is also filled, and each box goes away when its log is gone), using the same Sweep rule as Sweep Overlay and its Sweep override and Thrown axe settings. A bonus log from the Chop attribute can fall beyond it.");
         d.put("highlight optimal blocks/color", "The box color. Left alone it follows the menu theme.");
         d.put("tree gift messages", "Hides the chat block shown when a Galatea tree falls: TREE GIFT, You helped cut, rewards gained, and the lines around them. Other messages and their separators stay.");
         d.put("tree gift messages/keep rare drops", "Keeps the BONUS GIFT lines and any mob that fell from the tree visible. Off hides the whole block.");
