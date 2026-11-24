@@ -146,7 +146,7 @@ public final class ActionGate {
         ROUTE(Kind.WORLD),
         /** Class ultimate fired off a chat trigger. Losing the tick loses the ult, so it sits near the top. */
         AUTO_ULT(Kind.WORLD),
-        /** Fast/Auto Leap's (and AP3's / I4's) Spirit Leap, one step a tick (killer560, 2026-10-13: "swap to your
+        /** Fast/Auto Leap's (and AP3's / I4's) Spirit Leap, swap and use in one tick then the click (killer560, 2026-10-13: "swap to your
          *  leap, open it, then leap to the person, then swap back"): the swap to the leap and back, the item use that
          *  opens the menu, and the click on the target's head. One flow, so the use does not hold the click for
          *  {@link #CROSS_CLASS_TICKS}. Wired in {@code fastleap.LeapManager}, its only caller. */
@@ -341,7 +341,8 @@ public final class ActionGate {
         public Kind kind() { return kind; }
     }
 
-    private static final int COUNT = Actor.values().length;
+    private static final Actor[] ACTORS = Actor.values();
+    private static final int COUNT = ACTORS.length;
 
     // Settings (owned + persisted by DungeonExtrasConfig, pushed in on load/save).
     /**
@@ -713,7 +714,10 @@ public final class ActionGate {
                 && actor != Actor.LEVER_AURA && !(actor == selfTeleportActor && tick <= selfTeleportUntilTick)) {
             return deny(actor, "a server position packet this tick");
         }
-        if (armed && claimedTick == tick) return deny(actor, "this tick is already taken by " + claimant);
+        // A hotbar swap and the use of the item swapped to are one hand action (hotbar key, then use: vanilla's own order, never
+        // PacketOrderE's use-then-swap), so the same flow's use may ride the swap's tick (crystalleap-fast-1124).
+        boolean swapThenUse = claimant != null && claimant.kind == Kind.HOTBAR && actor.kind == Kind.WORLD && sameFlow(actor, claimant);
+        if (armed && claimedTick == tick && !swapThenUse) return deny(actor, "this tick is already taken by " + claimant);
         long now = System.nanoTime();
         if (now - lastActionNanos < spacingNanos) return deny(actor, "min spacing");
         if (armed && shouldYield(actor)) return deny(actor, "yielding one tick to a higher-priority action");
@@ -743,7 +747,9 @@ public final class ActionGate {
         int self = actor.ordinal();
         if (YIELD_STREAK[self] >= MAX_YIELD_TICKS) return false;
         for (int i = 0; i < self; i++) {
-            if (WANTED_LAST_TICK[i]) {
+            // A flow's menu click never yields to its own earlier step: the leap's click waited a tick behind its own use
+            // (crystalleap-lane-fix-1124). A world or hotbar step still yields, so no swap rides a use of the tick before.
+            if (WANTED_LAST_TICK[i] && !(actor.kind == Kind.SCREEN && sameFlow(actor, ACTORS[i]))) {
                 YIELD_STREAK[self]++;
                 return true;
             }

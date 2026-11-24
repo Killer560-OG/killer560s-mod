@@ -31,7 +31,7 @@ import com.killer560.hub.compat.McCompat;
  * <p>
  * Flow (all on the client thread, driven from START_CLIENT_TICK task runner): resolve the target teammate
  * (by name, or first alive teammate of a class) -&gt; if the leap menu is already open click straight away, if another
- * screen is open queue it until the screen closes, else, one step a tick and each through {@link ActionGate} (killer560,
+ * screen is open queue it until the screen closes, else, swap and use in one tick, then the click, each through {@link ActionGate} (killer560,
  * 2026-10-13: "swap to your leap, open it, then leap to the person, then swap back to the item you want"): swap to the
  * Spirit Leap (skyblock id {@code INFINITE_SPIRIT_LEAP}/{@code SPIRIT_LEAP}) when it is not held, only ever from the
  * hotbar -&gt; use it -&gt; wait up to {@link #MENU_TIMEOUT_TICKS} for the "Spirit Leap" container -&gt; wait up to
@@ -591,7 +591,7 @@ public final class LeapManager {
         }
     }
 
-    /** Step 1: swap to the leap item's hotbar slot, on its own tick. */
+    /** Step 1: swap to the leap item's hotbar slot; the use goes in the same tick (ActionGate lets a flow's use ride its swap). */
     private static void stepSwap(Minecraft client, LocalPlayer player, Active a) {
         if (!isLeapStack(player.getInventory().getItem(a.leapSlot))) {
             finish(a, Result.FAILURE, "the leap item left hotbar slot " + (a.leapSlot + 1));
@@ -607,9 +607,10 @@ public final class LeapManager {
         logStep("swap " + (a.leapSlot + 1));
         a.step = Step.USE;
         a.gateWaitTicks = 0;
+        stepUse(client, player, a); // the use follows the swap in the same tick: hotbar key, then use, as a hand does
     }
 
-    /** Step 2: use the leap item, on its own tick; the menu is polled from the next one. */
+    /** Step 2: use the leap item; the menu is polled from the next tick. */
     private static void stepUse(Minecraft client, LocalPlayer player, Active a) {
         if (player.getInventory().getSelectedSlot() != a.leapSlot || !isLeapStack(player.getMainHandItem())) {
             finish(a, Result.FAILURE, "the leap item is no longer held");
@@ -715,7 +716,7 @@ public final class LeapManager {
                 int slot = want == FastLeapConfig.RETURN_PREVIOUS ? selected : want; // RETURN_STAY: -2, no swap back
                 a.returnSlot = slot < 0 || slot == leapSlot ? -1 : slot;
             }
-            // nothing is sent here: each step goes out on its own tick from onStartTick
+            // nothing is sent here: the steps go out from onStartTick (swap and use together, then the click)
         }
         active = a;
         if (preOpened) {
