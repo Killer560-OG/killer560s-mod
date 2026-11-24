@@ -5,11 +5,13 @@ public class TreeRegenTab extends IslandFeatureTab {
 
     public TreeRegenTab() {
         super("Regenerating Trees", com.killer560.hub.foraging.TreeRegen.CFG, false,
-                "Outlines regrowing logs.");
+                "Marks logs left in a chopped tree.");
     }
 
     @Override
     protected void rows(Rows r) {
+        r.cycle("Style", "style", com.killer560.hub.foraging.TreeRegen.STYLES.length,
+                i -> com.killer560.hub.foraging.TreeRegen.STYLES[i]);
         r.color("Color", "color", com.killer560.hub.foraging.TreeRegen.DEFAULT_COLOR);
     }
 }

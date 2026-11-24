@@ -3256,14 +3256,15 @@ final class SettingTooltipsData {
         d.put("beeheemoth highlight/highlight", "Shows the box. Off keeps the feature on but draws nothing.");
         d.put("beeheemoth highlight/color", "The box color. Left alone it follows the menu theme.");
         d.put("beeheemoth highlight/esp (through walls)", "Also draws the box through walls (cheat build only; it shows a mob the game hides behind blocks).");
-        d.put("regenerating trees", "Outlines every log that vanished when you chopped a Galatea tree, until the game puts it back (about 30 to 50 seconds) or 70 seconds pass. It only sees trees that fell while you were near.");
+        d.put("regenerating trees", "Highlights the logs still standing in a Galatea tree you are chopping. A log drops its mark when you break it and gets it back when it regrows (about 30 to 50 seconds); the tree counts for 70 seconds after the last chop. It only sees trees chopped while you were near.");
+        d.put("regenerating trees/style", "How a standing log is drawn: Fill, Fill + Outline, Outline, or Recolor Block, which paints the whole block in the color (lower the color's alpha to see the texture through it).");
+        d.put("regenerating trees/color", "The highlight color, with alpha. Left alone it follows the menu theme.");
         d.put("sweep overlay", "On Galatea, outlines the logs your next swing on the log you look at fells: that log plus one for every Sweep threshold of the tree (fig, mangrove, helix) your Sweep stat reaches, spreading outward from it. A bonus log from the Chop attribute can fall beyond the outline, and cutting in the wrong order (for example branches first on fig) fells fewer than shown.");
         d.put("sweep overlay/color", "The outline color. Left alone it follows the menu theme.");
         d.put("sweep overlay/sweep override", "Uses this Sweep value instead of the one read from the tab list. 0 reads the tab list. Highlight Optimal Blocks uses it too.");
         d.put("sweep overlay/thrown axe", "Thrown axes fell half as many logs; turn this on while you throw. It is not detected.");
         d.put("highlight optimal blocks", "On Galatea, boxes the log within reach of the tree you are at whose swing fells the most logs (the nearest when several tie), using the same Sweep rule as Sweep Overlay and its Sweep override and Thrown axe settings. A bonus log from the Chop attribute can fall beyond it.");
         d.put("highlight optimal blocks/color", "The box color. Left alone it follows the menu theme.");
-        d.put("regenerating trees/color", "The outline color. Left alone it follows the menu theme.");
         d.put("tree gift messages", "Hides the chat block shown when a Galatea tree falls: TREE GIFT, You helped cut, rewards gained, and the lines around them. Other messages and their separators stay.");
         d.put("tree gift messages/keep rare drops", "Keeps the BONUS GIFT lines and any mob that fell from the tree visible. Off hides the whole block.");
         d.put("beacon ready alert/alert sound", "Also plays a pling with the title.");
