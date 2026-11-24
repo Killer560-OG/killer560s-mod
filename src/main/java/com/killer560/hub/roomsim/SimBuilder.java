@@ -561,6 +561,7 @@ public final class SimBuilder {
                                 + SimPrince.position());
                 SimMimic.chooseForMap(level);
                 SimBuildAudit.verify(level);
+                refreshGridOnClients(client, level);
                 if (firstCell >= 0) {
                     snapPlayerTo(client, level, firstCell % DungeonLayout.GRID,
                             firstCell / DungeonLayout.GRID);
@@ -1644,13 +1645,57 @@ public final class SimBuilder {
             SimBuildQueue.submitClear(level, known[0], known[1], known[2], known[3]);
             return;
         }
+        int[] grid = gridBox();
+        SimBuildQueue.submitClear(level, grid[0], grid[1], grid[2], grid[3]);
+    }
+
+    /**
+     * Server thread, a build just finished, before the landing. The queue wrote the grid's sections directly, so no
+     * client was told, and Keep Chunks Loaded used to cancel the forgets of the chunks the server stopped tracking while
+     * he waited at the holding area: his client kept the OLD floor and read it as loaded, and the Room Predictor ruled
+     * rooms out on its blocks (roompredictor-1123-fix3, testkit 1123-predict-sim-rebuild-chunks). So his client is
+     * sent a forget for every grid chunk, which Keep Chunks Loaded and the Chunk Cache let through
+     * ({@code ChunkCacheManager.expectForgets}) and which drop the chunk from vanilla's ring even though his view center
+     * is at the holding area (vanilla's drop ignores a chunk outside the ring, and the ring keeps it in its slot until
+     * the center comes back), and a chunk a player is still tracked for (a fast build) is queued
+     * again behind it; the rest come as he walks back into range. All on the connection, so in order: a drop queued on
+     * the client thread raced the fresh sends and left the landing chunk out, and a flag that let the server's own
+     * forgets through missed the late ones (the server untracks only once a movement packet arrives).
+     */
+    private static void refreshGridOnClients(Minecraft client, ServerLevel level) {
+        int[] g = gridBox();
+        var map = level.getChunkSource().chunkMap;
+        var self = client.player == null ? null : client.player.getUUID();
+        it.unimi.dsi.fastutil.longs.LongArrayList grid = new it.unimi.dsi.fastutil.longs.LongArrayList();
+        for (int cx = g[0] >> 4; cx <= g[2] >> 4; cx++) {
+            for (int cz = g[1] >> 4; cz <= g[3] >> 4; cz++) {
+                grid.add(net.minecraft.world.level.ChunkPos.pack(cx, cz));
+            }
+        }
+        com.killer560.hub.chunkcache.ChunkCacheManager.expectForgets(grid.toLongArray());
+        for (ServerPlayer sp : level.players()) {
+            boolean host = sp.getUUID().equals(self);
+            for (long p : grid) {
+                var pos = net.minecraft.world.level.ChunkPos.unpack(p);
+                if (host) {
+                    sp.connection.send(new net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket(pos));
+                }
+                var chunk = level.getChunkSource().getChunkNow(pos.x(), pos.z());
+                if (chunk != null && map.isChunkTracked(sp, pos.x(), pos.z())) {
+                    sp.connection.chunkSender.markChunkPendingToSend(chunk);
+                }
+            }
+        }
+    }
+
+    /** The whole dungeon grid with a tile to spare, as {minX, minZ, maxX, maxZ} block coordinates. */
+    private static int[] gridBox() {
         var gridMin = DungeonLayout.cellCenter(0);
         var gridMax = DungeonLayout.cellCenter(DungeonLayout.GRID * DungeonLayout.GRID - 1);
-        SimBuildQueue.submitClear(level,
-                Math.min(gridMin.getX(), gridMax.getX()) - RoomLibrary.TILE,
+        return new int[]{Math.min(gridMin.getX(), gridMax.getX()) - RoomLibrary.TILE,
                 Math.min(gridMin.getZ(), gridMax.getZ()) - RoomLibrary.TILE,
                 Math.max(gridMin.getX(), gridMax.getX()) + RoomLibrary.TILE,
-                Math.max(gridMin.getZ(), gridMax.getZ()) + RoomLibrary.TILE);
+                Math.max(gridMin.getZ(), gridMax.getZ()) + RoomLibrary.TILE};
     }
 
     /**

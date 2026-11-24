@@ -36,7 +36,8 @@ public abstract class LiveMapPacketListenerMixin {
             cancellable = true, require = 0)
     private void killer560smod$liveMapKeepChunks(ClientboundForgetLevelChunkPacket packet, CallbackInfo ci) {
         try {
-            if (LiveMapConfig.getInstance().isKeepChunksLoaded()) {
+            if (!com.killer560.hub.chunkcache.ChunkCacheManager.takeSimForget(packet.pos())
+                    && LiveMapConfig.getInstance().isKeepChunksLoaded()) {
                 ci.cancel();
             }
         } catch (RuntimeException e) {

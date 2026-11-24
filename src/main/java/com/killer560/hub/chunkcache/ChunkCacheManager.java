@@ -140,6 +140,49 @@ public final class ChunkCacheManager {
         onLevelChanged(null);
     }
 
+    /**
+     * Chunks whose next forget must go through Keep Chunks Loaded and take this cache's copy too: a sim floor was built
+     * over them, so what either would keep is the old floor. The sim's server sends those forgets itself, in order
+     * before any fresh copy (a drop queued on the client thread could land after one and leave a hole). Any thread;
+     * at most one floor grid of entries, emptied as the forgets arrive and on a world change.
+     */
+    private static final Set<Long> SIM_FORGETS = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    public static void expectForgets(long[] packed) {
+        for (long p : packed) {
+            SIM_FORGETS.add(p);
+        }
+    }
+
+    /** Client thread, a forget packet: true (and this cache's copy is gone) when the sim asked for this one. */
+    public static boolean takeSimForget(ChunkPos pos) {
+        if (!SIM_FORGETS.remove(pos.pack())) {
+            return false;
+        }
+        ChunkCacheStore store = storeOf(Minecraft.getInstance().level);
+        if (store != null) {
+            release(store.remove(pos.pack()));
+        }
+        simDrop = pos.pack();
+        return true;
+    }
+
+    /** The sim forget being handled right now (client thread), for the ring drop below; MIN_VALUE when none. */
+    private static long simDrop = Long.MIN_VALUE;
+
+    /**
+     * {@code ClientChunkCache.drop}: true once for the position of the sim forget being handled, so its ring slot is let
+     * go even while the view center is far away (the ring keeps a chunk in its slot when only the center moves, and it
+     * would come back as loaded, the old floor, when he lands).
+     */
+    public static boolean takeSimDrop(ChunkPos pos) {
+        if (simDrop != pos.pack()) {
+            return false;
+        }
+        simDrop = Long.MIN_VALUE;
+        return true;
+    }
+
     /** True when the feature (or the Live Map's "Keep Chunks Loaded", which defers to it) is currently on. */
     public static boolean isActive() {
         return active;
@@ -193,6 +236,8 @@ public final class ChunkCacheManager {
         // block entities (and through them the old level). Never carry them across a world change.
         pendingBlockEntities = null;
         unloadingCacheOnlyChunk = null;
+        SIM_FORGETS.clear();
+        simDrop = Long.MIN_VALUE;
         ClientLevel previous = lastLevel.get();
         if (previous != null) {
             releaseAll(storeOf(previous));

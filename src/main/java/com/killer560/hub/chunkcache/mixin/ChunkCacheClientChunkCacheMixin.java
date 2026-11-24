@@ -8,6 +8,8 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.LevelChunk;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
+import com.llamalad7.mixinextras.injector.ModifyExpressionValue;
+import com.llamalad7.mixinextras.sugar.Local;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
@@ -60,6 +62,18 @@ public abstract class ChunkCacheClientChunkCacheMixin implements ChunkCacheHolde
             ChunkPos pos = chunk.getPos();
             ChunkCacheManager.onChunkReceived(killer560smod$store, pos.x(), pos.z(), chunk);
         }
+    }
+
+    /**
+     * {@code drop(ChunkPos)} returns at once for a position outside the ring around the view center, but the ring only
+     * moves its center ({@code updateViewCenter}) and keeps every chunk in its slot, so a chunk forgotten while he is
+     * far away comes back as loaded when the center returns. For a forget the sim asked for
+     * ({@link ChunkCacheManager#takeSimDrop}) the slot is let go wherever the center is (javap 26.3 and 26.2: one inRange call).
+     */
+    @ModifyExpressionValue(method = "drop", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/multiplayer/ClientChunkCache$Storage;inRange(II)Z"), require = 0)
+    private boolean killer560smod$simDropAnyRange(boolean inRange, @Local(argsOnly = true) ChunkPos pos) {
+        return ChunkCacheManager.takeSimDrop(pos) || inRange;
     }
 
     @Inject(method = "getChunk(IILnet/minecraft/world/level/chunk/status/ChunkStatus;Z)Lnet/minecraft/world/level/chunk/LevelChunk;",

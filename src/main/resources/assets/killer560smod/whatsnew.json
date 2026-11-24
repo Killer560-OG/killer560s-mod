@@ -8,7 +8,8 @@
     "blurb": "Changes in this update.",
     "items": [
      "Beacon Tuner: it now reads the Moonglade Beacon's real Tune Frequency and Upgrade Signal Strength menus and outlines the Color, Speed and Pitch clicks your beat still needs, and tells you whether it is in step (Foraging, off by default, display only).",
-     "Beacon Tuner (cheat build only): a new Auto Tune switch, off by default with a Click Delay setting, clicks your Color, Speed and Pitch buttons in the Moonglade Beacon's Tune Frequency and Upgrade Signal Strength menus to match the beacon's beat and uses Pause to put your pane in the same slot as the beacon's, so the tune finishes by itself."
+     "Beacon Tuner (cheat build only): a new Auto Tune switch, off by default with a Click Delay setting, clicks your Color, Speed and Pitch buttons in the Moonglade Beacon's Tune Frequency and Upgrade Signal Strength menus to match the beacon's beat and uses Pause to put your pane in the same slot as the beacon's, so the tune finishes by itself.",
+     "Dungeon sim: a new floor no longer shows chunks of the floor before it, so Room Prediction no longer rules out the right room early in a floor."
     ]
    }
   ]

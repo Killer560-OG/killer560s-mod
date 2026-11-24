@@ -66,6 +66,16 @@ public final class ChunkCacheStore {
         return previous.chunk() == chunk ? null : previous.chunk();
     }
 
+    /** Lets go of one position. @return the chunk that was cached there, or null. */
+    public synchronized LevelChunk remove(long key) {
+        Entry entry = entries.remove(key);
+        if (entry == null) {
+            return null;
+        }
+        estimatedBytes -= entry.bytes();
+        return entry.chunk();
+    }
+
     /** Evicts least-recently-used chunks until at most {@code max} remain. @return the evicted chunks. */
     public synchronized List<LevelChunk> trim(int max) {
         if (entries.size() <= max) {
