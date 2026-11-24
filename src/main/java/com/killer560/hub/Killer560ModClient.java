@@ -191,6 +191,8 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.roomsim.SimTeleportCommands.register();
         com.killer560.hub.roomsim.SimHelp.register();
         com.killer560.hub.roomsim.SimRoomCycle.register();
+        com.killer560.hub.roomsim.SimRoomDrills.register();
+        HudElementRegistry.register(com.killer560.hub.roomsim.SimRoomDrills.HUD);
         com.killer560.hub.roomsim.SimResetCommand.register();
         com.killer560.hub.roomsim.SimLoadout.register();
         // SimMimicRenderer is deliberately gone. It outlined every chest that could be the mimic, and because

@@ -147,6 +147,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
         int y = contentY + 24;
         boolean ready = com.killer560.hub.roomdatabase.RoomDatabase.isReady();
         cycleBuiltWithDatabase = ready;
+        SimRoomDrills.preload();
         // All Rooms' own filters (killer560, 2026-10-07): the same Filters panel as the designer and Load a Room, on
         // SimRoomFilters.CYCLE. The counts below are after them.
         filtersButton(SimRoomFilters.CYCLE, "Narrows the rooms /next and /back step through.",
@@ -196,7 +197,7 @@ public class SimMenuScreen extends Screen implements MenuThemedScreen {
     }
 
     /** The y of the route practice page's KEYBINDS heading. */
-    private int cycleKeybindsY() { return contentY + 24 + 3 * 24 + 10; }
+    private int cycleKeybindsY() { return contentY + 24 + SimRoomCycle.Choice.values().length * 24 + 10; }
 
     private Component keyLabel(String label, int which, int code) {
         if (capturing == which) return Component.literal(label + ": §ePress any key...");

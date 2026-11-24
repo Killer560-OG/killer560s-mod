@@ -58,7 +58,9 @@ public final class SimRoomCycle {
     public enum Choice {
         ALL("All Rooms"),
         WITHOUT_ROUTES("Rooms Without Routes"),
-        WITH_ROUTES("Rooms With Auto Routes");
+        WITH_ROUTES("Rooms With Auto Routes"),
+        /** The slowest rooms by the player's own saved clear times ({@link SimRoomDrills}). */
+        WEAK("Weak Rooms");
 
         public final String label;
 
@@ -85,12 +87,14 @@ public final class SimRoomCycle {
     public static List<String> roomsFor(Choice c) {
         List<String> out = new ArrayList<>();
         if (!RoomDatabase.isReady()) return out;
+        if (c == Choice.WEAK) return SimRoomDrills.weakest();
         for (String name : RoomLibrary.names()) {
             if (!SimRoomFilters.CYCLE.matches(name)) continue;
             boolean keep = switch (c) {
                 case ALL -> true;
                 case WITHOUT_ROUTES -> SimRoomRoutes.routeNodes(name) == 0;
                 case WITH_ROUTES -> SimRoomRoutes.routeNodes(name) > 0;
+                case WEAK -> false;
             };
             if (keep) {
                 out.add(name);
@@ -159,9 +163,23 @@ public final class SimRoomCycle {
         int filters = SimRoomFilters.CYCLE.activeCount();
         String which = filters == 0 ? "puzzles, Blood, Entrance, Fairy and 0-secret rooms left out"
                 : filters + (filters == 1 ? " filter" : " filters") + " on";
+        if (list.isEmpty() && c == Choice.WEAK) {
+            ModChat.send("Sim", ModChat.text("Weak Rooms: not enough data yet - clear at least " + SimRoomDrills.MIN_ROOMS
+                    + " rooms in Load a Room or Route Practice first, they are timed"));
+            return false;
+        }
         if (list.isEmpty()) {
             ModChat.send("Sim", ModChat.text("No rooms in "), ModChat.value(c.label), ModChat.dim(" (" + which + ")"));
             return false;
+        }
+        if (c == Choice.WEAK && !SimMobFloor.isEnabled()) {
+            // A drill is timed by its mobs dying. The Mobs choice is remembered (SimMenuPrefs) because the Map Designer
+            // re-applies it every time it opens, which would otherwise turn them off again.
+            SimMenuPrefs prefs = SimMenuPrefs.load();
+            prefs.mobs = true;
+            prefs.save();
+            SimMobFloor.setEnabled(true);
+            ModChat.send("Sim", ModChat.text("Mobs turned on for the drill - the Map Designer's Mobs button turns them off"));
         }
         synchronized (SimRoomCycle.class) {
             choice = c;

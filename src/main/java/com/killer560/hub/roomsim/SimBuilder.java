@@ -1874,6 +1874,7 @@ public final class SimBuilder {
         if (!SimWorld.isBuilding()) {
             SimWorld.showLoading(client, "Loading " + roomName);
         }
+        SimRoomDrills.noteLoad(room.name);
         final int rotation = reset ? resetRotation
                 : tilesOf(room.sizeX) == 1 && tilesOf(room.sizeZ) == 1 ? singleRoomRotation : 0;
         soloLoad = new SoloLoad(room.name, rotation, fromCycle);

@@ -91,6 +91,7 @@ public final class ProfileManager {
             "killer560smod-sim-mob-looks.json",
             "killer560smod-carnival-history.json",
             "killer560smod-sim-device-practice.json",
+            "killer560smod-sim-room-drills.json",
             "killer560smod-room-costs.json",
             "killer560smod-guild-list.json",
             // an old recording of Hypixel's Auction House menus - a log, not a setting (2026-11-02).

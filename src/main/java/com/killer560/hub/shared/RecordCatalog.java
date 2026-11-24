@@ -325,6 +325,18 @@ public final class RecordCatalog {
         }
     });
 
+    /** Dungeon Sim Weak-Room Drills (idea-roomdrills-1124): per room name (under "rooms") the best clear time in ms (smaller
+     *  wins), the last, the summed time and the clears (counters, so two instances add up). A new record. */
+    public static final Kind SIM_ROOM_DRILLS = new Kind("killer560smod-sim-room-drills.json", null,
+            "sim-room-drills.json", Scope.GLOBAL, new JsonMerge.Policy() {
+        @Override
+        public JsonMerge.NumberMode number(String path) {
+            if (JsonMerge.matches(path, "rooms.*.bestMs")) return JsonMerge.NumberMode.MIN;
+            return JsonMerge.matches(path, "rooms.*.totalMs") || JsonMerge.matches(path, "rooms.*.runs")
+                    ? JsonMerge.NumberMode.COUNTER : JsonMerge.NumberMode.STATE;
+        }
+    });
+
     /** Learned Room Costs (idea-roomcosts-1124): per room name {"s": the last clear times in seconds, "n": clears counted}. */
     public static final Kind ROOM_COSTS = new Kind("killer560smod-room-costs.json", null, "room-costs.json",
             Scope.GLOBAL, new JsonMerge.Policy() {
@@ -354,7 +366,7 @@ public final class RecordCatalog {
 
     public static final List<Kind> ALL = List.of(CROESUS_LOG, CROESUS_RUNS, RNG_ITEM_LOG, EXPERIMENTS, BAZAAR_FLIP,
             NPC_SOLD, RUN_HISTORY, BEST_FRIENDS, EGG_TRACKER, LUCK, CARRY, SIM_MOB_LOOKS, CARNIVAL, ACCOUNT_ACTIVITY, GUILD_LIST, BOARD_BESTS,
-            SIM_DEVICE_PRACTICE, ROOM_COSTS, DEATH_PATTERNS);
+            SIM_DEVICE_PRACTICE, ROOM_COSTS, DEATH_PATTERNS, SIM_ROOM_DRILLS);
 
     /** Sorts the array {@code key} of {@code root} by a field (numbers, or ISO timestamps as strings); returns it. */
     static JsonArray sortBy(JsonObject root, String key, String field, boolean descending) {
