@@ -140,6 +140,9 @@ public final class FastLeapConfig {
         String keywords;
         /** Which of the two the Target button picked: the class (true) or the name. */
         boolean byClass = true;
+        /** P3 rows only (leap-p3-rowswitch-1124): this row's own switch and its Fast/Auto (never OFF). */
+        boolean leapOn;
+        LeapMode leapMode = LeapMode.FAST;
         /** Per-class targets (killer560, 2026-10-27: "change who it leaps to based on what class you are playing"): the
          *  class YOU play this run -> who this leap goes to instead. A class missing from the map uses the Target above. */
         final Map<DungeonClass, ClassPick> byPlayerClass = new EnumMap<>(DungeonClass.class);
@@ -229,6 +232,15 @@ public final class FastLeapConfig {
                             }
                             // Auto (with or without Fast) -> Auto, Fast only -> Fast, both off -> Off
                             s.mode = auto ? LeapMode.AUTO : fast ? LeapMode.FAST : LeapMode.OFF;
+                            if (group == LeapGroup.P3) {
+                                // old one-for-all value: every P3 row on in that mode, or every row off (a row's own keys override below)
+                                for (LeapTarget row : LeapTarget.values()) {
+                                    if (row.group == LeapGroup.P3) {
+                                        cfg.targets.get(row).leapOn = s.mode != LeapMode.OFF;
+                                        cfg.targets.get(row).leapMode = s.mode == LeapMode.AUTO ? LeapMode.AUTO : LeapMode.FAST;
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -247,6 +259,10 @@ public final class FastLeapConfig {
                                 s.clazz = c.isJsonNull() || c.getAsString().isEmpty() ? null : DungeonClass.byName(c.getAsString());
                             }
                             s.keywords = str(o, "keywords", target.defaultKeywords);
+                            if (target.group == LeapGroup.P3 && o.has("leapOn")) {
+                                s.leapOn = bool(o, "leapOn", false);
+                                s.leapMode = "AUTO".equals(str(o, "leapMode", "")) ? LeapMode.AUTO : LeapMode.FAST;
+                            }
                             // Before 2026-10-13 one global mode said whether every leap went by name or by class
                             // (Posmsg's backup tried the name first). Decided from the OLD key, never from fields.
                             s.byClass = o.has("byClass") ? bool(o, "byClass", true)
@@ -301,9 +317,10 @@ public final class FastLeapConfig {
             for (LeapGroup group : LeapGroup.values()) {
                 GroupSettings s = groups.get(group);
                 JsonObject o = new JsonObject();
-                // both keys kept so an older jar reading this file sees the same mode
-                o.addProperty("fast", s.mode == LeapMode.FAST);
-                o.addProperty("auto", s.mode == LeapMode.AUTO);
+                // both keys kept so an older jar reading this file sees the same mode (P3: Auto if any row is Auto, else Fast if any is on)
+                LeapMode saved = group == LeapGroup.P3 ? p3Strongest() : s.mode;
+                o.addProperty("fast", saved == LeapMode.FAST);
+                o.addProperty("auto", saved == LeapMode.AUTO);
                 g.add(group.name(), o);
             }
             obj.add("groups", g);
@@ -316,6 +333,10 @@ public final class FastLeapConfig {
                 o.addProperty("class", s.clazz == null ? "" : s.clazz.name());
                 o.addProperty("keywords", s.keywords);
                 o.addProperty("byClass", s.byClass);
+                if (target.group == LeapGroup.P3) {
+                    o.addProperty("leapOn", s.leapOn);
+                    o.addProperty("leapMode", s.leapMode.name());
+                }
                 JsonObject ct = new JsonObject();
                 for (Map.Entry<DungeonClass, ClassPick> e : s.byPlayerClass.entrySet()) {
                     JsonObject p = new JsonObject();
@@ -515,9 +536,54 @@ public final class FastLeapConfig {
         groups.get(group).mode = mode == null ? LeapMode.OFF : mode;
     }
 
+    /** P3 rows (leap-p3-rowswitch-1124): each row has its own switch and its own Fast/Auto. */
+    public boolean isRowOn(LeapTarget row) {
+        return targets.get(row).leapOn;
+    }
+
+    public void setRowOn(LeapTarget row, boolean on) {
+        targets.get(row).leapOn = on;
+    }
+
+    /** The row's Fast or Auto (kept while the row is off). */
+    public LeapMode getRowMode(LeapTarget row) {
+        return targets.get(row).leapMode;
+    }
+
+    public void setRowMode(LeapTarget row, LeapMode mode) {
+        targets.get(row).leapMode = mode == LeapMode.AUTO ? LeapMode.AUTO : LeapMode.FAST;
+    }
+
+    /** True when the row is on in exactly {@code mode} (cheat builds only). */
+    public boolean isRowLeap(LeapTarget row, LeapMode mode) {
+        TargetSettings s = targets.get(row);
+        return BuildVariant.CHEAT_FEATURES_ENABLED && s.leapOn && s.leapMode == mode;
+    }
+
+    /** Off when no P3 row is on, else Auto when any on row is Auto, else Fast. */
+    private LeapMode p3Strongest() {
+        LeapMode best = LeapMode.OFF;
+        for (LeapTarget row : LeapTarget.values()) {
+            TargetSettings s = targets.get(row);
+            if (row.group == LeapGroup.P3 && s.leapOn && (best == LeapMode.OFF || s.leapMode == LeapMode.AUTO)) {
+                best = s.leapMode;
+            }
+        }
+        return best;
+    }
+
     /** Fast: his left click with a leap item leaps to this section's target. */
     public boolean isLeapFast(LeapGroup group) {
-        return BuildVariant.CHEAT_FEATURES_ENABLED && groups.get(group).mode == LeapMode.FAST;
+        return BuildVariant.CHEAT_FEATURES_ENABLED && (group == LeapGroup.P3 ? anyRow(LeapMode.FAST) : groups.get(group).mode == LeapMode.FAST);
+    }
+
+    private boolean anyRow(LeapMode mode) {
+        for (LeapTarget row : LeapTarget.values()) {
+            if (row.group == LeapGroup.P3 && isRowLeap(row, mode)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** true makes the leap Fast; false turns a Fast leap Off (an Auto one stays Auto). */
@@ -532,7 +598,7 @@ public final class FastLeapConfig {
 
     /** Auto: the leap fires by itself when its trigger happens (and his left click does not). */
     public boolean isLeapAuto(LeapGroup group) {
-        return BuildVariant.CHEAT_FEATURES_ENABLED && groups.get(group).mode == LeapMode.AUTO;
+        return BuildVariant.CHEAT_FEATURES_ENABLED && (group == LeapGroup.P3 ? anyRow(LeapMode.AUTO) : groups.get(group).mode == LeapMode.AUTO);
     }
 
     /** true makes the leap Auto; false turns an Auto leap Off (a Fast one stays Fast). */

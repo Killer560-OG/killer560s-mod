@@ -3,6 +3,7 @@ package com.killer560.hub.fastleap;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.dungeonclass.DungeonClass;
 import com.killer560.hub.fastleap.FastLeapConfig.LeapGroup;
+import com.killer560.hub.fastleap.FastLeapConfig.LeapMode;
 import com.killer560.hub.fastleap.FastLeapConfig.LeapTarget;
 import com.killer560.hub.fastleap.Floor7Tracker.Phase;
 import com.killer560.hub.fastleap.Floor7Tracker.Stage;
@@ -86,7 +87,7 @@ public final class FastLeapFeature {
                 if (cfg.isOnlyWhenGateBlown()) {
                     return;
                 }
-                handleP3Leap(stage, isEarlyI3(Floor7Tracker.getStageAt()));
+                handleP3Leap(stage, isEarlyI3(Floor7Tracker.getStageAt()), LeapMode.AUTO);
             }
 
             @Override
@@ -99,7 +100,7 @@ public final class FastLeapFeature {
                 if (!cfg.isOnlyWhenGateBlown()) {
                     return;
                 }
-                handleP3Leap(stage);
+                handleP3Leap(stage, false, LeapMode.AUTO);
             }
         });
         // Auto I3 Leap: your own "completed a device!" line in section 3 before section 1 is finished.
@@ -109,7 +110,7 @@ public final class FastLeapFeature {
             FastLeapConfig cfg = FastLeapConfig.getInstance();
             if (section == 3 && "device".equals(kind) && mc.player != null && name.equalsIgnoreCase(mc.player.getName().getString())
                     && cfg.isEnabled() && cfg.isLeapAuto(LeapGroup.P3) && Floor7Tracker.inPhaseAt(Phase.P3)) {
-                handleP3Leap(Stage.S3, isEarlyI3(Floor7Tracker.getStageAt()));
+                handleP3Leap(Stage.S3, isEarlyI3(Floor7Tracker.getStageAt()), LeapMode.AUTO);
             }
         });
         ChatObserver.subscribe(FastLeapFeature::onChat);
@@ -344,7 +345,7 @@ public final class FastLeapFeature {
                 return true;
             }
             Stage at = Floor7Tracker.getStageAt();
-            handleP3Leap(at, isEarlyI3(at));
+            handleP3Leap(at, isEarlyI3(at), LeapMode.FAST);
         }
         lastClick = now;
         return true;
@@ -401,10 +402,6 @@ public final class FastLeapFeature {
      * A completed section's auto leap goes to the target of the section he STANDS in (fastleap-sim-1120: "have the leaps
      * be off of where i am not what section it actively is"), not the one that just finished; outside S1-S4 it does not leap.
      */
-    private static void handleP3Leap(Stage completedStage) {
-        handleP3Leap(completedStage, false);
-    }
-
     /**
      * I3 Leap (leap-p3-labels-i3-1124, killer560: "only ever be able to leap while s1 is active but you are in s3"):
      * standing anywhere in the S3 area (the box {@link Floor7Tracker#getStageAt} uses) while P3 has started and section 1
@@ -423,15 +420,22 @@ public final class FastLeapFeature {
                 || cfg.isUseClassTargets() && cfg.getClassTarget(LeapTarget.I3, com.killer560.hub.leapmenu.PartyTracker.selfClass()) != null;
     }
 
-    private static void handleP3Leap(Stage completedStage, boolean earlyI3) {
+    private static void handleP3Leap(Stage completedStage, boolean earlyI3, LeapMode need) {
+        FastLeapConfig cfg = FastLeapConfig.getInstance();
         Stage currentStage = Floor7Tracker.getStageAt();
-        LeapTarget target = switch (currentStage) {
+        // Each row has its own switch and mode (leap-p3-rowswitch-1124): a row that is not on in `need` never leaps.
+        // Early I3 needs I3's own switch; its fallback to the S3 pick does not depend on S3's.
+        LeapTarget row = switch (currentStage) {
             case S1 -> LeapTarget.S1;
             case S2 -> LeapTarget.S2;
-            case S3 -> earlyI3 && i3PickSet(FastLeapConfig.getInstance()) ? LeapTarget.I3 : LeapTarget.S3;
+            case S3 -> earlyI3 ? LeapTarget.I3 : LeapTarget.S3;
             case S4 -> LeapTarget.S4;
             default -> null;
         };
+        if (row == null || !cfg.isRowLeap(row, need)) {
+            return;
+        }
+        LeapTarget target = row == LeapTarget.I3 && !i3PickSet(cfg) ? LeapTarget.S3 : row;
         if (target == LeapTarget.I3) {
             long now = System.currentTimeMillis();
             if (now - lastI3Leap < 2000L) {

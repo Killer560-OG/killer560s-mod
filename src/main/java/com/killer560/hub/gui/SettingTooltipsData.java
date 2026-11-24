@@ -2263,7 +2263,6 @@ final class SettingTooltipsData {
                 {"purple pad", "the Purple Pad target in F7 P2. Auto leaps on Storm's 1st crush"},
                 {"py healer", "the PY Healer target in F7 P2. Auto leaps when a teammate reaches the spot"},
                 {"storm death", "the Storm Death target in F7 P2. Auto leaps when Storm dies"},
-                {"p3", "the target for the P3 section you just finished. Auto leaps when it completes"},
                 {"middle", "the Middle target in F7 P4 outside the middle. Auto leaps on Necron's 'impressive trick' line"},
                 {"p4", "the P4 target in the middle. Auto leaps on Necron's 2nd 'ARGH!'"},
                 {"relic", "the Relic target in P5. Auto leaps as soon as you pick up a relic"}};
@@ -2292,6 +2291,11 @@ final class SettingTooltipsData {
         }
         leapCells(d, "i3 leap", "the I3 Leap (standing anywhere in section 3 while section 1 is active (P3 started, S1 not finished): a Fast Leap click goes there, and on Auto it leaps there when you complete the section 3 device; None = the S3 to S4 pick is used)");
         String[] p3 = {"s1 to s2", "s2 to s3", "s3 to s4", "s4 to core"};
+        String[] p3Spots = {"i3 leap", "s1 to s2", "s2 to s3", "s3 to s4", "s4 to core"};
+        for (String r : p3Spots) {
+            d.put("fast/auto leap/" + r + " switch", "ON/OFF for this P3 leap alone. OFF: it never leaps, whatever the other P3 rows do (its target and Fast/Auto are kept). I3 Leap OFF means no leap at all in section 3 before section 1 is finished, even for the S3 to S4 pick.");
+            d.put("fast/auto leap/" + r + " fast/auto", "Fast: your left click with a Spirit Leap or Infinileap in this P3 spot leaps. Auto: it leaps by itself when the section (for I3 Leap, your section 3 device) completes. Left click forward, right click back (cheat build only).");
+        }
         for (int sec = 0; sec < 4; sec++) {
             leapCells(d, p3[sec], "the P3 leap while you stand in section " + (sec + 1));
         }

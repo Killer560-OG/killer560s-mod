@@ -301,7 +301,7 @@ public final class FastLeapSection {
     /** Narrowest a column gets: "Auto", "Universal" and "Per Leap" with the pill's arrows. */
     private static final int[] COL_MIN = {44, 64, 60};
     /** The name column ("Door Opener", "Storm Death") never goes under this while the cyclers can still shrink. */
-    private static final int NAME_MIN = 64;
+    private static final int NAME_MIN = 88;
 
     /**
      * The leap grid's column x offsets and widths at {@code w}: {name w, c1 x, c1 w, c2 x, c2 w, c3 x, c3 w}, x relative
@@ -349,6 +349,10 @@ public final class FastLeapSection {
         for (LeapPhase phase : PHASES) {
             y = caption(widgets, x, y, w, phase.caption());
             for (LeapGroup group : phase.groups()) {
+                if (group == LeapGroup.P3) {
+                    y = p3Rows(widgets, x, y, w, g, mine, includeHidden, cfg, requestRebuild);
+                    continue;
+                }
                 boolean off = cfg.getLeapMode(group) == FastLeapConfig.LeapMode.OFF;
                 SettingsButtonWidget leap = SettingsButtonWidget.cycling(leapSwitchLabel(group, cfg), (btn, dir) -> {
                     cfg.setLeapMode(group, SettingsButtonWidget.step(cfg.getLeapMode(group), dir));
@@ -380,7 +384,7 @@ public final class FastLeapSection {
                     widgets.add(targetModeButton(x + g[5], y, g[6], t, cfg, requestRebuild, off));
                     y += ROW + GAP;
                     if (mine == null && (includeHidden || cfg.getTargetMode(t) == FastLeapConfig.TargetMode.POSMSG)) {
-                        String hint = (group == LeapGroup.P3 ? t.label + " " : "") + "Keywords";
+                        String hint = "Keywords";
                         addEditBox(widgets, editBox(x + g[3], y, w - g[3], cfg.getTargetKeywords(t), hint, 128, v -> {
                             cfg.setTargetKeywords(t, v);
                             cfg.save();
@@ -388,14 +392,50 @@ public final class FastLeapSection {
                         y += ROW + GAP;
                     }
                 }
-                if (group == LeapGroup.P3) {
-                    widgets.add(toggle(x + g[3], y, g[4] + GAP + g[6], "Gate Blown Only", cfg::isOnlyWhenGateBlown,
-                            v -> cfg.setOnlyWhenGateBlown(v), cfg));
-                    y += ROW + GAP;
-                }
             }
         }
         return y;
+    }
+
+    /** P3's rows (leap-p3-rowswitch-1124): name, its own ON/OFF switch, its Fast/Auto (only while ON), target, mode. */
+    private static int p3Rows(List<AbstractWidget> widgets, int x, int y, int w, int[] g, DungeonClass mine, boolean includeHidden,
+                              FastLeapConfig cfg, Runnable requestRebuild) {
+        int sw = 22;
+        for (LeapTarget t : LeapTarget.values()) {
+            if (t.group != LeapGroup.P3) {
+                continue;
+            }
+            boolean on = cfg.isRowOn(t);
+            boolean off = !on;
+            widgets.add(rowName(x, y, g[0] - sw - 2, t.label, off));
+            widgets.add(SettingsButtonWidget.builder(onOff(t.label + " Switch", on), btn -> {
+                cfg.setRowOn(t, !cfg.isRowOn(t));
+                cfg.save();
+                requestRebuild.run();
+            }).bounds(x + g[0] - sw, y, sw, ROW).compact().build());
+            if (on || includeHidden) {
+                FastLeapConfig.LeapMode m = cfg.getRowMode(t);
+                widgets.add(SettingsButtonWidget.cycling(Component.literal(t.label + " Fast/Auto: " + (m == FastLeapConfig.LeapMode.AUTO ? "§aAuto" : "§6Fast")), (btn, dir) -> {
+                    cfg.setRowMode(t, cfg.getRowMode(t) == FastLeapConfig.LeapMode.AUTO ? FastLeapConfig.LeapMode.FAST : FastLeapConfig.LeapMode.AUTO);
+                    cfg.save();
+                    requestRebuild.run();
+                }).bounds(x + g[1], y, g[2], ROW).compact().build());
+            }
+            widgets.add(mine == null ? targetButton(x + g[3], y, g[4], t, cfg, off)
+                    : classTargetButton(x + g[3], y, g[4], t, mine, cfg, off));
+            widgets.add(targetModeButton(x + g[5], y, g[6], t, cfg, requestRebuild, off));
+            y += ROW + GAP;
+            if (mine == null && (includeHidden || cfg.getTargetMode(t) == FastLeapConfig.TargetMode.POSMSG)) {
+                addEditBox(widgets, editBox(x + g[3], y, w - g[3], cfg.getTargetKeywords(t), t.label + " Keywords", 128, v -> {
+                    cfg.setTargetKeywords(t, v);
+                    cfg.save();
+                }));
+                y += ROW + GAP;
+            }
+        }
+        widgets.add(toggle(x + g[3], y, g[4] + GAP + g[6], "Gate Blown Only", cfg::isOnlyWhenGateBlown,
+                v -> cfg.setOnlyWhenGateBlown(v), cfg));
+        return y + ROW + GAP;
     }
 
     /** A grid row's name: "Crystal", "S1 to S2"; also the start of its cyclers' labels ("Crystal Target: Tank"). */
