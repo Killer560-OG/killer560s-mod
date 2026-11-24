@@ -20,15 +20,17 @@ import java.util.Arrays;
  * forward, right click back, wrapping: 13 colors, Speed 5 to 1, Pitch High to Low) and lines your pane up with the
  * beacon's using Pause. The reading is {@link BeaconTuner}'s.
  * <p>
- * A tune completes only with color, speed and pitch matched AND your pane in the beacon's slot (killer560, 2026-11-23).
- * So it matches Color and Speed, leaves Pitch ONE click short of the beacon's (Pitch does not change a beat's stepping), lines
- * the panes up, and ends with the one left click on Pitch, sent mid-period when both panes have just stepped onto the same
- * slot: the menu cannot complete before everything is in line, and the last click is the one that completes it. Lining up:
- * a pane out of step with the beacon's is paused, and unpaused on the tick the beacon's pane steps onto its slot. Timing
- * assumption (recorded once, unpause 11097, next step 11149 at a 55 tick period): after an unpause your pane's next step
- * comes about one period later, so both then step together. Nothing here counts clicks: every decision reads what the
- * panes and buttons actually show, so a click that did not take or a step that came early is simply redone; two failed
- * lining-ups or a finished set of buttons that does not end the menu stop it with a chat line.
+ * A tune completes only with color, speed and pitch matched AND the panes in line (killer560, 2026-11-23), and the server
+ * checks it on a click (11-24: matched while paused, completed only at his unpause click). So it matches Color and Speed,
+ * leaves Pitch ONE click short of the beacon's (Pitch does not change a beat's stepping), lines the panes up, and ends with
+ * the one left click on Pitch while both panes sit in the same slot with at least {@link #MARGIN} ticks left there: the
+ * menu cannot complete before everything is in line, and the last click is the one that completes it. Lining up: Pause
+ * FREEZES a pane's step timer and unpause resumes it (11-24 recording: five unpauses, each next step came the rest of the
+ * period later, none a whole period). So a pane out of the beacon's slot is paused on the tick it has just stepped (its
+ * timer then holds almost a whole period) and unpaused on the tick the beacon's pane steps onto its slot: both then stay
+ * there for most of a period. Nothing here counts clicks: every decision reads what the panes and buttons actually show,
+ * so a click that did not take or a step that came early is simply redone; {@link #MAX_ALIGNS} pauses or a finished set of
+ * buttons that does not end the menu stop it with a chat line.
  * <p>
  * One container click a tick at most, through {@link ActionGate} and the normal click path, at least Click Delay ticks
  * apart; his own clicks are never held or touched.
@@ -38,9 +40,13 @@ final class BeaconAutoTuner {
     private static final int NO_ANSWER_TICKS = 12;
     private static final int MAX_ALIGNS = 8;
     private static final int LAST = 2;
+    /** Ticks both panes must still have in their shared slot for the last click to land before either steps. */
+    private static final int MARGIN = 5;
 
     private static boolean running;
     private static boolean gaveUp;
+    /** Client ticks the menu has been open: Click Delay counts these, since the world time can jump after a lag. */
+    private static long ticks;
     private static long lastClick = -1000;
     private static int pendingSlot = -1;
     private static String pendingSig = "";
@@ -51,11 +57,7 @@ final class BeaconAutoTuner {
     private static int aligns;
     private static int attempts;
     private static long finalAt;
-    /** Per player beat: pane slot index in its row, tick it last stepped, whether a real step was seen, unpause tick, Pitch click sent. */
-    private static final int[] idx = {-1, -1};
-    private static final long[] moved = new long[2];
-    private static final boolean[] stepped = new boolean[2];
-    private static final long[] unpausedAt = new long[2];
+    /** Per player beat: its Pitch click was sent. */
     private static final boolean[] fin = new boolean[2];
 
     private BeaconAutoTuner() {
@@ -74,9 +76,6 @@ final class BeaconAutoTuner {
         pair = null;
         aligns = 0;
         attempts = 0;
-        Arrays.fill(idx, -1);
-        Arrays.fill(stepped, false);
-        Arrays.fill(unpausedAt, 0);
         Arrays.fill(fin, false);
     }
 
@@ -106,8 +105,10 @@ final class BeaconAutoTuner {
         int[][] raw = BeaconTuner.tgtRaw;
         int[][] ctl = BeaconTuner.ctlS;
         Beat[] rawBeat = BeaconTuner.beatRaw;
+        Beat[] mine = BeaconTuner.mine;
         int n = ctl.length;
-        if (gaveUp || mc.gameMode == null || mc.player == null || cur.length != n || raw.length < n || rawBeat.length != raw.length) {
+        ticks++;
+        if (gaveUp || mc.gameMode == null || mc.player == null || cur.length != n || raw.length < n || rawBeat.length != raw.length || mine.length != n) {
             return;
         }
         var slots = screen.getMenu().slots;
@@ -118,27 +119,13 @@ final class BeaconAutoTuner {
             running = true;
             ModChat.send("Auto Tune", ModChat.text("started"));
         }
-        for (int g = 0; g < n; g++) {
-            int at = -1;
-            for (int i = 0; i < BeaconTuneSpec.LEN && cur[g][0] >= 0; i++) {
-                if (BeaconTuneSpec.COLORS.get(cur[g][0]).equals(BeaconTuneSolver.colorOf(slots.get(BeaconTuneSpec.BOTTOM + i).getItem()))) {
-                    at = i;
-                    break;
-                }
-            }
-            if (at >= 0 && at != idx[g]) {
-                stepped[g] = idx[g] >= 0;
-                idx[g] = at;
-                moved[g] = now;
-            }
-        }
-        if (now - lastClick < BeaconTuner.CFG.num("tuneDelay")) {
+        if (ticks - lastClick < BeaconTuner.CFG.num("tuneDelay")) {
             return;
         }
         if (pendingSlot >= 0) {
             if (!sig(slots.get(pendingSlot).getItem()).equals(pendingSig)) {
                 pendingSlot = -1;
-            } else if (now - lastClick > NO_ANSWER_TICKS) {
+            } else if (ticks - lastClick > NO_ANSWER_TICKS) {
                 ServerCorrections.reportEvent("Auto Tune", "the server did not answer a click, trying again");
                 pendingSlot = -1;
             } else {
@@ -164,7 +151,7 @@ final class BeaconAutoTuner {
                 int want = k == LAST && !fin[g] ? Math.floorMod(tgt[g][k] - 1, BeaconTuneSpec.WRAP[k]) : tgt[g][k];
                 int p = BeaconTuneSolver.presses(cur[g][k], want, BeaconTuneSpec.WRAP[k]);
                 if (p != 0) {
-                    click(mc, screen, ctl[g][k], p < 0, now);
+                    click(mc, screen, ctl[g][k], p < 0);
                     return;
                 }
             }
@@ -172,41 +159,28 @@ final class BeaconAutoTuner {
         boolean ready = true;
         for (int g = 0; g < n; g++) {
             Beat b = beat[g];
-            if (b == null || b.slot < 0 || b.period <= 0 || idx[g] < 0) {
+            Beat m = mine[g];
+            if (b == null || b.slot < 0 || b.period <= 0 || m.slot < 0) {
                 return;
             }
-            boolean paused = BeaconTuneSolver.paused(slots.get(ctl[g][3]).getItem());
-            if (paused) {
+            if (BeaconTuneSolver.paused(slots.get(ctl[g][3]).getItem())) {
                 ready = false;
-                if (b.slot - BeaconTuneSpec.TOP == idx[g] && now - b.moved <= 1) {
-                    if (click(mc, screen, ctl[g][3], false, now)) {
-                        unpausedAt[g] = now;
-                    }
+                if (b.slot == m.slot && now - b.moved <= 1) {
+                    click(mc, screen, ctl[g][3], false);
                     return;
                 }
-            } else if (unpausedAt[g] > 0 && !(stepped[g] && moved[g] > unpausedAt[g])) {
+            } else if (b.slot != m.slot) {
                 ready = false;
-                if (now - unpausedAt[g] > 3L * b.period) {
-                    unpausedAt[g] = 0;
-                }
-            } else {
-                unpausedAt[g] = 0;
-                int tol = Math.max(2, b.period / 5);
-                long since = now - Math.max(b.moved, moved[g]);
-                boolean synced = b.slot - BeaconTuneSpec.TOP == idx[g] && stepped[g] && Math.abs(moved[g] - b.moved) <= tol;
-                if (since < tol + 1 || !stepped[g]) {
-                    ready = false;
-                } else if (!synced) {
-                    ready = false;
+                if (m.steps > 0 && now - m.moved <= 1) {
                     if (++aligns > MAX_ALIGNS) {
                         halt("the panes would not line up");
                         return;
                     }
-                    click(mc, screen, ctl[g][3], false, now);
+                    click(mc, screen, ctl[g][3], false);
                     return;
-                } else if (since > b.period - tol - 4) {
-                    ready = false;
                 }
+            } else if (Math.min(b.period - (now - b.moved), b.period - (now - m.moved)) < MARGIN) {
+                ready = false;
             }
         }
         if (!ready) {
@@ -214,7 +188,7 @@ final class BeaconAutoTuner {
         }
         for (int g = 0; g < n; g++) {
             if (!fin[g]) {
-                if (click(mc, screen, ctl[g][LAST], false, now)) {
+                if (click(mc, screen, ctl[g][LAST], false)) {
                     fin[g] = true;
                     finalAt = now;
                 }
@@ -228,13 +202,13 @@ final class BeaconAutoTuner {
         }
     }
 
-    private static boolean click(Minecraft mc, AbstractContainerScreen<?> screen, int slot, boolean right, long now) {
+    private static boolean click(Minecraft mc, AbstractContainerScreen<?> screen, int slot, boolean right) {
         if (!ActionGate.tryAct(ActionGate.Actor.BEACON_TUNE, screen)) {
             return false;
         }
         pendingSig = sig(screen.getMenu().slots.get(slot).getItem());
         pendingSlot = slot;
-        lastClick = now;
+        lastClick = ticks;
         mc.gameMode.handleContainerInput(screen.getMenu().containerId, slot, right ? 1 : 0, ContainerInput.PICKUP, mc.player);
         ModChat.log("Auto Tune", ModChat.text((right ? "right" : "left") + " click on slot " + slot));
         return true;

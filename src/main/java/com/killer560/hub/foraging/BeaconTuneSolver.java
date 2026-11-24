@@ -107,21 +107,4 @@ public final class BeaconTuneSolver {
         return (t[0] < 0 ? "?" : BeaconTuneSpec.COLORS.get(t[0]).replace('_', ' ')) + ", speed " + (t[1] < 0 ? "?" : t[1]) + ", "
                 + (t[2] < 0 ? "?" : BeaconTuneSpec.PITCHES.get(t[2]));
     }
-
-    /** One line per dial: "Color: left x3", "Speed: matched", "Pitch: waiting for a beat" (target not measured yet), "Pitch: not readable". */
-    public static String[] describe(int[] cur, int[] tgt) {
-        String[] out = new String[3];
-        for (int i = 0; i < 3; i++) {
-            String name = BeaconTuneSpec.DIALS[i];
-            if (cur[i] < 0) {
-                out[i] = name + ": not readable";
-            } else if (tgt[i] < 0) {
-                out[i] = name + ": " + (i == 0 ? "no beat" : "waiting for a beat");
-            } else {
-                int p = presses(cur[i], tgt[i], BeaconTuneSpec.WRAP[i]);
-                out[i] = name + ": " + (p == 0 ? "matched" : (p > 0 ? "left x" : "right x") + Math.abs(p));
-            }
-        }
-        return out;
-    }
 }

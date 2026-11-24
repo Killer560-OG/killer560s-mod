@@ -14,16 +14,18 @@ import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.function.IntFunction;
 
 /**
  * Moonglade Beacon Tuner (both builds, off by default): in the beacon's "Tune Frequency" and "Upgrade Signal Strength"
  * menus it reads the beacon's own beats (color from the pane, speed from the ticks between its steps, pitch from the note
  * block sound that plays as it steps) and outlines the Color, Speed and Pitch buttons that still differ from your beat,
- * with the clicks needed (L = left click, R = right click), plus whether your beat steps in line with the beacon's.
- * Display only: it clicks nothing and sends nothing. The layout is {@link BeaconTuneSpec}.
+ * with the clicks needed (L = left click, R = right click), and Pause when your pane is not in the beacon's slot (P) or is
+ * paused on it (U). No text readout over the menu (killer560 11-24: "there should be no hud for the tuning"). It clicks
+ * nothing itself; {@link BeaconAutoTuner} does in the cheat build. The layout is {@link BeaconTuneSpec}.
+ * <p>
+ * Beats are followed by their panes, never by color: the beacon's two upgrade beats can share a color (both brown on
+ * 11-24), and so can yours.
  */
 public final class BeaconTuner {
 
@@ -35,30 +37,31 @@ public final class BeaconTuner {
         }
     }
 
-    /** One of the beacon's beats: where its pane is, when it last stepped, and what that showed. */
+    /** One beat's pane: its slot index in the row (-1 lost), when it last stepped, real steps seen, ticks between steps, pitch level and color. */
     static final class Beat {
         int slot = -1;
         long moved;
+        int steps;
         int period = -1;
         int pitch = -1;
+        int color = -1;
     }
 
-    private static final Map<String, Beat> BEATS = new HashMap<>();
     private static final long[] SOUND_TICK = new long[8];
     private static final int[] SOUND_LEVEL = new int[8];
     private static int soundN;
-    private static final int[] HINT_SLOT = new int[8];
-    private static final String[] HINT_TEXT = new String[8];
+    private static final int[] HINT_SLOT = new int[12];
+    private static final String[] HINT_TEXT = new String[12];
     private static int hintN;
-    private static String[] lines = {};
     private static AbstractContainerScreen<?> screen;
     private static boolean upgrade;
     private static int shown;
-    /** What the last {@link #step} read, per player beat: its dials and buttons, and the beacon's beats in color order (dials and Beat) (read by {@link BeaconAutoTuner}). */
+    /** What the last {@link #step} read (read by {@link BeaconAutoTuner}): per player beat its dials, button slots and pane; the beacon's beats as {color, speed, pitch} and panes. */
     static int[][] curS = {};
+    static int[][] ctlS = {};
+    static Beat[] mine = {};
     static int[][] tgtRaw = {};
     static Beat[] beatRaw = {};
-    static int[][] ctlS = {};
 
     private BeaconTuner() {
     }
@@ -107,10 +110,10 @@ public final class BeaconTuner {
     }
 
     public static void reset() {
-        BEATS.clear();
         soundN = 0;
         hintN = 0;
-        lines = new String[0];
+        mine = new Beat[0];
+        beatRaw = new Beat[0];
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             BeaconAutoTuner.reset();
         }
@@ -123,120 +126,178 @@ public final class BeaconTuner {
         SOUND_LEVEL[i] = BeaconTuneSolver.pitchLevel(pitch);
     }
 
-    /** The beacon's pitch for a step at {@code now}: the sounds of that tick and the one before, minus the player's own beat sounds. */
-    private static int pitchAt(long now, int[][] own) {
-        int found = -1;
-        boolean foundMine = false;
+    /**
+     * The pitch of beacon beat {@code self}, which stepped at {@code now}: the beat sounds of this tick and the one before, less
+     * one sound for each of your beats and each other known beacon beat that stepped in them; -1 when what is left disagrees.
+     */
+    private static int pitchAt(long now, Beat self, int[][] own) {
+        int[] left = new int[3];
         for (int i = 0; i < Math.min(soundN, 8); i++) {
             if (SOUND_TICK[i] >= now - 1 && SOUND_TICK[i] <= now) {
-                boolean mine = false;
-                for (int[] o : own) {
-                    mine |= o[2] == SOUND_LEVEL[i];
-                }
-                if (found < 0 || foundMine && !mine) {
-                    found = SOUND_LEVEL[i];
-                    foundMine = mine;
+                left[SOUND_LEVEL[i]]++;
+            }
+        }
+        for (int g = 0; g < mine.length; g++) {
+            if (mine[g].steps > 0 && mine[g].moved >= now - 1 && own[g][2] >= 0 && left[own[g][2]] > 0) {
+                left[own[g][2]]--;
+            }
+        }
+        for (Beat b : beatRaw) {
+            if (b != self && b.moved >= now - 1 && b.pitch >= 0 && left[b.pitch] > 0) {
+                left[b.pitch]--;
+            }
+        }
+        int found = -1;
+        for (int k = 0; k < 3; k++) {
+            if (left[k] > 0) {
+                found = found < 0 ? k : -2;
+            }
+        }
+        return found >= 0 ? found : -1;
+    }
+
+    /**
+     * Follows each beat's pane along a 7-slot row ({@code row[i]} its color index, -1 gray): a pane stays while its slot is
+     * colored and stepped when its slot turned gray and the next one is colored. Two panes on one slot show as one; when one
+     * of them leaves, the one whose step is due (longest since its last step for its period, never a paused one) stepped. A
+     * slot that turns gray before the next one turns colored (the two updates can come a tick apart) is waited out. A pane not
+     * placed yet takes a colored slot no other pane holds, one of its own color ({@code want}) first. Returns who stepped.
+     */
+    static boolean[] track(Beat[] beats, int[] row, int[] want, boolean[] frozen, long now) {
+        int n = beats.length;
+        boolean[] stepped = new boolean[n];
+        for (int k = 0; k < n; k++) {
+            Beat b = beats[k];
+            if (b.slot >= 0 && row[b.slot] < 0 && row[(b.slot + 1) % BeaconTuneSpec.LEN] >= 0) {
+                stepped[k] = true;
+                b.slot = (b.slot + 1) % BeaconTuneSpec.LEN;
+            }
+        }
+        for (int i = 0; i < n; i++) {
+            for (int j = i + 1; j < n; j++) {
+                int s = beats[i].slot;
+                int next = (s + 1) % BeaconTuneSpec.LEN;
+                if (s >= 0 && s == beats[j].slot && row[next] >= 0 && holder(beats, next) < 0) {
+                    int k = stepped[i] || frozen[i] ? j : stepped[j] || frozen[j] ? i : due(beats[i], now) >= due(beats[j], now) ? i : j;
+                    beats[k].slot = next;
+                    stepped[k] = true;
                 }
             }
         }
-        return found;
+        for (int k = 0; k < n; k++) {
+            if (stepped[k]) {
+                Beat b = beats[k];
+                long d = now - b.moved;
+                b.period = b.steps > 0 && d >= 8 && d <= 70 ? (int) d : b.period;
+                b.steps++;
+                b.moved = now;
+            }
+        }
+        for (int k = 0; k < n; k++) {
+            if (beats[k].slot < 0) {
+                int pick = -1;
+                for (int i = 0; i < BeaconTuneSpec.LEN; i++) {
+                    if (row[i] >= 0 && holder(beats, i) < 0 && (pick < 0 || want != null && row[i] == want[k] && row[pick] != want[k])) {
+                        pick = i;
+                    }
+                }
+                for (int i = 0; i < BeaconTuneSpec.LEN && pick < 0; i++) {
+                    pick = row[i] >= 0 ? i : -1;
+                }
+                if (pick >= 0) {
+                    beats[k].slot = pick;
+                    beats[k].moved = now;
+                    beats[k].steps = want == null ? 1 : 0; // a beacon beat starts its step timer as the menu opens
+                }
+            }
+        }
+        return stepped;
+    }
+
+    private static int holder(Beat[] beats, int slot) {
+        for (int k = 0; k < beats.length; k++) {
+            if (beats[k].slot == slot) {
+                return k;
+            }
+        }
+        return -1;
+    }
+
+    private static float due(Beat b, long now) {
+        return (now - b.moved) / (float) (b.period > 0 ? b.period : 1);
+    }
+
+    private static int[] row(IntFunction<ItemStack> item, int start) {
+        int[] r = new int[BeaconTuneSpec.LEN];
+        for (int i = 0; i < r.length; i++) {
+            String c = BeaconTuneSolver.colorOf(item.apply(start + i));
+            r[i] = c == null ? -1 : BeaconTuneSpec.COLORS.indexOf(c);
+        }
+        return r;
     }
 
     /** Read the menu once for tick {@code now} (testkit entry point: {@code item} maps a menu slot to its stack). */
     public static void step(IntFunction<ItemStack> item, boolean isUpgrade, long now) {
         int[][] ctl = isUpgrade ? BeaconTuneSpec.UPGRADE_BEATS : BeaconTuneSpec.TUNE_BEATS;
-        int[][] cur = new int[ctl.length][3];
-        for (int g = 0; g < ctl.length; g++) {
+        int n = ctl.length;
+        if (mine.length != n) {
+            mine = new Beat[n];
+            beatRaw = new Beat[n];
+            for (int g = 0; g < n; g++) {
+                mine[g] = new Beat();
+                beatRaw[g] = new Beat();
+            }
+        }
+        int[][] cur = new int[n][3];
+        int[] want = new int[n];
+        boolean[] paused = new boolean[n];
+        for (int g = 0; g < n; g++) {
             String col = BeaconTuneSolver.colorOf(item.apply(ctl[g][0]));
             cur[g][0] = col == null ? -1 : BeaconTuneSpec.COLORS.indexOf(col);
             cur[g][1] = BeaconTuneSolver.current(item.apply(ctl[g][1]), "speed");
             cur[g][2] = BeaconTuneSolver.current(item.apply(ctl[g][2]), "pitch");
+            want[g] = cur[g][0];
+            paused[g] = BeaconTuneSolver.paused(item.apply(ctl[g][3]));
+            mine[g].period = cur[g][1] > 0 ? 15 + 10 * (5 - cur[g][1]) : -1;
         }
-        String[] tc = new String[2];
-        int tn = 0;
-        for (int i = 0; i < BeaconTuneSpec.LEN && tn < 2; i++) {
-            String c = BeaconTuneSolver.colorOf(item.apply(BeaconTuneSpec.TOP + i));
-            if (c == null || (tn == 1 && c.equals(tc[0]))) {
-                continue;
+        track(mine, row(item, BeaconTuneSpec.BOTTOM), want, paused, now);
+        int[] top = row(item, BeaconTuneSpec.TOP);
+        boolean[] beaconStepped = track(beatRaw, top, null, new boolean[n], now);
+        int[][] tgt = new int[n][];
+        for (int j = 0; j < n; j++) {
+            Beat b = beatRaw[j];
+            if (b.slot >= 0 && top[b.slot] >= 0 && (n < 2 || beatRaw[1 - j].slot != b.slot)) {
+                b.color = top[b.slot];
             }
-            tc[tn++] = c;
-            Beat b = BEATS.computeIfAbsent(c, k -> new Beat());
-            if (b.slot != BeaconTuneSpec.TOP + i) {
-                long d = now - b.moved;
-                b.period = b.slot >= 0 && d >= 8 && d <= 70 ? (int) d : b.period;
-                int p = pitchAt(now, cur);
+            if (beaconStepped[j]) {
+                int p = pitchAt(now, b, cur);
                 b.pitch = p >= 0 ? p : b.pitch;
-                b.slot = BeaconTuneSpec.TOP + i;
-                b.moved = now;
             }
-        }
-        int[][] tgt = new int[Math.max(tn, 1)][];
-        for (int j = 0; j < tgt.length; j++) {
-            Beat b = tn > 0 ? BEATS.get(tc[j]) : null;
-            tgt[j] = b == null ? new int[]{-1, -1, -1}
-                    : new int[]{BeaconTuneSpec.COLORS.indexOf(tc[j]), b.period > 0 ? BeaconTuneSolver.speedFromPeriod(b.period) : -1, b.pitch};
+            tgt[j] = new int[]{b.color, b.period > 0 ? BeaconTuneSolver.speedFromPeriod(b.period) : -1, b.pitch};
         }
         int[] pick = BeaconTuneSolver.assign(cur, tgt);
         curS = cur;
         ctlS = ctl;
-        // The beacon's beats in color order, for Auto Tune (the pane order changes as they pass each other).
-        Integer[] order = new Integer[tgt.length];
-        for (int j = 0; j < order.length; j++) {
-            order[j] = j;
-        }
-        java.util.Arrays.sort(order, java.util.Comparator.comparingInt(j -> tgt[j][0]));
-        tgtRaw = new int[tgt.length][];
-        beatRaw = new Beat[tgt.length];
-        for (int j = 0; j < order.length; j++) {
-            tgtRaw[j] = tgt[order[j]];
-            beatRaw[j] = tn > 0 ? BEATS.get(tc[order[j]]) : null;
-        }
+        tgtRaw = tgt;
         hintN = 0;
-        String[] out = new String[ctl.length];
-        for (int g = 0; g < ctl.length; g++) {
+        for (int g = 0; g < n; g++) {
             int[] t = tgt[pick[g]];
-            String[] d = BeaconTuneSolver.describe(cur[g], t);
             for (int k = 0; k < 3; k++) {
                 int p = cur[g][k] < 0 || t[k] < 0 ? 0 : BeaconTuneSolver.presses(cur[g][k], t[k], BeaconTuneSpec.WRAP[k]);
                 if (p != 0) {
-                    HINT_SLOT[hintN] = ctl[g][k];
-                    HINT_TEXT[hintN++] = (p > 0 ? "L" : "R") + Math.abs(p);
+                    hint(ctl[g][k], (p > 0 ? "L" : "R") + Math.abs(p));
                 }
             }
-            out[g] = (isUpgrade ? "Beat " + (g + 1) + ": " : "") + String.join(" | ", d) + phase(item, cur[g], tn > 0 ? BEATS.get(tc[pick[g]]) : null, ctl[g])
-                    + " (beacon: " + BeaconTuneSolver.target(t) + ")";
-        }
-        lines = out;
-    }
-
-    /**
-     * Once the speeds match, where your pane sits against the beacon's, and what Pause should do (the tune only completes with
-     * both panes in the same slot, killer560 11-23; Pause freezes yours while the beacon's keeps stepping, and its next step
-     * comes about one period after unpausing, so unpausing as the beacon steps onto your slot lines you up one period later).
-     */
-    private static String phase(IntFunction<ItemStack> item, int[] cur, Beat b, int[] ctl) {
-        if (b == null || b.slot < 0 || b.period < 0 || cur[1] != BeaconTuneSolver.speedFromPeriod(b.period)) {
-            return "";
-        }
-        boolean paused = BeaconTuneSolver.paused(item.apply(ctl[3]));
-        for (int i = 0; i < BeaconTuneSpec.LEN; i++) {
-            if (cur[0] >= 0 && BeaconTuneSpec.COLORS.get(cur[0]).equals(BeaconTuneSolver.colorOf(item.apply(BeaconTuneSpec.BOTTOM + i)))) {
-                int d = Math.floorMod(i - (b.slot - BeaconTuneSpec.TOP), BeaconTuneSpec.LEN);
-                if (d == 0 && !paused) {
-                    return " | in step";
-                }
-                HINT_SLOT[hintN] = ctl[3];
-                HINT_TEXT[hintN++] = paused ? "U" : "P";
-                return d == 0 ? " | in line: unpause now" : paused ? " | paused: unpause when the beacon steps onto your slot (" + d + " steps)"
-                        : " | out of line: Pause now, unpause when the beacon steps onto your slot (" + d + " steps, about " + Math.round(d * b.period / 2f) / 10f + " s)";
+            Beat b = beatRaw[pick[g]];
+            if (b.slot >= 0 && mine[g].slot >= 0 && t[1] > 0 && cur[g][1] == t[1] && (paused[g] == (b.slot == mine[g].slot))) {
+                hint(ctl[g][3], paused[g] ? "U" : "P");
             }
         }
-        return "";
     }
 
-    /** The lines the last {@link #step} wrote (testkit). */
-    public static String[] lines() {
-        return lines;
+    private static void hint(int slot, String text) {
+        HINT_SLOT[hintN] = slot;
+        HINT_TEXT[hintN++] = text;
     }
 
     /** The hint buttons of the last {@link #step}, "slot:text" each (testkit). */
@@ -248,8 +309,20 @@ public final class BeaconTuner {
         return h;
     }
 
+    /** The beacon's beats and yours as the last {@link #step} read them, "color speed pitch @slot" each, beacon first (testkit). */
+    public static String beats() {
+        StringBuilder sb = new StringBuilder();
+        for (int j = 0; j < tgtRaw.length; j++) {
+            sb.append(j == 0 ? "beacon " : "; ").append(BeaconTuneSolver.target(tgtRaw[j])).append(" @").append(beatRaw[j].slot);
+        }
+        for (int g = 0; g < curS.length; g++) {
+            sb.append(g == 0 ? " | yours " : "; ").append(BeaconTuneSolver.target(curS[g])).append(" @").append(mine[g].slot);
+        }
+        return sb.toString();
+    }
+
     private static void draw(Minecraft mc, GuiGraphicsExtractor g) {
-        if (!CFG.isEnabled() || screen == null || lines.length == 0) {
+        if (!CFG.isEnabled() || screen == null || hintN == 0) {
             return;
         }
         AbstractContainerScreenAccessor a = (AbstractContainerScreenAccessor) screen;
@@ -265,8 +338,5 @@ public final class BeaconTuner {
             }
         }
         shown++;
-        for (int i = 0; i < lines.length; i++) {
-            g.text(mc.font, lines[i], a.killer560smod$getLeftPos(), a.killer560smod$getTopPos() - 11 - 10 * (lines.length - 1 - i), 0xFFFFFFFF, true);
-        }
     }
 }

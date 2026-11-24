@@ -32,7 +32,8 @@
      "Queue Leap tests now check the wire is split into client ticks before every tick check.",
      "Regenerating Trees now highlights only the logs that are still standing in a tree you are chopping, not the ones that are coming back, and has a Style setting: Fill, Fill + Outline, Outline or Recolor Block.",
      "Applying a profile no longer treats the Death Patterns record file as a setting.",
-     "Foraging: Highlight Optimal Blocks now shows the whole plan from the start: every log you should hit to fell the tree in the fewest swings is boxed at once, the next one to hit also filled, and each box goes when its log is gone."
+     "Foraging: Highlight Optimal Blocks now shows the whole plan from the start: every log you should hit to fell the tree in the fewest swings is boxed at once, the next one to hit also filled, and each box goes when its log is gone.",
+     "Beacon Tuner: no more text over the tuning menus, only the button outlines; the two beacon beats of a Signal Strength upgrade are told apart even when they share a color, and so are yours; Auto Tune pauses and unpauses on the right steps (Pause holds a beat's step timer) and keeps its Click Delay through lag"
     ]
    }
   ]

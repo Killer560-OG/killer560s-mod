@@ -33,7 +33,6 @@ final class BeaconTuneSpec {
     /** The note block sound pitch each Pitch level plays (0.095, 0.794, 1.492 in the recording). */
     static final float[] PITCH_SOUND = {0.095f, 0.794f, 1.492f};
     static final String BEAT_SOUND = "block.note_block.bass";
-    static final String[] DIALS = {"Color", "Speed", "Pitch"};
     static final int[] WRAP = {13, 5, 3};
 
     private BeaconTuneSpec() {
