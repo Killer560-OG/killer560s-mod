@@ -4,6 +4,7 @@ import com.killer560.hub.BuildVariant;
 import com.killer560.hub.islands.AutoHarpFeature;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.game.ClientboundContainerSetSlotPacket;
+import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -27,6 +28,14 @@ public abstract class AutoHarpSlotMixin {
     private void killer560smod$harpSlot(ClientboundContainerSetSlotPacket packet, CallbackInfo ci) {
         if (BuildVariant.CHEAT_FEATURES_ENABLED) {
             AutoHarpFeature.onSlot(packet.getContainerId(), packet.getSlot());
+        }
+    }
+
+    /** HEAD runs on the netty thread first, as for slots: Auto Harp times a pling (its click's answer) by that call. */
+    @Inject(method = "handleSoundEvent", at = @At("HEAD"))
+    private void killer560smod$harpSoundHead(ClientboundSoundPacket packet, CallbackInfo ci) {
+        if (BuildVariant.CHEAT_FEATURES_ENABLED) {
+            AutoHarpFeature.onSoundHead(packet);
         }
     }
 }

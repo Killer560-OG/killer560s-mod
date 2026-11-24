@@ -42,6 +42,9 @@ public final class DungeonAlertsPackets {
         guard("sound/ragaxe", com.killer560.hub.ragaxe.RagAxeFeature::onSoundPacket, packet);
         guard("sound/abilitycooldown", com.killer560.hub.abilitycooldown.AbilityCooldownFeature::onSoundPacket, packet);
         guard("sound/beacontuner", com.killer560.hub.foraging.BeaconTuner::onSoundPacket, packet);
+        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            guard("sound/harp", com.killer560.hub.islands.AutoHarpFeature::onSound, packet);
+        }
     }
 
     public static void onTakeItem(ClientboundTakeItemEntityPacket packet, ClientLevel level) {

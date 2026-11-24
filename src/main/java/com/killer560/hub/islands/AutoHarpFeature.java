@@ -10,6 +10,7 @@ import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.item.ItemStack;
@@ -25,7 +26,8 @@ import java.util.Arrays;
  *
  * <p>Timing: a click lands on the server one ping after it is sent, and a note stays in the click row for one step of
  * the falling rows. When the lead is over {@link #LATEST_AT_ONCE_MS} the click goes {@code k} rows early, from the wool note
- * {@code k} rows above the click row; the lead is the measured ping (Auto Detect Ping) plus the manual offset. Auto
+ * {@code k} rows above the click row; the lead is the measured ping (Auto Detect Ping; capped by the clicks' own
+ * click-to-pling round trips) plus the manual offset. Auto
  * Detect Lag measures the step from how the note rows actually advance (the mean of the last few, a stalled step left
  * out), so a laggy server's slower steps are followed; with it off the step is assumed {@link #NOMINAL_STEP_MS}. An
  * early click is timed from when the step's slot packets reached the network thread, to land {@link #AIM_MS} into its
@@ -58,12 +60,33 @@ public final class AutoHarpFeature {
     private static final long LATEST_AT_ONCE_MS = 140;
     /** Ms of lead change the early-row count ignores, so a jittering ping does not flip it note to note. */
     private static final long ROWS_HYSTERESIS_MS = 20;
+    /** Send times (ms) of clicks whose pling (Hypixel answers every harp click with one, hit or not) has not come back,
+     *  oldest first. */
+    private static final long[] SENT = new long[8];
+    private static int sentHead;
+    private static int sentCount;
+    /** Click-to-pling round trips of the last few clicks and when each came: the time a click really takes to be
+     *  handled. The lead never goes above the shortest fresh one, so a click never goes so early that a normal trip lands
+     *  it before its note (autoharp-misses-1124: his pong read 200 ms while his clicks were answered in 91-114 ms, and
+     *  notes 42-43 were handled a server tick before they reached the click row). A trip that just got longer is not
+     *  followed: his were single clicks, never the next one, and following them sent later clicks early. Sixteen (about
+     *  the 3 s freshness at harp speed): each trip carries up to a server tick of wait, and after a spiked click and the
+     *  clicks queued behind it only half of eight were normal, so the shortest read 65 ms long and an early click landed
+     *  a row early (testkit 1124-autoharp-spike-own). */
+    private static final long[] RTT = new long[16];
+    private static final long[] RTT_AT = new long[16];
+    private static int rttNext;
+    private static int plings;
+    private static final long RTT_FRESH_MS = 3000;
 
     private static ClientTickEvents.EndTick guardedTick;
-    /** Network-thread arrival of the last few harp slot packets, looked up by the packet when the render thread handles it. */
-    private static final Object[] NET_PACKETS = new Object[8];
-    private static final long[] NET_MS = new long[8];
-    private static int netNext;
+    /** Network-thread arrival of the last few harp slot packets and plings, looked up by the packet when the render thread
+     *  handles it. A pling timed on the render thread read its trip a frame or more long against a board timed on the
+     *  network thread, and that surplus sent clicks a row early (autoharp-misses-1124 fix10). */
+    private static final NetStamps SLOT_NET = new NetStamps();
+    private static final NetStamps SOUND_NET = new NetStamps();
+    /** Harness: the longest a pling waited between the network thread and the render thread since the harp opened. */
+    private static long plingWaitMax;
     /** Arrival (ms) of the first row or click-row slot packet that changed the board since the last tick decision, or 0. */
     private static long changeMs;
     /** When the next early click falls due (ms), for the frame check; 0 when none is waiting. */
@@ -141,11 +164,7 @@ public final class AutoHarpFeature {
         Minecraft client = Minecraft.getInstance();
         long now = System.nanoTime() / 1_000_000L;
         if (!client.isSameThread()) {
-            synchronized (NET_MS) {
-                NET_PACKETS[netNext] = packet;
-                NET_MS[netNext] = now;
-                netNext = (netNext + 1) % NET_MS.length;
-            }
+            SLOT_NET.put(packet, now);
             return;
         }
         AbstractContainerMenu menu = client.player == null ? null : client.player.containerMenu;
@@ -153,14 +172,40 @@ public final class AutoHarpFeature {
                 || menu.slots.get(slot).getItem().getItem() == item.getItem()) {
             return;
         }
-        changeMs = now;
-        synchronized (NET_MS) {
-            for (int i = 0; i < NET_MS.length; i++) {
-                if (NET_PACKETS[i] == packet) {
-                    changeMs = NET_MS[i];
-                    NET_PACKETS[i] = null;
+        changeMs = SLOT_NET.take(packet, now);
+    }
+
+    /** From AutoHarpSlotMixin at the HEAD of every sound packet: the network-thread call records when a pling arrived. */
+    public static void onSoundHead(ClientboundSoundPacket packet) {
+        if (active && !Minecraft.getInstance().isSameThread() && isPling(packet)) {
+            SOUND_NET.put(packet, System.nanoTime() / 1_000_000L);
+        }
+    }
+
+    private static boolean isPling(ClientboundSoundPacket packet) {
+        return "block.note_block.pling".equals(packet.getSound().value().location().getPath());
+    }
+
+    /** Packets with their network-thread arrival (ms), a few at a time; the render thread takes a packet's time back. */
+    private static final class NetStamps {
+        private final Object[] packets = new Object[8];
+        private final long[] ms = new long[8];
+        private int next;
+
+        synchronized void put(Object packet, long now) {
+            packets[next] = packet;
+            ms[next] = now;
+            next = (next + 1) % ms.length;
+        }
+
+        synchronized long take(Object packet, long fallback) {
+            for (int i = 0; i < ms.length; i++) {
+                if (packets[i] == packet) {
+                    packets[i] = null;
+                    return ms[i];
                 }
             }
+            return fallback;
         }
     }
 
@@ -196,6 +241,9 @@ public final class AutoHarpFeature {
             lastStepMs = now;
             gapCount = 0;
             Arrays.fill(pending, 0);
+            sentCount = 0;
+            Arrays.fill(RTT_AT, 0);
+            plingWaitMax = 0;
             frameDueMs = 0;
             Arrays.fill(played, false);
             Arrays.fill(arrived, false);
@@ -286,6 +334,11 @@ public final class AutoHarpFeature {
             }
             client.gameMode.handleContainerInput(menu.containerId, slot, 2, ContainerInput.CLONE, client.player);
             played[c] = true;
+            if (sentCount == SENT.length) {
+                sentHead = (sentHead + 1) % SENT.length;
+                sentCount--;
+            }
+            SENT[(sentHead + sentCount++) % SENT.length] = now;
             HarpHelperFeature.noteClick(menu, slot);
             clicks++;
             if (early) {
@@ -322,10 +375,40 @@ public final class AutoHarpFeature {
         measuredStep = sum / n;
     }
 
-    /** The lead in ms: the measured round trip (Auto Detect Ping) plus Click Offset, or the offset alone. */
+    /** From the sound-packet bridge: the pling that answers the oldest unanswered click gives that click's round trip. */
+    public static void onSound(ClientboundSoundPacket packet) {
+        if (!active || sentCount == 0 || !isPling(packet)) {
+            return;
+        }
+        long handled = System.nanoTime() / 1_000_000L;
+        long now = SOUND_NET.take(packet, handled);
+        plingWaitMax = Math.max(plingWaitMax, handled - now);
+        while (sentCount > 1 && now - SENT[sentHead] > 1500) { // a click that never got its pling
+            sentHead = (sentHead + 1) % SENT.length;
+            sentCount--;
+        }
+        RTT[rttNext] = now - SENT[sentHead];
+        RTT_AT[rttNext] = now;
+        plings++;
+        rttNext = (rttNext + 1) % RTT.length;
+        sentHead = (sentHead + 1) % SENT.length;
+        sentCount--;
+    }
+
+    /** The lead in ms: the measured round trip (Auto Detect Ping) plus Click Offset, or the offset alone. With Auto Detect
+     *  Ping the round trip is the lower of the ping and the shortest click-to-pling trip of the last few clicks (3 s
+     *  fresh): the ping (1 Hz, server-tick steps) read 50-100 ms over the clicks' own trips in his run. */
     static long lead() {
-        int ping = !CFG.on("detectPing") ? 0
+        long ping = !CFG.on("detectPing") ? 0
                 : CFG.on("detectLag") ? PingTracker.automationMsLagFree() : PingTracker.automationMs();
+        if (CFG.on("detectPing") && active) {
+            long now = System.nanoTime() / 1_000_000L;
+            for (int i = 0; i < RTT.length; i++) {
+                if (RTT_AT[i] != 0 && now - RTT_AT[i] < RTT_FRESH_MS) {
+                    ping = Math.min(ping, RTT[i]);
+                }
+            }
+        }
         return Math.max(0, ping + CFG.num("offset"));
     }
 
@@ -392,6 +475,15 @@ public final class AutoHarpFeature {
 
     public static int earlyClickCount() {
         return earlyClicks;
+    }
+
+    /** Harness: plings matched to this jar's clicks. */
+    public static int plingCount() {
+        return plings;
+    }
+
+    public static long plingWaitMax() {
+        return plingWaitMax;
     }
 
     public static int lastEarlyRows() {
