@@ -334,6 +334,13 @@ public final class ItemProtect {
             return false;
         }
 
+        if (loss == LossScreen.ANVIL && type != ContainerInput.THROW) {
+            Boolean anvil = anvilDecision(screen, slot, slotId, button, type, inv);
+            if (anvil != null) {
+                return anvil;
+            }
+        }
+
         String reason = type != ContainerInput.THROW && starredAllowed(loss, slot.getItem())
                 ? null : protectReason(slot.getItem());
         if (reason == null && type == ContainerInput.THROW && isHotbarSlot(slot) && slot.hasItem()) {
@@ -352,6 +359,37 @@ public final class ItemProtect {
             }
         }
         return false;
+    }
+
+    /** Hypixel's anvil: the Item to Upgrade slot (29) is not lost there, the Item to Sacrifice slot (33) is consumed. */
+    private static final int ANVIL_UPGRADE = 29, ANVIL_SACRIFICE = 33;
+
+    /**
+     * The anvil rule (itemprotect-anvil-1123, owner: a protected axe could not be put in to be upgraded). Returns the
+     * verdict (true = block) or null to fall through to the general rule. Only what lands in the sacrifice slot is
+     * guarded: a click on that slot with a protected carried stack or swapped hotbar item, and a shift-click that
+     * would land there (the upgrade slot is already filled; Hypixel fills it first). Everything else is allowed.
+     */
+    private static Boolean anvilDecision(AbstractContainerScreen<?> screen, Slot slot, int slotId, int button,
+                                         ContainerInput type, Inventory inv) {
+        if (slotId == ANVIL_SACRIFICE) {
+            ItemStack in = type == ContainerInput.SWAP ? (isSwapDestination(button) ? inv.getItem(button) : ItemStack.EMPTY)
+                    : type == ContainerInput.QUICK_MOVE ? ItemStack.EMPTY : carriedStack();
+            return blockAnvil(in);
+        }
+        if (isPlayerInventorySlot(slot) && type == ContainerInput.QUICK_MOVE) {
+            return screen.getMenu().getSlot(ANVIL_UPGRADE).hasItem() ? blockAnvil(slot.getItem()) : Boolean.FALSE;
+        }
+        return Boolean.FALSE;
+    }
+
+    private static Boolean blockAnvil(ItemStack stack) {
+        String reason = starredAllowed(LossScreen.ANVIL, stack) ? null : protectReason(stack);
+        if (reason == null) {
+            return Boolean.FALSE;
+        }
+        announceBlock(LossScreen.ANVIL.action, stack, reason);
+        return Boolean.TRUE;
     }
 
     /** A SWAP click's button is a hotbar index (0-8) or 40 for the offhand; both are inventory slots to check. */
