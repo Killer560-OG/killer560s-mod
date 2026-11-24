@@ -24,7 +24,7 @@ import java.util.Map;
  * chopped becomes air, and about 600-1000 ticks later (median 795, 30-50 s) the same log is put back by a block update,
  * in the order it was broken. So a felled tree is nothing but air until it returns, and the highlight outlines the logs
  * that left, until each one comes back or {@link #MAX_AGE} ticks pass. Event-driven from block updates: the old state is
- * read in {@code ClientLevel.setServerVerifiedBlockState} (mixin), the boxes are rebuilt only when a log left or came
+ * read in {@code ClientLevel.setServerVerifiedBlockState} and {@code setBlock} (mixin, so a log he breaks himself counts too; a return that arrives as chunk data is caught by the 10-tick recheck), the boxes are rebuilt only when a log left or came
  * back, or twice a second for the distance cut, and drawn from that published array; nothing is allocated per frame.
  */
 public final class TreeRegen {
@@ -60,7 +60,7 @@ public final class TreeRegen {
         LevelRenderEvents.COLLECT_SUBMITS.register(FeatureGuard.collectFeatures(bit, TreeRegen::render));
     }
 
-    /** A block the server set (client thread, before it is applied; from {@code TreeRegenLevelMixin}). */
+    /** A block set on the client level (client thread, before it is applied; from {@code TreeRegenLevelMixin}): the server's, and his own predicted break. */
     public static void onChange(Object lv, BlockPos pos, BlockState old, BlockState now) {
         if (!CFG.isEnabled()) {
             return;
@@ -104,8 +104,10 @@ public final class TreeRegen {
             return;
         }
         dirty = false;
-        for (Iterator<Integer> it = GONE.values().iterator(); it.hasNext(); ) {
-            if (clock - it.next() > MAX_AGE) {
+        // Expired, or already a log again: a return can arrive as chunk data, with no block update to hook.
+        for (Iterator<Map.Entry<Long, Integer>> it = GONE.entrySet().iterator(); it.hasNext(); ) {
+            Map.Entry<Long, Integer> e = it.next();
+            if (clock - e.getValue() > MAX_AGE || mc.level.getBlockState(BlockPos.of(e.getKey())).is(BlockTags.LOGS)) {
                 it.remove();
             }
         }
