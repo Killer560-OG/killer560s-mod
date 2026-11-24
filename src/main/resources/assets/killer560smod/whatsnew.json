@@ -28,7 +28,8 @@
      "Auto Terminals now clicks terminals even when the Terminal Solver or that terminal's solver switch is off; the solver draws nothing then.",
      "Arrow Align (cheat build only): two new switches, Trigger Bot Only During P3 and Aura Only During P3, each off by default and shown under its own automation's switch. With one on, that automation acts only while the F7/M7 boss is in phase 3 and does nothing in any other phase; the solver display is not affected.",
      "Fast/Auto Leap: a leap whose Spirit Leap is not in your hand now swaps to it and opens its menu in the same tick, and every automatic leap clicks your target's head in the first tick its menu is there, one tick sooner than before: the Crystal leap now clicks 2 ticks after your pickup line (it was 3, and 5 when it had to swap), and with the leap menu already open it clicks the head in the next tick.",
-     "Dungeon Sim (cheat build): with mobs on, rooms you load on their own are timed from the end of loading to the last starred mob dying, your best and average time per room is kept, and Route Practice has a new Weak Rooms set that steps through your five slowest rooms (it turns mobs on); a Room Drill Timer shows the time."
+     "Dungeon Sim (cheat build): with mobs on, rooms you load on their own are timed from the end of loading to the last starred mob dying, your best and average time per room is kept, and Route Practice has a new Weak Rooms set that steps through your five slowest rooms (it turns mobs on); a Room Drill Timer shows the time.",
+     "Queue Leap tests now check the wire is split into client ticks before every tick check."
     ]
    }
   ]
