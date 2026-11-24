@@ -56,6 +56,9 @@ public final class ArrowAlignConfig {
     private int triggerBotDelayMax = DEFAULT_TRIGGER_BOT_DELAY_MAX;
     // killer560, 2026-10-18: each automation has its own "Disable While Crouching", ON by default.
     private boolean triggerBotDisableWhileCrouching = true;
+    /** Trigger Bot / Aura act only while the F7/M7 boss is in phase 3 (killer560, 2026-11-24); the Solver is not gated. */
+    private boolean triggerBotOnlyP3 = false;
+    private boolean auraOnlyP3 = false;
     private boolean auraDisableWhileCrouching = true;
     /** The Aura leaves the lowest, leftmost arrow undone until stage S3 starts (killer560, 2026-10-18). */
     private boolean auraLeaveLastArrow = true;
@@ -96,6 +99,8 @@ public final class ArrowAlignConfig {
             .add("crouchOverride", true, c -> c.crouchOverride, (c, v) -> c.crouchOverride = v)
             .add("solveTimeEnabled", false, c -> c.solveTimeEnabled, (c, v) -> c.solveTimeEnabled = v)
             .add("triggerBotEnabled", false, c -> c.triggerBotEnabled, (c, v) -> c.triggerBotEnabled = v)
+            .add("triggerBotOnlyP3", false, c -> c.triggerBotOnlyP3, (c, v) -> c.triggerBotOnlyP3 = v)
+            .add("auraOnlyP3", false, c -> c.auraOnlyP3, (c, v) -> c.auraOnlyP3 = v)
             .add("triggerBotDisableWhileCrouching", true, c -> c.triggerBotDisableWhileCrouching, (c, v) -> c.triggerBotDisableWhileCrouching = v)
             .add("auraDisableWhileCrouching", true, c -> c.auraDisableWhileCrouching, (c, v) -> c.auraDisableWhileCrouching = v)
             .add("auraLeaveLastArrow", true, c -> c.auraLeaveLastArrow, (c, v) -> c.auraLeaveLastArrow = v)
@@ -260,6 +265,22 @@ public final class ArrowAlignConfig {
         int hi = RateMs.clamp(max);
         this.triggerBotDelayMin = Math.min(lo, hi);
         this.triggerBotDelayMax = Math.max(lo, hi);
+    }
+
+    public boolean isTriggerBotOnlyP3() {
+        return triggerBotOnlyP3;
+    }
+
+    public void setTriggerBotOnlyP3(boolean v) {
+        this.triggerBotOnlyP3 = v;
+    }
+
+    public boolean isAuraOnlyP3() {
+        return auraOnlyP3;
+    }
+
+    public void setAuraOnlyP3(boolean v) {
+        this.auraOnlyP3 = v;
     }
 
     public boolean isTriggerBotDisableWhileCrouching() {

@@ -112,6 +112,9 @@ public class ArrowAlignTab extends BaseTab {
         y += 22;
 
         if (cfg.getTriggerBotRaw()) {
+            widgets.add(onOffButton("Trigger Bot Only During P3", cfg::isTriggerBotOnlyP3, cfg::setTriggerBotOnlyP3, cfg::save,
+                    null, contentX, y, contentWidth, 18));
+            y += 22;
             widgets.add(msRange(contentX, y, contentWidth, "Trigger Bot Delay", cfg.getTriggerBotDelayMin(),
                     cfg.getTriggerBotDelayMax(), cfg::setTriggerBotDelayRange, cfg::save));
             y += 22;
@@ -121,6 +124,9 @@ public class ArrowAlignTab extends BaseTab {
         }
 
         if (cfg.getAuraRaw()) {
+            widgets.add(onOffButton("Aura Only During P3", cfg::isAuraOnlyP3, cfg::setAuraOnlyP3, cfg::save,
+                    null, contentX, y, contentWidth, 18));
+            y += 22;
             widgets.add(onOffButton("Disable Aura While Crouching", cfg::isAuraDisableWhileCrouching,
                     cfg::setAuraDisableWhileCrouching, cfg::save, null, contentX, y, contentWidth, 18));
             y += 22;

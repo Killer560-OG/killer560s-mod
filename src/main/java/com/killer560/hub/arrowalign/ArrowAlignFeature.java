@@ -486,8 +486,9 @@ public final class ArrowAlignFeature {
 
     private static void tickAutomation(Minecraft client) {
         ArrowAlignConfig cfg = ArrowAlignConfig.getInstance();
-        boolean trigger = cfg.isTriggerBotEnabled();
-        boolean aura = cfg.isAuraEnabled();
+        boolean inP3 = com.killer560.hub.fastleap.Floor7Tracker.inPhase(com.killer560.hub.fastleap.Floor7Tracker.Phase.P3);
+        boolean trigger = cfg.isTriggerBotEnabled() && (inP3 || !cfg.isTriggerBotOnlyP3());
+        boolean aura = cfg.isAuraEnabled() && (inP3 || !cfg.isAuraOnlyP3());
         if (!trigger && !aura) {
             triggerAimIndex = -1;
             return;
