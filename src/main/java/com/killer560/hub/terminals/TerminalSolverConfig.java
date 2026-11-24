@@ -176,6 +176,9 @@ public final class TerminalSolverConfig {
     private boolean melodySendCoordsOnOpen = false;
     /** Party-chat "Melody 1/3 (33%)" as each row is done (killer560, 2026-10-06). Off by default. */
     private boolean melodySendProgress = false;
+    /** Send Melody Progress template (killer560, 2026-11-24): {done}, {rows}, {pct}; blank = {@link #DEFAULT_PROGRESS_MESSAGE}. */
+    private String melodyProgressMessage = DEFAULT_PROGRESS_MESSAGE;
+    public static final String DEFAULT_PROGRESS_MESSAGE = "Melody {done}/{rows} - {pct}%";
     private boolean customGuiEnabled = false;
     // Per killer560's "have a setting where I can make it show the one I need to click, the one after
     // that, then one after that as well" request (2026-09-09, round 11) - extends Numbers' existing
@@ -345,6 +348,8 @@ public final class TerminalSolverConfig {
             JsonObject obj = JsonParser.parseString(json).getAsJsonObject();
             TerminalSolverConfig cfg = new TerminalSolverConfig();
             BOOLS.load(cfg, obj);
+            cfg.melodyProgressMessage = obj.has("melodyProgressMessage") && obj.get("melodyProgressMessage").isJsonPrimitive()
+                    ? obj.get("melodyProgressMessage").getAsString() : DEFAULT_PROGRESS_MESSAGE;
             cfg.scale = clampScale(ConfigJson.getFloat(obj, "scale", 1.0f));
             cfg.autoClickMinDelayMs = clampAutoClickDelay(ConfigJson.getInt(obj, "autoClickMinDelayMs", 120));
             cfg.autoClickMaxDelayMs = clampAutoClickDelay(ConfigJson.getInt(obj, "autoClickMaxDelayMs", 160));
@@ -396,6 +401,7 @@ public final class TerminalSolverConfig {
             Files.createDirectories(CONFIG_PATH.getParent());
             JsonObject obj = new JsonObject();
             BOOLS.save(this, obj);
+            obj.addProperty("melodyProgressMessage", melodyProgressMessage);
             obj.addProperty("scale", scale);
             obj.addProperty("autoClickMinDelayMs", autoClickMinDelayMs);
             obj.addProperty("autoClickMaxDelayMs", autoClickMaxDelayMs);
@@ -488,6 +494,23 @@ public final class TerminalSolverConfig {
     public boolean isMelodySendCoordsOnOpen() { return melodySendCoordsOnOpen; }
 
     public boolean isMelodySendProgress() { return melodySendProgress; }
+
+    public String getMelodyProgressMessage() { return melodyProgressMessage; }
+
+    public void setMelodyProgressMessage(String v) { this.melodyProgressMessage = v == null ? "" : v; }
+
+    /**
+     * The party line for {@code done} of {@code rows} rows ({@code pct} percent): the template with {done}, {rows} and
+     * {pct} filled in, always party chat. Control characters (newlines) become spaces, leading slashes are dropped, the
+     * length is capped to what "pc " plus a line leaves of Hypixel's 256 characters; a blank template is the default.
+     */
+    public String progressLine(int done, int rows, int pct) {
+        String t = melodyProgressMessage == null ? "" : melodyProgressMessage.replaceAll("\\p{Cntrl}+", " ").strip();
+        while (t.startsWith("/")) t = t.substring(1).stripLeading();
+        if (t.isEmpty()) t = DEFAULT_PROGRESS_MESSAGE;
+        t = t.replace("{done}", Integer.toString(done)).replace("{rows}", Integer.toString(rows)).replace("{pct}", Integer.toString(pct));
+        return t.length() > 250 ? t.substring(0, 250) : t;
+    }
 
     public void setMelodySendProgress(boolean v) { this.melodySendProgress = v; }
 

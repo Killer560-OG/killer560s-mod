@@ -18,6 +18,9 @@ import java.util.Set;
  * (his 11-11 logs: every terminal closed unsolved had one of our party lines in flight). Such a line is held and goes out
  * on the first tick no terminal is open, or is dropped if it is then older than {@link #STALE_MS}. Only a line asked for
  * during a terminal is held; nothing else waits behind it, and his own commands never wait.
+ * <p>
+ * One exception (killer560, 2026-11-23): {@link #commandNow} sends at once even with a terminal open. Only Send Melody
+ * Progress uses it: held, its "Melody 1/3 - 33%" lines went out 5-6 s late, after Melody was done, and were useless.
  */
 public final class OutgoingChat {
 
@@ -53,23 +56,28 @@ public final class OutgoingChat {
      * send it as (not connected).
      */
     public static boolean command(String command) {
-        return go(command, true);
+        return go(command, true, false);
+    }
+
+    /** Like {@link #command} but never held for an open terminal: Send Melody Progress only (see the class doc). */
+    public static boolean commandNow(String command) {
+        return go(command, true, true);
     }
 
     /** Sends a plain chat line now (same rules as {@link #command}). */
     public static boolean chat(String text) {
-        return go(text, false);
+        return go(text, false, false);
     }
 
-    private static boolean go(String text, boolean command) {
+    private static boolean go(String text, boolean command, boolean now) {
         if (text == null || text.isBlank()) return false;
         Minecraft client = Minecraft.getInstance();
         if (!connected(client)) return false;
         if (!client.isSameThread()) {
-            client.execute(() -> go(text, command));
+            client.execute(() -> go(text, command, now));
             return true;
         }
-        if (terminalOpen(client)) {
+        if (!now && terminalOpen(client)) {
             synchronized (OutgoingChat.class) {
                 if (HELD.size() < 16) HELD.add(new Held(text, command, System.currentTimeMillis()));
             }

@@ -206,8 +206,8 @@ public final class MelodyTrackerFeature {
         if (client.player == null) return;
         lastSentDone = done;
         int pct = Math.round(done * 100f / rows);
-        // No trailing ")": the MelodyDisplay ignores progress lines ending in ")" (1.2.9, PR #419).
-        com.killer560.hub.util.OutgoingChat.command("pc Melody " + done + "/" + rows + " - " + pct + "%");
+        // Default text has no trailing ")": the MelodyDisplay ignores progress lines ending in ")" (1.2.9, PR #419).
+        com.killer560.hub.util.OutgoingChat.commandNow("pc " + solver.progressLine(done, rows, pct));
     }
 
     private static void closeIfOpen() {

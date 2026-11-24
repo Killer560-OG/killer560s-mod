@@ -169,8 +169,23 @@ public class TerminalSolverTab extends BaseTab implements KeyCaptureTab {
                         cfg.setMelodySendProgress(!cfg.isMelodySendProgress());
                         cfg.save();
                         btn.setMessage(melodySendProgressText());
+                        requestRebuild.run();
                     }).bounds(contentX, y, 220, 20).build());
             y += 24;
+            if (TerminalSolverConfig.getInstance().isMelodySendProgress()) {
+                com.killer560.hub.gui.CommitEditBox msg = new com.killer560.hub.gui.CommitEditBox(net.minecraft.client.Minecraft.getInstance().font, contentX, y, 220, 20,
+                        Component.literal("Melody Message"));
+                msg.setMaxLength(120);
+                msg.setValue(TerminalSolverConfig.getInstance().getMelodyProgressMessage());
+                msg.onEnter(() -> {
+                    TerminalSolverConfig c2 = TerminalSolverConfig.getInstance();
+                    c2.setMelodyProgressMessage(msg.getValue());
+                    c2.save();
+                });
+                widgets.add(msg);
+                com.killer560.hub.gui.CommitEditBox.withSet(widgets, msg);
+                y += 24;
+            }
         }
 
         widgets.add(onOffButton("Numbers 3-Tier Reveal", () -> cfg().isNumbersThreeTierReveal(), v -> cfg().setNumbersThreeTierReveal(v), () -> cfg().save(),
