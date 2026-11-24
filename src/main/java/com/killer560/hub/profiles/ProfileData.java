@@ -108,7 +108,10 @@ public final class ProfileData {
             // testkit 980 proves each profile keeps its own.)
             "invsort",
             // Files he imported: map check-mark sprites, fonts, menu click sounds, theme music.
-            "livemap-checkmarks", "fonts", "menu-clicksounds", "menu-thememusic");
+            "livemap-checkmarks", "fonts", "menu-clicksounds", "menu-thememusic",
+            // Leap Order picks, pins and run memory (leaporder-reset-1123): data about teammates, not a setting; applying a
+            // profile put an old copy back mid-run and the run read as a party change (the Default Order is shared with it).
+            "leapmenu.json");
 
     /** Whether a top-level entry is shared content (a {@link #SHARED_NAMES} entry). */
     static boolean isShared(String name) {

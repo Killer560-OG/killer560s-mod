@@ -80,6 +80,9 @@ public final class LeapMenuConfig {
      *  picks ignored (leaporder-1102). A pick masks the tab list in {@link #lastRunClasses}, so a teammate with a pick who
      *  switched class never read as changed and kept a pick and a spot for a class they no longer play. Persisted. */
     private final Map<String, DungeonClass> lastRunTabClasses = new LinkedHashMap<>();
+    /** Lower-case names whose pick the mod gave (a one-for-one swap's newcomer), not him: such a pick still goes when the
+     *  tab list shows another class, while one he set stays (leapoverride-keep-1123). Persisted. */
+    private final java.util.Set<String> swapPicks = new java.util.LinkedHashSet<>();
     /** The class you played at the last run's start ({@link LeapRunMemory}): the layout the last run's spots belong to.
      *  Null before the first run with this field (then the current class is assumed). Persisted. */
     private String lastRunPlaying = null;
@@ -182,6 +185,14 @@ public final class LeapMenuConfig {
                             cfg.lastRunTabClasses.put(n.toLowerCase(Locale.ROOT), cls);
                         }
                     }
+                }
+                if (root.has("swapPicks") && root.get("swapPicks").isJsonArray()) {
+                    root.getAsJsonArray("swapPicks").forEach(e -> {
+                        String n = cleanIgn(e.getAsString());
+                        if (n != null && cfg.swapPicks.size() < MAX_PICKS) {
+                            cfg.swapPicks.add(n.toLowerCase(Locale.ROOT));
+                        }
+                    });
                 }
                 cfg.lastRunPlaying = classNameOrNull(ConfigJson.getString(root, "lastRunPlaying", null));
                 cfg.lastSelectedClass = classNameOrNull(ConfigJson.getString(root, "lastSelectedClass", null));
@@ -372,6 +383,9 @@ public final class LeapMenuConfig {
             JsonObject runTabClasses = new JsonObject();
             lastRunTabClasses.forEach((n, cls) -> runTabClasses.addProperty(n, cls.name()));
             root.add("lastRunTabClasses", runTabClasses);
+            JsonArray swaps = new JsonArray();
+            swapPicks.forEach(swaps::add);
+            root.add("swapPicks", swaps);
             if (lastRunPlaying != null) {
                 root.addProperty("lastRunPlaying", lastRunPlaying);
             }
@@ -799,6 +813,7 @@ public final class LeapMenuConfig {
         }
         Pick fresh = new Pick(clean, uuid, cls);
         classPicks.put(keyOf(fresh), fresh);
+        swapPicks.remove(clean.toLowerCase(Locale.ROOT));
         noteSetByHand(clean);
         noteRunClass(clean, cls);
         save();
@@ -808,6 +823,19 @@ public final class LeapMenuConfig {
         return true;
     }
 
+    /** A swap's pick for the newcomer: the mod's, not his ({@link #swapPicks}). */
+    public void setSwapPick(String ign, DungeonClass cls) {
+        if (setPick(ign, cls)) {
+            swapPicks.add(cleanIgn(ign).toLowerCase(Locale.ROOT));
+            save();
+        }
+    }
+
+    /** True when the pick on {@code ign} is a swap's, not his. */
+    public boolean isSwapPick(String ign) {
+        return ign != null && swapPicks.contains(ign.toLowerCase(Locale.ROOT));
+    }
+
     /** Removes the pick for {@code ign} and saves. @return true when one existed. */
     public boolean clearPick(String ign) {
         if (ign == null) {
@@ -815,6 +843,7 @@ public final class LeapMenuConfig {
         }
         Pick existing = findPick(ign);
         boolean removed = existing != null && classPicks.remove(keyOf(existing)) != null;
+        swapPicks.remove(ign.toLowerCase(Locale.ROOT));
         if (removed) {
             noteRunClass(ign, PartyTracker.detectedClassOf(ign));
             save();
@@ -825,6 +854,7 @@ public final class LeapMenuConfig {
     public void clearAllPicks() {
         if (!classPicks.isEmpty()) {
             classPicks.clear();
+            swapPicks.clear();
             for (String n : lastRunParty) {
                 noteRunClass(n, PartyTracker.detectedClassOf(n));
             }

@@ -1,5 +1,6 @@
 package com.killer560.hub.leapmenu;
 
+import com.killer560.hub.gui.DropdownWidget;
 import com.killer560.hub.gui.MenuStyle;
 import com.killer560.hub.gui.ScreenChrome;
 import com.killer560.hub.dungeonclass.ClassOverrides;
@@ -122,6 +123,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
 
     @Override
     protected void init() {
+        DropdownWidget.closeAll(); // a rebuilt screen never keeps the old widgets' list open
         if (!refreshedOnOpen) {
             // killer560 (2026-10-12): "have it auto refresh party every time i open this menu". init() also runs on a
             // resize, so once per opening; and at most once per REFRESH_EVERY_MS however often it is reopened.
@@ -256,10 +258,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
             if (name == null || b[3] < 34) {
                 continue;
             }
-            addRenderableWidget(SettingsButtonWidget.cycling(classButtonText(name), (btn, dir) -> {
-                        cycleOverride(name, dir);
-                        rebuild();
-                    }).bounds(b[0] + 4, b[1] + b[3] - 17, b[2] - 8, 14).build());
+            addRenderableWidget(classDropdown(name, b[0] + 4, b[1] + b[3] - 17, b[2] - 8, 14));
         }
     }
 
@@ -272,11 +271,30 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
         return Component.literal("Default Order: §6" + LeapMenuConfig.getInstance().getDefaultOrder().label());
     }
 
-    private static Component classButtonText(String name) {
-        DungeonClass override = ClassOverrides.has(name) ? ClassOverrides.classOf(name, null) : null;
+    private static Component classButtonText(String name, DungeonClass override) {
         DungeonClass shown = override != null ? override : PartyTracker.classOf(name);
         String cls = shown == null ? "\u00a77?" : com.killer560.hub.dungeonclass.DungeonClass.colourCode(shown) + shown.displayName();
         return Component.literal("Class: " + cls + (override != null ? " \u00a78(override)" : ""));
+    }
+
+    /** The class button as a drop-down (leaporder-reset-1123, killer560: "be a drop down box that i choose what they are"):
+     *  Auto (the tab list's class, no override) then every class, picked straight; it sets what the cycle used to. */
+    private DropdownWidget<DungeonClass> classDropdown(String name, int x, int y, int w, int h) {
+        DungeonClass override = ClassOverrides.has(name) ? ClassOverrides.classOf(name, null) : null;
+        java.util.List<DropdownWidget.Option<DungeonClass>> options = new java.util.ArrayList<>();
+        options.add(new DropdownWidget.Option<>(null, "Auto (tab list class)", classButtonText(name, null).getString()));
+        for (DungeonClass c : DungeonClass.values()) {
+            String label = DungeonClass.colourCode(c) + c.displayName();
+            options.add(new DropdownWidget.Option<>(c, label, classButtonText(name, c).getString()));
+        }
+        return DropdownWidget.of(x, y, w, h, options, override, next -> {
+            if (next == null) {
+                ClassOverrides.clear(name);
+            } else {
+                ClassOverrides.set(name, next);
+            }
+            rebuild();
+        }).within(width, height);
     }
 
     private static void cycleOverride(String name, int dir) {
@@ -418,7 +436,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
                 return;
             }
         }
-        if (!layoutKey(currentLayout()).equals(builtFor)) {
+        if (!layoutKey(currentLayout()).equals(builtFor) && DropdownWidget.openOne() == null) {
             rebuild(); // someone joined / left: new spot buttons
         }
     }
@@ -522,7 +540,9 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
             }
         }
         chat.draw(graphics, font, mouseX, mouseY);
-        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
+        boolean covered = DropdownWidget.coversMouse(mouseX, mouseY);
+        super.extractRenderState(graphics, covered ? -1 : mouseX, covered ? -1 : mouseY, partialTick);
+        DropdownWidget.extractOpen(graphics, mouseX, mouseY);
     }
 
     /** The left edge of what the stage may use: 0 (the whole width), or a little right of the chat panel when it is open
@@ -578,6 +598,9 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public boolean keyPressed(KeyEvent event) {
+        if (DropdownWidget.keyOpen(event)) {
+            return true;
+        }
         if (!chatTyping()) {
             return super.keyPressed(event);
         }
@@ -607,7 +630,7 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
-        return chat.scroll(mouseX, mouseY, scrollY) || super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+        return DropdownWidget.scrollOpen(mouseX, mouseY, scrollY) || chat.scroll(mouseX, mouseY, scrollY) || super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
     }
 
     /** Testkit: whether the chat panel is open, the lines it shows (plain text, top to bottom), and lines it has sent. */
@@ -629,6 +652,9 @@ public class LeapOrderScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (DropdownWidget.clickOpen(event)) {
+            return true;
+        }
         if (chat.input != null && getFocused() == chat.input && !chat.input.isMouseOver(event.x(), event.y())) {
             setFocused(null); // a click anywhere else gives the keyboard back to the editor
         }

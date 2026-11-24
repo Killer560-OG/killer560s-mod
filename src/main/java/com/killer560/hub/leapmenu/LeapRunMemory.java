@@ -233,7 +233,7 @@ public final class LeapRunMemory {
         Map<String, DungeonClass> lastTab = cfg.getLastRunTabClasses();
         boolean changed = false;
         for (String n : party) {
-            if (!containsIgnoreCase(runParty, n)) {
+            if (!containsIgnoreCase(runParty, n) || ClassOverrides.has(n) && !cfg.isSwapPick(n)) {
                 continue;
             }
             DungeonClass was = lastTab.get(n.toLowerCase(Locale.ROOT));
@@ -263,7 +263,7 @@ public final class LeapRunMemory {
                 DungeonClass pick = cfg.pickOf(departed.get(0));
                 DungeonClass leaverClass = pick != null ? pick : lastClasses.get(departed.get(0).toLowerCase(Locale.ROOT));
                 if (leaverClass != null) {
-                    cfg.setPick(joined.get(0), leaverClass);
+                    cfg.setSwapPick(joined.get(0), leaverClass);
                     took = ", " + joined.get(0) + " takes " + departed.get(0) + "'s " + leaverClass;
                 }
             }
@@ -323,7 +323,9 @@ public final class LeapRunMemory {
         // changed, and kept a pick and a spot for the class they had stopped playing.
         List<String> tabChanged = new ArrayList<>();
         for (String n : party) {
-            if (!containsIgnoreCase(previous, n) || containsIgnoreCase(setBefore, n)) {
+            // An override he set stays until he changes it (leapoverride-keep-1123, killer560 11-23: "keep it to my
+            // selection"): a tab-list class change is no change for that player, so no clearing and no notice.
+            if (!containsIgnoreCase(previous, n) || containsIgnoreCase(setBefore, n) || ClassOverrides.has(n) && !cfg.isSwapPick(n)) {
                 continue;
             }
             String key = n.toLowerCase(Locale.ROOT);
@@ -430,7 +432,7 @@ public final class LeapRunMemory {
             if (swap) {
                 String newcomer = joined.get(0);
                 if (cfg.pickOf(newcomer) == null) {
-                    cfg.setPick(newcomer, leaverClass);
+                    cfg.setSwapPick(newcomer, leaverClass);
                     took = ", swap: " + newcomer + " takes " + departed.get(0) + "'s " + leaverClass;
                 } else {
                     took = ", swap: " + newcomer + " keeps their pick " + cfg.pickOf(newcomer);
