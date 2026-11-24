@@ -26,6 +26,10 @@ public final class AutoDialogueFeature {
     private static final String OPTION_PREFIX = "Select an option: ";
     private static final String FACTION_CHOICE = "[BARBARIANS] [MAGES]";
     private static final Pattern NPC_LINE = Pattern.compile("^\\[NPC] ([^:]+): (.*)$");
+    /** The only commands ever sent, from the real captures: a numbered NPC option, or the YES/NO prompt of an NPC that just spoke. */
+    private static final Pattern NPC_OPTION_COMMAND = Pattern.compile("^/selectnpcoption \\S+ \\S+$");
+    private static final Pattern PROMPT_COMMAND = Pattern.compile("^/chatprompt [0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12} \\w+$");
+    private static final String PROMPT_MARK = "Click an option: ";
     private static final long NPC_CONTEXT_MS = 10_000L;
     private static final long SAME_COMMAND_GUARD_MS = 3_000L;
     private static final List<String> UNSAFE_KEYWORDS = List.of(
@@ -86,43 +90,70 @@ public final class AutoDialogueFeature {
             return;
         }
         DungeonExtrasConfig cfg = DungeonExtrasConfig.getInstance();
-        if (!cfg.isAutoDialogueEnabled() || !plain.startsWith(OPTION_PREFIX) || plain.contains(FACTION_CHOICE)) {
+        boolean select = plain.startsWith(OPTION_PREFIX);
+        if (!cfg.isAutoDialogueEnabled() || !(select || plain.contains(PROMPT_MARK)) || plain.contains(FACTION_CHOICE)) {
             return;
         }
         // Carnival NPCs belong to the "Carnival Games" row (AutoAcceptGame); this feature never answers them.
         if (nowMs - lastNpcAtMs <= NPC_CONTEXT_MS && lastNpcName != null && lastNpcName.startsWith("Carnival ")) {
             return;
         }
-        List<Component> siblings = message.getSiblings();
-        if (siblings.isEmpty()) {
-            return;
-        }
-        Component first = siblings.get(0);
-        if (!(first.getStyle().getClickEvent() instanceof ClickEvent.RunCommand run)) {
-            return;
-        }
-        String command = run.command();
-        if (command == null || command.isBlank()) {
-            return;
-        }
+        // Hypixel nests the clickable option under plain siblings (a prefix, an arrow, then the option): search depth first.
+        String command = firstRunCommand(message);
         boolean recentNpc = nowMs - lastNpcAtMs <= NPC_CONTEXT_MS;
+        if (command == null || !isDialogueCommand(command, select, recentNpc, plain)) {
+            return;
+        }
         String npcName = recentNpc ? lastNpcName : null;
         String npcText = String.join(" ", recentNpcTexts);
         // Review fix (2026-09-15): the cost of an option is frequently only in its hover tooltip.
         StringBuilder hover = new StringBuilder();
-        for (Component sibling : siblings) {
-            if (sibling.getStyle().getHoverEvent() instanceof HoverEvent.ShowText showText && showText.value() != null) {
-                hover.append(' ').append(showText.value().getString());
-            }
-        }
+        collectHover(message, hover);
 
-        String unsafe = findUnsafeKeyword(plain + " " + first.getString() + " " + command + " " + npcText + hover);
+        String unsafe = findUnsafeKeyword(plain + " " + command + " " + npcText + hover);
         if (unsafe != null) {
             LOGGER.info("[DungeonExtras] Auto Dialogue skipped: blocked keyword '{}' (npc='{}', command='{}').", unsafe, npcName, command);
             return;
         }
         pendingCommand = command;
         pendingTicks = cfg.getAutoDialogueDelayTicks();
+    }
+
+    /**
+     * Allow rule from the real lines: "Select an option:" answers with /selectnpcoption; a "Click an option:" question
+     * (the Trapper's "Accept the trapper's task..." YES/NO) answers with /chatprompt only right after an [NPC] line and
+     * when its first line is a bare question (a player's or party line carries "Name: " or a bracket). Custom click
+     * events (the [GIVE ITEM] button) and every other command are never run.
+     */
+    static boolean isDialogueCommand(String command, boolean select, boolean recentNpc, String plain) {
+        if (select) {
+            return NPC_OPTION_COMMAND.matcher(command).matches();
+        }
+        String first = plain.strip().lines().findFirst().orElse("");
+        return recentNpc && PROMPT_COMMAND.matcher(command).matches() && !first.startsWith("[") && !first.contains(": ");
+    }
+
+    /** The first run-command click event in {@code c}, depth first. */
+    static String firstRunCommand(Component c) {
+        if (c.getStyle().getClickEvent() instanceof ClickEvent.RunCommand run && run.command() != null && !run.command().isBlank()) {
+            return run.command();
+        }
+        for (Component sibling : c.getSiblings()) {
+            String found = firstRunCommand(sibling);
+            if (found != null) {
+                return found;
+            }
+        }
+        return null;
+    }
+
+    private static void collectHover(Component c, StringBuilder out) {
+        if (c.getStyle().getHoverEvent() instanceof HoverEvent.ShowText showText && showText.value() != null) {
+            out.append(' ').append(showText.value().getString());
+        }
+        for (Component sibling : c.getSiblings()) {
+            collectHover(sibling, out);
+        }
     }
 
     private static String findUnsafeKeyword(String text) {

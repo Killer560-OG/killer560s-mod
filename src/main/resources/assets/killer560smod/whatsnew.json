@@ -38,7 +38,8 @@
      "Invisibug Highlight: a new Galatea setting (off by default) boxes where each Invisibug is, found from the one circling particle it gives off, and drops the box 2 seconds after the particles stop.",
      "Auto Terminals Melody: the lookahead no longer sends clicks the server ignores when Hypixel shows the next row late, and the false 2.5 s 'pacing dropped' stall note is gone.",
      "Auto Clear: a starred mob whose name tag trails behind it (fast mobs such as the Speedy Skeleton Soldier) is now recognized as starred, instead of Auto Clear teleporting around the room looking for a mob that stands next to you.",
-     "Item Protect: a protected item can now be put in the anvil to upgrade it; it is still blocked from being the sacrificed item."
+     "Item Protect: a protected item can now be put in the anvil to upgrade it; it is still blocked from being the sacrificed item.",
+     "Auto Dialogue works again: it now clicks the Trapper's YES/NO question and numbered NPC options, and never a give-item button, another player's message or any other command."
     ]
    }
   ]
