@@ -22,9 +22,10 @@ import java.util.regex.Pattern;
 
 /**
  * Bazaar Order Helper (killer560, 2026-11-02: "add in another mod's bazaar order helper as well"). In Hypixel's Manage
- * Orders menu ({@code Your Bazaar Orders} / {@code Co-op Bazaar Orders}) each order's slot is colored: green when it is
- * filled (100%) or has something to claim, red when another player has a better order on its side (a buy order below
- * the best buy order, a sell offer above the cheapest sell offer). Its tooltip says which, against what price, and how
+ * Orders menu ({@code Your Bazaar Orders} / {@code Co-op Bazaar Orders}) each order's slot is colored: red when it has
+ * expired, green when it is filled (100%), yellow when another player has a better order on its side (a buy order below
+ * the best buy order, a sell offer above the cheapest sell offer), none otherwise; a partly filled order with items to
+ * claim also gets a % mark. Its tooltip says which, against what price, and how
  * old that price is.
  * <p>
  *  (behavior only, read 2026-11-02): full orders green, a buy order under the
@@ -87,7 +88,12 @@ public final class BazaarOrderHelper {
         if (BazaarOrders.standing(o, live(o)) == BazaarOrders.Standing.OUTBID) {
             return State.OUTBID;
         }
-        return o.claimable() ? State.FILLED : State.NONE;
+        return State.NONE; // partly filled with items to claim: only the % mark, no fill (killer560, 2026-11-23)
+    }
+
+    /** Some of the order is filled and there is something to claim, but it is not 100%: the slot gets a % mark. */
+    public static boolean partial(BazaarOrderParser.Order o) {
+        return o != null && !o.full() && o.claimable();
     }
 
     /** The ARGB the settings give this order, or 0 for none (feature off, that highlight off, or no state). */
@@ -191,6 +197,17 @@ public final class BazaarOrderHelper {
             graphics.fill(x, y + 15, x + 16, y + 16, edge);
             graphics.fill(x, y + 1, x + 1, y + 15, edge);
             graphics.fill(x + 15, y + 1, x + 16, y + 15, edge);
+        } catch (RuntimeException ignored) {
+            // visual only
+        }
+    }
+
+    /** From the slot mixin, after the item: a small % in the slot's top-left corner on a partly filled order. */
+    public static void drawPartialMark(GuiGraphicsExtractor graphics, AbstractContainerScreen<?> screen, Slot slot) {
+        try {
+            if (BazaarOrderHelperConfig.getInstance().isEnabled() && partial(orderIn(screen, slot))) {
+                graphics.text(net.minecraft.client.Minecraft.getInstance().font, "%", slot.x, slot.y, 0xFFFFFFFF, true);
+            }
         } catch (RuntimeException ignored) {
             // visual only
         }

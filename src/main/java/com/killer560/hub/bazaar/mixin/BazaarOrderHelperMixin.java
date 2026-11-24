@@ -30,6 +30,15 @@ public abstract class BazaarOrderHelperMixin {
         BazaarOrderHelper.drawSlot(graphics, (AbstractContainerScreen<?>) (Object) this, slot);
     }
 
+    @Inject(method = "extractSlot(Lnet/minecraft/client/gui/GuiGraphicsExtractor;Lnet/minecraft/world/inventory/Slot;II)V",
+            at = @At(value = "INVOKE", shift = At.Shift.AFTER,
+                    target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;itemDecorations(Lnet/minecraft/client/gui/Font;Lnet/minecraft/world/item/ItemStack;IILjava/lang/String;)V"),
+            require = 0)
+    private void killer560smod$orderHelperPartial(GuiGraphicsExtractor graphics, Slot slot, int mouseX, int mouseY,
+                                                  CallbackInfo ci) {
+        BazaarOrderHelper.drawPartialMark(graphics, (AbstractContainerScreen<?>) (Object) this, slot);
+    }
+
     @Inject(method = "getTooltipFromContainerItem", at = @At("RETURN"), cancellable = true, require = 0)
     private void killer560smod$orderHelperTooltip(ItemStack stack, CallbackInfoReturnable<List<Component>> cir) {
         try {
