@@ -358,6 +358,13 @@ public final class ClearExecutor {
      * bat could go, 9 of the 14-16 ticks a one-to-three-warp trip took in that day's log.
      */
     public static void etherPathFast(BlockPos to, Runnable complete) {
+        etherPathFast(to, complete, null);
+    }
+
+    /** {@link #etherPathFast} that refuses a plan ending near {@code to} on a block {@code nearVeto} rejects (Auto Clear:
+     *  a block no way leads back out of, acquizlate3-1123); the trip then fails as one with no path. */
+    public static void etherPathFast(BlockPos to, Runnable complete, java.util.function.Predicate<BlockPos> nearVeto) {
+        nextNearVeto = nearVeto;
         goalExact = false;
         goalFastArrival = true;
         trimGoal = null;
@@ -477,8 +484,14 @@ public final class ClearExecutor {
         }
         replans = 0;
         heldReplans = 0;
+        goalNearVeto = nextNearVeto;
+        nextNearVeto = null;
         plan(to, tileIdx, complete);
     }
+
+    /** The caller's veto on a plan that ends NEAR its block instead of on it (set for one goal, its replans included). */
+    private static java.util.function.Predicate<BlockPos> goalNearVeto;
+    private static java.util.function.Predicate<BlockPos> nextNearVeto;
 
     /** One search toward a goal: {@link #etherPath} for a new goal, {@link #tickReplan} for the same one again. */
     private static void plan(BlockPos to, int tileIdx, Runnable complete) {
@@ -641,6 +654,16 @@ public final class ClearExecutor {
                     goalTile = tileIdx;
                     goalComplete = complete;
                     offPath("the plan was impossible (" + impossible + ")", complete);
+                    return;
+                }
+                EtherwarpPathfinder.Node last = result.get(result.size() - 1);
+                BlockPos near = BlockPos.containing(last.x, last.y, last.z).below();   // the stand block under the landing
+                if (goalNearVeto != null && !near.equals(to) && goalNearVeto.test(near)) {
+                    LOGGER.info("[Path] refused a plan of {} warp(s) to {}: it ends near it on {}, which the caller refuses",
+                            list.size(), to.toShortString(), near.toShortString());
+                    lastPathFailed = true;
+                    goalTo = null;
+                    goalComplete = null;
                     return;
                 }
                 ModChat.log(CHAT, ModChat.text("Found path in "), ModChat.value(took + "ms"), ModChat.dim(" ("
@@ -2561,6 +2584,8 @@ public final class ClearExecutor {
         // The same packet in the dungeon sim: its integrated server answers a use packet the way Hypixel's does
         // (roomsim.SimAbilities), resolving the hop from its own copy of him, so hops chain from the prediction
         // one a tick there too.
+        // Where each hop leaves from, for the way back out of a block no planner chain leaves (acquizlate2-1123).
+        com.killer560.hub.autoclear.AutoClearFeature.noteStand(player.blockPosition());
         hopSendTicks.add(clientTicks);
         if (hopSendTicks.size() > 200) {
             hopSendTicks.remove(0);

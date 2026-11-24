@@ -145,6 +145,75 @@ public final class AutoClearFeature {
     public static int noLandStands() {
         return noLandStands.size();
     }
+
+    /** Stand blocks of this room with no way back out (see {@link #noExit}): left out of the plan like noLandStands, never
+     *  warped to. Cleared with the room (resetRoam), as is {@link #exitChecked}. */
+    private static final Set<BlockPos> noExitStands = new HashSet<>();
+    /** Stand blocks of this room already checked for a way out (bounded: past the cap a block is not checked). */
+    private static final Set<BlockPos> exitChecked = new HashSet<>();
+    private static final int EXIT_CHECK_MAX = 256;
+    /** The one-room warp search's budget for a way out; running out of it counts as a way out (never a guess against). */
+    private static final long EXIT_SEARCH_MS = 25;
+    /** Where this room's first way-out check stood: every later check must lead back here (cleared in resetRoam). */
+    private static BlockPos exitAnchor = null;
+
+    /** Whether a cast's landing is a block {@link #noExit} refuses (a landing in the air is not judged). */
+    private static boolean castTraps(Minecraft client, LocalPlayer player, WeaponReach.Aim aim) {
+        BlockPos under = aim.expectFeet() == null ? null : BlockPos.containing(aim.expectFeet()).below();
+        return under != null && TeleportUtils.etherwarpable(under) && noExit(client, player, under);
+    }
+
+    /** For the testkit: stand blocks of this room found to have no way back out. */
+    public static int noExitStands() {
+        return noExitStands.size();
+    }
+
+    /**
+     * Whether a trip onto {@code stand} would leave him where nothing leads back to the block he stands on now: no direct
+     * etherwarp back, no walk back, and the one-room warp search runs out of landings before it finds a chain back
+     * (acquizlate3-1123: the Dragon room's pocket at -63,-22,-175, closed by barrier blocks and walls with a one-block slit
+     * the entry ray skims; no warp or walk leaves it and Autopilot stopped there). Worked out once per block per room, when
+     * the block is first chosen; after that a set lookup.
+     */
+    private static boolean noExit(Minecraft client, LocalPlayer player, BlockPos stand) {
+        if (noExitStands.contains(stand)) {
+            return true;
+        }
+        if (client.level == null || exitChecked.size() >= EXIT_CHECK_MAX || !exitChecked.add(stand.immutable())) {
+            return false;
+        }
+        // Back to the block this room's clear first judged from, not to where he stands now: a block already inside a
+        // pocket has a walk back to the pocket itself (11-23: a near landing on -53,-23,-176, then -63,-23,-174 passed).
+        if (exitAnchor == null) {
+            exitAnchor = BlockPos.containing(player.position()).below();
+        }
+        BlockPos from = exitAnchor;
+        if (from.distManhattan(stand) <= 2) {
+            return false;
+        }
+        long t0 = System.nanoTime();
+        Vec3 land = new Vec3(stand.getX() + 0.5, stand.getY() + com.killer560.hub.livemap.autoclear.EtherwarpPathfinder.STAND_OFFSET, stand.getZ() + 0.5);
+        String way;
+        if (TeleportUtils.getEtherwarpDirection(land.add(0, TeleportUtils.eyeHeight(true), 0), from,
+                ClearExecutor.hopRange() + 1.0) != null) {
+            way = "a warp straight back";
+        } else if (ShortWalk.walkExists(client.level, player, stand.above(), from.above())) {
+            way = "a walk back";
+        } else {
+            Boolean chain = com.killer560.hub.livemap.autoclear.EtherwarpPathfinder.chainExists(land, from, ClearExecutor.pathConfig(), ClearExecutor.hopRange(),
+                    EXIT_SEARCH_MS);
+            way = chain == null ? "unknown (search out of time)" : chain ? "a warp chain back" : null;
+        }
+        String ms = String.format(Locale.US, "%.1f", (System.nanoTime() - t0) / 1e6);
+        if (way != null) {
+            LOGGER.info("[AutoClear] way out of {} back to {}: {} ({} ms)", stand.toShortString(), from.toShortString(), way, ms);
+            return false;
+        }
+        noExitStands.add(stand.immutable());
+        LOGGER.info("[AutoClear] no way out of {}: no warp, walk or warp chain from it leads back to {} ({} ms) - never landing"
+                + " there", stand.toShortString(), from.toShortString(), ms);
+        return true;
+    }
     private static int roomsCleared = 0;
     /** When this run began, for the time-left estimate's seconds per room (see {@link #publishPlan}). */
     private static long runStartMs = 0L;
@@ -2456,6 +2525,9 @@ public final class AutoClearFeature {
         roamSpots = null;
         walkOffRoam = false;
         noLandStands.clear();
+        noExitStands.clear();
+        exitAnchor = null;
+        exitChecked.clear();
     }
 
     // ---- mobs that left the client's view alive (killer560, 2026-10-19: "the clear was still really unoptimal") ----
@@ -2735,6 +2807,9 @@ public final class AutoClearFeature {
         BlockPos best = null;
         double bestD = ROAM_MIN_SEPARATION;
         for (BlockPos s : roamSpots) {
+            if (noExitStands.contains(s)) {
+                continue;
+            }
             Vec3 feet = new Vec3(s.getX() + 0.5, s.getY() + 1.0, s.getZ() + 0.5);
             double nearest = Double.MAX_VALUE;
             for (Vec3 v : roamLookedFrom) {
@@ -2752,6 +2827,10 @@ public final class AutoClearFeature {
             return false;
         }
         final BlockPos spot = best;
+        if (noExit(client, player, spot)) {
+            roamSpots.remove(spot);   // no way back out of it: the next spot, next tick
+            return true;
+        }
         final double separation = bestD;
         action = "roaming " + roomName + " (" + (roamSpotsTried + 1) + "/" + ROAM_MAX_SPOTS + ")";
         if (!walkInsteadOfTrip(client, player, spot, null, "roam spot " + (roamSpotsTried + 1) + " in " + roomName)) {
@@ -2827,7 +2906,7 @@ public final class AutoClearFeature {
                 continue;
             }
             final BlockPos spot = stand;
-            boolean noLand = noLandStands.contains(spot);
+            boolean noLand = noLandStands.contains(spot) || noExit(client, player, spot);
             action = "roaming " + roomName + " to " + k.name() + " (" + k.why() + ")";
             if (!walkInsteadOfTrip(client, player, spot, null, k.name() + " (" + k.why() + ")", false, noLand)) {
                 if (noLand) {
@@ -3210,7 +3289,8 @@ public final class AutoClearFeature {
                     killStep = null;
                     ks = null;
                 }
-            } else if (ks.kind() == KillPlanner.ETHER && !noLandStands.contains(ks.stand())) {
+            } else if (ks.kind() == KillPlanner.ETHER && !noLandStands.contains(ks.stand())
+                    && !noExitStands.contains(ks.stand())) {
                 killStand = ks.stand();
             } else if (ks.kind() == KillPlanner.ETHER) {
                 ks = null;   // no trip landed there earlier in this room: the old choice decides
@@ -3294,7 +3374,7 @@ public final class AutoClearFeature {
             // A hop is a reposition too: where the plan's block for this mob reaches others as well, the hop must reach
             // every one of them from where it lands, or it would cost a reposition the plan does not (killer560,
             // 2026-10-15: "the least amount of total repositions in the room").
-            if (hop != null && !hopKeepsPlan(client, hop, target)) {
+            if (hop != null && (!hopKeepsPlan(client, hop, target) || castTraps(client, player, hop))) {
                 hop = null;
             }
             if (hop != null) {
@@ -3316,7 +3396,7 @@ public final class AutoClearFeature {
         // ~3 ticks to see the landing and up to 8 falling, so 22 chains made the floor 8% slower).
         WeaponReach.Cast one = killStand == null && canHop && weapon == AutoClearConfig.Weapon.HYPERION
                 ? bestCast(client, player, feet, target) : null;
-        if (one != null && landingKeepsPlan(client, one.aim().expectFeet(), target)) {
+        if (one != null && landingKeepsPlan(client, one.aim().expectFeet(), target) && !castTraps(client, player, one.aim())) {
             int link = (int) Math.round(1 + linkMean) + one.fall();
             // A tie goes to the chain: the trip's price leaves out its own swap ticks, and in the same layout a tied trip
             // (1 warp ~3 + 2 vs link 5) cleared 2 ticks later (last death 9 vs 7, 26.2 Quad Lava / 26.3 Museum).
@@ -3383,6 +3463,20 @@ public final class AutoClearFeature {
             // where he stands again (Steps, his 11-15 log: the same skip six times over 8 s, ~20 ticks each).
             LOGGER.info("[AutoClear] skipped {} at {}: no trip landed on {} earlier in this room and no walk gets there",
                     targetName, target.blockPosition().toShortString(), spot.toShortString());
+            skippedMobs.add(targetId);
+            targetId = -1;
+            return;
+        }
+        boolean knownTrap = noExitStands.contains(spot);
+        if (knownTrap || noExit(client, player, spot)) {
+            if (!knownTrap) {
+                // Found just now: planned again without it (the next block that reaches the mob), next tick.
+                coverIds = null;
+                action = "planning again without " + spot.toShortString() + " (no way out of it)";
+                return;
+            }
+            LOGGER.info("[AutoClear] skipped {} at {}: the block that reaches it, {}, has no way back out", targetName,
+                    target.blockPosition().toShortString(), spot.toShortString());
             skippedMobs.add(targetId);
             targetId = -1;
             return;
@@ -4652,10 +4746,40 @@ public final class AutoClearFeature {
             if (ClearExecutor.etherDirectFast(spot, null)) {
                 directTrips++;
             } else {
-                ClearExecutor.etherPathFast(spot, null);
+                // A plan that ends NEAR the block (it cannot be reached itself) must not end on a block with no way out.
+                ClearExecutor.etherPathFast(spot, null, b -> {
+                    Minecraft mc = Minecraft.getInstance();
+                    return mc.player != null && noExit(mc, mc.player, b);
+                });
             }
         }
         lastTripGoal = spot.immutable();
+    }
+
+    /** The blocks the last trips left from, newest first (bounded): the way back out of a block no planner chain leaves. */
+    private static final java.util.ArrayDeque<BlockPos> STANDS = new java.util.ArrayDeque<>(8);
+
+    public static void noteStand(BlockPos at) {
+        if (!at.equals(STANDS.peekFirst())) {
+            STANDS.addFirst(at.immutable());
+            if (STANDS.size() > 8) {
+                STANDS.removeLast();
+            }
+        }
+    }
+
+    public static void clearStands() {
+        STANDS.clear();
+    }
+
+    /** The newest trip origin more than two blocks from {@code here}, or null (acquizlate2-1123). */
+    public static BlockPos standAwayFrom(BlockPos here) {
+        for (BlockPos p : STANDS) {
+            if (p.distSqr(here) > 4) {
+                return p;
+            }
+        }
+        return null;
     }
 
     /** Trips in a row asked for {@link #lastTripGoal}. */
@@ -5292,7 +5416,7 @@ public final class AutoClearFeature {
                         if (masks.containsKey(k) || !columns.add(k)) {
                             continue;
                         }
-                        if (!TeleportUtils.etherwarpable(pos)) {
+                        if (!TeleportUtils.etherwarpable(pos) || noExitStands.contains(pos)) {
                             continue;
                         }
                         Vec3 feet = new Vec3(x + 0.5, y + 1.0, z + 0.5);
@@ -5323,7 +5447,7 @@ public final class AutoClearFeature {
                         if (!reaches(weapon, feet, box)) {
                             continue;
                         }
-                        if (!TeleportUtils.etherwarpable(pos)) {
+                        if (!TeleportUtils.etherwarpable(pos) || noExitStands.contains(pos)) {
                             masks.put(k, 0L);
                             continue;
                         }
@@ -5670,9 +5794,12 @@ public final class AutoClearFeature {
         boolean casts = cfg.isHyperionHops() && hopsOffFor < 0
                 && ItemIdentity.findHotbarSlot(player, AutoClearConfig.Weapon.HYPERION.itemId()) >= 0;
         // Never a stand no trip landed on earlier in this room (the old trip skips those, or walks).
-        long[] noLand = new long[noLandStands.size()];
+        long[] noLand = new long[noLandStands.size() + noExitStands.size()];
         int n = 0;
         for (BlockPos b : noLandStands) {
+            noLand[n++] = b.asLong();
+        }
+        for (BlockPos b : noExitStands) {
             noLand[n++] = b.asLong();
         }
         KillPlanner.submit(targetsRoom, java.util.Arrays.copyOf(targetBox, targetCount), alive, feet, noLand, trip,

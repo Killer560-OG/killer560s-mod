@@ -96,6 +96,11 @@ public final class ShortWalk {
      * that point.
      * @return null when there is no way on foot within {@link LocalPlanner#RADIUS}
      */
+    /** Whether a way on foot leads from the feet block {@code fromFeet} to {@code goalFeet} ({@link #plan}'s planner). */
+    public static boolean walkExists(Level level, LocalPlayer player, BlockPos fromFeet, BlockPos goalFeet) {
+        return !LocalPlanner.plan(level, fromFeet, List.of(goalFeet), WalkTerrain.jumpHeight(player)).isEmpty();
+    }
+
     public static Plan plan(Level level, LocalPlayer player, BlockPos goalFeet, Predicate<Vec3> doneAt) {
         double jumpH = WalkTerrain.jumpHeight(player);
         BlockPos start = BlockPos.containing(player.getX(), player.getY() + 0.01, player.getZ());

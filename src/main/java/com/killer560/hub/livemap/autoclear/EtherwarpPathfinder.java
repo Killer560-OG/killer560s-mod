@@ -198,6 +198,35 @@ public final class EtherwarpPathfinder {
     }
 
     /**
+     * Whether {@link #findPath}'s one-room search finds a warp chain from {@code from} onto {@code to} within
+     * {@code budgetMs}: TRUE, FALSE when it searched everything it could reach and found none, null when it ran out of
+     * time or {@code to} is no landing (unknown). Auto Clear's way-out check for a landing (acquizlate3-1123).
+     */
+    public static Boolean chainExists(Vec3 from, BlockPos to, PathConfig cfg, double dist, long budgetMs) {
+        Level level = Minecraft.getInstance().level;
+        if (level == null) {
+            return null;
+        }
+        LevelEtherGrid grid = new LevelEtherGrid(level);
+        EtherSearch search = new EtherSearch(grid);
+        if (!search.etherwarpable(to.getX(), to.getY(), to.getZ())) {
+            return null;
+        }
+        long deadline = System.nanoTime() + budgetMs * 1_000_000L;
+        EtherSearch.Leg leg = leg(cfg, dist, deadline);
+        leg.goalX = to.getX();
+        leg.goalY = to.getY();
+        leg.goalZ = to.getZ();
+        leg.directRadiusSq = 0;
+        leg.isGoal = (x, y, z) -> x == to.getX() && y == to.getY() && z == to.getZ();
+        leg.landingOk = coverTest(grid, level);
+        if (search.searchLeg(startHop(from), leg) != null) {
+            return Boolean.TRUE;
+        }
+        return System.nanoTime() > deadline ? null : Boolean.FALSE;
+    }
+
+    /**
      * Fewest warps to one block, over the whole floor at once ({@link WarpGraph}). When the graph finds nothing
      * (or the floor is not warm yet and the search runs out of its short budget) the old room-by-room legs run
      * instead, so nothing that used to find a path stops finding one.

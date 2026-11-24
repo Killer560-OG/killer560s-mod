@@ -45,7 +45,8 @@
      "Auto Anvil now also combines Gravity, Prismatic, Stealth (up to V) and the four Vitality books (up to X).",
      "Blood Camp: the party message of ticks lost is no longer sent as yours when you are not the Mage and only stood in the room; a non-Mage who kills at least 3 blood mobs himself still counts as camping.",
      "Foraging: new Regenerating Trees card outlines the logs of a chopped Galatea tree until the game puts them back, about 30 to 50 seconds later.",
-     "Auto Trap: editing the built-in New Trap or Old Trap route with the node editor, undo or the Dungeon Breaker block pick now starts your own route from a copy of it and saves your change, like adding or deleting a node already does."
+     "Auto Trap: editing the built-in New Trap or Old Trap route with the node editor, undo or the Dungeon Breaker block pick now starts your own route from a copy of it and saves your change, like adding or deleting a node already does.",
+     "Auto Clear: it no longer warps into a closed-off pocket it cannot get back out of (it picks another spot or skips that mob), and between Quiz questions it finishes what it started before going back instead of sometimes returning early. |"
     ]
    }
   ]

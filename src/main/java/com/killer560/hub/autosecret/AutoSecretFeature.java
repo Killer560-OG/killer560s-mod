@@ -75,7 +75,7 @@ public final class AutoSecretFeature {
         KEY_WAIT, QUIZ }
 
     /** What a TRAVEL is for, so its arrival knows what comes next. */
-    enum Trip { START_NODE, WALK_NODE, ICE_FILL, INSTA_FROM, INSTA_INTO, PUZZLE, CLEAR, FINAL, DOOR, EXPLORE, KEY, QUIZ }
+    enum Trip { START_NODE, WALK_NODE, ICE_FILL, INSTA_FROM, INSTA_INTO, PUZZLE, CLEAR, FINAL, DOOR, EXPLORE, KEY, QUIZ, RECOVER }
 
     /** Ticks to wait for a route to arm once he has landed on its start node. */
     private static final int ARM_TIMEOUT_TICKS = 40;
@@ -357,12 +357,13 @@ public final class AutoSecretFeature {
         clearsDone.clear();
         tripFailures.clear();
         noPathFrom = null;
+        lastArrival = null;
+        recoverFrom = null;
+        AutoClearFeature.clearStands();
         noPathTargets.clear();
         iceFillTried = false;
         QuizPlan.reset();
         quizIdleTicks = 0;
-        quizGapCuts = 0;
-        quizGapClear = false;
         java.util.Arrays.fill(QUIZ_IDLE_BY_QUESTION, 0);
         lastWaiting = null;
         leaveWaitRoom = null;
@@ -493,11 +494,6 @@ public final class AutoSecretFeature {
                 if (RouteExecutor.isRunning()) {
                     LOGGER.info("[AutoSecret] a route started under him while Auto Clear clears {} - stopping it", target);
                     AutoRoutesFeature.cancelForInteractiveMap("Auto Secret");
-                }
-                if (quizGapCutDue()) {
-                    runId++;   // its callbacks are for the clear just cut
-                    AutoClearFeature.cancel();
-                    setPhase(Phase.DECIDE);
                 }
             }
             default -> {
@@ -971,7 +967,6 @@ public final class AutoSecretFeature {
 
     private static void decide(Minecraft client) {
         blockedSecrets = null;
-        quizGapClear = false;
         // killer560, 2026-10-14: "if i have already used auto routes in a room during auto clear then it should treat
         // it as though I got every secret in the room even if it is missing one, since some rooms auto routes will
         // leave it missing a secret because it is so unoptimal to do." A room whose route ran to its end this run -
@@ -1373,47 +1368,8 @@ public final class AutoSecretFeature {
 
     /** Ticks kept in hand when a clear fills a Quiz gap (the clear's estimate is a straight-line one). */
     public static final int QUIZ_GAP_CLEAR_SPARE_TICKS = 20;
-    /** A clear that does not fit whole is started only with this much of the countdown left (else the cut comes at once). */
+    /** A clear that does not fit whole is started only with this much of the countdown left (a clear is finished once started). */
     private static final int QUIZ_GAP_PART_MIN_LEFT = 100;
-    /** Ticks kept in hand when a Quiz-gap clear is cut for the trip back: a full second, so a warp leg that fails once is not late (acplan2-1121 r11: 10 left it 32 late). */
-    private static final int QUIZ_GAP_CUT_SPARE_TICKS = QUIZ_GAP_CLEAR_SPARE_TICKS;
-    /** The Auto Clear now running was sent by a Quiz countdown: it is cut when only the trip back is left. */
-    private static boolean quizGapClear;
-
-    /**
-     * killer560, 2026-11-21: "come back essentially the second that it's ready for me to come back". The clear estimates
-     * miss by seconds either way (sim: a clear priced "back in time" came back 120 ticks late), so a Quiz-gap clear is
-     * cut as soon as the countdown is down to the trip back onto the answer spot (with {@link #QUIZ_GAP_CUT_SPARE_TICKS}):
-     * Auto Clear stops, the room is planned again later (its dead mobs stay dead) and the next decision goes back.
-     * Every tick of a Quiz-gap clear only: one distance.
-     */
-    private static boolean quizGapCutDue() {
-        BlockPos spot = AutoPuzzlesFeature.quizAnswerSpot();
-        Minecraft client = Minecraft.getInstance();
-        if (!quizGapClear || spot == null || client.player == null
-                || !com.killer560.hub.puzzlesolvers.QuizState.inProgress()) {
-            return false;
-        }
-        long left = com.killer560.hub.puzzlesolvers.QuizState.ticksUntilAnswerable();
-        double back = AutoClearFeature.etherTicks(client.player.position(),
-                net.minecraft.world.phys.Vec3.atBottomCenterOf(spot.above()));
-        if (left > back + QUIZ_GAP_CUT_SPARE_TICKS) {
-            return false;
-        }
-        LOGGER.info("[AutoSecret] Quiz: {} tick(s) until question {} opens, the trip back ~{} - cutting the clear of {}",
-                left, com.killer560.hub.puzzlesolvers.QuizState.nextQuestion(), Math.round(back), target);
-        quizGapCuts++;
-        clearsDone.remove(target);
-        return true;
-    }
-
-    /** Quiz-gap clears cut for the trip back, this run (testkit). */
-    private static int quizGapCuts;
-
-    public static int quizGapCuts() {
-        return quizGapCuts;
-    }
-
     /**
      * Fastest Total between two Quiz answers: the room he just secreted in a gap, still uncleared, is cleared now when
      * the clear and the trip back to the Quiz fit in the ticks left (by {@link AutoClearFeature#estimateClear}, with
@@ -1456,7 +1412,6 @@ public final class AutoSecretFeature {
         targetRoomId = r.room();
         status = "Clearing " + r.name() + " (Quiz gap)";
         arrived(Trip.CLEAR);
-        quizGapClear = true;
         return true;
     }
 
@@ -1611,7 +1566,7 @@ public final class AutoSecretFeature {
      * Quiz while Multicolored, a 25-tick clear next door, and others were uncleared): an uncleared mob room with no secrets
      * to route is cleared meanwhile when the trip, the clear (a room out of sight priced by
      * {@link AutoClearFeature#estimateClearOrGuess}) and the trip back fit in {@code left} with the spare in hand; the longest
-     * that fits, else one up to {@link AutoClearFeature#QUIZ_GAP_LATE_TICKS} over, cut short for the trip back. Re-decided after each clear, so
+     * that fits, else one up to {@link AutoClearFeature#QUIZ_GAP_LATE_TICKS} over, finished once started (never cut for the trip back). Re-decided after each clear, so
      * the countdown keeps being filled and he is back just in time.
      */
     private static boolean quizGapMobClear(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist,
@@ -1672,9 +1627,8 @@ public final class AutoSecretFeature {
         }
         LOGGER.info("[AutoSecret] Quiz: {} tick(s) until question {} opens; clearing {} meanwhile ({})", left,
                 com.killer560.hub.puzzlesolvers.QuizState.nextQuestion(), pick.name(),
-                pick == best || pick == team && teamOver <= 0 ? "back in time" : "cut short to be back in time");
+                pick == best || pick == team && teamOver <= 0 ? "back in time" : "finishing it before going back");
         goClear(layout, pick, dist, "Quiz gap: ");
-        quizGapClear = true;
         return true;
     }
 
@@ -3676,7 +3630,12 @@ public final class AutoSecretFeature {
 
     private static void arrived(Trip t) {
         tripFailures.remove(target);
+        Minecraft mc = Minecraft.getInstance();
+        if (t != Trip.RECOVER && mc.player != null) {
+            lastArrival = mc.player.blockPosition();
+        }
         switch (t) {
+            case RECOVER -> setPhase(Phase.SETTLE);
             case START_NODE, WALK_NODE -> setPhase(Phase.AWAIT_ROUTE);
             case ICE_FILL -> beginIceFill();
             case INSTA_FROM -> etherPathTo(instaLanding, Trip.INSTA_INTO);
@@ -3707,8 +3666,45 @@ public final class AutoSecretFeature {
                 && noPathTargets.contains(key);
     }
 
-    /** A trip that did not get there. Two more tries from wherever he is, then that room is left out this run. */
+    /** Where the last trip that got somewhere ended: the way back out of a spot with no warp chain (acquizlate2-1123). */
+    private static BlockPos lastArrival;
+    /** The no-chain block a recovery trip was already sent from (one try per block). */
+    private static BlockPos recoverFrom;
+
+    /**
+     * A trip that did not get there. When it found no warp chain out of the block he stands on (a clear's last hop can
+     * leave him on a block nothing leads out of: the Dragon room, 1121-sim-acquiz-return-party, 11-23, where every trip
+     * failed from one block until "nothing left it can reach" ended the run), he first goes back to where the last trip
+     * ended, once per block, and everything is planned again from there.
+     */
     private static void tripFailed(String why) {
+        tripFailed0(why);
+        Minecraft mc = Minecraft.getInstance();
+        if (!NO_PATH.equals(why) || mc.player == null || mc.player.blockPosition().equals(recoverFrom)) {
+            return;
+        }
+        // Back one warp to where Auto Clear's last trip left from (it got in that way), else to where the last trip ended.
+        BlockPos at = mc.player.blockPosition();
+        BlockPos back = AutoClearFeature.standAwayFrom(at);
+        if (back == null && lastArrival != null && lastArrival.distSqr(at) > 4) {
+            back = lastArrival;
+        }
+        if (back != null) {
+            recoverFrom = at;
+            LOGGER.info("[AutoSecret] no warp chain out of {} - going back to {} first", at, back);
+            AutoRoutesFeature.cancelForInteractiveMap("Auto Secret");
+            ClearExecutor.setExternalOwner(true);
+            // The stands are feet blocks; the warp goes onto the block under them.
+            BlockPos on = back.below();
+            if (!ClearExecutor.etherDirectFast(on, null)) {
+                ClearExecutor.etherPath(on, null);
+            }
+            beginTravel(Trip.RECOVER);
+        }
+    }
+
+    /** A trip that did not get there. Two more tries from wherever he is, then that room is left out this run. */
+    private static void tripFailed0(String why) {
         if (pilot) {
             Autopilot.noteFailed();
         }
