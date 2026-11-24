@@ -2407,6 +2407,9 @@ final class SettingTooltipsData {
         d.put("m7 storm (p2) lead", "How early to prompt, in milliseconds, after Storm's entry line.");
         d.put("f5/m5 livid lead", "How early to prompt, in milliseconds, before Livid's opening invulnerability ends.");
         d.put("refreshing...", "A price refresh is already running and can take a while.");
+        d.put("death patterns", "Keeps your own dungeon deaths (floor, where, cause, class, time into the run) and groups your last 20 runs of a floor.");
+        d.put("death patterns/remind at a repeated death", "When a place has killed you twice or more lately, one chat line the next time you reach it on that floor.");
+        d.put("death patterns/floor", "Which floor's deaths the card shows. Left click forward, right click back.");
         d.put("run stats", "Prints a per-player summary in chat after each dungeon run: rooms cleared, secrets and deaths.");
         d.put("run stats/what to show", "Choose which columns appear in the end-of-run Run Stats chat summary.");
         d.put("run stats/rooms cleared", "Credits each cleared room to whoever was standing in it (an estimate).");

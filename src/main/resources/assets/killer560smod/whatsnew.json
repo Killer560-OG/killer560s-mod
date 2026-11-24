@@ -21,7 +21,8 @@
      "Chat Hider has a box for your own words or lines to hide; Dungeon Alerts has a sound switch for each alert; the Mask Invincibility timers can play a sound when a mask pops; the Terracotta Timer has a text size slider and can show ticks; and the dungeon timer HUDs each have Text Shadow and Background switches.",
      "Profit Trackers (/profit) has a new Best Floor To Farm card: coins per hour for each floor from your own runs and Croesus claims, with your time between runs counted and \"not enough data yet\" for a floor with fewer than 3 claimed runs.",
      "Foraging: new Sweep Overlay card outlines the logs your next swing on a Galatea tree will fell, and new Highlight Optimal Blocks card boxes the log whose swing fells the most.",
-     "Auto E-Table now waits until the stakes menu has finished loading before it picks a stake, and writes one line to the log with the state of every stake and why it picked the one it did."
+     "Auto E-Table now waits until the stakes menu has finished loading before it picks a stake, and writes one line to the log with the state of every stake and why it picked the one it did.",
+     "Death Patterns: a new Dungeons card keeps your own deaths (floor, where, cause, class, time into the run) and shows where and to what you keep dying over your last 20 runs of a floor, with a one-line reminder at a repeated one (off by default)."
     ]
    }
   ]

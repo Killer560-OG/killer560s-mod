@@ -334,9 +334,27 @@ public final class RecordCatalog {
         }
     });
 
+    /** Death Patterns (deathpatterns-1124): the player's own dungeon runs ({@code runs}: startedAtMs, floor) and deaths
+     *  ({@code deaths}: at, run, floor, where, cause, cls, sec), newest first and bounded. */
+    public static final Kind DEATH_PATTERNS = new Kind("killer560smod-death-patterns.json", null, "death-patterns.json",
+            Scope.ACCOUNT, new JsonMerge.Policy() {
+        @Override
+        public Function<JsonElement, String> arrayKey(String path) {
+            return path.equals("runs") ? JsonMerge.fields("startedAtMs") : path.equals("deaths") ? JsonMerge.fields("at") : null;
+        }
+
+        @Override
+        public void finish(JsonObject merged) {
+            for (String[] k : new String[][]{{"runs", "startedAtMs"}, {"deaths", "at"}}) {
+                JsonArray a = sortBy(merged, k[0], k[1], true);
+                while (a != null && a.size() > 300) a.remove(a.size() - 1);
+            }
+        }
+    });
+
     public static final List<Kind> ALL = List.of(CROESUS_LOG, CROESUS_RUNS, RNG_ITEM_LOG, EXPERIMENTS, BAZAAR_FLIP,
             NPC_SOLD, RUN_HISTORY, BEST_FRIENDS, EGG_TRACKER, LUCK, CARRY, SIM_MOB_LOOKS, CARNIVAL, ACCOUNT_ACTIVITY, GUILD_LIST, BOARD_BESTS,
-            SIM_DEVICE_PRACTICE, ROOM_COSTS);
+            SIM_DEVICE_PRACTICE, ROOM_COSTS, DEATH_PATTERNS);
 
     /** Sorts the array {@code key} of {@code root} by a field (numbers, or ISO timestamps as strings); returns it. */
     static JsonArray sortBy(JsonObject root, String key, String field, boolean descending) {

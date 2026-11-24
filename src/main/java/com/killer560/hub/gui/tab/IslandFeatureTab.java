@@ -168,10 +168,16 @@ public abstract class IslandFeatureTab extends BaseTab implements KeyCaptureTab 
 
         /** A row stepping through {@code count} named values stored as an index. */
         public void cycle(String label, String key, int count, IntFunction<String> names) {
+            cycle(label, key, count, names, false);
+        }
+
+        /** As {@link #cycle(String, String, int, IntFunction)}; {@code rebuildAfter} redraws the tab (rows that depend on the value). */
+        public void cycle(String label, String key, int count, IntFunction<String> names, boolean rebuildAfter) {
             w.add(SettingsButtonWidget.cycling(Component.literal(label + ": §b" + names.apply(cfg.num(key))), (b, dir) -> {
                 cfg.set(key, SettingsButtonWidget.step(cfg.num(key), dir, count));
                 cfg.save();
                 b.setMessage(Component.literal(label + ": §b" + names.apply(cfg.num(key))));
+                if (rebuildAfter) rebuild.run();
             }).bounds(x, y[0], width, 18).build());
             y[0] += 22;
         }

@@ -106,6 +106,7 @@ public final class ModPaths {
     private static Map<String, String> buildTable() {
         Map<String, String> t = new LinkedHashMap<>();
 
+        t.put("deathpatterns", "dungeons/deathpatterns");
         t.put("kitcheck", "dungeons/kitcheck");
         t.put("ap3", "dungeons/ap3");
         t.put(LEGACY_AP3_DIR, "dungeons/ap3");

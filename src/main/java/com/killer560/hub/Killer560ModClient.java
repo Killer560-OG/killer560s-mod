@@ -539,6 +539,7 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.livemap.predict.RoomPredictor.register();
         HudElementRegistry.register(new LiveMapFeature.LiveMapHudElement());
         com.killer560.hub.runstats.RunStatsFeature.register();
+        com.killer560.hub.deathpatterns.DeathPatterns.register();
         VoiceToTextFeature.register();
         SecretWaypointsFeature.register();
         EtherwarpFeature.register();
