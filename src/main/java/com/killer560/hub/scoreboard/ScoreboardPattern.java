@@ -20,12 +20,17 @@ public final class ScoreboardPattern {
 
     private static Pattern p(String regex) { return Pattern.compile(regex); }
 
+    /** A "Label: value" line (sidebar or tab): symbols or color codes may come before the label, the value may be abbreviated (1.2k), anything may follow. */
+    private static Pattern currency(String label, String group) {
+        return p("(?:§.|[^\\p{L}§])*" + label + ":\\s*(?:§.)*(?<" + group + ">[\\d,.]+[kKmMbB]?).*");
+    }
+
     private static final String HEALTH_ICON = "❤";
     private static final String MINING_FORTUNE_ICON = "☘";
 
     public static final Pattern MOTES = p("(?:§.)*Motes: (?:§.)*(?<motes>[\\d,]+).*");
-    public static final Pattern COPPER = p("(?:§.)*Copper: (?:§.)*(?<copper>[\\d,]+).*");
-    public static final Pattern SOWDUST = p("\\s?(?:§.)*Sowdust: (?:§.)*(?<sowdust>[\\d,]+)");
+    public static final Pattern COPPER = currency("Copper", "copper");
+    public static final Pattern SOWDUST = currency("Sowdust", "sowdust");
     public static final Pattern SOWDUST_GAINED = p("^(?:§.)*Sowdust: (?:§.)*[\\d,.kKmMbB]+ §7\\(\\+[\\d.kKmMbB]+\\)");
     public static final Pattern GEMS = p("(?:§.)*Gems: (?:§.)*(?<gems>[\\d,]+).*");
     public static final Pattern LOCATION = p("\\s*(?<location>§.. .*)");
@@ -190,8 +195,8 @@ public final class ScoreboardPattern {
     public static final Pattern TAB_BANK = p("Bank: (?<amount>[^§/]+?)(?: / (?<personal>.*))?");
     public static final Pattern TAB_SOULFLOW = p("Soulflow: (?<amount>.*)");
     public static final Pattern TAB_EVENT = p("Event: (?<event>.*)");
-    public static final Pattern TAB_COPPER = p("Copper: (?<copper>.+)");
-    public static final Pattern TAB_SOWDUST = p("Sowdust: (?<sowdust>.+)");
+    public static final Pattern TAB_COPPER = currency("Copper", "copper");
+    public static final Pattern TAB_SOWDUST = currency("Sowdust", "sowdust");
     public static final Pattern TAB_POWDERS = p("Powders:");
     public static final Pattern TAB_POWDER_LINE = p("\\s*(?<type>Mithril|Gemstone|Glacite)(?: Powder)?: (?<amount>[\\d,.]+).*");
     public static final Pattern TAB_BROODMOTHER = p("Broodmother: (?<stage>.*)");

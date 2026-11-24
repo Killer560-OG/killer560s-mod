@@ -90,6 +90,17 @@ public final class ScoreboardData {
                 break;
             }
         }
+        if (island.isEmpty() || island.equalsIgnoreCase("The Garden")) {
+            // No (or a differently worded) Area line: the sidebar's own location line names the Garden too.
+            island = island.isEmpty() && !sidebarSaysGarden() ? "" : "Garden";
+        }
+    }
+
+    private static boolean sidebarSaysGarden() {
+        for (String line : sidebarLines) {
+            if (line.contains("The Garden")) return true;
+        }
+        return false;
     }
 
     /** Same objective choice as vanilla {@code Gui#extractScoreboardSidebar}: team-color slot first, then SIDEBAR. */
@@ -454,6 +465,15 @@ public final class ScoreboardData {
             break;
         }
         return out;
+    }
+
+    /** First named group of the first tab line (indented or not) matching {@code line}, or null. */
+    public static String tabLineGroup(Pattern line, String group) {
+        for (String s : tabPlain) {
+            Matcher m = line.matcher(s.trim());
+            if (m.matches()) return m.group(group);
+        }
+        return null;
     }
 
     /** First named group of {@code header}'s tab widget header line, or null. */

@@ -6,6 +6,7 @@ import java.util.regex.Matcher;
 import static com.killer560.hub.scoreboard.ScoreboardData.group;
 import static com.killer560.hub.scoreboard.ScoreboardData.sidebar;
 import static com.killer560.hub.scoreboard.ScoreboardData.tabHeaderGroup;
+import static com.killer560.hub.scoreboard.ScoreboardData.tabLineGroup;
 import static com.killer560.hub.scoreboard.ScoreboardLine.formatStringNum;
 import static com.killer560.hub.scoreboard.ScoreboardLine.isZero;
 
@@ -46,14 +47,18 @@ public enum ChunkedStat {
         @Override
         String raw() {
             String copper = group(ScoreboardPattern.COPPER, sidebar(), "copper");
-            return copper != null ? copper : tabHeaderGroup(ScoreboardPattern.TAB_COPPER, "copper");
+            if (copper == null) copper = tabHeaderGroup(ScoreboardPattern.TAB_COPPER, "copper");
+            if (copper == null) copper = tabLineGroup(ScoreboardPattern.TAB_COPPER, "copper");
+            return remember(copper);
         }
     },
     SOWDUST("Sowdust", ScoreboardEntry.SOWDUST, "§2") {
         @Override
         String raw() {
             String sowdust = group(ScoreboardPattern.SOWDUST, sidebar(), "sowdust");
-            return sowdust != null ? sowdust : tabHeaderGroup(ScoreboardPattern.TAB_SOWDUST, "sowdust");
+            if (sowdust == null) sowdust = tabHeaderGroup(ScoreboardPattern.TAB_SOWDUST, "sowdust");
+            if (sowdust == null) sowdust = tabLineGroup(ScoreboardPattern.TAB_SOWDUST, "sowdust");
+            return remember(sowdust);
         }
     },
     GEMS("Gems", ScoreboardEntry.GEMS, "§a") {
@@ -111,6 +116,35 @@ public enum ChunkedStat {
     /** The unformatted value as the sidebar / tab list shows it, or null when absent. */
     abstract String raw();
 
+    private String lastRaw;
+    private String lastIsland;
+    private long lastAtMs;
+    private Object lastLevel;
+
+    /**
+     * For a Garden stat: a value just read is kept (with its time and island, for bug reports); with no source this tick,
+     * the last one read in this world is used while the island is the Garden, so a line the server drops for a moment
+     * (or a tab widget reshuffle) never blanks the stat. Left alone, the value is never used outside the Garden.
+     */
+    String remember(String found) {
+        Object level = net.minecraft.client.Minecraft.getInstance().level;
+        if (found != null) {
+            lastRaw = found;
+            lastIsland = ScoreboardData.island();
+            lastAtMs = System.currentTimeMillis();
+            lastLevel = level;
+            return found;
+        }
+        return level != null && level == lastLevel && ScoreboardData.inIsland("Garden") ? lastRaw : null;
+    }
+
+    /** Bug report text: the last value this stat read this session, when and where; empty if none. */
+    private String lastSeen() {
+        if (lastRaw == null) return "";
+        return "; last read '" + lastRaw.trim() + "' at " + java.time.LocalTime.ofInstant(java.time.Instant.ofEpochMilli(lastAtMs),
+                java.time.ZoneId.systemDefault()).withNano(0) + " on island '" + lastIsland + "'";
+    }
+
     String color() { return color; }
 
     /** One line per stat for a bug report: what the reader parsed, or "no source", and whether its line may show here. */
@@ -121,7 +155,7 @@ public enum ChunkedStat {
             String raw = s.raw();
             sb.append(s.label).append(": ").append(raw == null ? "no source" : "'" + raw.trim() + "' -> " + formatStringNum(raw.trim()))
                     .append("; line allowed on this island: ").append(s.entry.showIsland())
-                    .append("; visible: ").append(s.entry.visible(cfg)).append('\n');
+                    .append("; visible: ").append(s.entry.visible(cfg)).append(s.lastSeen()).append('\n');
         }
         return sb.toString();
     }

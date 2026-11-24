@@ -249,7 +249,7 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        boolean showIsland() { return inIslandOrUnknown("Garden"); }
+        boolean showIsland() { return inIslandOrUnknown("Garden") || ChunkedStat.COPPER.raw() != null; }
     },
     SOWDUST("Sowdust", true, ScoreboardPattern.SOWDUST, ScoreboardPattern.SOWDUST_GAINED) {
         @Override
@@ -258,7 +258,7 @@ public enum ScoreboardEntry {
         }
 
         @Override
-        boolean showIsland() { return inIslandOrUnknown("Garden"); }
+        boolean showIsland() { return inIslandOrUnknown("Garden") || ChunkedStat.SOWDUST.raw() != null; }
     },
     GEMS("Gems", true, ScoreboardPattern.GEMS) {
         @Override
