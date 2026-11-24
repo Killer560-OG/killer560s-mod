@@ -203,27 +203,55 @@ public final class EtherwarpPathfinder {
      * time or {@code to} is no landing (unknown). Auto Clear's way-out check for a landing (acquizlate3-1123).
      */
     public static Boolean chainExists(Vec3 from, BlockPos to, PathConfig cfg, double dist, long budgetMs) {
-        Level level = Minecraft.getInstance().level;
-        if (level == null) {
-            return null;
+        ChainProbe p = ChainProbe.start(from, to, cfg, dist);
+        return p == null ? null : p.step(budgetMs);
+    }
+
+    /**
+     * {@link #chainExists} spread over ticks: each {@link #step} searches for a slice and carries on where the last one
+     * stopped (Auto Clear's way-out check, acpocket-perf-1124: one 25 ms search was a frame hitch). Client thread only.
+     */
+    public static final class ChainProbe {
+        private final EtherSearch search;
+        private final EtherSearch.Leg leg;
+        private final Vec3 from;
+        private boolean begun;
+
+        private ChainProbe(EtherSearch search, EtherSearch.Leg leg, Vec3 from) {
+            this.search = search;
+            this.leg = leg;
+            this.from = from;
         }
-        LevelEtherGrid grid = new LevelEtherGrid(level);
-        EtherSearch search = new EtherSearch(grid);
-        if (!search.etherwarpable(to.getX(), to.getY(), to.getZ())) {
-            return null;
+
+        /** A probe, or null when there is no level or {@code to} is no landing (unknown). */
+        public static ChainProbe start(Vec3 from, BlockPos to, PathConfig cfg, double dist) {
+            Level level = Minecraft.getInstance().level;
+            if (level == null) {
+                return null;
+            }
+            LevelEtherGrid grid = new LevelEtherGrid(level);
+            EtherSearch search = new EtherSearch(grid);
+            if (!search.etherwarpable(to.getX(), to.getY(), to.getZ())) {
+                return null;
+            }
+            EtherSearch.Leg leg = leg(cfg, dist, 0);
+            leg.goalX = to.getX();
+            leg.goalY = to.getY();
+            leg.goalZ = to.getZ();
+            leg.directRadiusSq = 0;
+            leg.isGoal = (x, y, z) -> x == to.getX() && y == to.getY() && z == to.getZ();
+            leg.landingOk = coverTest(grid, level);
+            return new ChainProbe(search, leg, from);
         }
-        long deadline = System.nanoTime() + budgetMs * 1_000_000L;
-        EtherSearch.Leg leg = leg(cfg, dist, deadline);
-        leg.goalX = to.getX();
-        leg.goalY = to.getY();
-        leg.goalZ = to.getZ();
-        leg.directRadiusSq = 0;
-        leg.isGoal = (x, y, z) -> x == to.getX() && y == to.getY() && z == to.getZ();
-        leg.landingOk = coverTest(grid, level);
-        if (search.searchLeg(startHop(from), leg) != null) {
-            return Boolean.TRUE;
+
+        /** Searches up to {@code sliceMs} more: TRUE a chain exists, FALSE none (all reachable searched), null not yet. */
+        public Boolean step(long sliceMs) {
+            leg.deadlineNanos = System.nanoTime() + sliceMs * 1_000_000L;
+            boolean found = begun ? search.resumeLeg(leg) != null
+                    : search.searchLeg(startHop(from), leg) != null;
+            begun = true;
+            return found ? Boolean.TRUE : search.pending() ? null : Boolean.FALSE;
         }
-        return System.nanoTime() > deadline ? null : Boolean.FALSE;
     }
 
     /**

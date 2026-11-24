@@ -860,6 +860,17 @@ public final class EtherSearch {
      *         yaw/pitch being the aim that reached it; null when no path was found in time
      */
     public List<Hop> searchLeg(Hop start, Leg leg) {
+        List<Hop> quick = beginLeg(start, leg);
+        return quick != null ? quick : resumeLeg(leg);
+    }
+
+    /** True while a leg stopped by its deadline still has landings to expand (it can be {@link #resumeLeg resumed}). */
+    public boolean pending() {
+        return heapSize > 0;
+    }
+
+    /** The leg's setup: the straight shots (returned) or, else, the start node queued for {@link #resumeLeg} (null). */
+    public List<Hop> beginLeg(Hop start, Leg leg) {
         reset();
         if (leg.isGoal.test(start.bx, start.by, start.bz)) {
             List<Hop> only = new ArrayList<>(1);
@@ -870,16 +881,23 @@ public final class EtherSearch {
         if (direct != null) {
             return direct;
         }
-        Fan fan = leg.fan;
-        double range = fan.range;
-        double gx = leg.goalX;
-        double gy = leg.goalY;
-        double gz = leg.goalZ;
+        double range = leg.fan.range;
         int s = newNode(start.bx, start.by, start.bz, start.x, start.y, start.z, 0.0,
                 blockDist(start.bx, start.by, start.bz, leg.goalX, leg.goalY, leg.goalZ) / range * leg.hWeight,
                 -1, 0f, 0f);
         mapPut(pack(start.bx, start.by, start.bz), s);
         push(s, nf[s]);
+        return null;
+    }
+
+    /** The A* loop of {@link #searchLeg}; a deadline stop keeps the heap, so calling it again carries on (Auto Clear's way-out probe). */
+    public List<Hop> resumeLeg(Leg leg) {
+        Fan fan = leg.fan;
+        double range = fan.range;
+        double gx = leg.goalX;
+        double gy = leg.goalY;
+        double gz = leg.goalZ;
+        int s = 0;   // the start node, the first made after reset()
         // AIM AT THE GOAL FROM EVERY NODE, not only from the start. The fan is 6 degrees of yaw by 7 of pitch, so
         // a single block 14 blocks away (about 4 degrees across) can fall between every ray of every node the
         // search reaches, and a leg whose goal IS one block - a click on a chest, a raised step - then expands
@@ -898,6 +916,8 @@ public final class EtherSearch {
             }
             nclosed[cur] = true;
             if ((++expanded & 7) == 0 && System.nanoTime() > leg.deadlineNanos) {
+                nclosed[cur] = false;
+                push(cur, nf[cur]);   // not expanded yet: back on the heap for a resume
                 return null;
             }
             double eyeX = px[cur];

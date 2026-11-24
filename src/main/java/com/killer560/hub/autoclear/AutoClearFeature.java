@@ -154,13 +154,74 @@ public final class AutoClearFeature {
     private static final int EXIT_CHECK_MAX = 256;
     /** The one-room warp search's budget for a way out; running out of it counts as a way out (never a guess against). */
     private static final long EXIT_SEARCH_MS = 25;
+    /** One tick's share of that search (acpocket-perf-1124: the whole 25 ms at once was a frame hitch). */
+    private static final long EXIT_SLICE_MS = 2;
+
+    /** A way-out chain search spread over ticks; the block counts as having a way out until it finishes. */
+    private static final class ExitProbe {
+        final BlockPos stand;
+        final BlockPos from;
+        final com.killer560.hub.livemap.autoclear.EtherwarpPathfinder.ChainProbe search;
+        long spentNs;
+        long maxNs;
+        int slices;
+
+        ExitProbe(BlockPos stand, BlockPos from, com.killer560.hub.livemap.autoclear.EtherwarpPathfinder.ChainProbe search) {
+            this.stand = stand;
+            this.from = from;
+            this.search = search;
+        }
+    }
+
+    private static final java.util.ArrayDeque<ExitProbe> exitProbes = new java.util.ArrayDeque<>();
+
+    /** The longest single way-out search slice this room's checks ran, in ms (testkit: stays a few ms). */
+    private static double exitMaxSliceMs = 0;
+
+    public static double exitMaxSliceMs() {
+        return exitMaxSliceMs;
+    }
+
+    /** One slice of the oldest pending way-out search, every tick (client thread). */
+    private static void exitProbeTick() {
+        ExitProbe p = exitProbes.peek();
+        if (p != null && exitStep(p)) {
+            exitProbes.poll();
+        }
+    }
+
+    /** One slice of {@code p}; true once it has an answer (or ran out of its 25 ms, which counts as a way out). */
+    private static boolean exitStep(ExitProbe p) {
+        long t = System.nanoTime();
+        Boolean r = p.search.step(EXIT_SLICE_MS);
+        long d = System.nanoTime() - t;
+        p.spentNs += d;
+        p.slices++;
+        p.maxNs = Math.max(p.maxNs, d);
+        exitMaxSliceMs = Math.max(exitMaxSliceMs, d / 1e6);
+        if (r == null && p.spentNs < EXIT_SEARCH_MS * 1_000_000L) {
+            return false;
+        }
+        String ms = String.format(Locale.US, "%.1f ms, %d slice(s), longest %.1f ms", p.spentNs / 1e6, p.slices, p.maxNs / 1e6);
+        if (r == Boolean.FALSE) {
+            noExitStands.add(p.stand);
+            LOGGER.info("[AutoClear] no way out of {}: no warp, walk or warp chain from it leads back to {} ({}) - never landing"
+                    + " there", p.stand.toShortString(), p.from.toShortString(), ms);
+        } else {
+            LOGGER.info("[AutoClear] way out of {} back to {}: {} ({})", p.stand.toShortString(), p.from.toShortString(),
+                    r == null ? "unknown (search out of time)" : "a warp chain back", ms);
+        }
+        return true;
+    }
     /** Where this room's first way-out check stood: every later check must lead back here (cleared in resetRoam). */
     private static BlockPos exitAnchor = null;
 
     /** Whether a cast's landing is a block {@link #noExit} refuses (a landing in the air is not judged). */
     private static boolean castTraps(Minecraft client, LocalPlayer player, WeaponReach.Aim aim) {
         BlockPos under = aim.expectFeet() == null ? null : BlockPos.containing(aim.expectFeet()).below();
-        return under != null && TeleportUtils.etherwarpable(under) && noExit(client, player, under);
+        // A block whose way-out search is still running is held (no hop onto it) until its verdict, a few ticks at most.
+        return under != null && TeleportUtils.etherwarpable(under)
+                && (noExit(client, player, under) || exitProbes.stream().anyMatch(p -> p.stand.equals(under)));
     }
 
     /** For the testkit: stand blocks of this room found to have no way back out. */
@@ -191,28 +252,32 @@ public final class AutoClearFeature {
         if (from.distManhattan(stand) <= 2) {
             return false;
         }
-        long t0 = System.nanoTime();
         Vec3 land = new Vec3(stand.getX() + 0.5, stand.getY() + com.killer560.hub.livemap.autoclear.EtherwarpPathfinder.STAND_OFFSET, stand.getZ() + 0.5);
-        String way;
+        String way = null;
         if (TeleportUtils.getEtherwarpDirection(land.add(0, TeleportUtils.eyeHeight(true), 0), from,
                 ClearExecutor.hopRange() + 1.0) != null) {
             way = "a warp straight back";
         } else if (ShortWalk.walkExists(client.level, player, stand.above(), from.above())) {
             way = "a walk back";
-        } else {
-            Boolean chain = com.killer560.hub.livemap.autoclear.EtherwarpPathfinder.chainExists(land, from, ClearExecutor.pathConfig(), ClearExecutor.hopRange(),
-                    EXIT_SEARCH_MS);
-            way = chain == null ? "unknown (search out of time)" : chain ? "a warp chain back" : null;
         }
-        String ms = String.format(Locale.US, "%.1f", (System.nanoTime() - t0) / 1e6);
         if (way != null) {
-            LOGGER.info("[AutoClear] way out of {} back to {}: {} ({} ms)", stand.toShortString(), from.toShortString(), way, ms);
+            LOGGER.info("[AutoClear] way out of {} back to {}: {}", stand.toShortString(), from.toShortString(), way);
             return false;
         }
-        noExitStands.add(stand.immutable());
-        LOGGER.info("[AutoClear] no way out of {}: no warp, walk or warp chain from it leads back to {} ({} ms) - never landing"
-                + " there", stand.toShortString(), from.toShortString(), ms);
-        return true;
+        // The warp chain search runs a slice a tick; until it answers the block counts as having a way out (like a search
+        // that runs out of time), and noExitStands/the later calls carry the verdict.
+        var chain = com.killer560.hub.livemap.autoclear.EtherwarpPathfinder.ChainProbe.start(land, from, ClearExecutor.pathConfig(),
+                ClearExecutor.hopRange());
+        if (chain == null) {
+            LOGGER.info("[AutoClear] way out of {} back to {}: unknown (not a landing)", stand.toShortString(), from.toShortString());
+            return false;
+        }
+        ExitProbe probe = new ExitProbe(stand.immutable(), from, chain);
+        if (exitProbes.isEmpty() && exitStep(probe)) {
+            return noExitStands.contains(stand);
+        }
+        exitProbes.add(probe);
+        return false;
     }
     private static int roomsCleared = 0;
     /** When this run began, for the time-left estimate's seconds per room (see {@link #publishPlan}). */
@@ -557,6 +622,7 @@ public final class AutoClearFeature {
             lastLevel = client.level;
             homeRooms.clear();
             handedBack.clear();
+            exitProbes.clear();
             if (running) {
                 stop("the world changed");
             }
@@ -567,6 +633,7 @@ public final class AutoClearFeature {
         }
         // Every tick, running or not (Auto Secret reads it too): the rooms he has stood in, for the key-room rule.
         KeyRooms.observe(client);
+        exitProbeTick();
         // Held while the last decision aimed (a turn waiting for its use, a held use, a hop in flight).
         BODY.tick(player, running && bodyWanted);
         if (!running) {
@@ -2526,6 +2593,7 @@ public final class AutoClearFeature {
         walkOffRoam = false;
         noLandStands.clear();
         noExitStands.clear();
+        exitProbes.clear();
         exitAnchor = null;
         exitChecked.clear();
     }
