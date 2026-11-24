@@ -29,7 +29,7 @@ public final class PvJoinLink {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-pvjoin");
 
-    static final Pattern PF_JOINED = Pattern.compile(
+    public static final Pattern PF_JOINED = Pattern.compile(
             "^Party Finder > ([A-Za-z0-9_]{1,16}) joined the dungeon group! \\([A-Za-z]{1,12} Level \\d{1,3}\\)$");
     static final Pattern PARTY_JOINED = Pattern.compile(
             "^(?:\\[[A-Za-z+]{1,12}] )?([A-Za-z0-9_]{1,16}) joined the party\\.$");

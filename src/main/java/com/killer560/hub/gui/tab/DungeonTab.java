@@ -66,6 +66,7 @@ public class DungeonTab extends FolderTab {
                 new ScoreCalculatorTab(),
                 new ScoreWarningTab(),
                 new RunSummaryTab(),
+                new TeammateLedgerTab(),
                 new RunStatsTab(),
                 new DeathPatternsTab(),
                 new DungeonAlertsTab(),

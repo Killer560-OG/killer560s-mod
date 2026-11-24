@@ -59,6 +59,7 @@ public final class SearchCommands {
             Map.entry("luck", "LuckTab"),
             Map.entry("kc", "ModChatTab"),
             Map.entry("runlog", "RunSummaryTab"),
+            Map.entry("teammate", "TeammateLedgerTab"),
             Map.entry("bestfriends", "BestFriendsTab"),
             Map.entry("bf", "BestFriendsTab"),
             Map.entry("fl", "FriendsListTab"),

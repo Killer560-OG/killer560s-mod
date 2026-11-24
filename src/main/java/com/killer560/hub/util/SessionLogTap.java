@@ -30,7 +30,7 @@ public final class SessionLogTap {
             "killer560smod-modchat", "killer560smod-relay", "killer560smod-bridge", "killer560smod-chatobserver",
             "killer560smod-copychat", "killer560smod-chattidy", "killer560smod-translate", "killer560smod-clicktranslate",
             "killer560smod-partycommands", "killer560smod-partydata", "killer560smod-partyfinder", "killer560smod-lfg",
-            "killer560smod-players", "killer560smod-bestfriends", "killer560smod-friendslist-sync", "killer560smod-modusers",
+            "killer560smod-players", "killer560smod-bestfriends", "killer560smod-teamledger", "killer560smod-friendslist-sync", "killer560smod-modusers",
             "killer560smod-supporters", "killer560smod-imagepreview", "killer560smod-voicetotext", "killer560smod-automeow",
             "killer560smod-quizlog", "killer560smod-spotify", "killer560smod-leapmessage", "killer560smod-sharedrecords",
             "killer560smod-profileviewer", "killer560smod-playerstats", "killer560smod-autokick", "killer560smod-fiestaflask");

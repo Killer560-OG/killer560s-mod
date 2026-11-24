@@ -247,6 +247,7 @@ public final class ModPaths {
         // Legit GFS, a Misc helper (killer560smod-legitgfs.json): in other/ until 2026-10-26.
         t.put("legitgfs", "skyblock/legitgfs");
         t.put("autokick", "skyblock/autokick");
+        t.put("dungeon-teamledger", "skyblock/teamledger");
         t.put("autojoinskyblock", "skyblock/autojoinskyblock");
         // Kick Rejoin Timer (killer560smod-kickrejoin.json, 2026-11-03).
         t.put("kickrejoin", "skyblock/kickrejoin");

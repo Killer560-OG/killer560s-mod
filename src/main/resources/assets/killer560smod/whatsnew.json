@@ -23,7 +23,8 @@
      "Foraging: new Sweep Overlay card outlines the logs your next swing on a Galatea tree will fell, and new Highlight Optimal Blocks card boxes the log whose swing fells the most.",
      "Auto E-Table now waits until the stakes menu has finished loading before it picks a stake, and writes one line to the log with the state of every stake and why it picked the one it did.",
      "Death Patterns: a new Dungeons card keeps your own deaths (floor, where, cause, class, time into the run) and shows where and to what you keep dying over your last 20 runs of a floor, with a one-line reminder at a repeated one (off by default).",
-     "Send Melody Progress lines now go to party chat the moment a row is done, not after the terminal closes. The Melody progress message can now be customized."
+     "Send Melody Progress lines now go to party chat the moment a row is done, not after the terminal closes. The Melody progress message can now be customized.",
+     "Teammate Ledger: a new Dungeons card (off by default) tells you in chat what your own saved runs show about someone who joins from Party Finder, or about anyone you look up with /teammate NAME: runs together, average time, deaths and what killed them, and unfinished runs."
     ]
    }
   ]
