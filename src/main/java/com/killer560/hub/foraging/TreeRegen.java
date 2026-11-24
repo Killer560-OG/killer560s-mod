@@ -29,10 +29,12 @@ import java.util.Set;
  * Regenerating Trees (Galatea). What his recordings show (logger sessions of 11-23, 1,589 log positions): a log that is
  * chopped becomes air, and about 600-1000 ticks later (median 795, 30-50 s) the same log is put back by a block update,
  * in the order it was broken. The highlight marks only the wood that is THERE (killer560, 11-24: "only highlight wood
- * that is there not the wood coming back"): the logs still standing in a tree he has started chopping, each dropping out
- * the moment it is broken and coming back when it regrows. A chopped log's position is remembered ({@link #GONE}, for
- * {@link #MAX_AGE} ticks) only to know which tree is regenerating: on the tick after a break the logs joined to it are
- * seeded into {@link #PRESENT}, and they stay drawn while a tracked chop is in their chunk column or the next one.
+ * that is there not the wood coming back") and only once the tree has STARTED regenerating (11-24: "not the second I break
+ * any block of it"): its first chopped log coming back. The 11-23 logger data (546 trees) shows no server signal for the
+ * start (no chat, action bar, sound or particle at the first return, only the block update); the first log returns 600-1100
+ * ticks after the chop. A chopped log's position is remembered ({@link #GONE}, for {@link #MAX_AGE} ticks) only to know
+ * which logs are returns: on the tick after one, the logs joined to it are seeded into {@link #PRESENT}, and they stay drawn
+ * while a tracked chop is in their chunk column or the next one, each dropping out when broken.
  * Event-driven from block updates (the old state is read in {@code ClientLevel.setServerVerifiedBlockState} and
  * {@code setBlock}, so a log he breaks himself counts too; a return as chunk data is caught by the 10-tick recheck);
  * the draw arrays are rebuilt only on a change or every 10 ticks, and nothing is allocated per frame.
@@ -98,7 +100,7 @@ public final class TreeRegen {
         long key = pos.asLong();
         if (is) {
             if (GONE.containsKey(key)) {
-                add(key);
+                regrown(key);
             }
             return;
         }
@@ -109,9 +111,14 @@ public final class TreeRegen {
                 GONE.remove(GONE.keySet().iterator().next());
             }
             GONE.put(key, clock);
-            if (SEEDS.size() < 64) {
-                SEEDS.add(key);
-            }
+        }
+    }
+
+    /** A chopped log is back: its tree has started regenerating, so it and the logs joined to it are drawn from the next tick. */
+    private static void regrown(long key) {
+        add(key);
+        if (SEEDS.size() < 64) {
+            SEEDS.add(key);
         }
     }
 
@@ -148,10 +155,6 @@ public final class TreeRegen {
         }
         dirty = false;
         style = CFG.num("style");
-        for (long seed : SEEDS) {
-            seed(mc, BlockPos.of(seed));
-        }
-        SEEDS.clear();
         // An expired chop drops its tree; a tracked log back as chunk data (no block update) joins the highlight.
         Set<Long> columns = new HashSet<>();
         for (Iterator<Map.Entry<Long, Integer>> it = GONE.entrySet().iterator(); it.hasNext(); ) {
@@ -163,9 +166,13 @@ public final class TreeRegen {
             BlockPos g = BlockPos.of(e.getKey());
             columns.add(column(g.getX() >> 4, g.getZ() >> 4));
             if (!PRESENT.contains(e.getKey()) && mc.level.getBlockState(g).is(BlockTags.LOGS)) {
-                add(e.getKey());
+                regrown(e.getKey());
             }
         }
+        for (long seed : SEEDS) {
+            seed(mc, BlockPos.of(seed));
+        }
+        SEEDS.clear();
         AABB[] b = new AABB[Math.min(PRESENT.size(), MAX_DRAWN)];
         double px = mc.player.getX(), py = mc.player.getY(), pz = mc.player.getZ();
         int n = 0;
