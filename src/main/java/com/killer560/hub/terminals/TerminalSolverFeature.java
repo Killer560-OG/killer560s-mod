@@ -314,6 +314,15 @@ public final class TerminalSolverFeature {
     static final long MELODY_ROW_SLACK_MS = 100;
     /** Lookahead clicks found to have reached the server before their row did, and freed at once (testkit reads it). */
     static int melodyLookaheadStale;
+    /** How long after a live click that finished a row the next row first showed (client ms; Hypixel adds ~400 ms to the
+     *  trip, the sim none), 0 until seen (the first board's lookahead is the one blind gamble); kept across boards like the
+     *  step time. No lookahead is queued while it exceeds the ping by {@link #MELODY_ROW_LATE_MS}: such a server ignores a
+     *  click 50-100 ms after the live one (owner's 2026-11-23 F7 log: 300-3470 ms before the row showed, 0 of 6 counted). */
+    private static long melodyRowShowDelayMs;
+    /** Sim and prompt servers show the next row within ~150 ms of the trip; Hypixel's ~500 ms is far past this. */
+    private static final long MELODY_ROW_LATE_MS = 250;
+    private static long melodyLiveClickAtMs;
+    private static int melodyLiveClickRow = -1;
     /** The slot the moving pane was last seen in, and since when (client ms): how long it has stood there. */
     private static int melodyPaneSlot = -1;
     /** When the Melody board was last scanned (every frame while it is open). */
@@ -780,6 +789,7 @@ public final class TerminalSolverFeature {
         melodyCorrectColumn = null;
         lastMelodyClickedRow = -1;
         melodyRowsClicked = 0;
+        melodyLiveClickRow = -1;
         java.util.Arrays.fill(melodyClickedColumn, -1);
         java.util.Arrays.fill(melodyLookaheadAtMs, 0);
         melodyPaneSlot = -1;
@@ -1002,7 +1012,9 @@ public final class TerminalSolverFeature {
     }
 
     /** Stall net (termplus-1112): no click out for 2.5 s while clicks remain drops the pacing and pending state, so the next
-     *  frame re-solves the board as it is now and clicks again (a reply the server never sent). Melody keeps its row progress. */
+     *  frame re-solves the board as it is now and clicks again (a reply the server never sent). Not for Melody (owner's 11-23
+     *  F7 log: 8 false "pacing dropped" lines): it waits on the moving pane, up to a whole 8-step bounce (~4 s), and a missed
+     *  or ignored click is found from the pane itself ({@link #tickMelodyAutoClick}), so nothing there can be re-solved. */
     private static final long STALL_MS = 2500L;
     static long lastClickProgressMs;
     static int stallResets;
@@ -1010,7 +1022,7 @@ public final class TerminalSolverFeature {
     private static void stallNet(TerminalType type, TerminalSolverConfig cfg) {
         long now = System.currentTimeMillis();
         if (now - Math.max(lastClickProgressMs, stabilizedAtMs) < STALL_MS) return;
-        if (!isAutoTypeEnabled(type, cfg) || (type == TerminalType.MELODY ? melodyButtons.length == 0 : currentHighlights.isEmpty())) return;
+        if (type == TerminalType.MELODY || !isAutoTypeEnabled(type, cfg) || currentHighlights.isEmpty()) return;
         lastClickProgressMs = now;
         stallResets++;
         nextAutoClickAllowedAtMs = 0;
@@ -1475,6 +1487,15 @@ public final class TerminalSolverFeature {
         }
         int buttonRow = melodyButtonRow;
         if (buttonRow < 0 || buttonRow >= melodyButtons.length) return;
+        if (melodyLiveClickRow >= 0 && buttonRow == melodyLiveClickRow + 1) {
+            long shown = scanAt - melodyLiveClickAtMs;
+            if (shown > 0 && shown < 3000) {
+                melodyRowShowDelayMs = shown;
+                LOGGER.info("[Melody] row {} showed {} ms after the click that finished row {} (ping {} ms)", buttonRow, shown,
+                        buttonRow - 1, com.killer560.hub.util.PingTracker.automationMs());
+            }
+            melodyLiveClickRow = -1;
+        }
         if (limeSlot != null && buttonRow < melodyClickedColumn.length && (melodyRowsClicked & (1 << buttonRow)) != 0) {
             int seen = melodyClickedColumn[buttonRow];
             if (seen == MELODY_UNSEEN && melodyLookaheadBeforeRow(buttonRow, prevScan > 0 ? prevScan : scanAt)) {
@@ -1547,6 +1568,8 @@ public final class TerminalSolverFeature {
         if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
         lastMelodyClickedRow = buttonRow;
         lastMelodyClickAtMs = now;
+        melodyLiveClickRow = buttonRow;
+        melodyLiveClickAtMs = now;
         melodyRowsClicked |= 1 << buttonRow;
         if (buttonRow < melodyClickedColumn.length) {
             melodyClickedColumn[buttonRow] = melodyCurrentColumn;
@@ -1589,6 +1612,8 @@ public final class TerminalSolverFeature {
         int extraRows = melodyLookaheadRows(matchedRow, matchedColumn, melodyButtons.length - 1);
         if (extraRows <= 0) return;
         long now = System.currentTimeMillis();
+        // A server that shows the next row late takes no click for it before: the gamble would only be ignored.
+        if (melodyRowShowDelayMs - com.killer560.hub.util.PingTracker.automationMs() > MELODY_ROW_LATE_MS) return;
         for (int i = 1; i <= extraRows; i++) {
             scheduledMelodyClicks.add(new ScheduledMelodyClick(now + i * 50L, matchedRow + i));
         }
