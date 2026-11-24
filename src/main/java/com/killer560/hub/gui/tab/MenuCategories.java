@@ -8,7 +8,7 @@ import java.util.Map;
 
 /**
  * The Option A menu's categories (2026-10-12; killer560 left the grouping to us): Home, then Dungeons, Mining (the pre-2.0
- * mining features, 2026-11-01), HUD, Chat, Items, Social, Cosmetics, Misc, then Profiles - Favorites sits after Home in the sidebar but is not a category of its own.
+ * mining features, 2026-11-01), Foraging (2026-11-23), HUD, Chat, Items, Social, Cosmetics, Misc, then Profiles - Favorites sits after Home in the sidebar but is not a category of its own.
  *
  * <p>The feature tabs themselves are still made by the old category folders ({@link DungeonTab}, {@link HudElementsTab},
  * {@link GeneralTab}, {@link DisplayTab}, {@link HelpersTab}, ...), which keep every {@code CHEAT_FEATURES_ENABLED} gate
@@ -48,13 +48,14 @@ public final class MenuCategories {
         FolderTab dungeon = new DungeonTab();
         // The pre-2.0 Mining category (to-do Doc, 2026-11-01): its tabs are made by MiningQolTab, like the other folders.
         FolderTab mining = new MiningQolTab();
+        FolderTab foraging = new ForagingTab();
         for (BaseTab t : List.of(home, profiles, general, display, chat, social, cosmetics, items, hud, helpers, dungeon,
-                mining)) {
+                mining, foraging)) {
             remember(t, t.name);
         }
 
         Map<Class<?>, BaseTab> pool = new LinkedHashMap<>();
-        for (FolderTab f : List.of(general, display, chat, social, cosmetics, items, hud, helpers, dungeon, mining)) {
+        for (FolderTab f : List.of(general, display, chat, social, cosmetics, items, hud, helpers, dungeon, mining, foraging)) {
             for (BaseTab sub : f.subTabs()) {
                 pool.put(sub.getClass(), sub);
             }
@@ -62,6 +63,7 @@ public final class MenuCategories {
 
         List<BaseTab> dungeons = take(pool, dungeon.subTabs());
         List<BaseTab> miningList = take(pool, mining.subTabs());
+        List<BaseTab> foragingList = take(pool, foraging.subTabs());
         List<BaseTab> hudList = new ArrayList<>();
         // Gather the HUD tabs; the order they are shown in is the alphabetical one cheatLast gives every category.
         for (Class<?> c : List.of(HealthAndManaBarsTab.class, CustomScoreboardTab.class, StorageOverlayTab.class,
@@ -91,6 +93,7 @@ public final class MenuCategories {
         top.add(home);
         top.add(new CategoryTab("Dungeons", "⚔", cheatLast(dungeons)));
         top.add(new CategoryTab("Mining", "⛏", cheatLast(miningList)));
+        top.add(new CategoryTab("Foraging", "☘", cheatLast(foragingList)));
         top.add(new CategoryTab("HUD", "▣", cheatLast(hudList)));
         top.add(new CategoryTab("Chat", "✉", cheatLast(chatList)));
         top.add(new CategoryTab("Items", "◆", cheatLast(itemsList)));

@@ -32,7 +32,7 @@ public final class TestingMenu {
     private static final Map<String, String> CATEGORY = new HashMap<>();
 
     /** Categories kept whole in the testing build. */
-    private static final java.util.Set<String> NEVER_UNTESTED = java.util.Set.of("Mining");
+    private static final java.util.Set<String> NEVER_UNTESTED = java.util.Set.of("Mining", "Foraging");
 
     private TestingMenu() {
     }

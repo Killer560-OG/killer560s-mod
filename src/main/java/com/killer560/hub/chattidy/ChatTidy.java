@@ -135,6 +135,15 @@ public final class ChatTidy {
 
     // Hider
 
+    private static boolean retract;
+
+    /** True once after a hide that also takes the newest chat line (the separator above a Tree Gift block) back. */
+    public static boolean takeRetract() {
+        boolean r = retract;
+        retract = false;
+        return r;
+    }
+
     /** Called from the mixin. True drops the line from the chat window (it was already observed and is still logged). */
     public static boolean shouldHide(Component message, GuiMessageSource source) {
         if (source != GuiMessageSource.SYSTEM_SERVER || message == null) {
@@ -142,6 +151,14 @@ public final class ChatTidy {
         }
         if (com.killer560.hub.partyinvites.GuildListRequest.hides(ChatObserver.strip(message))) {
             return true; // the reply to the mod's own /guild list (already read by Auto Accept Invites)
+        }
+        if (com.killer560.hub.foraging.TreeGiftHider.CFG.isEnabledRaw()) {
+            var verdict = com.killer560.hub.foraging.TreeGiftHider.next(ChatObserver.strip(message), System.currentTimeMillis());
+            if (verdict != com.killer560.hub.foraging.TreeGiftHider.Verdict.SHOW) {
+                retract = verdict == com.killer560.hub.foraging.TreeGiftHider.Verdict.HIDE_AND_RETRACT;
+                hidden++;
+                return true;
+            }
         }
         ChatTidyConfig cfg = ChatTidyConfig.getInstance();
         boolean damage = cfg.isHideDamageMessages();

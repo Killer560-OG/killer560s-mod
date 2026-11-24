@@ -3207,6 +3207,16 @@ final class SettingTooltipsData {
         d.put("auto melody's harp/auto detect lag", "Follows how fast the note rows really move (a laggy server moves them slower) instead of assuming a fixed speed, to decide how early a click must go.");
         d.put("auto melody's harp/auto detect ping", "Clicks early by your measured ping when it is longer than half a note step, so the click reaches the server while the note is still there.");
         d.put("beacon ready alert", "When the tab list's foraging beacon widget says Cooldown: AVAILABLE, a Beacon Ready title tells you it can be tuned again.");
+        d.put("agatha contest overlay", "While an Agatha's Contest runs, a HUD shows the time left, your score and tier, what the next tier needs, your gain rate and where that rate ends up. It only reads the game's own sidebar lines, so a changed sidebar shows nothing rather than a wrong number.");
+        d.put("agatha contest overlay/show final result", "Keeps the last numbers on screen for a few seconds after the contest ends.");
+        d.put("beeheemoth highlight", "Draws a box on the Beeheemoth while it is in plain sight on Galatea. It is found by its name tag, so how well the box fits the mob is an estimate.");
+        d.put("beeheemoth highlight/highlight", "Shows the box. Off keeps the feature on but draws nothing.");
+        d.put("beeheemoth highlight/color", "The box color. Left alone it follows the menu theme.");
+        d.put("beeheemoth highlight/esp (through walls)", "Also draws the box through walls (cheat build only; it shows a mob the game hides behind blocks).");
+        d.put("regenerating trees", "Outlines every log that vanished when you chopped a Galatea tree, until the game puts it back (about 30 to 50 seconds) or 70 seconds pass. It only sees trees that fell while you were near.");
+        d.put("regenerating trees/color", "The outline color. Left alone it follows the menu theme.");
+        d.put("tree gift messages", "Hides the chat block shown when a Galatea tree falls: TREE GIFT, You helped cut, rewards gained, and the lines around them. Other messages and their separators stay.");
+        d.put("tree gift messages/keep rare drops", "Keeps the BONUS GIFT lines and any mob that fell from the tree visible. Off hides the whole block.");
         d.put("beacon ready alert/alert sound", "Also plays a pling with the title.");
         d.put("beacon ready alert/repeat after", "While the beacon stays available, the title comes back after this many minutes.");
         d.put("melody's harp helper", "Helpers for Melody's Harp: keys for the notes, a GUI scale, a progress tracker, key labels, hidden tooltips and Quick Restart. Off by default.");

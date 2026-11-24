@@ -11,6 +11,7 @@ import net.minecraft.network.chat.MessageSignature;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
@@ -56,6 +57,26 @@ public abstract class ChatTidyMixin {
     @Shadow
     protected abstract void addMessageToQueue(GuiMessage message);
 
+    /** Takes {@code gone}'s wrapped lines out of the display: trimmedMessages is newest first and index i is i rows above
+     *  the bottom, so a removed line below the scrolled view (i < chatScrollbarPos) shifts the view by one; one inside or
+     *  above it does not. */
+    @Unique
+    private void killer560smod$drop(GuiMessage gone) {
+        int belowView = 0;
+        int i = 0;
+        for (Iterator<GuiMessage.Line> it = trimmedMessages.iterator(); it.hasNext(); i++) {
+            if (it.next().parent() == gone) {
+                it.remove();
+                if (i < chatScrollbarPos) {
+                    belowView++;
+                }
+            }
+        }
+        if (belowView > 0) {
+            chatScrollbarPos = Math.max(0, chatScrollbarPos - belowView);
+        }
+    }
+
     @Inject(method = "addMessage",
             at = @At(value = "INVOKE", target = "Ljava/util/function/Predicate;test(Ljava/lang/Object;)Z"),
             cancellable = true)
@@ -63,6 +84,10 @@ public abstract class ChatTidyMixin {
                                         GuiMessageTag tag, CallbackInfo ci, @Local GuiMessage built) {
         try {
             if (ChatTidy.shouldHide(message, source)) {
+                if (ChatTidy.takeRetract() && !allMessages.isEmpty() && com.killer560.hub.foraging.TreeGiftHider.isSeparator(
+                        com.killer560.hub.util.ChatObserver.strip(allMessages.get(0).content()))) {
+                    killer560smod$drop(allMessages.remove(0));
+                }
                 logChatMessage(built);
                 ci.cancel();
                 return;
@@ -77,21 +102,7 @@ public abstract class ChatTidyMixin {
             GuiMessage earlier = match.earlier();
             GuiMessage replacement = new GuiMessage(built.addedTime(), match.content(), null, built.source(), built.tag());
             allMessages.remove(match.index());
-            // Its wrapped lines: trimmedMessages is newest first and index i is i rows above the bottom, so a removed
-            // line below the scrolled view (i < chatScrollbarPos) shifts the view by one; one inside or above it does not.
-            int belowView = 0;
-            int i = 0;
-            for (Iterator<GuiMessage.Line> it = trimmedMessages.iterator(); it.hasNext(); i++) {
-                if (it.next().parent() == earlier) {
-                    it.remove();
-                    if (i < chatScrollbarPos) {
-                        belowView++;
-                    }
-                }
-            }
-            if (belowView > 0) {
-                chatScrollbarPos = Math.max(0, chatScrollbarPos - belowView);
-            }
+            killer560smod$drop(earlier);
             logChatMessage(built);
             addMessageToDisplayQueue(replacement);
             addMessageToQueue(replacement);

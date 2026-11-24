@@ -106,7 +106,7 @@ public final class GoldenGoblin {
     }
 
     /** The mob a name-tag stand rides above: the entity with the id before it, else the nearest living one under it. */
-    private static LivingEntity mobUnder(Minecraft client, ArmorStand stand) {
+    public static LivingEntity mobUnder(Minecraft client, ArmorStand stand) {
         Entity prev = client.level.getEntity(stand.getId() - 1);
         if (prev instanceof LivingEntity l && !(prev instanceof ArmorStand) && prev != client.player
                 && horizontalSq(prev, stand) < 2.25 && stand.getY() - prev.getY() > -1.0 && stand.getY() - prev.getY() < 4.0) {
@@ -133,7 +133,7 @@ public final class GoldenGoblin {
         return dx * dx + dz * dz;
     }
 
-    private static boolean visible(Minecraft client, Vec3 eye, LivingEntity mob) {
+    public static boolean visible(Minecraft client, Vec3 eye, LivingEntity mob) {
         for (Vec3 to : new Vec3[]{mob.getEyePosition(), mob.getBoundingBox().getCenter()}) {
             if (client.level.clip(new ClipContext(eye, to, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
                     client.player)).getType() == HitResult.Type.MISS) {

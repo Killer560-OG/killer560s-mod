@@ -242,6 +242,10 @@ final class CardBlurbsData {
         d.put("AutoHarpTab", "Plays Melody's Harp for you.");
         d.put("HarpHelperTab", "Harp keys and a tracker.");
         d.put("BeaconReadyAlertTab", "Tells you when your beacon is ready again.");
+        d.put("AgathaContestOverlayTab", "Tracks your contest score.");
+        d.put("BeeheemothHighlightTab", "Boxes the Beeheemoth.");
+        d.put("TreeRegenTab", "Outlines regrowing logs.");
+        d.put("TreeGiftMessagesTab", "Hides tree fall chat.");
         d.put("AutoGfsTab", "Refills dungeon items from sacks.");
         d.put("AutoSellTab", "Sells your sell list on its own.");
         d.put("BazaarFlipTab", "Buy and sell flips.");
