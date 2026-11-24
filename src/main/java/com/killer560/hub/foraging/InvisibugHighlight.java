@@ -20,7 +20,7 @@ import net.minecraft.world.phys.AABB;
  * (recorded 11-23, killer560s-mod-logs/invisibug-1123-recording.md). Each particle is chained onto the nearby chain it
  * continues (same height, a short step, 3 to 7 ticks later); once a chain has 7 points and three of them 6 steps apart sit on
  * a circle of the recorded radius, its center is the bug and a box is drawn there. A hit's crits (counts above 1, scattered
- * heights, no steady circle) never qualify. A bug is dropped 2 seconds after its particles stop. Display only: sends nothing,
+ * heights, no steady circle) never qualify. A bug is dropped 12 ticks (a little over one particle step) after its particles stop, so a killed bug's box goes at once; every Invisibug the client receives particles for is marked (no range setting). Display only: sends nothing,
  * both builds; Through Walls is cheat-only. Off by default; reads only on Galatea.
  */
 public final class InvisibugHighlight {
@@ -28,10 +28,9 @@ public final class InvisibugHighlight {
     private static final int AMBER = 0xFFFFAA00;
     private static final int BUGS = 8;
     private static final int POINTS = 7;
-    private static final long EXPIRE = 40;
+    private static final long EXPIRE = 12;
 
     public static final IslandConfig CFG = IslandConfig.of("foraging", "invisibug")
-            .num("range", 48, 8, 64)
             .num("color", 0, Integer.MIN_VALUE, Integer.MAX_VALUE)
             .flag("throughWalls", false);
 
@@ -101,10 +100,6 @@ public final class InvisibugHighlight {
         double x = McPackets.particleX(packet);
         double y = McPackets.particleY(packet);
         double z = McPackets.particleZ(packet);
-        double range = CFG.num("range");
-        if (mc.player.distanceToSqr(x, y, z) > range * range) {
-            return;
-        }
         long now = mc.level.getGameTime();
         int slot = -1;
         int oldest = 0;
@@ -133,8 +128,9 @@ public final class InvisibugHighlight {
         p[POINTS * 2 - 1] = z;
         CHAIN_Y[slot] = y;
         CHAIN_T[slot] = now;
+        boolean was = OK[slot];
         OK[slot] = ++CHAIN_N[slot] >= POINTS && circle(slot);
-        if (OK[slot]) {
+        if (OK[slot] || was) {
             rebuild();
         }
     }
