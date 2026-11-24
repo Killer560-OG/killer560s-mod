@@ -442,7 +442,7 @@ public final class AutoRoutesCommands {
      * still up, and setting a screen from inside it closes the new one again on the same tick.
      */
     private static void openEditor(int index) {
-        Route route = AutoRoutesFeature.editableRoute();
+        Route route = AutoRoutesFeature.editRouteForEditor();
         List<RouteNode> nodes = route == null ? List.of() : route.nodes();
         if (index < 0 || index >= nodes.size()) {
             ModChat.send(FEATURE, ModChat.bad("No node #" + (index + 1)),

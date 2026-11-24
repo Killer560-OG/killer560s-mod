@@ -283,7 +283,7 @@ public final class AutoRoutesFeature {
     }
 
     /**
-     * The route a delete changes: what is shown, except Auto Trap's bundled route in a room he has no own route for,
+     * The route a delete, undo, node edit or breaker pick changes: what is shown, except Auto Trap's bundled route in a room he has no own route for,
      * which first becomes his own copy - a delete of the bundled one lived only until the game closed and never reached
      * his file (killer560 2026-11-23, newtrap-pathnodes-1123).
      */
@@ -352,13 +352,13 @@ public final class AutoRoutesFeature {
     public static boolean undo() {
         RouteHistory.Undone done = RouteHistory.undo();
         if (done == null) {
-            List<RouteNode> nodes = currentRouteNodes();
+            Route route = editTarget();
+            List<RouteNode> nodes = route == null ? Collections.emptyList() : route.nodes();
             if (nodes.isEmpty()) {
                 chatBad("Nothing to undo in " + AutoRoutesCommands.roomName() + ".");
                 return false;
             }
             int last = nodes.size() - 1;
-            Route route = currentRoute();
             RouteNode node = nodes.get(last);
             if (!deleteNode(last, false)) {
                 return false;
@@ -423,6 +423,11 @@ public final class AutoRoutesFeature {
     /** The live route the node editor works on (the recording, else the saved route of the room you stand in). */
     static Route editableRoute() {
         return currentRoute();
+    }
+
+    /** The route the node editor opens on: his own copy when the shown one is Auto Trap's bundled route. */
+    static Route editRouteForEditor() {
+        return editTarget();
     }
 
     /** The frame that route's room-relative coordinates resolve through, or null when the room is unknown. */
@@ -1709,6 +1714,7 @@ public final class AutoRoutesFeature {
      *  room's route, else the nearest in the room. */
     private static void pickEditBreakerNode() {
         editBreakerNode = null;
+        editTarget(); // breaker picks land on his own copy of a shown bundled route
         Minecraft client = Minecraft.getInstance();
         RouteCoords.Frame frame = RouteCoords.Frame.current();
         Route route = frame == null ? null : RouteStore.getInstance().forRoom(frame.roomName());

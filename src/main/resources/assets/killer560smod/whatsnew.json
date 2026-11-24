@@ -44,7 +44,8 @@
      "Leap Order: applying a profile no longer puts an old copy of your picks, pins and run memory back (it read as a changed party and reset the classes mid-run), a class you set on a player now stays until you change it (a tab-list class change no longer clears it or shows the reset notice), and each player's Class button is now a drop-down where you pick Auto or a class directly.",
      "Auto Anvil now also combines Gravity, Prismatic, Stealth (up to V) and the four Vitality books (up to X).",
      "Blood Camp: the party message of ticks lost is no longer sent as yours when you are not the Mage and only stood in the room; a non-Mage who kills at least 3 blood mobs himself still counts as camping.",
-     "Foraging: new Regenerating Trees card outlines the logs of a chopped Galatea tree until the game puts them back, about 30 to 50 seconds later."
+     "Foraging: new Regenerating Trees card outlines the logs of a chopped Galatea tree until the game puts them back, about 30 to 50 seconds later.",
+     "Auto Trap: editing the built-in New Trap or Old Trap route with the node editor, undo or the Dungeon Breaker block pick now starts your own route from a copy of it and saves your change, like adding or deleting a node already does."
     ]
    }
   ]
