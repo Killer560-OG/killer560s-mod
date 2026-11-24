@@ -56,6 +56,7 @@ public final class EtherwarpWaypointsConfig {
      *  them, so the old depth-tested look is kept unless asked for. */
     private boolean throughWalls = false;
     private double highlightDistance = 64.0;
+    private float lineWidth = 2f;
 
     private EtherwarpWaypointsConfig() {
     }
@@ -99,6 +100,10 @@ public final class EtherwarpWaypointsConfig {
         this.throughWalls = throughWalls;
     }
 
+    public float getLineWidth() { return lineWidth; }
+
+    public void setLineWidth(float w) { this.lineWidth = Math.max(1f, Math.min(6f, w)); }
+
     public double getHighlightDistance() {
         return highlightDistance;
     }
@@ -139,6 +144,7 @@ public final class EtherwarpWaypointsConfig {
             cfg.throughWalls = ConfigJson.getBool(obj, "throughWalls", cfg.throughWalls);
             cfg.highlightDistance = Math.max(8.0, Math.min(128.0,
                     ConfigJson.getDouble(obj, "highlightDistance", cfg.highlightDistance)));
+            cfg.setLineWidth(ConfigJson.getFloat(obj, "lineWidth", 2f));
             if (obj.has("color")) {
                 cfg.color = ConfigJson.getInt(obj, "color", cfg.color);
             } else {
@@ -169,6 +175,7 @@ public final class EtherwarpWaypointsConfig {
         obj.addProperty("color", color);
         obj.addProperty("throughWalls", throughWalls);
         obj.addProperty("highlightDistance", highlightDistance);
+        obj.addProperty("lineWidth", lineWidth);
         ConfigJson.write(CONFIG_PATH, obj);
     }
 

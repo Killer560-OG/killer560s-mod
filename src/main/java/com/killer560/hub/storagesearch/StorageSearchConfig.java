@@ -86,6 +86,9 @@ public final class StorageSearchConfig {
     private int chestRadius = 8;
     private boolean chestEsp = true;
     private boolean espThroughWalls = true;
+    /** Chest ESP color as ARGB; 0 = follow the menu theme's accent (gaps-colors-1124). */
+    private int chestEspColor;
+    public static final int DEFAULT_ESP_ARGB = 0xFFCC6600;
     private int espSeconds = 30;
     /** Wardrobe / equipment / pets menus (see {@link StorageSearchExtraCache}) - off by default, same reasoning. */
     private boolean searchExtras = true;
@@ -160,6 +163,7 @@ public final class StorageSearchConfig {
                 if (obj.has("chestEsp")) {
                     cfg.chestEsp = obj.get("chestEsp").getAsBoolean();
                 }
+                cfg.chestEspColor = obj.has("chestEspColor") ? obj.get("chestEspColor").getAsInt() : 0;
                 if (obj.has("espThroughWalls")) {
                     cfg.espThroughWalls = obj.get("espThroughWalls").getAsBoolean();
                 }
@@ -212,6 +216,7 @@ public final class StorageSearchConfig {
         obj.addProperty("chestRadius", chestRadius);
         obj.addProperty("chestEsp", chestEsp);
         obj.addProperty("espThroughWalls", espThroughWalls);
+        obj.addProperty("chestEspColor", chestEspColor);
         obj.addProperty("espSeconds", espSeconds);
         obj.addProperty("searchExtras", searchExtras);
         obj.addProperty("extrasOnV1", true);
@@ -279,6 +284,10 @@ public final class StorageSearchConfig {
     public boolean isChestEsp() { return chestEsp; }
 
     public void setChestEsp(boolean chestEsp) { this.chestEsp = chestEsp; }
+
+    public int getChestEspColor() { return chestEspColor; }
+
+    public void setChestEspColor(int argb) { this.chestEspColor = argb == 0 ? 0 : argb | 0xFF000000; }
 
     public boolean isEspThroughWalls() { return espThroughWalls; }
 

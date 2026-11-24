@@ -445,7 +445,7 @@ public final class TicTacToeSolverFeature {
     /** Only the clickable thing, like Simon Says (killer560, 2026-09-21: "for tictactoe I only want the button
      *  highlighted so follow the same logic used for simon says"): a button there -> its real shape; else the item
      *  frame on that cell -> the frame's own thin box; never the whole block. Fill or outline per the setting. */
-    private static void drawCell(LevelRenderContext context, BlockPos pos, float r, float g, float b, float thickness) {
+    private static void drawCell(LevelRenderContext context, int slot, BlockPos pos, float r, float g, float b, float thickness) {
         Minecraft client = Minecraft.getInstance();
         AABB box = null;
         if (client.level != null) {
@@ -465,9 +465,9 @@ public final class TicTacToeSolverFeature {
             box = new AABB(pos);
         }
         if (TicTacToeSolverConfig.getInstance().isFill()) {
-            SolverEspRender.renderFilledBox(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.TIC_TAC_TOE, context, box, r, g, b, 0.5f);
+            SolverEspRender.renderFilledBox(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.TIC_TAC_TOE, slot, context, box, r, g, b, 0.5f);
         } else {
-            SolverEspRender.renderOutlineBox(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.TIC_TAC_TOE, context, box, r, g, b, 0.9f, thickness);
+            SolverEspRender.renderOutlineBox(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.TIC_TAC_TOE, slot, context, box, r, g, b, 0.9f, thickness);
         }
     }
 
@@ -483,11 +483,11 @@ public final class TicTacToeSolverFeature {
         if (!TicTacToeSolverConfig.getInstance().isEnabled()) return;
         BlockPos best = bestMove;
         if (best != null) {
-            drawCell(context, best, 0.33f, 1.0f, 0.33f, 3f);
+            drawCell(context, 0, best, 0.33f, 1.0f, 0.33f, 3f);
         }
         BlockPos predicted = predictedMove;
         if (predicted != null && TicTacToeSolverConfig.getInstance().isShowPrediction()) {
-            drawCell(context, predicted, 1.0f, 1.0f, 0.33f, 2f);
+            drawCell(context, 1, predicted, 1.0f, 1.0f, 0.33f, 2f);
         }
     }
 

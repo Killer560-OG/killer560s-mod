@@ -55,7 +55,13 @@ public class TrajectoriesTab extends BaseTab {
                 saveOnRelease(() -> cfg.save());
             }
         });
-        y += 26;
+        y += 22;
+
+        widgets.add(swatchRow(contentX, y, contentWidth, "Arc Color", cfg.getColor() != 0 ? cfg.getColor() : TrajectoriesConfig.DEFAULT_COLOR,
+                TrajectoriesConfig.DEFAULT_COLOR, c -> {
+                    cfg.setColor(c);
+                    cfg.save();
+                }));
 
         return widgets;
     }

@@ -70,6 +70,10 @@ public class SecretWaypointsTab extends BaseTab {
 
         widgets.add(onOffButton("Community Routes", cfg::isCommunityRoutes, cfg::setCommunityRoutes, cfg::save,
                 null, contentX, y, 220, 18));
+        y += 22;
+
+        widgets.add(valueSlider(contentX, y, 220, "Waypoint Line Width", "", 1, 6, 0.5, 1, cfg::getLineWidth,
+                v -> cfg.setLineWidth((float) v), cfg::save));
         y += 26;
 
         // Per-type colors (killer560, 2026-09-27: "You can choose the colour for levers" - and there was no

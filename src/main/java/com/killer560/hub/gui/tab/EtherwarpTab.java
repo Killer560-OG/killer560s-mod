@@ -58,6 +58,14 @@ public class EtherwarpTab extends BaseTab {
 
         widgets.add(colorButton(contentX, y, contentWidth, "Color", cfg.getColor(),
                 EtherwarpWaypointsConfig.DEFAULT_COLOR, cfg::setColor));
+        y += 22;
+
+        widgets.add(valueSlider(contentX, y, contentWidth, "Waypoint Show Distance", " blocks", 8, 128, 1, 0,
+                cfg::getHighlightDistance, cfg::setHighlightDistance, cfg::save));
+        y += 22;
+
+        widgets.add(valueSlider(contentX, y, contentWidth, "Waypoint Box Line Width", "", 1, 6, 0.5, 1, cfg::getLineWidth,
+                v -> cfg.setLineWidth((float) v), cfg::save));
         y += 26;
 
         widgets.add(new StringWidget(contentX, y, contentWidth, 12,

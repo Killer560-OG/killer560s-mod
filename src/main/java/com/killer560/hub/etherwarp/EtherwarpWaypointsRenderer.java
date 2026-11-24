@@ -56,6 +56,7 @@ public final class EtherwarpWaypointsRenderer {
         }
         boolean fill = style != EtherwarpWaypointsConfig.Style.OUTLINE;
         boolean outline = style != EtherwarpWaypointsConfig.Style.FILLED;
+        final float lineWidth = EtherwarpWaypointsConfig.getInstance().getLineWidth();
         float fillAlphaScale = style == EtherwarpWaypointsConfig.Style.FILL_AND_OUTLINE ? 0.5f : 1.0f;
 
         try {
@@ -76,7 +77,7 @@ public final class EtherwarpWaypointsRenderer {
                         throughWalls ? ThroughWalls.LINES : com.killer560.hub.util.EspTypes.LINES,
                         (pose, lineBuffer) -> {
                             for (Entry e : entries) {
-                                com.killer560.hub.util.BoxVerts.lineBox(pose, lineBuffer, e.box(), e.r(), e.g(), e.b(), 1f, 2f);
+                                com.killer560.hub.util.BoxVerts.lineBox(pose, lineBuffer, e.box(), e.r(), e.g(), e.b(), 1f, lineWidth);
                             }
                         });
             }

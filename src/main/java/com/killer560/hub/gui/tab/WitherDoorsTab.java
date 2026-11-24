@@ -146,6 +146,10 @@ public class WitherDoorsTab extends BaseTab {
         // Waypoint labels over the held map's doors (killer560, 2026-10-15: "it would be waypoint style").
         widgets.add(onOffButton("Door Labels", cfg::isDoorLabels, cfg::setDoorLabels, cfg::save,
                 null, contentX, y, contentWidth, 18));
+        y += 22;
+
+        widgets.add(valueSlider(contentX, y, contentWidth, "Door Line Width", "", 1, 6, 0.5, 1, cfg::getLineWidth,
+                v -> cfg.setLineWidth((float) v), cfg::save));
         y += 26;
 
         if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {

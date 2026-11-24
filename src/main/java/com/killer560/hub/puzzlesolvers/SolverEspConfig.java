@@ -67,7 +67,13 @@ public final class SolverEspConfig {
         /** How waypoint-style highlights are drawn (killer560, 2026-09-21: "for anything using waypoints in puzzle solvers
          *  add an option for full block and an option for outline"). */
         WaypointStyle waypointStyle = WaypointStyle.OUTLINE;
+        /** Per-slot color override as ARGB (gaps-colors-1124); 0 = the solver's own color. What each slot means is in gui/tab/SolverEspRows. */
+        final int[] colors = new int[COLOR_SLOTS];
+        /** Line width override for every line and outline this solver draws; 0 = each call's own width. */
+        float lineWidth;
     }
+
+    public static final int COLOR_SLOTS = 4;
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Path CONFIG_PATH =
@@ -113,6 +119,10 @@ public final class SolverEspConfig {
                     e.enabled = ConfigJson.getBool(o, "enabled", sharedEnabled);
                     e.throughWalls = ConfigJson.getBool(o, "throughWalls", sharedThroughWalls);
                     e.waypointStyle = ConfigJson.getEnum(o, "waypointStyle", WaypointStyle.class, sharedStyle);
+                    for (int i = 0; i < COLOR_SLOTS; i++) {
+                        e.colors[i] = o.has("color" + i) ? o.get("color" + i).getAsInt() : 0;
+                    }
+                    e.lineWidth = o.has("lineWidth") ? o.get("lineWidth").getAsFloat() : 0f;
                 } else {
                     e.enabled = sharedEnabled;
                     e.throughWalls = sharedThroughWalls;
@@ -136,6 +146,10 @@ public final class SolverEspConfig {
                 o.addProperty("enabled", e.enabled);
                 o.addProperty("throughWalls", e.throughWalls);
                 o.addProperty("waypointStyle", e.waypointStyle.name());
+                for (int i = 0; i < COLOR_SLOTS; i++) {
+                    o.addProperty("color" + i, e.colors[i]);
+                }
+                o.addProperty("lineWidth", e.lineWidth);
                 solvers.add(s.name(), o);
             }
             obj.add("solvers", solvers);
@@ -157,4 +171,13 @@ public final class SolverEspConfig {
     public void setWaypointStyle(Solver solver, WaypointStyle s) {
         entries.get(solver).waypointStyle = s == null ? WaypointStyle.OUTLINE : s;
     }
+
+    /** The ARGB the player picked for a color slot of this solver, 0 when none (draw the solver's own color) or {@code slot} is negative. */
+    public int getColor(Solver solver, int slot) { return slot < 0 ? 0 : entries.get(solver).colors[slot]; }
+
+    public void setColor(Solver solver, int slot, int argb) { entries.get(solver).colors[slot] = argb == 0 ? 0 : argb | 0xFF000000; }
+
+    public float getLineWidth(Solver solver) { return entries.get(solver).lineWidth; }
+
+    public void setLineWidth(Solver solver, float width) { entries.get(solver).lineWidth = Math.max(0f, Math.min(8f, width)); }
 }

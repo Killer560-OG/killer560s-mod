@@ -246,12 +246,15 @@ public final class TrajectoriesFeature {
             motion = new Vec3(motion.x * drag, motion.y * drag - gravity, motion.z * drag);
         }
 
+        int argb = TrajectoriesConfig.getInstance().getColor();
+        float cr = argb == 0 ? 0.3f : (argb >> 16 & 255) / 255f, cg = argb == 0 ? 0.9f : (argb >> 8 & 255) / 255f,
+                cb = argb == 0 ? 1.0f : (argb & 255) / 255f;
         if (points.size() >= 2) {
-            WorldRenderUtils.renderLineStrip(context, points, 0.3f, 0.9f, 1.0f, 1f, 2f);
+            WorldRenderUtils.renderLineStrip(context, points, cr, cg, cb, 1f, 2f);
             lastArcs.add(points);
         }
         if (impactBox != null) {
-            WorldRenderUtils.renderOutlineBox(context, impactBox, 0.3f, 0.9f, 1.0f, 1f, 2f);
+            WorldRenderUtils.renderOutlineBox(context, impactBox, cr, cg, cb, 1f, 2f);
         }
     }
 

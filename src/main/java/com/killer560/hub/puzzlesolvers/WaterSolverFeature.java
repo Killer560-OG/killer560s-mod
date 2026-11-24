@@ -480,7 +480,7 @@ public final class WaterSolverFeature {
             // already uses (see labelFor/isReadyNow below), not a separately-picked yellow.
             int timeInTicks = Math.round(flat.get(0).getValue().floatValue() * 20f);
             float[] boxColor = isReadyNow(timeInTicks) ? textColor(ChatFormatting.GREEN) : textColor(ChatFormatting.YELLOW);
-            SolverEspRender.renderWaypoint(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.WATER, context, leverBox, boxColor[0], boxColor[1], boxColor[2], 3f);
+            SolverEspRender.renderWaypoint(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.WATER, isReadyNow(timeInTicks) ? 0 : 1, context, leverBox, boxColor[0], boxColor[1], boxColor[2], 3f);
             if (flat.size() > 1) {
                 LeverBlock second = flat.get(1).getKey();
                 BlockPos secondPos = leverRealPos(second);
@@ -488,7 +488,7 @@ public final class WaterSolverFeature {
                     List<Vec3> line = List.of(
                             new Vec3(firstPos.getX() + 0.5, firstPos.getY() + 0.5, firstPos.getZ() + 0.5),
                             new Vec3(secondPos.getX() + 0.5, secondPos.getY() + 0.5, secondPos.getZ() + 0.5));
-                    SolverEspRender.renderLineStrip(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.WATER, context, line, 1.0f, 0.8f, 0.2f, 1f, 2f);
+                    SolverEspRender.renderLineStrip(com.killer560.hub.puzzlesolvers.SolverEspConfig.Solver.WATER, 2, context, line, 1.0f, 0.8f, 0.2f, 1f, 2f);
                 }
             }
         }

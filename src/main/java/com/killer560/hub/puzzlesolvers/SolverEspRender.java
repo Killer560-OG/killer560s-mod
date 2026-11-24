@@ -134,39 +134,77 @@ public final class SolverEspRender {
      *  makes the outline actually land in front of the block. */
     private static final double Z_FIGHT_NUDGE = 0.005;
 
+    /** One channel of the picked color for {@code slot}, or {@code def} when none was picked (argb 0). */
+    private static float ch(int argb, int shift, float def) {
+        return argb == 0 ? def : ((argb >> shift) & 255) / 255f;
+    }
+
+    /** The solver's own line width override (gaps-colors-1124), else the call's. */
+    private static float width(SolverEspConfig.Solver solver, float thickness) {
+        float w = SolverEspConfig.getInstance().getLineWidth(solver);
+        return w > 0f ? w : thickness;
+    }
+
     public static void renderOutlineBox(SolverEspConfig.Solver solver, LevelRenderContext context, AABB box, float r, float g,
                                         float b, float a, float thickness) {
+        renderOutlineBox(solver, -1, context, box, r, g, b, a, thickness);
+    }
+
+    /** {@code slot}: the color slot the player may override for this call (see {@link SolverEspConfig#getColor}), -1 for none. */
+    public static void renderOutlineBox(SolverEspConfig.Solver solver, int slot, LevelRenderContext context, AABB box, float r,
+                                        float g, float b, float a, float thickness) {
         if (off(solver)) return;
+        int c = SolverEspConfig.getInstance().getColor(solver, slot);
+        float cr = ch(c, 16, r), cg = ch(c, 8, g), cb = ch(c, 0, b), w = width(solver, thickness);
         McRender.inCameraSpace(context, throughWalls(solver) ? ThroughWalls.LINES : Depth.LINES, (pose, buffer) ->
-                com.killer560.hub.util.BoxVerts.lineBox(pose, buffer, box.inflate(Z_FIGHT_NUDGE), r, g, b, a, thickness));
+                com.killer560.hub.util.BoxVerts.lineBox(pose, buffer, box.inflate(Z_FIGHT_NUDGE), cr, cg, cb, a, w));
     }
 
     /** A solver waypoint in the solver's Waypoint Style - an outline, or a translucent full block. */
     public static void renderWaypoint(SolverEspConfig.Solver solver, LevelRenderContext context, AABB box, float r, float g,
                                       float b, float thickness) {
+        renderWaypoint(solver, -1, context, box, r, g, b, thickness);
+    }
+
+    public static void renderWaypoint(SolverEspConfig.Solver solver, int slot, LevelRenderContext context, AABB box, float r,
+                                      float g, float b, float thickness) {
         if (off(solver)) return;
         if (SolverEspConfig.getInstance().getWaypointStyle(solver) == SolverEspConfig.WaypointStyle.FULL) {
-            renderFilledBox(solver, context, box, r, g, b, 0.45f);
+            renderFilledBox(solver, slot, context, box, r, g, b, 0.45f);
         } else {
-            renderOutlineBox(solver, context, box, r, g, b, 1f, thickness);
+            renderOutlineBox(solver, slot, context, box, r, g, b, 1f, thickness);
         }
     }
 
     public static void renderFilledBox(SolverEspConfig.Solver solver, LevelRenderContext context, AABB box, float r, float g,
                                        float b, float a) {
+        renderFilledBox(solver, -1, context, box, r, g, b, a);
+    }
+
+    public static void renderFilledBox(SolverEspConfig.Solver solver, int slot, LevelRenderContext context, AABB box, float r,
+                                       float g, float b, float a) {
         if (off(solver)) return;
+        int c = SolverEspConfig.getInstance().getColor(solver, slot);
+        float cr = ch(c, 16, r), cg = ch(c, 8, g), cb = ch(c, 0, b);
         McRender.inCameraSpace(context, throughWalls(solver) ? ThroughWalls.FILLED : Depth.FILLED, (pose, buffer) ->
-                com.killer560.hub.util.BoxVerts.filledBox(pose.pose(), buffer, box.inflate(Z_FIGHT_NUDGE), r, g, b, a));
+                com.killer560.hub.util.BoxVerts.filledBox(pose.pose(), buffer, box.inflate(Z_FIGHT_NUDGE), cr, cg, cb, a));
     }
 
     public static void renderLineStrip(SolverEspConfig.Solver solver, LevelRenderContext context, List<Vec3> points,
                                        float r, float g, float b, float a, float thickness) {
+        renderLineStrip(solver, -1, context, points, r, g, b, a, thickness);
+    }
+
+    public static void renderLineStrip(SolverEspConfig.Solver solver, int slot, LevelRenderContext context, List<Vec3> points,
+                                       float r, float g, float b, float a, float thickness) {
         if (off(solver)) return;
         if (points.size() < 2) return;
+        int c = SolverEspConfig.getInstance().getColor(solver, slot);
+        float cr = ch(c, 16, r), cg = ch(c, 8, g), cb = ch(c, 0, b), w = width(solver, thickness);
         // Copied now: on 26.2 the callback runs later in the frame, and callers pass live path lists.
         final Vec3[] pts = points.toArray(new Vec3[0]);
         McRender.inCameraSpace(context, throughWalls(solver) ? ThroughWalls.LINES : Depth.LINES, (pose, buffer) -> {
-            com.killer560.hub.util.BoxVerts.lineStrip(pose, buffer, pts, r, g, b, a, thickness);
+            com.killer560.hub.util.BoxVerts.lineStrip(pose, buffer, pts, cr, cg, cb, a, w);
         });
     }
 }

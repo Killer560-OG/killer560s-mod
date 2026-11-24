@@ -67,9 +67,10 @@ final class WitherDoorsRenderer {
             WorldRenderUtils.renderFilledBoxes(context, fillBoxes, rgba, n, 1f, throughWalls);
         }
         if (!style.outlines()) return;
+        final float lineWidth = WitherDoorsConfig.getInstance().getLineWidth();
         if (!throughWalls) {
             for (WitherDoorsFeature.DoorBox box : boxes) {
-                WorldRenderUtils.renderOutlineBox(context, box.box(), box.r(), box.g(), box.b(), 1f, 2f);
+                WorldRenderUtils.renderOutlineBox(context, box.box(), box.r(), box.g(), box.b(), 1f, lineWidth);
             }
             return;
         }
@@ -78,7 +79,7 @@ final class WitherDoorsRenderer {
         final WitherDoorsFeature.DoorBox[] snap = boxes.toArray(new WitherDoorsFeature.DoorBox[0]);
         McRender.inCameraSpace(context, ThroughWalls.LINES, (pose, buffer) -> {
                 for (WitherDoorsFeature.DoorBox box : snap) {
-                    lineBox(pose, buffer, box.box(), box.r(), box.g(), box.b(), 2f);
+                    lineBox(pose, buffer, box.box(), box.r(), box.g(), box.b(), lineWidth);
                 }
         });
     }

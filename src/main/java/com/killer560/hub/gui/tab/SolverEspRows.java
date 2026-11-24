@@ -54,8 +54,48 @@ final class SolverEspRows {
                         cfg.save();
                         btn.setMessage(styleText(cfg, solver));
                     }).bounds(x, y, width, 18).build());
+            y += 22;
+        }
+        ColorRow[] colors = COLORS.get(solver);
+        for (int slot = 0; colors != null && slot < colors.length; slot++) {
+            int fslot = slot;
+            ColorRow row = colors[slot];
+            int shown = cfg.getColor(solver, slot) != 0 ? cfg.getColor(solver, slot) : row.argb;
+            widgets.add(BaseTab.swatchRow(x, y, width, row.label, shown, row.argb, argb -> {
+                cfg.setColor(solver, fslot, argb);
+                cfg.save();
+            }));
+            y += 22;
+        }
+        // killer560, 2026-11-23: "add" (settings gap 10): 0 = each box and line keeps the width it always had.
+        widgets.add(BaseTab.valueSlider(x, y, width, "Solver Highlight Line Width", "", 1, 6, 0.5, 1,
+                () -> cfg.getLineWidth(solver) > 0 ? cfg.getLineWidth(solver) : 2.0, v -> cfg.setLineWidth(solver, (float) v),
+                cfg::save));
+    }
+
+    /** One overridable color of a solver: its row label and the color it is drawn in today (the picker's default). */
+    private record ColorRow(String label, int argb) {
+        ColorRow(String label, float r, float g, float b) {
+            this(label, 0xFF000000 | Math.round(r * 255) << 16 | Math.round(g * 255) << 8 | Math.round(b * 255));
         }
     }
+
+    /** The rows per solver, in the order of the color slots its feature passes to SolverEspRender (gaps-colors-1124). */
+    private static final java.util.Map<SolverEspConfig.Solver, ColorRow[]> COLORS = java.util.Map.of(
+            SolverEspConfig.Solver.BOULDER, new ColorRow[]{new ColorRow("Solver Highlight Color", 0.4f, 0.9f, 1.0f)},
+            SolverEspConfig.Solver.QUIZ, new ColorRow[]{new ColorRow("Solver Answer Color", 0.2f, 1.0f, 0.3f)},
+            SolverEspConfig.Solver.WEIRDOS, new ColorRow[]{new ColorRow("Solver Correct Chest Color", 0.2f, 1.0f, 0.3f),
+                    new ColorRow("Solver Wrong Chest Color", 1.0f, 0.2f, 0.2f)},
+            SolverEspConfig.Solver.ICE_PATH, new ColorRow[]{new ColorRow("Solver Path Color", 0.33f, 1.0f, 0.33f),
+                    new ColorRow("Solver Next Box Color", 1.0f, 0.33f, 0.33f)},
+            SolverEspConfig.Solver.WATER, new ColorRow[]{new ColorRow("Solver Ready Lever Color", 1f / 3, 1.0f, 1f / 3),
+                    new ColorRow("Solver Waiting Lever Color", 1.0f, 1.0f, 1f / 3), new ColorRow("Solver Lever Line Color", 1.0f, 0.8f, 0.2f)},
+            SolverEspConfig.Solver.BLAZE, new ColorRow[]{new ColorRow("Solver First Blaze Color", 0.2f, 1.0f, 0.2f),
+                    new ColorRow("Solver Second Blaze Color", 1.0f, 1.0f, 0.2f), new ColorRow("Solver Third Blaze Color", 1.0f, 0.2f, 0.2f),
+                    new ColorRow("Solver Other Blazes Color", 1.0f, 1.0f, 1.0f)},
+            SolverEspConfig.Solver.TIC_TAC_TOE, new ColorRow[]{new ColorRow("Solver Best Move Color", 0.33f, 1.0f, 0.33f),
+                    new ColorRow("Solver Predicted Move Color", 1.0f, 1.0f, 0.33f)},
+            SolverEspConfig.Solver.BEAMS, new ColorRow[]{new ColorRow("Solver Misaligned Pair Color", 1.0f, 0.15f, 0.15f)});
 
     /** The Through Walls row alone, at {@code y}. */
     static void throughWallsRow(List<AbstractWidget> widgets, SolverEspConfig.Solver solver, int x, int width, int y) {

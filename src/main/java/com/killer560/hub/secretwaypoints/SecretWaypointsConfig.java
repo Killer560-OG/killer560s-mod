@@ -31,6 +31,7 @@ public final class SecretWaypointsConfig {
 
     private boolean enabled = false;
     private Style style = Style.FILL_OUTLINE;
+    private float lineWidth = 2f;
     /** killer560 (change 62): "draw them through walls" - that is the whole point of a preloaded waypoint,
      *  so it ships on; the toggle exists for anyone who wants the old depth-tested boxes back. */
     private boolean throughWalls = true;
@@ -99,6 +100,7 @@ public final class SecretWaypointsConfig {
             SecretWaypointsConfig cfg = new SecretWaypointsConfig();
             cfg.enabled = ConfigJson.getBool(obj, "enabled", false);
             cfg.style = ConfigJson.getEnum(obj, "style", Style.class, Style.FILL_OUTLINE);
+            cfg.setLineWidth(ConfigJson.getFloat(obj, "lineWidth", 2f));
             cfg.throughWalls = ConfigJson.getBool(obj, "throughWalls", true);
             cfg.boxSize = ConfigJson.getEnum(obj, "boxSize", BoxSize.class, BoxSize.HITBOX);
             cfg.showNames = ConfigJson.getBool(obj, "showNames", false);
@@ -148,6 +150,7 @@ public final class SecretWaypointsConfig {
         JsonObject obj = new JsonObject();
         obj.addProperty("enabled", enabled);
         obj.addProperty("style", style.name());
+        obj.addProperty("lineWidth", lineWidth);
         obj.addProperty("throughWalls", throughWalls);
         obj.addProperty("boxSize", boxSize.name());
         obj.addProperty("showNames", showNames);
@@ -174,6 +177,10 @@ public final class SecretWaypointsConfig {
     public boolean isEnabled() { return enabled && com.killer560.hub.util.SkyblockGate.allows(); }
 
     public void setEnabled(boolean enabled) { this.enabled = enabled; }
+
+    public float getLineWidth() { return lineWidth; }
+
+    public void setLineWidth(float w) { this.lineWidth = Math.max(1f, Math.min(6f, w)); }
 
     public Style getStyle() { return style; }
 

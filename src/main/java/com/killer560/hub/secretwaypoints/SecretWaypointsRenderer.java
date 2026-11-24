@@ -99,6 +99,7 @@ public final class SecretWaypointsRenderer {
         // the callback read a list that had already changed size - "Index 6 out of bounds for length 6", a crash,
         // the moment Show Crypts was switched off in scenario 98 on 26.2 (2026-10-05). Collecting a secret shrinks
         // the list the same way, so this was waiting for him on 26.2 regardless of crypts.
+        final float lineWidth = SecretWaypointsConfig.getInstance().getLineWidth();
         final SecretWaypointsFeature.Waypoint[] snap = new SecretWaypointsFeature.Waypoint[count];
         for (int i = 0; i < count; i++) {
             snap[i] = waypoints.get(vis[i]);
@@ -129,7 +130,7 @@ public final class SecretWaypointsRenderer {
                         com.killer560.hub.util.EspTypes.lines(throughWalls),
                         (pose, lineBuffer) -> {
                             for (SecretWaypointsFeature.Waypoint wp : snap) {
-                                lineBox(pose, lineBuffer, wp.box(), wp.r(), wp.g(), wp.b(), 1f, 2f);
+                                lineBox(pose, lineBuffer, wp.box(), wp.r(), wp.g(), wp.b(), 1f, lineWidth);
                             }
                         });
             }

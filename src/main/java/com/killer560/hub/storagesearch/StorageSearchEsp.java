@@ -28,7 +28,6 @@ public final class StorageSearchEsp {
 
     /** At most this many chests are marked at once - clicking a new result replaces the oldest. */
     private static final int MAX_TARGETS = 8;
-    private static final int COLOR_RGB = 0xCC6600;
 
     private record Target(BlockPos pos, long expiresAt) {
     }
@@ -68,9 +67,10 @@ public final class StorageSearchEsp {
             return;
         }
         boolean throughWalls = cfg.isEspThroughWalls();
-        float r = ((COLOR_RGB >> 16) & 0xFF) / 255f;
-        float g = ((COLOR_RGB >> 8) & 0xFF) / 255f;
-        float b = (COLOR_RGB & 0xFF) / 255f;
+        int rgb = espRgb(cfg);
+        float r = ((rgb >> 16) & 0xFF) / 255f;
+        float g = ((rgb >> 8) & 0xFF) / 255f;
+        float b = (rgb & 0xFF) / 255f;
 
         // One full pass PER RENDER TYPE, never interleaved per box - see the "Not building!" crash note in
         // SecretWaypointsRenderer for why alternating types inside the loop is not safe here. Two separate
@@ -93,6 +93,12 @@ public final class StorageSearchEsp {
                         lineBox(pose, lineBuffer, box, r, g, b, 1f, 2.5f);
                     }
                 });
+    }
+
+    /** The box color: the one picked, else the menu theme's accent (the old orange on Amber). */
+    static int espRgb(StorageSearchConfig cfg) {
+        return cfg.getChestEspColor() != 0 ? cfg.getChestEspColor()
+                : com.killer560.hub.gui.ThemeAccent.accent(StorageSearchConfig.DEFAULT_ESP_ARGB);
     }
 
     /** A chest model is inset from its block and only 14/16 tall - a full block box floats visibly above it. */

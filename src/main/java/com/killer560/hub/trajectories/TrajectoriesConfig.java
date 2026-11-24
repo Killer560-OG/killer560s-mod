@@ -24,6 +24,9 @@ public final class TrajectoriesConfig {
     private boolean showPearls = true;
     private boolean showShortbows = true;
     private int range = 30;
+    /** Arc and landing box color as ARGB; 0 = the built-in light blue. */
+    private int color;
+    public static final int DEFAULT_COLOR = 0xFF4DE6FF;
 
     private TrajectoriesConfig() {
     }
@@ -50,6 +53,7 @@ public final class TrajectoriesConfig {
             cfg.showShortbows = ConfigJson.getBool(obj, "showShortbows", true);
             // Same 5-120 clamp setRange() applies (was loaded unclamped).
             cfg.setRange(ConfigJson.getInt(obj, "range", 30));
+            cfg.color = ConfigJson.getInt(obj, "color", 0);
             instance = cfg;
         } catch (Exception e) {
             instance = new TrajectoriesConfig();
@@ -62,6 +66,7 @@ public final class TrajectoriesConfig {
         obj.addProperty("showBows", showBows);
         obj.addProperty("showPearls", showPearls);
         obj.addProperty("showShortbows", showShortbows);
+        obj.addProperty("color", color);
         obj.addProperty("range", range);
         ConfigJson.write(CONFIG_PATH, obj);
     }
@@ -82,6 +87,10 @@ public final class TrajectoriesConfig {
     public boolean isShowShortbows() { return showShortbows; }
 
     public void setShowShortbows(boolean showShortbows) { this.showShortbows = showShortbows; }
+
+    public int getColor() { return color; }
+
+    public void setColor(int argb) { this.color = argb == 0 ? 0 : argb | 0xFF000000; }
 
     public int getRange() { return range; }
 

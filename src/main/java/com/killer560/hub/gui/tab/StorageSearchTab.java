@@ -190,6 +190,16 @@ public class StorageSearchTab extends BaseTab implements KeyCaptureTab {
             }
         });
 
+        // Chest ESP color (gaps-colors-1124): unset it follows the menu theme's accent, which is the old orange on Amber.
+        y += 24;
+        int espArgb = cfg.getChestEspColor() != 0 ? cfg.getChestEspColor()
+                : com.killer560.hub.gui.ThemeAccent.accent(StorageSearchConfig.DEFAULT_ESP_ARGB);
+        widgets.add(swatchRow(contentX, y, contentWidth, "Chest ESP Color", espArgb, StorageSearchConfig.DEFAULT_ESP_ARGB,
+                c -> {
+                    cfg.setChestEspColor(c);
+                    cfg.save();
+                }));
+
         return widgets;
     }
 

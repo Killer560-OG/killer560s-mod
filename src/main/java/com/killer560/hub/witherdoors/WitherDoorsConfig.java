@@ -63,6 +63,7 @@ public final class WitherDoorsConfig {
     private int renderDistance = 96;
     /** Ships OUTLINE, so nothing changes for anyone who never touches it. */
     private Style style = Style.OUTLINE;
+    private float lineWidth = 2f;
     /** Percent, {@link #MIN_FILL_OPACITY}..{@link #MAX_FILL_OPACITY}. */
     private int fillOpacity = DEFAULT_FILL_OPACITY;
     /** false: the fill takes the door's current state color (locked / key), so the two stay readable. */
@@ -107,6 +108,7 @@ public final class WitherDoorsConfig {
             cfg.bloodReadyColor = ConfigJson.getInt(obj, "bloodReadyColor", cfg.bloodReadyColor);
             cfg.setRenderDistance(ConfigJson.getInt(obj, "renderDistance", cfg.renderDistance));
             cfg.setStyle(ConfigJson.getEnum(obj, "style", Style.class, cfg.style));
+            cfg.setLineWidth(ConfigJson.getFloat(obj, "lineWidth", 2f));
             cfg.setFillOpacity(ConfigJson.getInt(obj, "fillOpacity", cfg.fillOpacity));
             cfg.customFillColor = ConfigJson.getBool(obj, "customFillColor", cfg.customFillColor);
             cfg.fillColor = ConfigJson.getInt(obj, "fillColor", cfg.fillColor);
@@ -130,6 +132,7 @@ public final class WitherDoorsConfig {
         obj.addProperty("bloodReadyColor", bloodReadyColor);
         obj.addProperty("renderDistance", renderDistance);
         obj.addProperty("style", style.name());
+        obj.addProperty("lineWidth", lineWidth);
         obj.addProperty("fillOpacity", fillOpacity);
         obj.addProperty("customFillColor", customFillColor);
         obj.addProperty("fillColor", fillColor);
@@ -166,6 +169,10 @@ public final class WitherDoorsConfig {
     public int getRenderDistance() { return renderDistance; }
 
     public void setRenderDistance(int renderDistance) { this.renderDistance = clampDistance(renderDistance); }
+
+    public float getLineWidth() { return lineWidth; }
+
+    public void setLineWidth(float w) { this.lineWidth = Math.max(1f, Math.min(6f, w)); }
 
     public Style getStyle() { return style; }
 

@@ -36,6 +36,12 @@ public class InventorySearchTab extends BaseTab {
 
         widgets.add(onOffButton("Ignore Case", cfg::isIgnoreCase, cfg::setIgnoreCase, cfg::save,
                 null, contentX, y, contentWidth, 18));
+        y += 22;
+
+        widgets.add(swatchRow(contentX, y, contentWidth, "Highlight Color", cfg.getHighlightColor(), 0xFFFF5555, c -> {
+            cfg.setHighlightColor(c);
+            cfg.save();
+        }));
         y += 26;
 
         double scaleNormalized = (cfg.getBoxScale() - InventorySearchConfig.MIN_BOX_SCALE)

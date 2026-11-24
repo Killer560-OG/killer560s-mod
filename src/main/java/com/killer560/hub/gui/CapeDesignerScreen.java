@@ -51,7 +51,7 @@ public class CapeDesignerScreen extends Screen {
         int gridW = CapeConfig.PANEL_W * cell;
         int gridH = CapeConfig.PANEL_H * cell;
         panelW = Math.max(gridW + 40, 8 * (SWATCH + SWATCH_GAP) + 20);
-        panelH = 22 + gridH + 10 + SWATCH + 10 + 20 + 8 + 20 + 8 + 20 + 8 + 20 + 8 + 20 + 8 + 20 + 12;
+        panelH = 22 + gridH + 10 + SWATCH + 10 + 20 + 8 + 20 + 8 + 20 + 8 + 20 + 8 + 20 + 8 + 20 + 8 + 20 + 12;
         panelX = (this.width - panelW) / 2;
         panelY = Math.max(4, (this.height - panelH) / 2);
         gridX = panelX + (panelW - gridW) / 2;
@@ -79,15 +79,20 @@ public class CapeDesignerScreen extends Screen {
                     cfg.save();
                     btn.setMessage(patternText());
                 }).bounds(panelX + 10, copyY + 28, panelW - 20, 20).build());
+        // The two colors the pattern is drawn in (gaps-colors-1124): they were saved but never pickable.
+        this.addRenderableWidget(patternColor("Pattern Color A", cfg::getCustomColourA, cfg::setCustomColourA, 0x2D6CDF,
+                panelX + 10, copyY + 56, half));
+        this.addRenderableWidget(patternColor("Pattern Color B", cfg::getCustomColourB, cfg::setCustomColourB, 0xF2B134,
+                panelX + 20 + half, copyY + 56, half));
 
         // Name it and save it; Load steps through the saved designs (killer560, 2026-10-19).
-        nameBox = new CommitEditBox(this.font, panelX + 10, copyY + 56, panelW - 20 - 60, 20, Component.literal("Design name"));
+        nameBox = new CommitEditBox(this.font, panelX + 10, copyY + 84, panelW - 20 - 60, 20, Component.literal("Design name"));
         nameBox.setMaxLength(24);
         nameBox.setHint(Component.literal("Name this design"));
         nameBox.onEnter(this::saveNamed);
         this.addRenderableWidget(nameBox);
         this.addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Save"), btn -> saveNamed())
-                .bounds(panelX + panelW - 10 - 56, copyY + 56, 56, 20).build());
+                .bounds(panelX + panelW - 10 - 56, copyY + 84, 56, 20).build());
         this.addRenderableWidget(SettingsButtonWidget.cycling(loadText(), (btn, dir) -> {
                     int n = cfg.getSaved().size();
                     if (n > 0) {
@@ -96,7 +101,18 @@ public class CapeDesignerScreen extends Screen {
                         cfg.save();
                     }
                     btn.setMessage(loadText());
-                }).bounds(panelX + 10, copyY + 84, panelW - 20, 20).build());
+                }).bounds(panelX + 10, copyY + 112, panelW - 20, 20).build());
+    }
+
+    private SettingsButtonWidget patternColor(String label, java.util.function.IntSupplier get, java.util.function.IntConsumer set,
+                                              int def, int x, int y, int w) {
+        return SettingsButtonWidget.builder(ColorSwatch.label(label, get.getAsInt()), btn ->
+                McCompat.setScreen(this.minecraft, new ColorPickerScreen(this, label, 0xFF000000 | get.getAsInt(), 0xFF000000 | def,
+                        argb -> {
+                            set.accept(argb);
+                            cfg.save();
+                            btn.setMessage(ColorSwatch.label(label, get.getAsInt()));
+                        }))).bounds(x, y, w, 20).build();
     }
 
     private com.killer560.hub.gui.CommitEditBox nameBox;
