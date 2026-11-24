@@ -323,3 +323,5 @@ The puzzle autos at run time (camera, timing, leaving, each puzzle). Part of the
   tick phase, and a median of 5 swung 47 ms between them. `handleContainerSetSlot`'s HEAD runs TWICE per packet (netty thread, which re-queues and
   throws, then the render thread; measured 845/845), so a HEAD hook must tell the threads apart (`isSameThread`) and
   match the two calls by packet identity, never count calls (rounds 3-4 counted every step twice).
+
+- Simon Says false "Device broke." (ssbroke-1123, owner's F7 runs 11-23, 2 of 6): the break check arms on any lit lantern, including the ones a TEAMMATE's play lights while this player stands at the device clicking nothing; when the teammate finishes, the grid goes blank and 30 ticks later the mod "broke" (log: round 1, 0 of 0 steps clicked, 5 s after "completed a device!"). The completed line now sets `doneByOthers` (only when this player made no click this attempt) which disarms the check until the grid has gone blank; a real break (blank grid, no completed line) is still announced. Testkit 1123-boss-ss-teammate-done-no-broke and 1123-boss-ss-real-break-announced.

@@ -197,6 +197,8 @@ public final class SimonSaysFeature {
     private static boolean roundVerdictAnnounce = false;
     private static final int AUTO_RESTART_SETTLE_TICKS = 10;
     private static boolean breakArmed = false;
+    // A teammate's "completed a device!" line while this player clicked nothing: the grid going blank is that device ending, not a break.
+    private static boolean doneByOthers = false;
     private static int blankGridTicks = 0;
     private static boolean restartKeyWasDown = false;
     private static int autoStartClicksSent = 0;
@@ -881,6 +883,7 @@ public final class SimonSaysFeature {
             momentumCarryPitch = 0f;
             startClickAnchorMs = 0L;
             breakArmed = false;
+            doneByOthers = false;
             blankGridTicks = 0;
             roundVerdictPending = false;
             gridEventsWanted = false;
@@ -1695,6 +1698,10 @@ public final class SimonSaysFeature {
     private static void onDeviceCompleteLine() {
         if (!wasActive) return;
         deviceCompleteLineAtMs = System.currentTimeMillis();
+        if (totalClicksThisAttempt == 0) {
+            doneByOthers = true;
+            breakArmed = false;
+        }
         if (roundVerdictPending) {
             settleRoundVerdictAsFour("\"completed a device!\" right after round 4");
         }
@@ -1710,10 +1717,11 @@ public final class SimonSaysFeature {
             }
         }
         if (anyLanternLit) {
-            breakArmed = true;
+            breakArmed = !doneByOthers;
             blankGridTicks = 0;
             return;
         }
+        doneByOthers = false; // the finished device went blank; the next attempt arms normally
         boolean allButtonsGone = true;
         for (BlockPos button : GRID_BUTTONS) {
             if (!client.level.getBlockState(button).isAir()) {
