@@ -23,14 +23,15 @@ public final class HudTextStyle {
     private static final int BACKGROUND = 0x80000000;
     private static final int PAD = 2;
 
-    private static final Map<String, Boolean> SHADOW = new HashMap<>();
-    private static final Set<String> BACKGROUNDS = new HashSet<>();
-    private static boolean loaded;
+    // Read every frame by every HUD draw: volatile snapshots (replaced whole on a change), no lock on the read path.
+    private static volatile Map<String, Boolean> shadows = Map.of();
+    private static volatile Set<String> backgrounds = Set.of();
+    private static volatile boolean loaded;
 
     private HudTextStyle() {
     }
 
-    private static synchronized void ensureLoaded() {
+    private static void ensureLoaded() {
         if (!loaded) {
             load();
         }
@@ -38,64 +39,71 @@ public final class HudTextStyle {
 
     /** Puts the defaults back and reads the file (a profile apply calls this). */
     public static synchronized void load() {
-        SHADOW.clear();
-        BACKGROUNDS.clear();
+        Map<String, Boolean> sh0 = new HashMap<>();
+        Set<String> bg0 = new HashSet<>();
         JsonObject o = ConfigJson.read(PATH);
         if (o != null) {
             JsonObject sh = o.has("shadow") && o.get("shadow").isJsonObject() ? o.getAsJsonObject("shadow") : new JsonObject();
-            sh.entrySet().forEach(e -> SHADOW.put(e.getKey(), e.getValue().getAsBoolean()));
+            sh.entrySet().forEach(e -> sh0.put(e.getKey(), e.getValue().getAsBoolean()));
             JsonObject bg = o.has("background") && o.get("background").isJsonObject() ? o.getAsJsonObject("background") : new JsonObject();
             bg.entrySet().forEach(e -> {
                 if (e.getValue().getAsBoolean()) {
-                    BACKGROUNDS.add(e.getKey());
+                    bg0.add(e.getKey());
                 }
             });
         }
+        shadows = sh0;
+        backgrounds = bg0;
         loaded = true;
     }
 
     private static synchronized void save() {
         JsonObject o = new JsonObject();
         JsonObject sh = new JsonObject();
-        SHADOW.forEach(sh::addProperty);
+        shadows.forEach(sh::addProperty);
         JsonObject bg = new JsonObject();
-        BACKGROUNDS.forEach(id -> bg.addProperty(id, true));
+        backgrounds.forEach(id -> bg.addProperty(id, true));
         o.add("shadow", sh);
         o.add("background", bg);
         ConfigJson.write(PATH, o);
     }
 
     /** Whether HUD {@code id} draws its text with a shadow; {@code def} is what the HUD drew before this setting existed. */
-    public static synchronized boolean shadow(String id, boolean def) {
+    public static boolean shadow(String id, boolean def) {
         ensureLoaded();
-        return SHADOW.getOrDefault(id, def);
+        return shadows.getOrDefault(id, def);
     }
 
     public static synchronized void setShadow(String id, boolean on) {
         ensureLoaded();
-        SHADOW.put(id, on);
+        Map<String, Boolean> m = new HashMap<>(shadows);
+        m.put(id, on);
+        shadows = m;
         save();
     }
 
-    public static synchronized boolean background(String id) {
+    public static boolean background(String id) {
         ensureLoaded();
-        return BACKGROUNDS.contains(id);
+        return backgrounds.contains(id);
     }
 
     public static synchronized void setBackground(String id, boolean on) {
         ensureLoaded();
+        Set<String> b = new HashSet<>(backgrounds);
         if (on) {
-            BACKGROUNDS.add(id);
+            b.add(id);
         } else {
-            BACKGROUNDS.remove(id);
+            b.remove(id);
         }
+        backgrounds = b;
         save();
     }
 
     /** Called from {@link HudElementRegistry#drawAt} inside the element's translated and scaled space. */
     static void drawBackground(net.minecraft.client.gui.GuiGraphicsExtractor graphics, HudElement element) {
         // Only while the HUD drew in the last 100 ms (its own HudSeen stamp), so an element showing nothing leaves no box.
-        if (!background(element.id()) || HudSeen.msSince(element.id(), System.currentTimeMillis()) > 100L) {
+        ensureLoaded();
+        if (backgrounds.isEmpty() || !backgrounds.contains(element.id()) || HudSeen.msSince(element.id(), System.currentTimeMillis()) > 100L) {
             return;
         }
         int w = element.width();
