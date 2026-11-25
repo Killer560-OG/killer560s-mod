@@ -1,15 +1,20 @@
 package com.killer560.hub.foraging;
 
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.islands.IslandConfig;
 import com.killer560.hub.islands.Islands;
 import com.killer560.hub.scoreboard.ScoreboardData;
 import com.killer560.hub.util.FeatureBits;
 import com.killer560.hub.util.FeatureGuard;
+import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.TabText;
 import com.killer560.hub.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.PlayerInfo;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.Style;
+import net.minecraft.network.chat.TextColor;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -30,7 +35,8 @@ public final class BeaconReadyAlert {
             .flag("sound", true)
             .flag("keep", false)
             .flag("cooldownHud", false)
-            .num("repeat", 9, 1, 60);
+            .num("repeat", 9, 1, 60)
+            .num("color", 0, Integer.MIN_VALUE, Integer.MAX_VALUE);
 
     /** The widget's header line: "Moonglade Beacon: 3 Stacks". */
     private static final Pattern HEADER = Pattern.compile("^[A-Za-z]{2,20} Beacon: \\d{1,4} Stacks?$");
@@ -57,6 +63,17 @@ public final class BeaconReadyAlert {
         int bit = FeatureBits.register("Beacon Ready Alert", CFG::isEnabledRaw);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("BeaconReadyAlert.tick", bit, BeaconReadyAlert::tick));
         HudElementRegistry.register(new BeaconReadyHud());
+    }
+
+    /** The alert's color: the player's pick, or (Auto, the setting 0) the active menu theme's accent. */
+    public static int color() {
+        int c = CFG.num("color");
+        return c != 0 ? c | 0xFF000000 : ThemeAccent.onDark(ThemeAccent.accent(0xFF000000 | ModChat.ORANGE));
+    }
+
+    /** The "Beacon Ready" title in the alert color (testkit reads its style). */
+    public static Component title() {
+        return Component.literal("Beacon Ready").withStyle(Style.EMPTY.withBold(true).withColor(TextColor.fromRgb(color() & 0xFFFFFF)));
     }
 
     /** Alerts shown this session (read by the testkit). */
@@ -103,7 +120,7 @@ public final class BeaconReadyAlert {
         if (avail && (!wasAvailable || now - lastAlertAt >= CFG.num("repeat") * 60_000L)) {
             lastAlertAt = now;
             alerts++;
-            Islands.alert(CFG.on("keep") ? null : "§a§lBeacon Ready", "§7Your foraging beacon can be tuned", CFG.on("sound"));
+            Islands.alert(CFG.on("keep") ? null : title(), "§7Your foraging beacon can be tuned", CFG.on("sound"));
         }
         wasAvailable = avail;
         state = cd == -2 ? NONE : avail ? READY : COOLING;

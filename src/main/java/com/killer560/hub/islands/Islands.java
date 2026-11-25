@@ -25,10 +25,15 @@ public final class Islands {
 
     /** A title on screen and, when {@code sound}, a pling. */
     public static void alert(String title, String subtitle, boolean sound) {
+        alert(title == null || title.isBlank() ? null : Component.literal(title), subtitle, sound);
+    }
+
+    /** As {@link #alert(String, String, boolean)} with a styled title (null for none). */
+    public static void alert(Component title, String subtitle, boolean sound) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.gui != null && title != null && !title.isBlank()) {
+        if (mc.gui != null && title != null) {
             McCompat.setTimes(mc, 0, 30, 5);
-            McCompat.setTitle(mc, Component.literal(title));
+            McCompat.setTitle(mc, title);
             McCompat.setSubtitle(mc, Component.literal(subtitle == null ? "" : subtitle));
         }
         if (sound) {

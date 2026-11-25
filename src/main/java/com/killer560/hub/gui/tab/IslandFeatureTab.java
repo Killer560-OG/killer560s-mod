@@ -166,6 +166,25 @@ public abstract class IslandFeatureTab extends BaseTab implements KeyCaptureTab 
             y[0] += 22;
         }
 
+        /** A color row whose 0 is "Auto" ({@code resolved} gives what Auto draws): left click opens the picker (Set Default = Auto), right click = Auto. */
+        public void autoColor(String label, String key, java.util.function.IntSupplier resolved) {
+            java.util.function.Supplier<Component> text = () -> com.killer560.hub.gui.ColorSwatch.label(label, resolved.getAsInt())
+                    .append(cfg.num(key) == 0 ? " Auto" : "");
+            w.add(SettingsButtonWidget.builder(text.get(), b -> {
+                Minecraft mc = Minecraft.getInstance();
+                com.killer560.hub.compat.McCompat.setScreen(mc, new com.killer560.hub.gui.ColorPickerScreen(
+                        com.killer560.hub.compat.McCompat.screen(mc), label, resolved.getAsInt(), 0, v -> {
+                            cfg.set(key, v);
+                            cfg.save();
+                        }));
+            }).secondaryPress(b -> {
+                cfg.set(key, 0);
+                cfg.save();
+                b.setMessage(text.get());
+            }).bounds(x, y[0], width, 18).build());
+            y[0] += 22;
+        }
+
         /** A row stepping through {@code count} named values stored as an index. */
         public void cycle(String label, String key, int count, IntFunction<String> names) {
             cycle(label, key, count, names, false);
