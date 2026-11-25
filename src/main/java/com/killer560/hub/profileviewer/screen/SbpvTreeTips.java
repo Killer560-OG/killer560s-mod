@@ -33,13 +33,17 @@ final class SbpvTreeTips {
             out.add(level == max ? "§7Level " + level : "§7Level " + Math.abs(level) + "/§8" + max);
             out.add("");
         }
-        Map<String, Double> vars = Map.of("level", (double) level, "effectiveLevel", (double) Math.max(1, level),
-                "hotmLevel", (double) treeLevel, "hotfLevel", (double) treeLevel);
+        // the original's formula context: level at least 1, effectiveLevel = level - 1 (at least 0), tree level at least 1
+        Map<String, Double> vars = Map.of("level", (double) Math.max(1, level), "effectiveLevel", (double) Math.max(0, level - 1),
+                "hotmLevel", (double) Math.max(1, treeLevel), "hotfLevel", (double) Math.max(1, treeLevel));
         if (e != null && e.has("t")) {
             Map<String, String> values = new LinkedHashMap<>();
             if (e.has("f")) {
                 for (Map.Entry<String, JsonElement> f : e.getAsJsonObject("f").entrySet()) {
-                    values.put(f.getKey(), number(eval(f.getValue().getAsString(), vars)));
+                    String formula = f.getValue().getAsString();
+                    // an unlevelable node with no reward formula ("0") fills %reward% with nothing
+                    boolean none = type.equals("UNLEVELABLE") && (formula.isEmpty() || formula.equals("0"));
+                    values.put(f.getKey(), none ? "" : number(eval(formula, vars)));
                 }
             }
             for (String line : ExtraTables.strings(e.get("t"))) {
@@ -54,40 +58,30 @@ final class SbpvTreeTips {
             JsonArray c = e.getAsJsonArray("c");
             long total = 0, done = 0;
             for (int l = 1; l < max; l++) {
-                long cost = (long) eval(c.get(1).getAsString(), Map.of("level", (double) l));
+                long cost = (long) eval(c.get(1).getAsString(), Map.of("level", (double) l, "nextLevel", (double) l + 1));
                 total += cost;
                 if (l < level || level == max) done += cost;
             }
             spent.put(c.get(0).getAsString(), new long[] {done, total});
-        } else if (e != null && level > 0 && type.equals("CORE") && e.has("l")) {
-            JsonArray lv = e.getAsJsonArray("l");
-            for (int i = 0; i < lv.size(); i++) {
-                JsonArray row = lv.get(i).getAsJsonArray();
-                String kind = row.get(2).getAsString();
-                if (kind.isEmpty()) continue;
-                long[] s = spent.computeIfAbsent(kind, k -> new long[2]);
-                s[1] += row.get(3).getAsLong();
-                if (i < level) s[0] += row.get(3).getAsLong();
-            }
         }
         if (type.equals("ABILITY")) {
             if (selected) {
                 out.add("");
                 out.add("§a§lSELECTED");
             }
-        } else if (!type.equals("CORE") || level > 0) {
+        } else if (!type.equals("CORE")) {
             if (level > 0) {
                 out.add("");
                 if (!spent.isEmpty()) {
                     out.add("§7Powder Spent");
                     for (Map.Entry<String, long[]> s : spent.entrySet()) {
                         long[] v = s.getValue();
-                        String pct = v[0] < v[1] ? " §e(" + Math.round(v[0] * 10000.0 / v[1]) / 100.0 + "%)" : "";
+                        String pct = v[0] < v[1] ? " §e(" + SbpvPages.round(v[0] * 100.0 / v[1]) + "%)" : "";
                         out.add(costColor(s.getKey()) + costName(s.getKey()) + "§7: " + commas(v[0]) + "§7/§8" + commas(v[1]) + pct);
                     }
                     out.add("");
                 }
-                if (!type.equals("CORE")) out.add(disabled ? "§c§lDISABLED" : "§a§lENABLED");
+                out.add(disabled ? "§c§lDISABLED" : "§a§lENABLED");
             }
         }
         List<Component> res = new ArrayList<>(out.size());
@@ -115,7 +109,8 @@ final class SbpvTreeTips {
 
     private static String costColor(String kind) {
         return switch (kind) {
-            case "MITHRIL", "FOREST" -> "§2";
+            case "MITHRIL" -> "§2";
+            case "FOREST" -> "§3";
             case "GEMSTONE" -> "§d";
             case "GLACITE" -> "§b";
             case "DESERT" -> "§6";
@@ -127,10 +122,9 @@ final class SbpvTreeTips {
         return NumberFormat.getIntegerInstance(Locale.US).format(v);
     }
 
-    /** At most two decimals, no trailing zeros; whole numbers with commas. */
+    /** The original's number format: grouped, at most three decimals, no trailing zeros. */
     static String number(double v) {
-        double r = Math.round(v * 100) / 100.0;
-        return r == Math.rint(r) ? commas((long) r) : String.valueOf(r);
+        return NumberFormat.getNumberInstance(Locale.US).format(v);
     }
 
     /** The data's formulas: numbers, variables, + - * / ^, parentheses and floor/ceil/round/min/max. Unknown names read 0. */

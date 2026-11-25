@@ -1,8 +1,13 @@
 package com.killer560.hub.profileviewer.screen;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.killer560.hub.compat.McItems;
+import com.killer560.hub.itembrowser.NeuItemData;
+import com.killer560.hub.itembrowser.SkyblockItemEntry;
+import com.killer560.hub.itembrowser.SkyblockItemRepository;
+import com.killer560.hub.itembrowser.SkyblockItemStackFactory;
 import com.killer560.hub.profileviewer.api.ProfileViewerApi;
 import com.killer560.hub.profileviewer.data.ExtraTables;
 import com.killer560.hub.profileviewer.data.LevelTables;
@@ -24,6 +29,8 @@ import java.math.RoundingMode;
 import java.text.NumberFormat;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -259,10 +266,16 @@ final class SbpvPages {
         boolean stranded, glacite;
         String[][] powder = new String[0][];
         boolean[] crystalOk = new boolean[0];
+        ItemStack[] crystalIcons = new ItemStack[0];
         List<Component>[] crystalTips;
         ItemStack[] forgeItems = new ItemStack[0], fossilIcons = new ItemStack[0];
         String[] forgeSlot = new String[0], forgeTime = new String[0];
         List<Component>[] forgeTips, fossilTips;
+        /** Per forge slot: when it finishes (0 = no time yet), its colored name and number; own = the viewer's own profile. */
+        long[] forgeEnd = new long[0];
+        String[] forgeName = new String[0];
+        int[] forgeNo = new int[0];
+        boolean forgeOwn;
         long scrapSacks;
         CompletableFuture<Object[]> mineGear;
         int[] treeSelected = new int[2];
@@ -274,6 +287,9 @@ final class SbpvPages {
         int equippedArmor, equippedEquip;
         final Map<String, ItemStack> pets = new HashMap<>();
         final Map<String, String> petLevels = new HashMap<>();
+        ProfileExtras.Farming farming;
+        /** The Farming page, built once the garden arrives. */
+        CompletableFuture<Farm> farm;
     }
 
     @SuppressWarnings("unchecked")
@@ -286,6 +302,7 @@ final class SbpvPages {
         buildLoadouts(p, m);
         buildTrees(p, m);
         buildMining(p, ex, m);
+        m.farming = ex.farming;
         return m;
     }
 
@@ -349,7 +366,9 @@ final class SbpvPages {
         int n = ExtraPages.CRYSTALS.length;
         m.crystalOk = new boolean[n];
         m.crystalTips = new List[n];
+        m.crystalIcons = new ItemStack[n];
         for (int i = 0; i < n; i++) {
+            m.crystalIcons[i] = ItemIcons.collectionIcon(ExtraPages.CRYSTALS[i].toUpperCase(Locale.ROOT));
             ProfileExtras.Crystal c = mi.crystals().get(ExtraPages.CRYSTALS[i]);
             String state = c == null ? "NOT_FOUND" : c.state();
             m.crystalOk[i] = state.equals("FOUND") || state.equals("PLACED");
@@ -363,14 +382,25 @@ final class SbpvPages {
         m.forgeSlot = new String[f];
         m.forgeTime = new String[f];
         m.forgeTips = new List[f];
-        java.text.SimpleDateFormat started = new java.text.SimpleDateFormat("dd.MM HH:mm:ss");
+        m.forgeEnd = new long[f];
+        m.forgeName = new String[f];
+        m.forgeNo = new int[f];
+        m.forgeOwn = p.member.equals(net.minecraft.client.Minecraft.getInstance().getUser().getProfileId());
+        JsonObject mineNodes = asObj(p.memberObj("skill_tree") == null ? new JsonObject() : p.memberObj("skill_tree"), "nodes",
+                "mining" + (m.treeSelected[0] > 1 ? "_" + m.treeSelected[0] : ""));
+        int quick = mineNodes != null && mineNodes.has("forge_time") ? mineNodes.get("forge_time").getAsInt() : 0;
         for (int i = 0; i < f; i++) {
             ProfileExtras.ForgeSlot slot = mi.forge().get(i);
-            m.forgeItems[i] = ItemIcons.forId(slot.id());
+            m.forgeItems[i] = ItemIcons.collectionIcon(slot.id());
             m.forgeSlot[i] = "§lSlot " + slot.slot();
-            // The forge recipe times come from the original's item library, which the mod does not have: the start time shows.
-            m.forgeTime[i] = "§7" + started.format(new java.util.Date(slot.startTime()));
-            m.forgeTips[i] = lines(List.of("§l" + m.forgeItems[i].getHoverName().getString(), "§7Started: " + started.format(new java.util.Date(slot.startTime()))));
+            m.forgeNo[i] = slot.slot();
+            m.forgeTime[i] = "";
+            final int k = i;
+            // the recipe time comes from the item repo; until it arrives the row shows no time (no recipe = Ready, as the original)
+            com.killer560.hub.itembrowser.NeuItemData.future(slot.id()).handle((info, err) -> {
+                forgeRow(m, k, slot, info, quick);
+                return null;
+            });
         }
         List<String> gl = new ArrayList<>();
         gl.add("§8Mineshaft Entered: " + fmt(mi.mineshafts()));
@@ -399,6 +429,49 @@ final class SbpvPages {
         m.corpses = cl.toArray(new String[0]);
         Long sacks = ex.misc == null ? null : ex.misc.sacks().get("SUSPICIOUS_SCRAP");
         m.scrapSacks = sacks == null ? 0 : sacks;
+    }
+
+    /** One forge row's time and hover (MainMiningScreen.getForge): recipe time cut by Quick Forge and Cole's Molten Forge,
+     *  minus the time since the start; "Ready" at or below zero. */
+    private static void forgeRow(Model m, int i, ProfileExtras.ForgeSlot slot, com.killer560.hub.itembrowser.NeuItemData.Info info, int quick) {
+        long raw = info == null ? 0 : info.forgeSeconds() * 1000L;
+        double cut = (1 - HotmTree.quickForgePercent(quick) / 100) * (moltenForge() ? 0.75 : 1);
+        long left = (long) (raw * cut) + slot.startTime() - System.currentTimeMillis();
+        String time = left <= 0 ? "§aReady" : "§7" + readable(left, 2, "min", "0s");
+        String name = info != null && info.displayName() != null ? info.displayName().replaceAll("§.", "")
+                : m.forgeItems[i].getHoverName().getString();
+        List<String> tip = new ArrayList<>(List.of("§l" + name, "§7Time Remaining: " + time,
+                "§7Started: " + new java.text.SimpleDateFormat("dd.MM HH:mm:ss").format(new java.util.Date(slot.startTime()))));
+        // The original offers the reminder on the viewer's own profile while the slot is still forging.
+        if (m.forgeOwn && left > 0) {
+            tip.add("");
+            tip.add("§aClick to set a reminder");
+        }
+        m.forgeName[i] = info != null && info.displayName() != null ? info.displayName() : "§7Slot " + slot.slot();
+        m.forgeEnd[i] = m.forgeOwn && left > 0 ? left + System.currentTimeMillis() : 0;
+        m.forgeTips[i] = lines(tip);
+        m.forgeTime[i] = time;
+    }
+
+    /** The forge slot click: a reminder at its finish time, or "Process already finished!" once it is done. */
+    static void forgeClick(Model m, int i) {
+        long left = m.forgeEnd[i] - System.currentTimeMillis();
+        if (left <= 0) {
+            com.killer560.hub.util.ModChat.send("Profile Viewer", Component.literal("§cProcess already finished!"));
+            return;
+        }
+        com.killer560.hub.util.ModChat.send("Profile Viewer", Component.literal("§7Reminder set for " + m.forgeName[i] + "§7 in §e§7"
+                + readable(left, 2, "min", "0s") + "§7!"));
+        com.killer560.hub.profileviewer.PvReminders.add("forge_slot_" + m.forgeNo[i], "§7Forge Process for " + m.forgeName[i] + "§7 is done!",
+                m.forgeEnd[i]);
+    }
+
+    private static boolean moltenForge() {
+        for (com.killer560.hub.scoreboard.ScoreboardExtraData.Candidate c : new com.killer560.hub.scoreboard.ScoreboardExtraData.Candidate[] {
+                com.killer560.hub.scoreboard.ScoreboardExtraData.mayor(), com.killer560.hub.scoreboard.ScoreboardExtraData.minister()}) {
+            if (c != null) for (com.killer560.hub.scoreboard.ScoreboardExtraData.Perk pk : c.perks()) if ("Molten Forge".equals(pk.name())) return true;
+        }
+        return false;
     }
 
     /** SimpleSkillTreeVisualizer's grid: one 20 px slot per node at row 9 - y, column x (rows/columns with no node take no room). */
@@ -796,7 +869,7 @@ final class SbpvPages {
         if (bits.isEmpty()) bt.add("§cNONE");
         for (int[] b : bits) {
             long until = SB_EPOCH + (long) (b[2] - 1) * SB_YEAR - System.currentTimeMillis();
-            bt.add("Chocobit §e" + fmt(b[0]) + "§r, found in year §a" + fmt(b[1]) + "§r, expires in §6" + readable(until));
+            bt.add("Chocobit §e" + fmt(b[0]) + "§r, found in year §a" + fmt(b[1]) + "§r, expires in §6" + readable(until, 3, "m", "0 seconds"));
         }
         t.add(lines(bt));
         m.cfInfo = l.toArray(new String[0]);
@@ -867,19 +940,21 @@ final class SbpvPages {
     }
 
     /** toReadableTime(maxUnits = 3): "1d, 2h, 3m" from the biggest non-zero unit. */
-    private static String readable(long ms) {
+    /** The originals' readable times: the {@code units} biggest non-zero units of d, h, minutes, s, comma separated
+     *  ({@code none} when all are zero). Chocolate Factory uses 3 units and "m", the forge 2 and "min". */
+    static String readable(long ms, int units, String minute, String none) {
         long sec = Math.max(0, ms / 1000);
         long[] v = {sec / 86400, sec / 3600 % 24, sec / 60 % 60, sec % 60};
-        String[] u = {"d", "h", "m", "s"};
+        String[] u = {"d", "h", minute, "s"};
         StringBuilder sb = new StringBuilder();
         int n = 0;
-        for (int i = 0; i < 4 && n < 3; i++) {
-            if (v[i] != 0) {
+        for (int i = 0; i < 4 && n < units; i++) {
+            if (v[i] > 0) {
                 if (n++ > 0) sb.append(", ");
                 sb.append(v[i]).append(u[i]);
             }
         }
-        return n == 0 ? "0 seconds" : sb.toString();
+        return n == 0 ? none : sb.toString();
     }
 
     @SuppressWarnings("unchecked")
@@ -1024,6 +1099,9 @@ final class SbpvPages {
             case ProfileViewerScreen.PAGE_FORAGING -> drawForaging(g, m, mx, my);
             case ProfileViewerScreen.PAGE_LOADOUT -> drawLoadouts(g, p, m, mx, my);
             case ProfileViewerScreen.PAGE_MINING -> drawMining(g, p, m, mx, my);
+            case ProfileViewerScreen.PAGE_FARMING -> {
+                return drawFarming(g, p, m, mx, my);
+            }
             default -> {
                 return true;
             }
@@ -1280,6 +1358,935 @@ final class SbpvPages {
         }
     }
 
+    // ---------------------------------------------------------------- farming
+
+    /** GardenResource.actualValues, in its order. */
+    private static final String[] CROPS = {"WHEAT", "PUMPKIN", "POTATO_ITEM", "SUGAR_CANE", "MELON", "CARROT_ITEM", "INK_SACK:3", "NETHER_STALK",
+            "CACTUS", "MUSHROOM_COLLECTION", "MOONFLOWER", "DOUBLE_PLANT", "WILD_ROSE"};
+    /** GardenChip, its order; the API key is the lower-case name. */
+    private static final String[] CHIPS = {"cropshot", "evergreen", "hypercharge", "mechamind", "overdrive", "quickdraw", "rarefinder", "sowledge",
+            "synthesis", "vermin_vaporizer"};
+    /** MedalType and its colors. */
+    private static final String[] MEDALS = {"bronze", "silver", "gold", "platinum", "diamond"};
+    private static final String[] MEDAL_COLOR = {"§c", "§7", "§6", "§3", "§b"};
+    private static final String VISITOR_RARITY = "URLMS";
+    private static final String[] VISITOR_NAME = {"§aUncommon", "§9Rare", "§6Legendary", "§dMythic", "§cSpecial"};
+    private static final Identifier MINECART_SLOT = Identifier.fromNamespaceAndPath("killer560smod", "pv/sbpv/slot_minecart"),
+            WATERING_CAN_SLOT = Identifier.fromNamespaceAndPath("killer560smod", "pv/sbpv/slot_watering_can"),
+            HOE_SLOT = Identifier.fromNamespaceAndPath("killer560smod", "pv/sbpv/slot_hoe"),
+            AXE_SLOT = Identifier.fromNamespaceAndPath("killer560smod", "pv/sbpv/slot_axe");
+    /** BaseFarmingScreen's FarmingCategory: Main, Visitors, Crop, Mutations, Composter. */
+    private static final List<?>[] FARMING_TIPS = {List.of(Component.literal("Main")), List.of(Component.literal("Visitors")),
+            List.of(Component.literal("Crop")), List.of(Component.literal("Mutations")), List.of(Component.literal("Composter"))};
+    private static final String[] COMPOSTER_UPGRADES = {"SPEED", "MULTI_DROP", "FUEL_CAP", "ORGANIC_MATTER_CAP", "COST_REDUCTION"};
+    private static final String[] GREENHOUSE_UPGRADES = {"GROWTH_SPEED", "YIELD", "PLOT_LIMIT"};
+    private static final java.util.Set<String> RARE_CROPS = java.util.Set.of("CROPIE", "SQUASH", "FERMENTO", "CONDENSED_FERMENTO",
+            "HELIANTHUS", "CONDENSED_HELIANTHUS");
+    private static ItemStack[] farmingIcons;
+    /** The Gear label (armor and equipment, pets, vacuum over watering can) and the 3 x 5 / 2 x 5 contest and chip tables. */
+    private static final int FARM_GEAR_W = 44 + 5 + 24 + 5 + 24, TABLE_H = 5 * 20 + 4;
+
+    /** FarmingScreen and CropScreen, all text and hovers built off the render thread. */
+    private static final class Farm {
+        String[] info, visitors;
+        List<Component>[] infoTips, visitorTips;
+        /** Visitors lines followed by a 5 px gap (after Unique Served and after the last rarity). */
+        int[] visitorGaps;
+        final ItemStack[] contestIcons = new ItemStack[CROPS.length], chipIcons = new ItemStack[CHIPS.length];
+        final List<Component>[] contestTips = new List[CROPS.length], chipTips = new List[CHIPS.length];
+        final String[] chipText = new String[CHIPS.length];
+        final ItemStack[] pets = new ItemStack[4];
+        final String[] petLevels = new String[4];
+        ItemStack[] queue;
+        List<Component>[] queueTips;
+        /** VisitorScreen's and MutationScreen's grouped slots. */
+        List<GCell> visitorCells, mutationCells;
+        ItemStack mutationTab, composterTab;
+        int queueRows;
+        /** ComposterScreen: Information and Greenhouse lines, the six upgrade slots, the 5 x 5 plot map (row-major, top row first). */
+        String[] compInfo, greenhouse;
+        List<Component>[] greenhouseTips;
+        final ItemStack[] compUps = new ItemStack[6], plots = new ItemStack[25];
+        final String[] compUpText = new String[6];
+        final List<Component>[] compUpTips = new List[6], plotTips = new List[25];
+        /** Crop: [crop][0 upgrade, 1 milestone]; the tool's empty icon per crop. */
+        final ItemStack[][] crop = new ItemStack[CROPS.length][2];
+        final String[][] cropText = new String[CROPS.length][2];
+        final List<Component>[][] cropTips = new List[CROPS.length][2];
+        final Identifier[] toolEmpty = new Identifier[CROPS.length];
+        /** {armor+equipment Gear, vacuum, watering can, ItemStack[] best tool per crop}. */
+        CompletableFuture<Object[]> gear;
+    }
+
+    /** A grouped slot: rarity group (index in GROUP_ORDER, -1 = none, drawn last), slot tint, hover, the filters it shows in
+     *  (bit per filter), the search text (null = always matches), the real icon and the one drawn when {@code flag} says so. */
+    private record GCell(int group, int color, List<Component> tip, int filters, String search, boolean flag, ItemStack icon, ItemStack dim) {
+    }
+
+    private static final List<String> GROUP_ORDER = List.of("COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC", "DIVINE", "SPECIAL",
+            "VERY_SPECIAL");
+    /** Each rarity's color, and the darker one VisitorScreen and MutationScreen tint a slot not visited / not analyzed. */
+    private static final int[] GROUP_COLOR = {0xFFFFFF, 0x55FF55, 0x5555FF, 0xAA00AA, 0xFFAA00, 0xFF55FF, 0x55FFFF, 0xFF5555, 0xFF5555};
+    private static final int GRAY = 0xAAAAAA, DARK_GRAY = 0x555555;
+    private static final String[][] GROUP_FILTERS = {{"All", "Never Visited", "Visited", "Visited (None Completed)", "Offer Completed"},
+            {"All", "Undiscovered", "Discovered", "Discovered (not analyzed)", "Analyzed"}};
+    private static final String[] GROUP_EMPTY = {"No Visitor matches the input!", "No mutation matches the input!"};
+    private final int[] groupFilter = new int[2];
+
+    /** A visitor's look: its skin from the bundled table (texture hash), else its item, else a plain head. */
+    private static ItemStack visitorIcon(JsonObject skins, String id) {
+        String v = skins != null && skins.has(id) ? skins.get(id).getAsString() : null;
+        if (v == null) return new ItemStack(Items.PLAYER_HEAD);
+        if (v.startsWith("@")) return ItemIcons.forItem(v.substring(1));
+        String json = "{\"textures\":{\"SKIN\":{\"url\":\"http://textures.minecraft.net/texture/" + v + "\"}}}";
+        return LegacyItems.skull(java.util.Base64.getEncoder().encodeToString(json.getBytes(java.nio.charset.StandardCharsets.UTF_8)), null);
+    }
+
+    /** VisitorScreen (every repo visitor with its commission, then unknown ones) and MutationScreen (analyzed, discovered and
+     *  repo crops, distinct) as grouped slots. */
+    private static void buildGrids(Farm f, SbProfile p, JsonObject t, JsonObject garden) {
+        JsonObject skins = t.has("visitor_skins") ? t.getAsJsonObject("visitor_skins") : null;
+        JsonObject names = t.has("visitors") ? t.getAsJsonObject("visitors") : new JsonObject();
+        JsonObject comm = SbProfile.asObj(garden.get("commission_data"));
+        JsonObject visits = comm == null ? null : SbProfile.asObj(comm.get("visits")), done = comm == null ? null : SbProfile.asObj(comm.get("completed"));
+        List<GCell> vc = new ArrayList<>();
+        java.util.Set<String> known = new java.util.HashSet<>();
+        String rarities = "URLMS";
+        String[] rarityNames = {"UNCOMMON", "RARE", "LEGENDARY", "MYTHIC", "SPECIAL"};
+        int[] notVisited = {0x00AA00, 0x0000AA, 0xFFFF55, 0xAA00AA, 0xAA0000};
+        for (JsonElement idEl : t.has("visitor_order") ? t.getAsJsonArray("visitor_order") : new JsonArray()) {
+            String id = idEl.getAsString(), nm = names.has(id) ? names.get(id).getAsString() : "U" + id;
+            known.add(id);
+            int r = Math.max(0, rarities.indexOf(nm.charAt(0)));
+            int group = GROUP_ORDER.indexOf(rarityNames[r]);
+            boolean has = visits != null && visits.has(id);
+            vc.add(visitorCell(group, has ? GROUP_COLOR[group] : notVisited[r], VISITOR_NAME[r].substring(0, 2) + nm.substring(1), id, rarityNames[r],
+                    has ? (int) SbProfile.num(visits.get(id)) : -1, (int) gnum(done, id), visitorIcon(skins, id), new ItemStack(McItems.GRAY_DYE)));
+        }
+        if (visits != null) {
+            for (Map.Entry<String, JsonElement> e : visits.entrySet()) {
+                if (known.contains(e.getKey())) continue;
+                vc.add(visitorCell(-1, GRAY, "§7" + e.getKey(), null, null, (int) SbProfile.num(e.getValue()), (int) gnum(done, e.getKey()),
+                        new ItemStack(Items.BARRIER), new ItemStack(Items.BARRIER)));
+            }
+        }
+        f.visitorCells = vc;
+        JsonObject gp = p.memberObj("garden_player_data");
+        java.util.Set<String> analyzed = lowerSet(gp, "analyzed_greenhouse_crops"), discovered = lowerSet(gp, "discovered_greenhouse_crops");
+        java.util.LinkedHashSet<String> all = new java.util.LinkedHashSet<>(analyzed);
+        all.addAll(discovered);
+        Map<String, JsonArray> data = new HashMap<>();
+        for (JsonElement m : t.has("mutations") ? t.getAsJsonArray("mutations") : new JsonArray()) {
+            JsonArray a = m.getAsJsonArray();
+            String id = a.get(0).getAsString().toLowerCase(Locale.ROOT);
+            all.add(id);
+            data.put(id, a);
+        }
+        String[] tint = {"COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC", "SPECIAL"};
+        int[] tintColor = {GRAY, 0x00AA00, 0x0000AA, 0xFF55FF, 0xFFFF55, 0xAA00AA, 0xAA0000};
+        List<GCell> mc = new ArrayList<>();
+        for (String id : all) {
+            JsonArray d = data.get(id);
+            boolean analyzable = d == null || d.get(3).getAsInt() != 0;
+            boolean an = analyzed.contains(id) || !analyzable, disc = discovered.contains(id);
+            int group = d == null ? -1 : GROUP_ORDER.indexOf(d.get(2).getAsString());
+            int ti = d == null ? -1 : List.of(tint).indexOf(d.get(2).getAsString());
+            int color = an && d == null ? DARK_GRAY : !an && ti >= 0 ? tintColor[ti] : group >= 0 ? GROUP_COLOR[group] : DARK_GRAY;
+            ItemStack base = d == null ? null : ItemIcons.catalogIcon(d.get(0).getAsString());
+            List<Component> tip = new ArrayList<>();
+            tip.add(base != null ? base.getHoverName() : Component.literal(id));
+            tip.add(Component.empty());
+            tip.add(Component.literal("§7Discovered: " + (disc ? "§aYes" : "§cNo")));
+            tip.add(Component.literal("§7Analyzed: " + (!analyzable ? "§6N/A" : an ? "§aYes" : "§cNo")));
+            int filters = 1 | (disc ? 0 : 2) | (disc ? 4 : 0) | (disc && !an ? 8 : 0) | (an ? 16 : 0);
+            ItemStack dim = d == null ? new ItemStack(Items.BARRIER) : new ItemStack(McItems.GRAY_DYE);
+            mc.add(new GCell(group, color, List.copyOf(tip), filters, null, disc, base == null ? dim : base, dim));
+        }
+        f.mutationCells = mc;
+        f.mutationTab = ItemIcons.catalogIcon("LONELILY");
+    }
+
+    private static GCell visitorCell(int group, int color, String name, String id, String rarity, int visits, int accepted, ItemStack icon, ItemStack dim) {
+        List<String> tip = new ArrayList<>(List.of(name));
+        if (visits >= 0) {
+            tip.add("");
+            tip.add("§7Visits: §a" + visits);
+            tip.add("§7Accepted: §a" + accepted);
+            tip.add("§7Rejected: §a" + (visits - accepted));
+        }
+        boolean has = visits >= 0;
+        int filters = 1 | (has ? 0 : 2) | (has && visits >= 1 ? 4 : 0) | (has && visits >= 1 && accepted <= 0 ? 8 : 0) | (has && accepted >= 1 ? 16 : 0);
+        String search = id == null ? null : (name.replaceAll("§.", "") + "|" + id + "|" + rarity).toLowerCase(Locale.ROOT);
+        return new GCell(group, color, lines(tip), filters, search, has, icon, dim);
+    }
+
+    private static java.util.Set<String> lowerSet(JsonObject o, String key) {
+        java.util.Set<String> out = new java.util.LinkedHashSet<>();
+        if (o != null && o.has(key) && o.get(key).isJsonArray()) {
+            for (JsonElement e : o.getAsJsonArray(key)) if (e.isJsonPrimitive()) out.add(e.getAsString().toLowerCase(Locale.ROOT));
+        }
+        return out;
+    }
+
+    /** GroupedScreen: a 100 px search box and a 100 px Filter button (left click next, right click back) 20 below the top,
+     *  then the matching slots grouped by rarity (rarest last, none at the end), width / 24 to a row, 4 between groups,
+     *  centered in the area 45 below the top and 5 above the bottom, scrolled when taller. {@code kind} 0 visitors, 1 mutations. */
+    @SuppressWarnings("unchecked")
+    private void drawGrouped(GuiGraphicsExtractor g, List<GCell> cells, int kind, int mx, int my) {
+        int bx = s.panelX, by = s.contentY, bw = s.panelW, bh = s.panelY + s.panelH - s.contentY;
+        int rx = bx + (bw - 205) / 2, ry = by + 20;
+        String query = s.pageSearch(rx, ry);
+        int fx = rx + 105, filter = groupFilter[kind];
+        boolean onFilter = hover(mx, my, fx, ry, 100, 20);
+        PvStyleChrome.button(g, s.pvStyle(), fx, ry, 100, 20, "Filter", onFilter, false);
+        String[] names = GROUP_FILTERS[kind];
+        s.hotspots.add(new ProfileViewerScreen.Hotspot(fx, ry, 100, 20, () -> { groupFilter[kind] = (groupFilter[kind] + 1) % names.length; s.pageScroll = 0; }));
+        s.rightHotspots.add(new ProfileViewerScreen.Hotspot(fx, ry, 100, 20,
+                () -> { groupFilter[kind] = (groupFilter[kind] + names.length - 1) % names.length; s.pageScroll = 0; }));
+        if (onFilter) {
+            List<Component> tip = new ArrayList<>(List.of(Component.literal("§7Click to cycle through the filters!"),
+                    Component.literal("§8Left Click / Right Click"), Component.empty()));
+            for (int i = 0; i < names.length; i++) tip.add(Component.literal(i == filter ? "§7> §a" + names[i] : " §c" + names[i]));
+            s.pendingTooltip = tip;
+        }
+        int perRow = Math.max(1, bw / 24), fy = by + 45, fh = bh - 50;
+        List<List<GCell>> groups = new ArrayList<>();
+        for (int gi = 0; gi <= GROUP_ORDER.size(); gi++) {
+            int want = gi == GROUP_ORDER.size() ? -1 : gi;
+            List<GCell> in = new ArrayList<>();
+            for (GCell c : cells) {
+                if (c.group == want && (c.filters >> filter & 1) != 0 && (query.isEmpty() || c.search == null || c.search.contains(query))) in.add(c);
+            }
+            if (!in.isEmpty()) groups.add(in);
+        }
+        if (groups.isEmpty()) {
+            String t = GROUP_EMPTY[kind];
+            g.text(font(), t, bx + (bw - font().width(t)) / 2, fy + fh / 2 - 4, 0xFFFF5555, false);
+            return;
+        }
+        int total = -4;
+        for (List<GCell> in : groups) total += 4 + (in.size() + perRow - 1) / perRow * 20;
+        s.pageScroll = Math.max(0, Math.min(s.pageScroll, Math.max(0, total - fh + 9) / 10));
+        int y = total <= fh ? fy + (fh - total) / 2 : fy - s.pageScroll * 10;
+        g.enableScissor(bx, fy, bx + bw, fy + fh);
+        for (List<GCell> in : groups) {
+            for (int r = 0; r * perRow < in.size(); r++) {
+                int n = Math.min(perRow, in.size() - r * perRow), x = bx + (bw - n * 20) / 2;
+                for (int k = 0; k < n; k++) {
+                    GCell c = in.get(r * perRow + k);
+                    boolean real = kind == 0 ? c.flag || filter == 1 : c.flag && filter != 1;
+                    PvStyleChrome.slot(g, s.pvStyle(), x, y, 20, 0xFF000000 | c.color);
+                    g.item(real ? c.icon : c.dim, x + 2, y + 2);
+                    if (my >= fy && my < fy + fh && hover(mx, my, x, y, 20, 20)) s.pendingTooltip = c.tip;
+                    x += 20;
+                }
+                y += 20;
+            }
+            y += 4;
+        }
+        g.disableScissor();
+    }
+
+    private static JsonObject gardenTable() {
+        JsonObject t = ExtraTables.bundled().getAsJsonObject("sbpv_garden");
+        return t == null ? new JsonObject() : t;
+    }
+
+    /** The original's cum_int_list: running sums from 0 with repeats dropped. */
+    private static long[] cumulative(long[] steps) {
+        long[] out = new long[steps.length + 1];
+        int n = 1;
+        for (long v : steps) {
+            long sum = out[n - 1] + v;
+            if (sum != out[n - 1]) out[n++] = sum;
+        }
+        return Arrays.copyOf(out, n);
+    }
+
+    /** Index of the last bracket at or below {@code v}, -1 when none. */
+    private static int lastAtMost(long[] b, long v) {
+        int i = -1;
+        for (int k = 0; k < b.length; k++) if (b[k] <= v) i = k;
+        return i;
+    }
+
+    private static String pct(double part, double whole) {
+        return round((float) part / (float) whole * 100);
+    }
+
+    /** An item's name in its rarity color (the original's lazy item stack name), "Unknown Item" when the catalog lacks it. */
+    private static String itemName(String id, boolean colored) {
+        SkyblockItemEntry e = SkyblockItemRepository.findById(id);
+        return e == null ? "Unknown Item" : (colored ? SkyblockItemStackFactory.tierColorCode(e.tier()) : "") + e.name();
+    }
+
+    private static long gnum(JsonObject o, String key) {
+        return o == null ? 0 : (long) SbProfile.num(o.get(key));
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Farm buildFarm(SbProfile p, ProfileExtras.Farming fa, JsonObject garden) {
+        Farm f = new Farm();
+        JsonObject t = gardenTable();
+        JsonObject upgrades = SbProfile.asObj(garden.get("garden_upgrades"));
+        // Information
+        long xp = gnum(garden, "garden_experience");
+        long[] br = cumulative(ExtraTables.tableLongs(ExtraTables.section("garden").get("garden_level")));
+        int lvl = Math.max(0, lastAtMost(br, xp)) + 1;
+        long total = br[br.length - 1];
+        List<String> lvlTip = new ArrayList<>();
+        if (lvl != br.length) {
+            long req = lvl >= br.length - 1 ? 0 : br[lvl] - br[Math.max(lvl - 1, 0)], cur = xp - br[Math.max(lvl - 1, 0)];
+            lvlTip.add("§7To lvl " + lvl + ": §2" + cur + "§a/§2" + req + (req != 0 ? "§7 (§3" + pct(cur, req) + "%§7)" : ""));
+            lvlTip.add("§7To max: §2" + fmt(xp) + "§a/§2" + fmt(total) + "§7 (§3" + pct(xp, total) + "%§7)");
+        } else {
+            lvlTip.add("§7Total xp: §2" + fmt(xp - total));
+        }
+        int larvaMax = ExtraTables.section("garden").has("max_larva_consumed") ? ExtraTables.section("garden").get("max_larva_consumed").getAsInt() : 5;
+        Map<String, Integer> inv = fa == null ? Map.of() : fa.medalInventory();
+        f.info = new String[] {"§8Copper: §c" + fmt(fa == null ? 0 : fa.copper()), "§8Garden Level: §2" + lvl,
+                "§8Contests Participated: §e" + (fa == null ? 0 : fa.contests()),
+                "§8Medals: §c" + fmt(inv.getOrDefault("bronze", 0)) + "§8/§7" + fmt(inv.getOrDefault("silver", 0)) + "§8/§6" + fmt(inv.getOrDefault("gold", 0)),
+                "§8Larva Consumed: " + (fa != null && fa.larvaConsumed() == larvaMax ? "§a" : "§c") + (fa == null ? 0 : fa.larvaConsumed()) + "§8/" + larvaMax,
+                null, null};
+        f.infoTips = new List[7];
+        f.infoTips[1] = lines(lvlTip);
+        String[] perkNames = {"Farming Level Cap", "Double Drops"};
+        String[] perkKeys = {"level_cap", "bonus_drops"};
+        int[] perkLevels = {fa == null ? 0 : fa.levelCapPerk(), fa == null ? 0 : fa.doubleDrops()};
+        for (int k = 0; k < 2; k++) {
+            JsonArray values = t.has(perkKeys[k]) ? t.getAsJsonArray(perkKeys[k]) : new JsonArray();
+            int pl = perkLevels[k], size = values.size();
+            f.info[5 + k] = "§8" + perkNames[k] + ": " + (pl == size ? "§a" : "§c") + pl + "§8/" + size;
+            if (pl == size || size == 0) continue;
+            JsonObject paid = pl > 1 ? values.get(pl - 1).getAsJsonObject() : new JsonObject();
+            List<String> tip = new ArrayList<>();
+            for (Map.Entry<String, JsonElement> e : values.get(size - 1).getAsJsonObject().entrySet()) {
+                long need = e.getValue().getAsLong(), have = gnum(paid, e.getKey());
+                tip.add("§7" + (e.getKey().equals("gold_medal") ? "Gold Medal" : itemName(e.getKey(), false)) + ": §2" + fmt(have) + "§a/§2" + fmt(need)
+                        + "§7 (§3" + pct(have, need) + "%§7)");
+            }
+            f.infoTips[5 + k] = lines(tip);
+        }
+        buildVisitors(f, t, garden, upgrades);
+        buildContests(p, fa, f, t);
+        // Chips
+        long[] chips = ExtraTables.tableLongs(t.get("chips"));
+        long chipMax = Arrays.stream(chips).max().orElse(1);
+        for (int i = 0; i < CHIPS.length; i++) {
+            int level = (int) p.memberNum("player_data.garden_chips." + CHIPS[i]);
+            String color = level == 0 ? "§c" : level <= 10 ? "§9" : level <= 15 ? "§5" : "§6";
+            String id = CHIPS[i].toUpperCase(Locale.ROOT) + "_GARDEN_CHIP";
+            f.chipIcons[i] = ItemIcons.collectionIcon(id);
+            f.chipText[i] = color + level;
+            int idx = Math.max(0, Math.min(level - 1, 20));
+            long spent = idx < chips.length ? chips[idx] : 0;
+            String sow = "§7Sowdust: " + (spent == 0 ? "§c" : spent == chipMax ? "§2" : "§a") + fmt(spent) + "§7/§2" + shorten(chipMax, 3) + "§7 (§3"
+                    + pct(spent, chipMax) + "%§7)";
+            String head = color + NeuItemData.nameFor(id);
+            f.chipTips[i] = lines(List.of(head, "", "", sow));
+            final int slot = i;
+            // the chip's ability text: its lore from the "Ability: " line to the next blank line
+            NeuItemData.future(id).thenAccept(info -> {
+                if (info == null) return;
+                List<String> out = new ArrayList<>(List.of(head, ""));
+                boolean on = false;
+                for (String l : info.lore()) {
+                    String plain = l.replaceAll("§.", "");
+                    if (!on && plain.startsWith("Ability: ")) on = true;
+                    else if (on && plain.isEmpty()) break;
+                    if (on) out.add(l);
+                }
+                out.add("");
+                out.add(sow);
+                f.chipTips[slot] = lines(out);
+            });
+        }
+        // Pets: the farming pets, lowest rarity first then most exp, one per type
+        List<String> petIds = ExtraTables.strings(ExtraTables.bundled().getAsJsonObject("sbpv_gear").getAsJsonObject("farming").get("pets"));
+        List<SbProfile.Pet> pets = new ArrayList<>();
+        for (SbProfile.Pet pet : p.pets) if (petIds.contains(pet.type)) pets.add(pet);
+        pets.sort(Comparator.<SbProfile.Pet>comparingInt(x -> LevelTables.RARITIES.indexOf(x.tier)).thenComparing(x -> -x.exp));
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        int n = 0;
+        for (SbProfile.Pet pet : pets) {
+            if (n == 4) break;
+            if (!seen.add(pet.type)) continue;
+            f.pets[n] = pet.icon();
+            f.petLevels[n++] = String.valueOf(pet.level.level());
+        }
+        buildCrops(f, t, garden);
+        buildGrids(f, p, t, garden);
+        buildComposter(f, t, garden);
+        return f;
+    }
+
+    /** ComposterScreen's content from the garden and the bundled composter, greenhouse and plot tables. */
+    @SuppressWarnings("unchecked")
+    private static void buildComposter(Farm f, JsonObject t, JsonObject garden) {
+        f.composterTab = ItemIcons.catalogIcon("COMPOST");
+        JsonObject cd = SbProfile.asObj(garden.get("composter_data"));
+        JsonObject cu = cd == null ? null : SbProfile.asObj(cd.get("upgrades"));
+        long last = gnum(cd, "last_save");
+        f.compInfo = new String[] {"Organic Matter Stored: §a" + fmt(cd == null ? 0 : SbProfile.num(cd.get("organic_matter"))),
+                "Fuel Stored: §2" + fmt(cd == null ? 0 : SbProfile.num(cd.get("fuel_units"))),
+                "Compost Stored: §c" + fmt(gnum(cd, "compost_items")),
+                "Last Update: §8" + java.time.format.DateTimeFormatter.ofPattern("uuuu/MM/dd HH:mm:ss")
+                        .format(java.time.LocalDateTime.ofInstant(Instant.ofEpochMilli(last), java.time.ZoneId.systemDefault()))};
+        JsonArray slots = garden.has("greenhouse_slots") && garden.get("greenhouse_slots").isJsonArray() ? garden.getAsJsonArray("greenhouse_slots") : new JsonArray();
+        JsonObject gu = SbProfile.asObj(garden.get("garden_upgrades"));
+        JsonObject gh = t.has("greenhouse") ? t.getAsJsonObject("greenhouse") : new JsonObject();
+        List<String> gl = new ArrayList<>(List.of("Spaces: §a" + (slots.size() + 12) + "§2/§a100"));
+        List<List<Component>> gt = new ArrayList<>();
+        gt.add(null);
+        for (String key : GREENHOUSE_UPGRADES) {
+            JsonObject d = gh.has(key) ? gh.getAsJsonObject(key) : null;
+            if (d == null) continue;
+            int level = (int) gnum(gu, key), size = d.getAsJsonArray("upgrades").size();
+            gl.add("§8" + d.get("name").getAsString().replaceAll("§.", "") + ": §a" + level + "§2/§a" + size);
+            List<String> tip = new ArrayList<>(List.of(d.get("name").getAsString(), ""));
+            tip.addAll(upgradeLines(d, level));
+            tip.add("");
+            tip.addAll(progress(d, level).values());
+            gt.add(lines(tip));
+        }
+        f.greenhouse = gl.toArray(new String[0]);
+        f.greenhouseTips = gt.toArray(new List[0]);
+        JsonObject comp = t.has("composter") ? t.getAsJsonObject("composter") : new JsonObject();
+        for (int i = 0; i < COMPOSTER_UPGRADES.length; i++) {
+            JsonObject d = comp.has(COMPOSTER_UPGRADES[i]) ? comp.getAsJsonObject(COMPOSTER_UPGRADES[i]) : null;
+            int level = (int) gnum(cu, COMPOSTER_UPGRADES[i].toLowerCase(Locale.ROOT));
+            if (d == null) {
+                f.compUps[i] = new ItemStack(Items.BARRIER);
+                f.compUpTips[i] = lines(List.of("§cError", "Data for " + COMPOSTER_UPGRADES[i] + " was null which shouldn't have happened"));
+                continue;
+            }
+            int size = d.getAsJsonArray("upgrades").size();
+            Identifier itemId = Identifier.tryParse(d.get("item").getAsString());
+            f.compUps[i] = itemId == null ? new ItemStack(Items.BARRIER)
+                    : net.minecraft.core.registries.BuiltInRegistries.ITEM.getOptional(itemId).map(ItemStack::new).orElseGet(() -> new ItemStack(Items.BARRIER));
+            f.compUpText[i] = String.valueOf(level);
+            List<String> tip = new ArrayList<>(List.of("§l" + d.get("name").getAsString()));
+            tip.addAll(upgradeLines(d, level));
+            tip.add("");
+            tip.add("§7Level §a" + level + "§2/§a" + size);
+            tip.add("");
+            Map<String, String> map = progress(d, level);
+            tip.add("§7Copper needed");
+            tip.add(map.getOrDefault("copper", ":("));
+            tip.add("");
+            tip.add("§7Crops needed");
+            for (Map.Entry<String, String> e : map.entrySet()) if (!RARE_CROPS.contains(e.getKey()) && !e.getKey().equalsIgnoreCase("copper")) tip.add(e.getValue());
+            tip.add("");
+            tip.add("§7Rare Crops needed");
+            for (Map.Entry<String, String> e : map.entrySet()) if (RARE_CROPS.contains(e.getKey())) tip.add(e.getValue());
+            f.compUpTips[i] = lines(tip);
+        }
+        // The Compost Speed attribute (a shard attribute; its level is kept with the composter's upgrades).
+        int attr = (int) gnum(cu, "compost_speed_attribute");
+        f.compUps[5] = ItemIcons.catalogIcon("ATTRIBUTE_SHARD");
+        f.compUpText[5] = String.valueOf(attr);
+        f.compUpTips[5] = lines(List.of("§aCompost Speed", "§7Level: §a" + attr));
+        // Plots: every plot black (its name), unlocked ones green, a locked one shows its next cost; the barn skin in the middle.
+        JsonArray plots = t.has("plots") ? t.getAsJsonArray("plots") : new JsonArray();
+        java.util.Set<String> open = new java.util.HashSet<>();
+        if (garden.has("unlocked_plots_ids") && garden.get("unlocked_plots_ids").isJsonArray()) {
+            for (JsonElement e : garden.getAsJsonArray("unlocked_plots_ids")) open.add(e.getAsString());
+        }
+        Map<String, Integer> openByType = new java.util.HashMap<>();
+        for (JsonElement e : plots) {
+            String id = e.getAsJsonArray().get(0).getAsString();
+            if (open.contains(id)) openByType.merge(id.substring(0, id.indexOf('_')), 1, Integer::sum);
+        }
+        JsonObject costs = t.has("plot_cost") ? t.getAsJsonObject("plot_cost") : new JsonObject();
+        ItemStack black = new ItemStack(McItems.BLACK_STAINED_GLASS_PANE), green = new ItemStack(McItems.GREEN_STAINED_GLASS_PANE);
+        for (JsonElement e : plots) {
+            JsonArray pl = e.getAsJsonArray();
+            String id = pl.get(0).getAsString(), type = id.substring(0, id.indexOf('_'));
+            int cell = (4 - pl.get(2).getAsInt()) * 5 + pl.get(1).getAsInt();
+            String num = pl.get(3).getAsString();
+            if (open.contains(id)) {
+                f.plots[cell] = green;
+                f.plotTips[cell] = lines(List.of("§aPlot§7 - §b" + num));
+                continue;
+            }
+            f.plots[cell] = black;
+            JsonArray cost = costs.has(type) ? costs.getAsJsonArray(type) : new JsonArray();
+            int have = openByType.getOrDefault(type, 0);
+            if (have >= cost.size()) {
+                f.plotTips[cell] = lines(List.of("§ePlot§7 - §b" + num));
+            } else {
+                JsonObject c = cost.get(have).getAsJsonObject();
+                boolean bundle = c.get("bundle").getAsBoolean();
+                f.plotTips[cell] = lines(List.of("§ePlot§7 - §b" + num, itemName(bundle ? "ENCHANTED_COMPOST" : "COMPOST", true) + "§8 x" + c.get("amount").getAsInt()));
+            }
+        }
+        JsonObject skins = t.has("barn_skins") ? t.getAsJsonObject("barn_skins") : new JsonObject();
+        String skin = garden.has("selected_barn_skin") ? garden.get("selected_barn_skin").getAsString() : "";
+        JsonArray sk = skins.has(skin) ? skins.getAsJsonArray(skin) : null;
+        f.plots[12] = sk == null ? new ItemStack(Items.BARRIER) : ItemIcons.forId(sk.get(1).getAsString());
+        f.plotTips[12] = lines(List.of(sk == null ? "§cUnknown Barn Skin (" + skin + ")" : sk.get(0).getAsString()));
+    }
+
+    /** StaticComposterData.getTooltipForLevel: the tooltip with its reward (PERCENTAGE as a whole number, INTEGER grouped). */
+    private static List<String> upgradeLines(JsonObject d, int level) {
+        double reward = (int) SbpvTreeTips.eval(d.get("formula").getAsString(), Map.of("level", (double) level));
+        String r = "INTEGER".equals(d.get("format").getAsString()) ? fmt(reward) : round(reward);
+        return List.of(d.get("tooltip").getAsString().replace("%reward%", r).split("\n"));
+    }
+
+    /** ComposterScreen.getProgressMap: per item of the max level, used of needed and the percent, keyed by item. */
+    private static Map<String, String> progress(JsonObject d, int level) {
+        JsonArray ups = d.getAsJsonArray("upgrades");
+        JsonObject cur = level != 0 && level <= ups.size() ? ups.get(level - 1).getAsJsonObject() : new JsonObject();
+        Map<String, String> out = new java.util.LinkedHashMap<>();
+        for (Map.Entry<String, JsonElement> need : ups.get(ups.size() - 1).getAsJsonObject().entrySet()) {
+            long used = gnum(cur, need.getKey()), max = need.getValue().getAsLong();
+            out.put(need.getKey(), "§7" + (need.getKey().equalsIgnoreCase("copper") ? "§cCopper" : itemName(need.getKey(), true)) + "§7 §e" + fmt(used)
+                    + "§6/§e" + fmt(max) + " §7(§3" + pct(used, max) + "%§7)");
+        }
+        return out;
+    }
+
+    private static final int PLOTS_W = 5 * 20 + 4, UPS_W = 6 * 20 + 4;
+
+    /** ComposterScreen: Plots beside Information, Greenhouse and Upgrades (10 apart); stacked and scrolled when it does not fit. */
+    private void drawComposter(GuiGraphicsExtractor g, Farm f, int mx, int my) {
+        int bx = s.panelX, by = s.contentY, bw = s.panelW, bh = s.panelY + s.panelH - s.contentY;
+        int infoCW = widest(f.compInfo), ghCW = widest(f.greenhouse);
+        int plotsW = labelW(PLOTS_W, 0), plotsH = labelH(PLOTS_W), infoW = labelW(infoCW, 0), infoH = labelH(f.compInfo.length * 9),
+                ghW = labelW(ghCW, 0), ghH = labelH(f.greenhouse.length * 9), upW = labelW(UPS_W, 0), upH = labelH(24);
+        int colW = Math.max(infoW, Math.max(ghW, upW)), colH = infoH + 10 + ghH + 10 + upH;
+        int w = plotsW + colW, h = Math.max(plotsH, colH);
+        g.enableScissor(bx, by, bx + bw, by + bh);
+        if (w <= bw && h <= bh) {
+            int x = bx + (bw - w) / 2, y = by + (bh - h) / 2;
+            composterPlots(g, f, x, y + (h - plotsH) / 2, mx, my);
+            x += plotsW;
+            int y2 = y + (h - colH) / 2;
+            composterInfo(g, f.compInfo, null, "Information", x + (colW - infoW) / 2, y2, infoCW, mx, my);
+            composterInfo(g, f.greenhouse, f.greenhouseTips, "Greenhouse", x + (colW - ghW) / 2, y2 + infoH + 10, ghCW, mx, my);
+            composterUpgrades(g, f, x + (colW - upW) / 2, y2 + infoH + 10 + ghH + 10, mx, my);
+        } else {
+            int total = plotsH + 5 + upH + 5 + ghH + 5 + infoH;
+            s.pageScroll = Math.max(0, Math.min(s.pageScroll, Math.max(0, total - bh + 9) / 10));
+            int y = by - s.pageScroll * 10;
+            composterPlots(g, f, bx + (bw - plotsW) / 2, y, mx, my);
+            y += plotsH + 5;
+            composterUpgrades(g, f, bx + (bw - upW) / 2, y, mx, my);
+            y += upH + 5;
+            composterInfo(g, f.greenhouse, f.greenhouseTips, "Greenhouse", bx + (bw - ghW) / 2, y, ghCW, mx, my);
+            composterInfo(g, f.compInfo, null, "Information", bx + (bw - infoW) / 2, y + ghH + 5, infoCW, mx, my);
+        }
+        g.disableScissor();
+    }
+
+    private void composterPlots(GuiGraphicsExtractor g, Farm f, int x, int y, int mx, int my) {
+        int[] c = label(g, "Plots", null, x, y, PLOTS_W, PLOTS_W, 0);
+        for (int i = 0; i < 25; i++) {
+            ItemStack st = f.plots[i] == null ? ItemStack.EMPTY : f.plots[i];
+            slotItem(g, st, null, c[0] + 2 + i % 5 * 20, c[1] + 2 + i / 5 * 20, f.plotTips[i], mx, my);
+        }
+    }
+
+    private void composterInfo(GuiGraphicsExtractor g, String[] l, List<Component>[] tips, String title, int x, int y, int w, int mx, int my) {
+        int[] c = label(g, title, null, x, y, w, l.length * 9, 0);
+        textLines(g, l, tips, c[0], c[1], 0, mx, my);
+    }
+
+    private void composterUpgrades(GuiGraphicsExtractor g, Farm f, int x, int y, int mx, int my) {
+        int[] c = label(g, "Upgrades", null, x, y, UPS_W, 24, 0);
+        for (int i = 0; i < 6; i++) slotItem(g, f.compUps[i], f.compUpText[i], c[0] + 2 + i * 20, c[1] + 2, f.compUpTips[i], mx, my);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void buildVisitors(Farm f, JsonObject t, JsonObject garden, JsonObject upgrades) {
+        JsonObject comm = SbProfile.asObj(garden.get("commission_data"));
+        JsonObject visits = comm == null ? null : SbProfile.asObj(comm.get("visits")), done = comm == null ? null : SbProfile.asObj(comm.get("completed"));
+        JsonObject names = t.has("visitors") ? t.getAsJsonObject("visitors") : new JsonObject();
+        long[][] sums = new long[VISITOR_RARITY.length() + 1][2];
+        if (visits != null) {
+            for (Map.Entry<String, JsonElement> e : visits.entrySet()) {
+                long v = (long) SbProfile.num(e.getValue()), c = gnum(done, e.getKey());
+                sums[0][0] += c;
+                sums[0][1] += v;
+                int r = names.has(e.getKey()) ? VISITOR_RARITY.indexOf(names.get(e.getKey()).getAsString().charAt(0)) : -1;
+                if (r >= 0) {
+                    sums[r + 1][0] += c;
+                    sums[r + 1][1] += v;
+                }
+            }
+        }
+        List<String> l = new ArrayList<>();
+        List<List<Component>> tips = new ArrayList<>();
+        long nonSpecial = 0;
+        JsonArray rarities = t.has("visitor_rarities") ? t.getAsJsonArray("visitor_rarities") : new JsonArray();
+        for (JsonElement r : rarities) if (!r.getAsJsonArray().get(0).getAsString().equals("SPECIAL")) nonSpecial += r.getAsJsonArray().get(1).getAsLong();
+        l.add("§8Unique Served: §a" + fmt(gnum(comm, "unique_npcs_served")) + "§8/§a" + fmt(nonSpecial));
+        tips.add(List.of(Component.literal("§7Excluding §cSpecial§7 Visitors.")));
+        for (int k = -1; k < rarities.size(); k++) {
+            int r = k < 0 ? -1 : VISITOR_RARITY.indexOf(rarities.get(k).getAsJsonArray().get(0).getAsString().charAt(0));
+            long[] v = sums[r + 1];
+            l.add((r < 0 ? "§8Total" : VISITOR_NAME[r]) + "§8: §a" + fmt(v[0]) + "§8/§a" + fmt(v[1]));
+            tips.add(lines(List.of("§7Offers Accepted: §a" + fmt(v[0]), "§7Times Visited: §a" + fmt(v[1]))));
+        }
+        int afterRarities = l.size() - 1;
+        JsonObject vu = t.has("vupgrades") ? t.getAsJsonObject("vupgrades") : new JsonObject();
+        for (Map.Entry<String, JsonElement> e : vu.entrySet()) {
+            JsonObject d = e.getValue().getAsJsonObject();
+            JsonArray ups = d.getAsJsonArray("upgrades");
+            int level = (int) gnum(upgrades, e.getKey());
+            String name = d.get("name").getAsString();
+            l.add("§8" + name.replaceAll("§.", "") + ": §a" + level + "§2/§a" + ups.size());
+            List<String> tip = new ArrayList<>(List.of(name, "",
+                    d.get("tooltip").getAsString().replace("%reward%", fmt((int) SbpvTreeTips.eval(d.get("formula").getAsString(), Map.of("level", (double) level)))), ""));
+            JsonObject cur = level != 0 && level <= ups.size() ? ups.get(level - 1).getAsJsonObject() : new JsonObject();
+            for (Map.Entry<String, JsonElement> need : ups.get(ups.size() - 1).getAsJsonObject().entrySet()) {
+                long used = gnum(cur, need.getKey()), max = need.getValue().getAsLong();
+                tip.add("§7" + (need.getKey().equalsIgnoreCase("copper") ? "§cCopper" : itemName(need.getKey(), true)) + "§7 §e" + fmt(used) + "§6/§e" + fmt(max)
+                        + " §7(§3" + pct(used, max) + "%§7)");
+            }
+            tips.add(lines(tip));
+        }
+        f.visitors = l.toArray(new String[0]);
+        f.visitorTips = tips.toArray(new List[0]);
+        f.visitorGaps = new int[] {0, afterRarities};
+        // Visitor Queue: 5 wide, one row (two with Max Occupancy), each active visitor's hover
+        f.queueRows = Math.max(5, Math.min(6, 5 + (int) gnum(upgrades, "MAX_OCCUPANCY"))) - 4;
+        JsonObject active = SbProfile.asObj(garden.get("active_commissions"));
+        List<ItemStack> q = new ArrayList<>();
+        List<List<Component>> qt = new ArrayList<>();
+        for (Map.Entry<String, JsonElement> e : active == null ? java.util.Set.<Map.Entry<String, JsonElement>>of() : active.entrySet()) {
+            JsonObject o = e.getValue().getAsJsonObject();
+            String nm = names.has(e.getKey()) ? names.get(e.getKey()).getAsString() : null;
+            int r = nm == null ? -1 : VISITOR_RARITY.indexOf(nm.charAt(0));
+            List<String> tip = new ArrayList<>();
+            tip.add((r < 0 ? "§7" : VISITOR_NAME[r].substring(0, 2)) + "§l" + (nm == null ? "Unknown Visitor" : nm.substring(1)));
+            tip.add("");
+            tip.add("§7Queue Position: §e#" + gnum(o, "position"));
+            tip.add("§7Status: " + ("STARTED".equals(optStr(o, "status")) ? "§cStarted" : "§aNot Started"));
+            JsonArray req = o.has("requirement") && o.get("requirement").isJsonArray() ? o.getAsJsonArray("requirement") : new JsonArray();
+            if (!req.isEmpty()) {
+                tip.add("");
+                tip.add("§7Items Required:");
+                for (JsonElement re : req) {
+                    JsonObject ro = re.getAsJsonObject();
+                    String item = optStr(ro, "item"), orig = optStr(ro, "original_item");
+                    long amount = gnum(ro, "amount"), origAmount = gnum(ro, "original_amount");
+                    tip.add(" " + itemName(item == null ? "" : item, true) + "§8 x" + (amount != origAmount && java.util.Objects.equals(orig, item)
+                            ? "§a" + fmt(amount) + "§7/§8" : "") + fmt(origAmount));
+                }
+            }
+            JsonArray extra = o.has("extra_rewards") && o.get("extra_rewards").isJsonArray() ? o.getAsJsonArray("extra_rewards") : new JsonArray();
+            JsonArray bonus = o.has("bonus_rewards") && o.get("bonus_rewards").isJsonArray() ? o.getAsJsonArray("bonus_rewards") : new JsonArray();
+            if (!extra.isEmpty() || !bonus.isEmpty()) {
+                tip.add("");
+                tip.add("§7Rewards:");
+                for (JsonElement re : extra) {
+                    String line = reward(re.getAsJsonObject());
+                    if (line != null) tip.add(" §7" + line);
+                }
+                for (JsonElement re : bonus) tip.add(" §7" + itemName(optStr(re.getAsJsonObject(), "item_id"), true));
+            }
+            q.add(r < 0 ? new ItemStack(Items.BARRIER) : visitorIcon(t.has("visitor_skins") ? t.getAsJsonObject("visitor_skins") : null, e.getKey()));
+            qt.add(lines(tip));
+        }
+        f.queue = q.toArray(new ItemStack[0]);
+        f.queueTips = qt.toArray(new List[0]);
+    }
+
+    /** One extra visitor reward as text (powder, enchanted book, rune, dyed item, candy, sowdust, essence). */
+    private static String reward(JsonObject r) {
+        long amount = gnum(r, "amount");
+        if (r.has("powder")) return "§2" + fmt(amount) + " " + SbProfile.titleCase(optStr(r, "powder")) + " Powder";
+        if (r.has("enchant")) return "§9" + SbProfile.titleCase(optStr(r, "enchant")) + " " + Math.max(1, gnum(r, "level"));
+        if (r.has("rune")) return SbProfile.titleCase(optStr(r, "rune")) + " Rune";
+        if (r.has("item")) return itemName(optStr(r, "item"), true);
+        if (r.has("candy")) return itemName(optStr(r, "candy"), true);
+        if (r.has("sowdust")) return "§2" + fmt(gnum(r, "sowdust")) + " Sowdust";
+        if (r.has("essence")) return "§d" + fmt(amount) + " " + SbProfile.titleCase(optStr(r, "essence")) + " Essence";
+        return null;
+    }
+
+    /** Contests: per crop its bracket dots, medal counts, personal best, contests entered and best placing. */
+    private static void buildContests(SbProfile p, ProfileExtras.Farming fa, Farm f, JsonObject t) {
+        JsonObject jc = p.memberObj("jacobs_contest");
+        JsonObject cs = jc == null ? null : SbProfile.asObj(jc.get("contests"));
+        JsonObject maxPb = t.has("personal_bests") ? t.getAsJsonObject("personal_bests") : new JsonObject();
+        for (int i = 0; i < CROPS.length; i++) {
+            String crop = CROPS[i];
+            int entered = 0, best = Integer.MAX_VALUE;
+            int[] medals = new int[MEDALS.length];
+            for (Map.Entry<String, JsonElement> e : cs == null ? java.util.Set.<Map.Entry<String, JsonElement>>of() : cs.entrySet()) {
+                String[] parts = e.getKey().split(":", 3);
+                if (parts.length < 3 || !parts[2].equals(crop)) continue;
+                entered++;
+                JsonObject c = SbProfile.asObj(e.getValue());
+                String medal = c == null ? null : optStr(c, "claimed_medal");
+                int mi = medal == null ? -1 : Arrays.asList(MEDALS).indexOf(medal.toLowerCase(Locale.ROOT));
+                if (mi >= 0) medals[mi]++;
+                if (c != null && c.has("claimed_position")) best = Math.min(best, (int) gnum(c, "claimed_position") + 1);
+            }
+            StringBuilder b = new StringBuilder("§7Brackets: ");
+            for (int k = 0; k < MEDALS.length; k++) {
+                List<String> crops = fa == null ? null : fa.uniqueBrackets().get(MEDALS[k]);
+                b.append(MEDAL_COLOR[k]).append(crops != null && crops.contains(crop) ? "●" : "◌");
+            }
+            StringBuilder counts = new StringBuilder();
+            for (int k = 0; k < MEDALS.length; k++) {
+                if (medals[k] == 0) continue;
+                if (!counts.isEmpty()) counts.append("§8/");
+                counts.append(MEDAL_COLOR[k]).append(fmt(medals[k]));
+            }
+            if (!counts.isEmpty()) b.append("§7 (").append(counts).append("§7)");
+            String pb;
+            if (fa == null || !fa.personalBestsPerk()) {
+                pb = "§7Personal Best: §cNot Unlocked!";
+            } else {
+                long max = maxPb.has(crop) ? maxPb.get(crop).getAsLong() : 0, have = fa.personalBests().getOrDefault(crop, 0L);
+                pb = "§7Personal Best: §e" + fmt(have) + (max >= have ? "§6/§e" + shorten(max, 0) + "§7 (§3" + pct(have, max) + "%§7)" : "");
+            }
+            String name = crop.equals("MUSHROOM_COLLECTION") ? "Red Mushroom" : NeuItemData.nameFor(crop);
+            List<String> tip = new ArrayList<>(List.of("§f§l" + name, "", b.toString(), pb, "§7Contests participated: §e" + fmt(entered)));
+            if (best != Integer.MAX_VALUE) tip.add("§7Highest Position: §e#" + fmt(best));
+            f.contestIcons[i] = ItemIcons.collectionIcon(crop);
+            f.contestTips[i] = lines(tip);
+        }
+    }
+
+    /** CropScreen: per crop the best tool, the crop upgrade and the crop milestone. */
+    private static void buildCrops(Farm f, JsonObject t, JsonObject garden) {
+        long[] cost = ExtraTables.tableLongs(t.get("crop_upgrade_cost"));
+        long totalCopper = Arrays.stream(cost).sum();
+        JsonObject levels = SbProfile.asObj(garden.get("crop_upgrade_levels")), collected = SbProfile.asObj(garden.get("resources_collected"));
+        JsonObject milestones = ExtraTables.section("garden").has("crop_milestones") ? ExtraTables.section("garden").getAsJsonObject("crop_milestones") : new JsonObject();
+        JsonObject tools = t.has("tools") ? t.getAsJsonObject("tools") : new JsonObject();
+        for (int i = 0; i < CROPS.length; i++) {
+            String crop = CROPS[i];
+            JsonArray tool = tools.has(crop) ? tools.getAsJsonArray(crop) : null;
+            f.toolEmpty[i] = tool != null && tool.get(0).getAsString().equals("axe") ? AXE_SLOT : HOE_SLOT;
+            int lvl = (int) gnum(levels, crop);
+            boolean maxed = lvl == cost.length;
+            String lt = (maxed ? "§a" : "§c") + lvl;
+            long used = 0;
+            for (int k = 0; k < Math.min(lvl, cost.length); k++) used += cost[k];
+            f.crop[i][0] = new ItemStack(maxed ? Items.NETHERRACK : Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE);
+            f.cropText[i][0] = lt;
+            f.cropTips[i][0] = lines(List.of("§lCrop Upgrade", "§7Upgrades: " + lt + "§7/" + cost.length, "§7Copper paid: §c" + fmt(used) + "§6/§c" + fmt(totalCopper)
+                    + (totalCopper != used ? "§7 (§e" + pct(used, totalCopper) + "%§7)" : "")));
+            long have = gnum(collected, crop);
+            long[] b = cumulative(ExtraTables.tableLongs(milestones.get(crop)));
+            int ms = Math.max(0, lastAtMost(b, have)), maxLevel = b.length - 1;
+            String mt = (ms == maxLevel ? "§a" : "§c") + ms;
+            String name = crop.equals("MUSHROOM_COLLECTION") ? "Mushroom" : NeuItemData.nameFor(crop);
+            List<String> tip = new ArrayList<>(List.of("§l" + name + " Milestone", "§7Progress: " + mt + "§7/" + maxLevel));
+            if (ms != maxLevel) {
+                long into = have - b[ms], needed = b[ms + 1] - b[ms];
+                tip.add("§7Progress to " + (ms + 1) + ": §e" + fmt(into) + "§6/§e" + shorten(needed, 1) + "§7 (§3" + pct(into, needed) + "%§7)");
+                tip.add("§7Total Progress: §e" + fmt(have) + "§6/§e" + shorten(b[maxLevel], 1) + " §7(§3" + pct(have, b[maxLevel]) + "%§7)");
+            } else {
+                tip.add("§7Total: §e" + fmt(have));
+            }
+            f.crop[i][1] = ItemIcons.collectionIcon(crop);
+            f.cropText[i][1] = mt;
+            f.cropTips[i][1] = lines(tip);
+        }
+    }
+
+    /** BaseFarmingScreen's categories down the right edge (Main, Crop), then the category. False while the garden loads. */
+    @SuppressWarnings("unchecked")
+    private boolean drawFarming(GuiGraphicsExtractor g, SbProfile p, Model m, int mx, int my) {
+        if (m.farm == null) {
+            m.farm = s.gardenAux(p.profileId).handle((r, err) -> r == null ? null : r.data())
+                    .thenApplyAsync(garden -> buildFarm(p, m.farming, garden == null ? new JsonObject() : garden), ProfileViewerApi.EXECUTOR);
+        }
+        Farm f = m.farm.isDone() && !m.farm.isCompletedExceptionally() ? m.farm.getNow(null) : null;
+        if (f == null) return false;
+        if (f.gear == null) {
+            f.gear = p.inventories().handle((inv, err) -> inv).thenApplyAsync(inv -> {
+                List<List<ItemStack>> sets = new ArrayList<>(m.equipSets.values());
+                sets.addAll(m.armorSets.values());
+                JsonObject gt = ExtraTables.bundled().getAsJsonObject("sbpv_gear").getAsJsonObject("farming");
+                JsonObject tools = gardenTable().has("tools") ? gardenTable().getAsJsonObject("tools") : new JsonObject();
+                ItemStack[] best = new ItemStack[CROPS.length];
+                for (int i = 0; i < CROPS.length; i++) {
+                    best[i] = tools.has(CROPS[i]) ? SbpvGear.best(inv, sets, ExtraTables.strings(tools.getAsJsonArray(CROPS[i]).get(1)), SbpvGear::toolScore)
+                            : ItemStack.EMPTY;
+                }
+                return new Object[] {SbpvGear.build(inv, sets, "farming", "none", null, SbpvGear::equipScore),
+                        SbpvGear.best(inv, sets, ExtraTables.strings(gt.get("vacuum")), SbpvGear::rarity),
+                        SbpvGear.best(inv, sets, ExtraTables.strings(gt.get("watering_can")), SbpvGear::rarity), best};
+            }, ProfileViewerApi.EXECUTOR);
+        }
+        Object[] gear = f.gear.isDone() && !f.gear.isCompletedExceptionally() ? f.gear.getNow(null) : null;
+        if (farmingIcons == null) {
+            farmingIcons = new ItemStack[] {new ItemStack(Items.WHEAT), new ItemStack(Items.VILLAGER_SPAWN_EGG), new ItemStack(Items.CARROT),
+                    new ItemStack(Items.PAPER), new ItemStack(Items.PAPER)};
+        }
+        for (int i = 0; i < farmingIcons.length; i++) {
+            int tx = s.panelX + s.panelW - 9, ty = s.panelY + 20 + 22 * i;
+            final int idx = i;
+            PvStyleChrome.sideTab(g, s.pvStyle(), tx, ty, i == s.subView);
+            g.item(i == 3 ? f.mutationTab : i == 4 ? f.composterTab : farmingIcons[i], tx + 10, ty + 2);
+            s.hotspots.add(new ProfileViewerScreen.Hotspot(tx, ty, 31, 20, () -> s.subView = idx));
+            if (hover(mx, my, tx, ty, 31, 20)) s.pendingTooltip = (List<Component>) FARMING_TIPS[i];
+        }
+        if (s.subView >= farmingIcons.length) s.subView = 0;
+        switch (s.subView) {
+            case 1 -> drawGrouped(g, f.visitorCells, 0, mx, my);
+            case 2 -> drawCrops(g, f, gear, mx, my);
+            case 3 -> drawGrouped(g, f.mutationCells, 1, mx, my);
+            case 4 -> drawComposter(g, f, mx, my);
+            default -> drawFarmMain(g, f, gear, mx, my);
+        }
+        return true;
+    }
+
+    private int queueW() {
+        return 5 * 20 + 4 * 2 + 4;
+    }
+
+    private int queueH(Farm f) {
+        int rows = Math.max(f.queueRows, (f.queue.length + 4) / 5);
+        return rows * 20 + (rows - 1) * 2 + 4;
+    }
+
+    private int visitorsH(Farm f) {
+        return f.visitors.length * 9 + 10;
+    }
+
+    /** FarmingScreen: Gear | Contests and Chips over the Visitor Queue | Information over Visitors, centered; when that does not
+     *  fit, Gear + Contests, Chips + Information, Visitors, Visitor Queue, one under the other, scrolled. */
+    private void drawFarmMain(GuiGraphicsExtractor g, Farm f, Object[] gear, int mx, int my) {
+        int bx = s.panelX, by = s.contentY, bw = s.panelW, bh = s.panelY + s.panelH - s.contentY;
+        int gearW = labelW(FARM_GEAR_W, 0), gearH = labelH(84), conW = labelW(64, 0), chipW = labelW(44, 0), tabH = labelH(TABLE_H);
+        int qW = labelW(queueW(), 0), qH = labelH(queueH(f));
+        int infoCW = widest(f.info), visCW = widest(f.visitors);
+        int infoW = labelW(infoCW, 0), infoH = labelH(f.info.length * 9), visW = labelW(visCW, 0), visH = labelH(visitorsH(f));
+        int col2W = Math.max(conW + chipW, qW), col2H = tabH + 10 + qH, col3W = Math.max(infoW, visW), col3H = infoH + 10 + visH;
+        int w = gearW + col2W + col3W, h = Math.max(gearH, Math.max(col2H, col3H));
+        g.enableScissor(bx, by, bx + bw, by + bh);
+        if (w <= bw && h <= bh) {
+            int x = bx + (bw - w) / 2, y = by + (bh - h) / 2;
+            farmGear(g, f, gear, x, y + (h - gearH) / 2, mx, my);
+            x += gearW;
+            int y2 = y + (h - col2H) / 2, rx = x + (col2W - conW - chipW) / 2;
+            contests(g, f, rx, y2, mx, my);
+            chips(g, f, rx + conW, y2, mx, my);
+            queue(g, f, x + (col2W - qW) / 2, y2 + tabH + 10, mx, my);
+            x += col2W;
+            int y3 = y + (h - col3H) / 2;
+            farmInfo(g, f, x + (col3W - infoW) / 2, y3, infoCW, mx, my);
+            farmVisitors(g, f, x + (col3W - visW) / 2, y3 + infoH + 10, visCW, mx, my);
+        } else {
+            int y = by + 5 - s.pageScroll * 10, r1W = gearW + 5 + conW, r1H = Math.max(gearH, tabH), r2W = chipW + 5 + infoW, r2H = Math.max(tabH, infoH);
+            int x = bx + (bw - r1W) / 2;
+            farmGear(g, f, gear, x, y + (r1H - gearH) / 2, mx, my);
+            contests(g, f, x + gearW + 5, y + (r1H - tabH) / 2, mx, my);
+            y += r1H + 5;
+            x = bx + (bw - r2W) / 2;
+            chips(g, f, x, y + (r2H - tabH) / 2, mx, my);
+            farmInfo(g, f, x + chipW + 5, y + (r2H - infoH) / 2, infoCW, mx, my);
+            y += r2H + 5;
+            farmVisitors(g, f, bx + (bw - visW) / 2, y, visCW, mx, my);
+            queue(g, f, bx + (bw - qW) / 2, y + visH + 5, mx, my);
+        }
+        g.disableScissor();
+    }
+
+    /** Gear: armor + equipment (2 x 4), 5, the four best farming pets, 5, the vacuum over the watering can. */
+    private void farmGear(GuiGraphicsExtractor g, Farm f, Object[] gear, int x, int y, int mx, int my) {
+        int[] c = label(g, "Gear", null, x, y, FARM_GEAR_W, 84, 0);
+        SbpvGear.Gear ge = gear == null ? null : (SbpvGear.Gear) gear[0];
+        for (int i = 0; i < 4; i++) {
+            int sy = c[1] + 2 + i * 20;
+            gearSlot(g, ge == null ? ItemStack.EMPTY : ge.armor().get(i), ARMOR_SLOTS[i], c[0] + 2, sy, mx, my);
+            gearSlot(g, ge == null ? ItemStack.EMPTY : ge.equip().get(i), EQUIP_SLOTS[i], c[0] + 22, sy, mx, my);
+            if (f.pets[i] != null) slotItem(g, f.pets[i], f.petLevels[i], c[0] + 49 + 2, sy, null, mx, my);
+            else gearSlot(g, ItemStack.EMPTY, SLOT_BONE, c[0] + 49 + 2, sy, mx, my);
+        }
+        int vx = c[0] + 49 + 24 + 5, vy = c[1] + (84 - 53) / 2;
+        Identifier[] empty = {MINECART_SLOT, WATERING_CAN_SLOT};
+        for (int k = 0; k < 2; k++) {
+            ItemStack st = gear == null ? ItemStack.EMPTY : (ItemStack) gear[1 + k];
+            int sy = vy + k * 29;
+            PvStyleChrome.slot(g, s.pvStyle(), vx, sy, 24);
+            if (st.isEmpty()) {
+                g.blitSprite(RenderPipelines.GUI_TEXTURED, empty[k], vx + 4, sy + 4, 16, 16);
+            } else {
+                g.item(st, vx + 4, sy + 4);
+                if (hover(mx, my, vx, sy, 24, 24)) s.pendingItemTooltip = st;
+            }
+        }
+    }
+
+    /** Contests: the 13 crops in columns of five (3 x 5). */
+    private void contests(GuiGraphicsExtractor g, Farm f, int x, int y, int mx, int my) {
+        int[] c = label(g, "Contests", null, x, y, 64, TABLE_H, 0);
+        for (int i = 0; i < 15; i++) {
+            ItemStack st = i < CROPS.length ? f.contestIcons[i] : ItemStack.EMPTY;
+            slotItem(g, st, null, c[0] + 2 + i / 5 * 20, c[1] + 2 + i % 5 * 20, i < CROPS.length ? f.contestTips[i] : null, mx, my);
+        }
+    }
+
+    /** Chips: the ten chips in columns of five (2 x 5), the level as the stack text. */
+    private void chips(GuiGraphicsExtractor g, Farm f, int x, int y, int mx, int my) {
+        int[] c = label(g, "Chips", null, x, y, 44, TABLE_H, 0);
+        for (int i = 0; i < CHIPS.length; i++) {
+            slotItem(g, f.chipIcons[i], f.chipText[i], c[0] + 2 + i / 5 * 20, c[1] + 2 + i % 5 * 20, f.chipTips[i], mx, my);
+        }
+    }
+
+    /** Visitor Queue: the waiting visitors, 5 wide, padded with empty slots. */
+    private void queue(GuiGraphicsExtractor g, Farm f, int x, int y, int mx, int my) {
+        int[] c = label(g, "Visitor Queue", null, x, y, queueW(), queueH(f), 0);
+        int cells = Math.max(f.queue.length, f.queueRows * 5);
+        for (int i = 0; i < cells; i++) {
+            boolean has = i < f.queue.length;
+            slotItem(g, has ? f.queue[i] : ItemStack.EMPTY, null, c[0] + 2 + i % 5 * 22, c[1] + 2 + i / 5 * 22, has ? f.queueTips[i] : null, mx, my);
+        }
+    }
+
+    private void farmInfo(GuiGraphicsExtractor g, Farm f, int x, int y, int w, int mx, int my) {
+        int[] c = label(g, "Information", CLIPBOARD, x, y, w, f.info.length * 9, 0);
+        textLines(g, f.info, f.infoTips, c[0], c[1], 0, mx, my);
+    }
+
+    /** Visitors: Unique Served, 5, Total and each rarity (accepted/visited), 5, the visitor upgrades. */
+    private void farmVisitors(GuiGraphicsExtractor g, Farm f, int x, int y, int w, int mx, int my) {
+        int[] c = label(g, "Visitors", null, x, y, w, visitorsH(f), 0);
+        int ly = c[1];
+        for (int i = 0; i < f.visitors.length; i++) {
+            g.text(font(), f.visitors[i], c[0], ly, text(), false);
+            if (f.visitorTips[i] != null && hover(mx, my, c[0], ly, font().width(f.visitors[i]), 9)) s.pendingTooltip = f.visitorTips[i];
+            ly += 9 + (i == f.visitorGaps[0] || i == f.visitorGaps[1] ? 5 : 0);
+        }
+    }
+
+    /** CropScreen: one 1 x 3 column per crop (tool, upgrade, milestone), 2 apart, wrapped into centered rows when too wide. */
+    private void drawCrops(GuiGraphicsExtractor g, Farm f, Object[] gear, int mx, int my) {
+        int bx = s.panelX, by = s.contentY, bw = s.panelW, bh = s.panelY + s.panelH - s.contentY;
+        int perRow = CROPS.length;
+        if (CROPS.length * 26 > bw - 20) {
+            int used = 0;
+            perRow = 0;
+            while (perRow < CROPS.length && (used += 26) < bw - 20) perRow++;
+            perRow = Math.max(1, perRow);
+        }
+        int rows = (CROPS.length + perRow - 1) / perRow, h = rows * 64 + (rows - 1) * 2;
+        int y0 = by + (bh - h) / 2;
+        ItemStack[] tools = gear == null ? null : (ItemStack[]) gear[3];
+        for (int r = 0; r < rows; r++) {
+            int n = Math.min(perRow, CROPS.length - r * perRow), x = bx + (bw - (n * 26 - 2)) / 2, y = y0 + r * 66;
+            for (int k = 0; k < n; k++, x += 26) {
+                int i = r * perRow + k;
+                gearSlot(g, tools == null ? ItemStack.EMPTY : tools[i], f.toolEmpty[i], x + 2, y + 2, mx, my);
+                slotItem(g, f.crop[i][0], f.cropText[i][0], x + 2, y + 22, f.cropTips[i][0], mx, my);
+                slotItem(g, f.crop[i][1], f.cropText[i][1], x + 2, y + 42, f.cropTips[i][1], mx, my);
+            }
+        }
+    }
+
     // ---------------------------------------------------------------- mining
 
     private static final List<?>[] MINING_TIPS = {List.of(Component.literal("Main")), List.of(Component.literal("Mining Gear")),
@@ -1287,7 +2294,7 @@ final class SbpvPages {
     private static ItemStack[] miningIcons;
     private static final Identifier PICKAXE_SLOT = Identifier.fromNamespaceAndPath("killer560smod", "pv/sbpv/slot_pickaxe");
     /** The chisel column's empty slot (the original's icon/slot/armorstand). */
-    private static final Identifier ARMORSTAND_SLOT = Identifier.withDefaultNamespace("container/slot/sword");
+    private static final Identifier ARMORSTAND_SLOT = Identifier.fromNamespaceAndPath("killer560smod", "pv/sbpv/slot_armorstand");
 
     private static ItemStack treeSkull(int t) {
         return skull(ExtraTables.bundled().getAsJsonObject("sbpv_tree_skulls"), TREE_KEY[t]);
@@ -1405,7 +2412,7 @@ final class SbpvPages {
             int cx = c[0] + (w - rowW) / 2, cy = c[1] + r * (CRYSTAL_H + 5);
             for (int i = r * perRow; i < r * perRow + inRow; i++, cx += cw + 5) {
                 PvStyleChrome.chip(g, s.pvStyle(), cx, cy, cw, CRYSTAL_H);
-                g.item(new ItemStack(ExtraPages.CRYSTAL_ICONS[i]), cx + 2, cy + 2);
+                g.item(m.crystalIcons[i], cx + 2, cy + 2);
                 g.text(font(), m.crystalOk[i] ? "§2§l✔" : "§4§l❌", cx + 19, cy + 6, -1, true);
                 if (hover(mx, my, cx, cy, cw, CRYSTAL_H)) s.pendingTooltip = m.crystalTips[i];
             }
@@ -1423,7 +2430,11 @@ final class SbpvPages {
             g.item(m.forgeItems[i], rx, ry - 2);
             rx += 17;
             g.text(font(), m.forgeTime[i], rx, ry + 2, 0xFF555555, false);
-            if (hover(mx, my, c[0], ry, w, 12)) s.pendingTooltip = m.forgeTips[i];
+            if (m.forgeTips[i] != null && hover(mx, my, c[0], ry, w, 12)) s.pendingTooltip = m.forgeTips[i];
+            if (m.forgeEnd[i] > 0) {
+                final int k = i;
+                s.hotspots.add(new ProfileViewerScreen.Hotspot(c[0], ry, w, 12, () -> forgeClick(m, k)));
+            }
         }
     }
 

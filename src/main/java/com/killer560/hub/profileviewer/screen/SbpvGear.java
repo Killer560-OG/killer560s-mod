@@ -18,6 +18,7 @@ import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.function.ToIntFunction;
 
 /**
  * SkyBlockPV's "Gear" label (PvWidgets.armorAndEquipment + tools, FishingScreen's trophy armor column), chosen from every
@@ -35,6 +36,12 @@ final class SbpvGear {
     }
 
     static Gear build(SbProfile.Inventories inv, Collection<List<ItemStack>> loadoutSets, String kind, String toolKey, String sideKey) {
+        return build(inv, loadoutSets, kind, toolKey, sideKey, SbpvGear::score);
+    }
+
+    /** {@code scorer} ranks the armor and equipment (FarmingScreen passes its own equipment score). */
+    static Gear build(SbProfile.Inventories inv, Collection<List<ItemStack>> loadoutSets, String kind, String toolKey, String sideKey,
+                      ToIntFunction<ItemStack> scorer) {
         JsonObject t = ExtraTables.bundled().getAsJsonObject("sbpv_gear");
         JsonObject g = t == null ? null : t.getAsJsonObject(kind);
         List<ItemStack> all = all(inv, loadoutSets);
@@ -47,11 +54,11 @@ final class SbpvGear {
             if (armorIds.contains(id) || equipIds.contains(id)) worn.add(st);
         }
         // sortedBy(score).reversed(): a stable ascending sort, then the whole list turned around.
-        worn.sort(Comparator.comparingInt(SbpvGear::score));
+        worn.sort(Comparator.comparingInt(scorer));
         Collections.reverse(worn);
         List<ItemStack> equip = new ArrayList<>(4);
         for (String k : equipKeys) equip.add(first(worn, ids(g, k)));
-        List<ItemStack> top = best(all, ids(g, toolKey), 4);
+        List<ItemStack> top = best(all, ids(g, toolKey), 4, SbpvGear::score);
         List<ItemStack> side = null;
         if (sideKey != null) {
             Set<String> sideIds = ids(g, sideKey);
@@ -63,10 +70,10 @@ final class SbpvGear {
     }
 
     /** PvWidgets.tools: the {@code n} best-scored stacks whose id is in {@code ids}, EMPTY-padded to {@code n}. */
-    private static List<ItemStack> best(List<ItemStack> all, Set<String> ids, int n) {
+    private static List<ItemStack> best(List<ItemStack> all, Set<String> ids, int n, ToIntFunction<ItemStack> scorer) {
         List<ItemStack> tools = new ArrayList<>();
         for (ItemStack st : all) if (ids.contains(LegacyItems.skyblockId(st))) tools.add(st);
-        tools.sort(Comparator.comparingInt(SbpvGear::score).reversed());
+        tools.sort(Comparator.comparingInt(scorer).reversed());
         List<ItemStack> top = new ArrayList<>(tools.subList(0, Math.min(n, tools.size())));
         while (top.size() < n) top.add(ItemStack.EMPTY);
         return top;
@@ -74,8 +81,46 @@ final class SbpvGear {
 
     /** {@code n} best stacks of the gear table's {@code kind}.{@code key} ids from everything the profile holds. */
     static List<ItemStack> best(SbProfile.Inventories inv, Collection<List<ItemStack>> loadoutSets, String kind, String key, int n) {
+        return best(inv, loadoutSets, kind, key, n, SbpvGear::score);
+    }
+
+    static List<ItemStack> best(SbProfile.Inventories inv, Collection<List<ItemStack>> loadoutSets, String kind, String key, int n,
+                                ToIntFunction<ItemStack> scorer) {
         JsonObject t = ExtraTables.bundled().getAsJsonObject("sbpv_gear");
-        return best(all(inv, loadoutSets), ids(t == null ? null : t.getAsJsonObject(kind), key), n);
+        return best(all(inv, loadoutSets), ids(t == null ? null : t.getAsJsonObject(kind), key), n, scorer);
+    }
+
+    /** The best stack (by {@code scorer}) whose id is in {@code ids}, from everything the profile holds; EMPTY when none. */
+    static ItemStack best(SbProfile.Inventories inv, Collection<List<ItemStack>> loadoutSets, Collection<String> ids, ToIntFunction<ItemStack> scorer) {
+        return best(all(inv, loadoutSets), new HashSet<>(ids), 1, scorer).get(0);
+    }
+
+    /** The stack's rarity ordinal (COMMON 0), -1 without a rarity line. */
+    static int rarity(ItemStack st) {
+        String[] r = ItemRarityFeature.loreRarityLine(st);
+        return r == null ? -1 : LevelTables.RARITIES.indexOf(r[0].replace(' ', '_'));
+    }
+
+    /** FarmingScreen.calculateEquipmentScore: rarity, every enchantment level, a recombobulator and a reforge. */
+    static int equipScore(ItemStack st) {
+        CompoundTag tag = tag(st);
+        int score = Math.max(0, rarity(st));
+        CompoundTag ench = tag.getCompoundOrEmpty("enchantments");
+        for (String k : ench.keySet()) score += ench.getIntOr(k, 0);
+        if (tag.getIntOr("rarity_upgrades", 0) > 0) score++;
+        if (tag.contains("modifier")) score++;
+        return score;
+    }
+
+    /** CropScreen.evaluateToolScore: the tool's level, else three per rarity step. */
+    static int toolScore(ItemStack st) {
+        CompoundTag tag = tag(st);
+        return tag.contains("levelable_lvl") ? tag.getIntOr("levelable_lvl", 0) : rarity(st) * 3;
+    }
+
+    private static CompoundTag tag(ItemStack st) {
+        CustomData data = st.get(DataComponents.CUSTOM_DATA);
+        return data == null ? new CompoundTag() : data.copyTag();
     }
 
     /** How many of item {@code id} the profile holds in its inventories (sacks are added by the caller). */
@@ -130,8 +175,7 @@ final class SbpvGear {
 
     /** FishingScreen.calculateItemScore (MiningScreen and FarmingScreen use the same rules). */
     static int score(ItemStack st) {
-        CustomData data = st.get(DataComponents.CUSTOM_DATA);
-        CompoundTag tag = data == null ? new CompoundTag() : data.copyTag();
+        CompoundTag tag = tag(st);
         int score = tag.getIntOr("rarity_upgrades", 0) > 0 ? 1 : 0;
         CompoundTag ench = tag.getCompoundOrEmpty("enchantments");
         for (String k : ench.keySet()) {

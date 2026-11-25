@@ -365,7 +365,9 @@ public final class ProfileViewerApi {
     public enum AuxKind {
         MUSEUM("https://api.hypixel.net/v2/skyblock/museum?profile=", "/museum/", "members"),
         GARDEN("https://api.hypixel.net/v2/skyblock/garden?profile=", "/garden/", "garden"),
-        PLAYER("https://api.hypixel.net/v2/player?uuid=", "/player/", "player");
+        PLAYER("https://api.hypixel.net/v2/player?uuid=", "/player/", "player"),
+        /** The player's Bingo events ({@code events: [{key, points, completed_goals}]}); {@code data} is the whole answer. */
+        BINGO("https://api.hypixel.net/v2/skyblock/bingo?uuid=", "/bingo/", null);
 
         final String hypixel;
         final String backend;
@@ -425,7 +427,7 @@ public final class ProfileViewerApi {
             raw = CompletableFuture.failedFuture(t);
         }
         raw.thenApply(r -> {
-            JsonElement el = r.json() == null ? null : r.json().get(kind.field);
+            JsonElement el = r.json() == null ? null : kind.field == null ? r.json() : r.json().get(kind.field);
             JsonObject data = el != null && el.isJsonObject() ? el.getAsJsonObject() : null;
             AuxResult result = new AuxResult(data, r.source(), System.currentTimeMillis());
             synchronized (AUX_CACHE) {

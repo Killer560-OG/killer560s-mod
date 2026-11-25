@@ -55,6 +55,8 @@ public final class ProfileManager {
 
     private static final Set<String> EXCLUDED_FILES = Set.of(
             "killer560smod-session-login.json",
+            // Profile Viewer forge reminders (records, not settings).
+            "killer560smod-profileviewer-reminders.json",
             // Downloaded community route file (a cache, refreshed daily).
             "killer560smod-communityroutes.json",
             // Mining history (chport-1104): Lobby Tracker's lobby visits, Nucleus Run Profit's runs, Profit Per Hour's

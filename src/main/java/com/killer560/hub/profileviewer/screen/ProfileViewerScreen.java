@@ -109,7 +109,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
     static final String[] PAGES = {"Basic Info", "Dungeons", "Inventories", "Pets", "Collections", "Mining", "Bestiary",
             "Crimson Isle", "Museum", "Rift", "Farming", "Networth", "Misc", "Weight", "Loadout", "Fishing", "Foraging", "Chocolate Factory",
-            "Kills and Deaths"};
+            "Kills and Deaths", "Trophy Fish", "Bingo"};
     static final int PAGE_BASIC = 0;
     static final int PAGE_DUNGEONS = 1;
     static final int PAGE_INVENTORIES = 2;
@@ -127,6 +127,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     static final int PAGE_WEIGHT = 13;
     /** SkyBlockPV-only pages (SbpvPages): Default and NEU Classic stop at {@link #DEFAULT_PAGES}. */
     static final int PAGE_LOADOUT = 14, PAGE_FISHING = 15, PAGE_FORAGING = 16, PAGE_CF = 17, PAGE_KILLS = 18, DEFAULT_PAGES = 14;
+    /** NEU Classic-only page (NeuTrophyPage): no other style shows it. */
+    static final int PAGE_TROPHY = 19;
+    /** NEU Classic-only page (NeuBingoPage), and only for a Bingo profile, as the original hides its tab otherwise. */
+    static final int PAGE_BINGO = 20;
 
     private static final String[] INV_VIEWS = {"Inventory", "Ender Chest", "Backpacks", "Wardrobe", "Accessories", "Vault", "Quiver",
             "Fishing Bag", "Potion Bag", "Sacks"};
@@ -299,6 +303,8 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     private final ExtraPages extraPages = new ExtraPages(this);
     private final WeightPage weightPage = new WeightPage(this);
     private final SbpvPages sbpvPages = new SbpvPages(this);
+    private final NeuTrophyPage neuTrophy = new NeuTrophyPage(this);
+    private final NeuBingoPage neuBingo = new NeuBingoPage(this);
     private final List<int[]> tabRects = new ArrayList<>();
     /** The networth the Basic Info line last showed (null while calculating); read by the testkit. */
     volatile Long lastBasicNetworth;
@@ -325,7 +331,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
     final List<Hotspot> hotspots = new ArrayList<>();
     /** Right-click targets (a cycling button's step back). */
-    private final List<Hotspot> rightHotspots = new ArrayList<>();
+    final List<Hotspot> rightHotspots = new ArrayList<>();
     private final List<Hotspot> overlayHotspots = new ArrayList<>();
     List<Component> pendingTooltip;
     ItemStack pendingItemTooltip = ItemStack.EMPTY;
@@ -496,8 +502,9 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                     skin.setPosition(sbpvPlayerX(), sbpvPlayerY() + h / 10);
                     addRenderableWidget(skin);
                 }
-            } else if (neu && (neuModel = PvModel.create(panelX + m[0], panelY + 44, 80, 113, 36, lookup, shown.inventories(), false)) != null) {
-                // BasicPage: drawEntityOnScreen(guiLeft + 63, guiTop + 135, 36) with the armor on; the box centers the feet at 135.
+            } else if (neu && (neuModel = PvModel.create(panelX + m[0], panelY + 44, 80, 113, 36, lookup, shown.inventories(), true)) != null) {
+                // BasicPage: drawEntityOnScreen(guiLeft + 63, guiTop + 135, 36) with the armor on (off while right click is held
+                // over the box); the box centers the feet at 135.
                 addRenderableWidget(neuModel);
             } else if (skinH >= 50) {
                 PlayerSkinWidget skin = new PlayerSkinWidget(skinH / 2 + 10, skinH, this.minecraft.getEntityModels(), lookup);
@@ -865,8 +872,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     }
 
     private void drawScreen(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
-        if (page >= DEFAULT_PAGES && (pvStyle == ProfileViewerConfig.Style.DEFAULT || pvStyle == ProfileViewerConfig.Style.NEU)) {
-            page = 0; // a SkyBlockPV-only page remembered from another style
+        if (page == PAGE_TROPHY || page == PAGE_BINGO ? pvStyle != ProfileViewerConfig.Style.NEU
+                        || page == PAGE_BINGO && state == State.READY && !"bingo".equals(profile().gameMode)
+                : page >= DEFAULT_PAGES && (pvStyle == ProfileViewerConfig.Style.DEFAULT || pvStyle == ProfileViewerConfig.Style.NEU)) {
+            page = 0; // a page of another style remembered from it
         }
         hotspots.clear();
         rightHotspots.clear();
@@ -898,6 +907,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                 case PAGE_BESTIARY -> PvStyleChrome.NEU_BESTIARY;
                 case PAGE_RIFT -> PvStyleChrome.NEU_RIFT;
                 case PAGE_FARMING -> PvStyleChrome.NEU_GARDEN;
+                case PAGE_TROPHY -> PvStyleChrome.NEU_TROPHY;
                 default -> null;
             };
             if (over != null) {
@@ -906,7 +916,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         }
 
         invSearch.visible = false; // drawInventories shows it
-        if (page != PAGE_INVENTORIES) {
+        if (page != PAGE_INVENTORIES && page != PAGE_FARMING) {
             invSearch.setFocused(false);
         }
         drawingHeader = true;
@@ -929,7 +939,11 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                     case PAGE_PETS -> drawPets(g, p, mouseX, mouseY);
                     default -> {
                         try {
-                            if (page >= PAGE_LOADOUT || page == PAGE_MINING && sbpvStyle()) {
+                            if (page == PAGE_TROPHY) {
+                                neuTrophy.draw(g, p, mouseX, mouseY);
+                            } else if (page == PAGE_BINGO) {
+                                neuBingo.draw(g, p, mouseX, mouseY);
+                            } else if (page >= PAGE_LOADOUT || (page == PAGE_MINING || page == PAGE_FARMING) && sbpvStyle()) {
                                 if (!sbpvPages.draw(g, page, p, mouseX, mouseY)) {
                                     centered(g, sbpvPages.failed() ? "Couldn't read this profile's data." : "Loading" + dots(), contentY + contentH / 2 - 4,
                                             sbpvPages.failed() ? BAD : VALUE);
@@ -1110,7 +1124,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         int h = PvStyleChrome.tabH(pvStyle);
         int x0 = panelX + PvStyleChrome.tabX0(pvStyle);
         boolean neu = pvStyle == ProfileViewerConfig.Style.NEU;
-        int[] order = neu ? NEU_TAB_ORDER : SBPV_TAB_ORDER;
+        int[] order = neu ? (state == State.READY && "bingo".equals(profile().gameMode) ? NEU_TAB_ORDER_BINGO : NEU_TAB_ORDER) : SBPV_TAB_ORDER;
         int step = Math.min(PvStyleChrome.tabStep(pvStyle), (panelX + panelW - x0) / order.length);
         int ty = panelY - PvStyleChrome.tabRise(pvStyle);
         boolean combat = !neu && isCombatPage(page);
@@ -1171,8 +1185,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     }
 
     /** NEU Classic's tab order (GuiProfileViewer.ProfileViewerPage): Basic, Dungeon, Extra (our Misc), Inventories,
-     *  Collections, Pets, Mining, Bestiary, Crimson, Museum, Rift, Garden; our Networth and Weight pages after them. */
-    static final int[] NEU_TAB_ORDER = {0, 1, 12, 2, 4, 3, 5, 6, 7, 8, 9, 10, 11, 13};
+     *  Collections, Pets, Mining, Trophy Fish, Bestiary, Crimson, Museum, Rift, Garden; our Networth and Weight pages after them. */
+    static final int[] NEU_TAB_ORDER = {0, 1, 12, 2, 4, 3, 5, PAGE_TROPHY, 6, 7, 8, 9, 10, 11, 13};
+    /** A Bingo profile's: the Bingo tab between Mining and Trophy Fish. */
+    static final int[] NEU_TAB_ORDER_BINGO = {0, 1, 12, 2, 4, 3, 5, PAGE_BINGO, PAGE_TROPHY, 6, 7, 8, 9, 10, 11, 13};
     /** SkyBlockPV's tab order (PvTab): Main, Combat (our Dungeons, with Bestiary, Crimson Isle and Kills and Deaths as its
      *  right-edge categories), Inventory, Loadout, Collections, Mining, Fishing, Foraging, Pets, Farming, Museum, Chocolate Factory,
      *  Rift; our Networth, Misc and Weight after them. */
@@ -1208,6 +1224,8 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                 case PAGE_COLLECTIONS -> Items.PAINTING;
                 case PAGE_PETS -> Items.BONE;
                 case PAGE_MINING -> Items.IRON_PICKAXE;
+                case PAGE_TROPHY -> Items.FISHING_ROD;
+                case PAGE_BINGO -> Items.FILLED_MAP;
                 case PAGE_BESTIARY -> Items.IRON_SWORD;
                 case PAGE_CRIMSON -> Items.NETHERRACK;
                 case PAGE_MUSEUM -> Items.LEATHER_CHESTPLATE;
@@ -1222,6 +1240,17 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
     @SuppressWarnings("unchecked")
     private static List<Component> neuTabTip(int page) {
+        if (page == PAGE_BINGO) {
+            // "§zBingo": the original's chroma code, a hue that drifts along the letters and over time (built on hover only).
+            net.minecraft.network.chat.MutableComponent c = Component.empty();
+            long now = System.currentTimeMillis();
+            String word = "Bingo";
+            for (int k = 0; k < word.length(); k++) {
+                float hue = ((now % 3000) / 3000f - k * 0.05f) % 1f;
+                c.append(Component.literal(word.substring(k, k + 1)).withStyle(style(0xFF000000 | java.awt.Color.HSBtoRGB(hue < 0 ? hue + 1 : hue, 0.8f, 1f))));
+            }
+            return List.of(c);
+        }
         List<?> tip = NEU_TIPS[page];
         if (tip == null) {
             String name = switch (page) {
@@ -1244,6 +1273,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                 case PAGE_BESTIARY -> 0xFFFF5555;
                 case PAGE_CRIMSON -> 0xFFAA0000;
                 case PAGE_FARMING -> 0xFF00AA00;
+                case PAGE_TROPHY -> 0xFF00AAAA;
                 case PAGE_WEIGHT -> 0xFFFFFFFF;
                 default -> 0xFFFFAA00; // Collections, Museum, Networth
             };
@@ -3337,6 +3367,26 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     /** A content box: the menu's card. */
     ProfileViewerConfig.Style pvStyle() { return pvStyle; }
 
+    /** The profile's garden (shared with the Default and NEU farming pages, fetched once). */
+    CompletableFuture<ProfileViewerApi.AuxResult> gardenAux(String profileId) {
+        return extraPages.aux(ProfileViewerApi.AuxKind.GARDEN, profileId);
+    }
+
+    /** The player's Bingo events (NEU Classic's Bingo page). */
+    CompletableFuture<ProfileViewerApi.AuxResult> bingoAux(String playerUuid) {
+        return extraPages.aux(ProfileViewerApi.AuxKind.BINGO, playerUuid);
+    }
+
+    /** SkyBlockPV's grouped pages (Farming Visitors and Mutations): the page's 100 px search box at x, y, shown this frame.
+     *  @return what it holds, lower case. */
+    String pageSearch(int x, int y) {
+        invSearch.visible = true;
+        invSearch.setX(x);
+        invSearch.setY(y + 3);
+        invSearch.setWidth(100);
+        return invSearchText.toLowerCase(Locale.ROOT);
+    }
+
     /** One of the SkyBlockPV styles, with a profile loaded. */
     boolean sbpvStyle() {
         return pvStyle != ProfileViewerConfig.Style.DEFAULT && pvStyle != ProfileViewerConfig.Style.NEU && state == State.READY;
@@ -3344,7 +3394,8 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
     /** The pages NEU Classic draws in NEU's own layout, as bits of the page number. */
     private static final int NEU_PAGES = 1 << PAGE_BASIC | 1 << PAGE_DUNGEONS | 1 << PAGE_INVENTORIES | 1 << PAGE_PETS
-            | 1 << PAGE_COLLECTIONS | 1 << PAGE_MINING | 1 << PAGE_CRIMSON | 1 << PAGE_MUSEUM | 1 << PAGE_BESTIARY | 1 << PAGE_RIFT | 1 << PAGE_FARMING;
+            | 1 << PAGE_COLLECTIONS | 1 << PAGE_MINING | 1 << PAGE_CRIMSON | 1 << PAGE_MUSEUM | 1 << PAGE_BESTIARY | 1 << PAGE_RIFT | 1 << PAGE_FARMING
+            | 1 << PAGE_TROPHY | 1 << PAGE_BINGO;
 
     /** NEU Classic's pages in NEU's own layout (its page textures pv_basic, pv_dung, pv_invs, pv_pets, pv_cols,
      *  pv_crimson_isle_page, pv_museum, pv_bestiary_tab, pv_rift, garden/background paint the boxes; Mining is plain pv_bg). */

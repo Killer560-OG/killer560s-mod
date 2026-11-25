@@ -32,11 +32,14 @@ public final class NeuItemData {
             "https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/items/");
     private static final String[] GRID = {"A1", "A2", "A3", "B1", "B2", "B3", "C1", "C2", "C3"};
     private static final int MAX_CACHED = 2048;
+    /** A skull item's skin texture value inside the repo's {@code nbttag} string. */
+    private static final java.util.regex.Pattern SKIN = java.util.regex.Pattern.compile("Value:\\\\?\"([A-Za-z0-9+/=]+)\\\\?\"");
 
     /** One parsed item. {@code grid} has 9 entries (null = empty cell), or is null when there is no crafting recipe;
-     *  {@code gridCounts} matches it. {@code otherRecipes} are ready-to-draw lines. */
+     *  {@code gridCounts} matches it. {@code otherRecipes} are ready-to-draw lines; {@code forgeSeconds} is the first forge
+     *  recipe's duration (0 without one). */
     public record Info(String displayName, List<String> lore, List<String> grid, List<Integer> gridCounts,
-                       int outputCount, List<String> otherRecipes) {
+                       int outputCount, List<String> otherRecipes, int forgeSeconds, String skin) {
 
         public boolean hasCraftingRecipe() {
             return grid != null;
@@ -53,10 +56,7 @@ public final class NeuItemData {
         if (id == null || id.isBlank()) {
             return null;
         }
-        if (CACHE.size() > MAX_CACHED) {
-            CACHE.clear();
-        }
-        CompletableFuture<Info> f = CACHE.computeIfAbsent(id, NeuItemData::fetch);
+        CompletableFuture<Info> f = future(id);
         return f.isDone() && !f.isCompletedExceptionally() ? f.getNow(null) : null;
     }
 
@@ -69,6 +69,14 @@ public final class NeuItemData {
     /** Test hook: seeds the cache with a repo JSON as if it had been fetched. */
     public static void put(String id, JsonObject json) {
         CACHE.put(id, CompletableFuture.completedFuture(parse(json)));
+    }
+
+    /** The item's data once it arrives (null when it has none or the fetch failed); starts fetching it. */
+    public static CompletableFuture<Info> future(String id) {
+        if (CACHE.size() > MAX_CACHED) {
+            CACHE.clear();
+        }
+        return CACHE.computeIfAbsent(id, NeuItemData::fetch);
     }
 
     private static CompletableFuture<Info> fetch(String id) {
@@ -100,6 +108,7 @@ public final class NeuItemData {
             }
         }
         List<String> other = new ArrayList<>();
+        int forgeSeconds = 0;
         if (json.has("recipes") && json.get("recipes").isJsonArray()) {
             for (JsonElement e : json.getAsJsonArray("recipes")) {
                 if (!e.isJsonObject()) {
@@ -120,14 +129,19 @@ public final class NeuItemData {
                     }
                     continue;
                 }
+                if (type.equals("forge") && forgeSeconds == 0) {
+                    forgeSeconds = intOr(r, "duration", 0);
+                }
                 String line = describe(type, r);
                 if (line != null) {
                     other.add(line);
                 }
             }
         }
+        String nbt = str(json, "nbttag");
+        java.util.regex.Matcher skin = nbt == null ? null : SKIN.matcher(nbt);
         return new Info(displayName, lore, grid, counts, Math.max(1, outputCount),
-                Collections.unmodifiableList(other));
+                Collections.unmodifiableList(other), forgeSeconds, skin != null && skin.find() ? skin.group(1) : null);
     }
 
     private static void fillGrid(JsonObject recipe, List<String> grid, List<Integer> counts) {

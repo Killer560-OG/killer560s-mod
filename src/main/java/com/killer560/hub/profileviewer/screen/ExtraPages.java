@@ -540,9 +540,10 @@ final class ExtraPages {
 
     static final String[] CRYSTALS = {"jade_crystal", "amethyst_crystal", "topaz_crystal", "sapphire_crystal", "amber_crystal",
             "ruby_crystal", "jasper_crystal", "opal_crystal", "aquamarine_crystal", "citrine_crystal", "peridot_crystal", "onyx_crystal"};
-    static final Item[] CRYSTAL_ICONS = {McItems.LIME_STAINED_GLASS, McItems.PURPLE_STAINED_GLASS, McItems.YELLOW_STAINED_GLASS,
+    /** Default style's crystal stand-ins, built once (never per frame). */
+    private static final ItemStack[] CRYSTAL_STACKS = java.util.Arrays.stream(new Item[] {McItems.LIME_STAINED_GLASS, McItems.PURPLE_STAINED_GLASS, McItems.YELLOW_STAINED_GLASS,
             McItems.LIGHT_BLUE_STAINED_GLASS, McItems.ORANGE_STAINED_GLASS, McItems.RED_STAINED_GLASS, McItems.MAGENTA_STAINED_GLASS,
-            McItems.WHITE_STAINED_GLASS, McItems.BLUE_STAINED_GLASS, McItems.BROWN_STAINED_GLASS, McItems.GREEN_STAINED_GLASS, McItems.BLACK_STAINED_GLASS};
+            McItems.WHITE_STAINED_GLASS, McItems.BLUE_STAINED_GLASS, McItems.BROWN_STAINED_GLASS, McItems.GREEN_STAINED_GLASS, McItems.BLACK_STAINED_GLASS}).map(ItemStack::new).toArray(ItemStack[]::new);
     private static final long[] ROCK_BRACKETS = {2500, 7500, 20000, 100000, 250000};
     private static final String[] ROCK_RARITIES = {"Common", "Uncommon", "Rare", "Epic", "Legendary"};
 
@@ -719,8 +720,8 @@ final class ExtraPages {
             String state = c == null ? "NOT_FOUND" : c.state();
             boolean have = state.equals("FOUND") || state.equals("PLACED");
             s.slotBox(g, ix, iy, 18, have ? ACCENT : 0);
-            g.item(new ItemStack(CRYSTAL_ICONS[i]), ix + 1, iy + 1);
-            g.itemDecorations(f(), new ItemStack(CRYSTAL_ICONS[i]), ix + 1, iy + 1, have ? "§a✔" : "§c✘");
+            g.item(CRYSTAL_STACKS[i], ix + 1, iy + 1);
+            g.itemDecorations(f(), CRYSTAL_STACKS[i], ix + 1, iy + 1, have ? "§a✔" : "§c✘");
             if (hover(mx, my, ix, iy, 18, 18)) {
                 tip(List.of(line(SbProfile.titleCase(CRYSTALS[i]), VALUE), line("State: " + SbProfile.titleCase(state), TEXT),
                         line("Found: " + commas(c == null ? 0 : c.found()), DIM), line("Placed: " + commas(c == null ? 0 : c.placed()), DIM)));

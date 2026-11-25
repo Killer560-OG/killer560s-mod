@@ -46,6 +46,11 @@ final class HotmTree {
     }
 
     /** A number without a trailing ".0", at most two decimals. */
+    /** Quick Forge's forge time cut in percent at level {@code l} (0 below level 1). */
+    static double quickForgePercent(int l) {
+        return l < 1 ? 0 : Math.min(30, 10 + l * 0.5 + (l / 20) * 10);
+    }
+
     static String n(double v) {
         double r = Math.round(v * 100) / 100.0;
         return r == Math.rint(r) ? String.valueOf((long) r) : String.valueOf(r);
@@ -96,7 +101,7 @@ final class HotmTree {
             p("front_loaded", "Front Loaded", 61, 1, Items.BLAZE_POWDER, l -> "For the first 2,500 Gemstones you mine each day: 3x Gemstone Powder, +150 Gemstone Fortune, +250 Mining Speed."),
             p("random_event", "Luck of the Cave", 65, 45, Items.RABBIT_FOOT, l -> "+" + (5 + l) + "% chance of rare occurrences in the Dwarven Mines."),
             p("efficient_miner", "Efficient Miner", 67, 100, Items.DEEPSLATE, l -> "+" + 3 * l + " Mining Spread."),
-            p("forge_time", "Quick Forge", 69, 20, Items.ANVIL, l -> "Forge time -" + n(Math.min(30, 10 + l * 0.5 + (l / 20) * 10)) + "%."),
+            p("forge_time", "Quick Forge", 69, 20, Items.ANVIL, l -> "Forge time -" + n(quickForgePercent(l)) + "%."),
             ab("mining_speed_boost", "Mining Speed Boost", 74, Items.SUGAR, a -> "Ability: +" + (150 + 50 * a) + "% Mining Speed for " + (5 + 5 * a) + "s. Cooldown 120s."),
             p("precision_mining", "Precision Mining", 75, 1, Items.TARGET, l -> "A particle target on ores and Dwarven Metals gives +30% Mining Speed while you aim at it."),
             p("mining_fortune", "Mining Fortune", 76, 50, Items.GOLD_INGOT, l -> "+" + 2 * l + " Mining Fortune."),
