@@ -1804,6 +1804,7 @@ public final class ClearExecutor {
         if (!primeSneak()) {
             return;
         }
+        primedTick = clientTicks;
         if (!holdingAny(AOTV) && !hasSwappedThisTick) {
             boolean now = com.killer560.hub.util.HotbarSelect.inTick();
             if (swapById(AOTV)) {
@@ -1814,16 +1815,22 @@ public final class ClearExecutor {
 
     /**
      * {@link #primeNextWarp}'s sneak alone, the item left in hand: Auto Clear while an in-place Wither Impact's deaths come
-     * back and only an etherwarp can follow (acoptimal-next-1124), so that warp goes the tick the death is seen.
+     * back and a mob is left (acoptimal-next-1124), so a warp goes the tick the death is seen. Asked from a START handler,
+     * it holds only this tick's input (not the next, as {@link #primeNextWarp}'s END-handler prime must): the tick the death
+     * leads to a cast across, a hop or a walk instead, nothing asks again and that tick's input goes unsneaked
+     * (acoptimal-next4-1125: primed while any mob is left, the cast across after it must not go with the crouched eye).
      * @return false under his open screen or the tick after it (nothing primed)
      */
     public static boolean primeSneak() {
         if (com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()) != null || screenTick >= clientTicks - 1) {
             return false;   // never under his open container, nor the tick after (primeFirstWarp's rule: a swap or sneak beside his click there)
         }
-        primedTick = clientTicks;
+        castPrimedTick = clientTicks;
         return true;
     }
+
+    /** The client tick {@link #primeSneak} last asked on: the sneak goes down in that tick's input only. */
+    private static long castPrimedTick = Long.MIN_VALUE;
 
     private static boolean forceSneakNow() {
         // Not under a screen, nor in the tick it closed (his last click there may have gone this tick): a click while the
@@ -1836,7 +1843,7 @@ public final class ClearExecutor {
                 // clicks, closes or buttons there meets the sneak (MultiActionsC/D, 62-argrim-1122-same-plan-openclick).
                 return false;
             }
-        } else if (primedTick >= clientTicks - 1 && screenTick < clientTicks - 1) {
+        } else if ((primedTick >= clientTicks - 1 || castPrimedTick == clientTicks) && screenTick < clientTicks - 1) {
             return true;
         }
         if (!active) {

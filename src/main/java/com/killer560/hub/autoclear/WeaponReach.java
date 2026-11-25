@@ -79,7 +79,10 @@ public final class WeaponReach {
      * one landing closest to the mob kept. Null when no candidate gets him at least 2 blocks closer.
      */
     public static Aim hyperionHop(Level level, Player player, Vec3 feet, AABB mob) {
-        Vec3 eye = feet.add(0, player.getEyeHeight(), 0);
+        // The standing eye, not the pose's: on the tick a kill is seen he may still crouch from the sneak held for a warp
+        // (AutoClearFeature.primeWarpAfterCast) and stands the next, and the crouched eye's look was ~1.3 degrees off the
+        // standing one, so the hop turned twice and went a tick late (acoptimal-next4-1125). The hop goes standing.
+        Vec3 eye = feet.add(0, STANDING_EYE, 0);
         Vec3 centre = mob.getCenter();
         TeleportUtils.Rotation direct = TeleportUtils.getDirection(eye, centre);
         double now = hyperionShortfall(feet, mob);
@@ -351,7 +354,7 @@ public final class WeaponReach {
     }
 
     /** His standing eye over feet. */
-    private static final double STANDING_EYE = 1.62;
+    static final double STANDING_EYE = 1.62;
 
     /**
      * Whether a sceptre bat fired by him standing with his feet at {@code feet} reaches the mob, for the room's plan of

@@ -1096,6 +1096,9 @@ public final class AutoClearFeature {
         noteSpawnSpots(layout, room, mobs);
         planRepositions(client, player, mobs, cfg.getWeapon(), layout, room);
         killStep = cfg.getWeapon() == AutoClearConfig.Weapon.HYPERION ? killStepNow(client, player, cfg) : null;
+        if (killStep == null && phase == Phase.IDLE && waitingForKeptPlan()) {
+            return;   // the plan from where the server put him comes in a tick or two (leavePlan)
+        }
         Entity target = killStep != null ? killTarget(client, player) : null;
         if (target == null) {
             killStep = null;
@@ -3351,8 +3354,9 @@ public final class AutoClearFeature {
                     return;
                 }
                 if (player.onGround()) {
-                    LOGGER.info("[AutoClear] the room plan's cast no longer lands as planned ({}) - the old choice goes on",
-                            land == null ? "no dash" : land.distanceTo(ks.at()) >= 1.0 ? "lands elsewhere" : "its mobs moved");
+                    LOGGER.info("[AutoClear] the room plan's cast no longer lands as planned ({}) - {}",
+                            land == null ? "no dash" : land.distanceTo(ks.at()) >= 1.0 ? "lands elsewhere" : "its mobs moved",
+                            leavePlan());
                     activePlan = null;
                     killStep = null;
                     ks = null;
@@ -4926,6 +4930,16 @@ public final class AutoClearFeature {
         float pitch = Mth.clamp(aim.pitch(), -90f, 90f);
         if (!BODY.isHeld() || Math.abs(yaw - player.getYRot()) > 0.5f || Math.abs(pitch - player.getXRot()) > 0.5f) {
             releaseUse(client);
+            long now = ClearExecutor.clientTick();
+            if (hisUseClicksQueued(client) > 0 && turnHeldForHim != now - 1) {
+                // His right click goes out in this tick's handleKeybinds, after us, with the look we set: turned now, his
+                // Wither Impact flew the cast's way and killed its mob first (62-argrim-1122-same-plan-use, plan casts 0
+                // in 2 of 3). His goes on his own look; the turn the tick after (never two ticks running).
+                turnHeldForHim = now;
+                phase = Phase.IDLE;
+                tickKind = "turning";
+                return false;
+            }
             BODY.turn(player, yaw, pitch);
             phase = Phase.IDLE;
             tickKind = swapped ? "swap" : "turning";
@@ -4954,6 +4968,9 @@ public final class AutoClearFeature {
         return true;
     }
 
+    /** The client tick {@link #aimAndHold} last put its turn off for a right click of his. */
+    private static long turnHeldForHim = Long.MIN_VALUE / 2;
+
     /** Ticks an in-place Wither Impact's wait held the sneak down for the etherwarp after it, ever - for the testkit. */
     private static int primedCastTicks = 0;
 
@@ -4962,33 +4979,23 @@ public final class AutoClearFeature {
     }
 
     /**
-     * The ticks after an in-place Wither Impact went out, while its deaths come back (acoptimal-next-1124): when every mob
-     * of the room it does not reach is one only an etherwarp goes to next (the plan's next step is one, or each is beyond
-     * a cast across), the sneak goes down now, so a one-warp trip's warp leaves the tick the death is seen
-     * (with the AOTV swap in the same START, slot then use). It waited for a sneak pressed on that tick before: one tick on
-     * every such trip. From the cast's own tick on: that use leaves in handleKeybinds, before the tick's input packet carries
-     * the sneak, so it still goes unsneaked, and the sneak is two ticks old (not fresh, the crouched eye certain) by the death.
+     * The ticks after an in-place Wither Impact went out, while its deaths come back (acoptimal-next-1124): with a mob of
+     * the room left that the blast does not reach, the sneak goes down now, so a trip's first warp leaves the tick the death
+     * is seen (with the AOTV swap in the same START, slot then use). It waited for a sneak pressed on that tick before: one
+     * tick on every such trip. From the cast's own tick on: that use leaves in handleKeybinds, before the tick's input packet
+     * carries the sneak, so it still goes unsneaked, and the sneak is two ticks old (not fresh, the crouched eye certain) by
+     * the death. The prime holds only the input of the tick it is asked on ({@link ClearExecutor#primeSneak}), so a cast
+     * across, hop or walk the death leads to still sends its first input unsneaked, as before; until acoptimal-next4-1125 it
+     * was not asked while such a mob stood within a cast across (59 of 67 one-tick-late warps on the 6 floors).
      */
     private static void primeWarpAfterCast(Vec3 feet) {
-        if (roomMobs.isEmpty()) {
-            return;
-        }
-        List<KillPlanner.Step> st = activePlan == null ? null : activePlan.steps();
-        boolean planWarps = st != null && planAt + 1 < st.size() && st.get(planAt + 1).kind() == KillPlanner.ETHER;
-        double across = WeaponReach.HYPERION_TELEPORT + WeaponReach.HYPERION_RADIUS;
-        boolean left = false;
         for (Entity e : roomMobs) {
-            AABB box = e.getBoundingBox();
-            if (!e.isAlive() || WeaponReach.hyperionHits(feet, box)) {
-                continue;   // this blast's own
+            if (e.isAlive() && !WeaponReach.hyperionHits(feet, e.getBoundingBox())) {
+                if (ClearExecutor.primeSneak()) {
+                    primedCastTicks++;
+                }
+                return;
             }
-            if (!planWarps && box.distanceToSqr(feet) < across * across) {
-                return;     // a cast across or a hop may go next: those go unsneaked
-            }
-            left = true;
-        }
-        if (left && ClearExecutor.primeSneak()) {
-            primedCastTicks++;
         }
     }
 
@@ -5759,6 +5766,16 @@ public final class AutoClearFeature {
     /** A plan asked for where a move will end stands for any state there within this many ticks. */
     private static final int ASK_FRESH_TICKS = 40;
     private static long killPlanLogged = -1;
+    /** {@link #corrections} when the plan being followed was taken: more since then means the server moved him. */
+    private static int planCorrections = 0;
+    /** Plans asked for in this room because the server moved him off one (at most {@link #PLAN_KEEPS}), and the next ask is one. */
+    private static int planKeeps = 0;
+    private static boolean keepNextAsk = false;
+    private static final int PLAN_KEEPS = 3;
+    /** The job of that ask (-1 none), the tick it was asked, and how long the old choice waits for it. */
+    private static long keepJob = -1;
+    private static long keepAskTick = 0;
+    private static final int KEEP_WAIT_TICKS = 2;
     /** Casts and trips sent from a room plan, ever. */
     private static int killPlanMoves = 0;
 
@@ -5787,6 +5804,9 @@ public final class AutoClearFeature {
         killStep = null;
         askKey = 0;
         askFeet = null;
+        planKeeps = 0;
+        keepNextAsk = false;
+        keepJob = -1;
         KillPlanner.reset();
     }
 
@@ -5869,6 +5889,7 @@ public final class AutoClearFeature {
                 activePlan = p;
                 lastTaken = p;
                 planAt = 0;
+                planCorrections = corrections;
                 logKillPlan(p);
             }
         }
@@ -5886,13 +5907,27 @@ public final class AutoClearFeature {
             }
             if (planAt < st.size()) {
                 LOGGER.info(String.format(Locale.US, "[AutoClear] left the kill plan for %s at step %d of %d: %.1f blocks"
-                        + " from where it starts - the old choice goes on", roomName, planAt + 1, st.size(),
-                        Math.sqrt(st.get(planAt).from().distanceToSqr(feet))));
+                        + " from where it starts - %s", roomName, planAt + 1, st.size(),
+                        Math.sqrt(st.get(planAt).from().distanceToSqr(feet)), leavePlan()));
             }
             activePlan = null;
         }
         askPlan(client, player, cfg, feet, alive);
         return null;
+    }
+
+    /**
+     * The plan being left: when the server moved him since it was taken (his own click, a correction), the next plan is
+     * asked from where he stands with no margin to win and waited for a tick or two, at most {@link #PLAN_KEEPS} times a
+     * room; otherwise, or after that, the old choice goes on. Returns the log's ending.
+     */
+    private static String leavePlan() {
+        if (corrections == planCorrections || planKeeps >= PLAN_KEEPS) {
+            return "the old choice goes on";
+        }
+        planKeeps++;
+        keepNextAsk = true;
+        return "the server moved him, so it is planned again from here (" + planKeeps + " of " + PLAN_KEEPS + ")";
     }
 
     /**
@@ -5906,8 +5941,10 @@ public final class AutoClearFeature {
         }
         long key = KillPlanner.posKey(feet) * 31 + alive * 17 + targetsRoom;
         long now = ClearExecutor.clientTick();
-        if (key == askKey || askFeet != null && now - askTick < ASK_FRESH_TICKS && askFeet.distanceToSqr(feet) < 2.25
-                && (alive & ~askAlive) == 0) {
+        boolean keep = keepNextAsk;
+        keepNextAsk = false;
+        if (!keep && (key == askKey || askFeet != null && now - askTick < ASK_FRESH_TICKS && askFeet.distanceToSqr(feet) < 2.25
+                && (alive & ~askAlive) == 0)) {
             return;
         }
         askKey = key;
@@ -5929,9 +5966,29 @@ public final class AutoClearFeature {
         for (BlockPos b : noExitStands) {
             noLand[n++] = b.asLong();
         }
-        KillPlanner.submit(targetsRoom, java.util.Arrays.copyOf(targetBox, targetCount), alive, feet, noLand, trip,
-                (int) Math.round(1 + linkMean), HYPERION_KILL_TICKS, ESTIMATE_USE_TICKS, casts, client.level, player,
-                roomName);
+        long job = KillPlanner.submit(targetsRoom, java.util.Arrays.copyOf(targetBox, targetCount), alive, feet, noLand,
+                trip, (int) Math.round(1 + linkMean), HYPERION_KILL_TICKS, ESTIMATE_USE_TICKS, casts, keep, client.level,
+                player, roomName);
+        if (keep) {
+            keepJob = job;
+            keepAskTick = now;
+        }
+    }
+
+    /**
+     * Whether the old choice waits this tick for the plan asked from where the server put him ({@link #leavePlan}):
+     * until that plan is in, at most {@link #KEEP_WAIT_TICKS} ticks; nothing is sent meanwhile.
+     */
+    private static boolean waitingForKeptPlan() {
+        if (keepJob < 0) {
+            return false;
+        }
+        KillPlanner.Plan p = KillPlanner.latest();
+        if (p != null && p.job() >= keepJob || ClearExecutor.clientTick() - keepAskTick >= KEEP_WAIT_TICKS) {
+            keepJob = -1;
+            return false;
+        }
+        return true;
     }
 
     /** {@link #askPlan} for where a cast of the old choice lands, its blast's targets dead. */

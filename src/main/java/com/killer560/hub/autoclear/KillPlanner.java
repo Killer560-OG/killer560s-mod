@@ -74,7 +74,7 @@ final class KillPlanner {
 
     /** What the planner needs, all copied on the client thread. */
     record Job(long id, int epoch, int room, AABB[] boxes, long alive, Vec3 feet, long[] noLand, int[] trip, int link,
-               int killTicks, int inPlaceTicks, boolean casts, Level level, Player player, String name) {
+               int killTicks, int inPlaceTicks, boolean casts, boolean keep, Level level, Player player, String name) {
     }
 
     private static final int MAX_NODES = 4000;
@@ -164,10 +164,10 @@ final class KillPlanner {
     }
 
     /** Client thread: queue a plan for {@code room}'s targets from {@code feet} with {@code alive} alive. */
-    static void submit(int room, AABB[] boxes, long alive, Vec3 feet, long[] noLand, int[] trip, int link, int killTicks,
-                       int inPlaceTicks, boolean casts, Level level, Player player, String name) {
+    static long submit(int room, AABB[] boxes, long alive, Vec3 feet, long[] noLand, int[] trip, int link, int killTicks,
+                       int inPlaceTicks, boolean casts, boolean keep, Level level, Player player, String name) {
         Job job = new Job(nextJob++, epoch, room, boxes, alive, feet, noLand, trip, link, killTicks, inPlaceTicks, casts,
-                level, player, name);
+                keep, level, player, name);
         THREAD.execute(() -> {
             try {
                 Plan p = plan(job);
@@ -179,6 +179,7 @@ final class KillPlanner {
                 LOGGER.debug("[AutoClear] kill plan for {} dropped: {}", job.name, e.toString());
             }
         });
+        return job.id;
     }
 
     // ---- the search (planner thread) ----
@@ -234,7 +235,9 @@ final class KillPlanner {
         // Never slower than the old choice by construction: the search starts with the old choice's price less the
         // margin as its bound, so it keeps only a sequence that beats it (and none at all when nothing does).
         int old = oldChoice(s);
-        s.best = old - margin(old);
+        // keep: the plan he was following was left because the server moved him (his own click, a correction), so a
+        // plan from where he now stands goes on unless it is slower than the old choice (no margin to win again).
+        s.best = job.keep ? old + 1 : old - margin(old);
         dfs(s, job.feet, job.alive, 0, 0, new ArrayList<>());
         return new Plan(job.id, job.room, job.feet, job.alive, List.copyOf(s.bestPath), s.best, old, s.nodes, s.fans,
                 (System.nanoTime() - s.t0) / 1e6);
@@ -628,7 +631,7 @@ final class KillPlanner {
     private static List<Land> aimed(Search s, Vec3 pos, long alive) {
         Job j = s.job;
         List<Land> out = new ArrayList<>();
-        Vec3 eye = pos.add(0, j.player.getEyeHeight(), 0);
+        Vec3 eye = pos.add(0, WeaponReach.STANDING_EYE, 0);   // casts go standing (WeaponReach.hyperionHop)
         double reach = WeaponReach.HYPERION_TELEPORT + WeaponReach.HYPERION_RADIUS + 1;
         long left = alive & s.goal;
         for (int n = 0; n < AIM_TARGETS && left != 0; n++) {

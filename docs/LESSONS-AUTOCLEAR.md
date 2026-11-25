@@ -613,3 +613,35 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   6 floors) and missed the 4 ms in-tick wait. Fix: `WarpGraph.warm(..., yieldTo)` (only the background tickWarm passes it; a
   click's own finishWarm never yields) also stops after the node in hand per worker and after the field in hand. Queued >= 5 ms
   45/223 and 39/208 -> 3/211 and 4/210, plan wait 63/57 -> 19/20 ticks, room ticks 2719/2676 -> 2604/2601 (-3.5%). Testkit 1125-sim-ac-warmyield reads the "queued X ms" of every [Path] running line.
+
+## Sneak primed while any mob is left (acoptimal-next4-1125, 2026-11-25)
+- After acoptimal-next3, 59 of the 67 one-tick-late warps on 1020-sim-ac-speed's 6 floors followed an in-place Wither Impact
+  whose primeWarpAfterCast DECLINED: a mob the blast missed stood within a cast across (16 blocks), so the sneak went down only
+  on the kill's tick and the warp waited at ClearNode.doTeleport (`getLastSentInput().shift()`) for it to be heard. Fix: prime
+  whenever any unhit mob is left. ClearExecutor.primeSneak now holds only the input of the tick it is asked on (castPrimedTick;
+  primeNextWarp's END-handler prime still lasts through the next tick), so on a kill tick that leads to a cast across, a hop or
+  a walk nothing asks again and that input goes unsneaked.
+- The hop then turned twice: on the kill tick the client still crouches (the pose follows the last input), and
+  WeaponReach.hyperionHop aimed from `player.getEyeHeight()`, ~1.3 degrees off the standing look it got the next tick (12 hops
+  2 ticks late instead of 1). Hyperion casts and hops are aimed from WeaponReach.STANDING_EYE (KillPlanner's aimed looks too).
+  Classify warp gaps with C:/kmtest/jars/acoptimal-next4-1125/g1.py-g3.py (g3 reads a probe jar's prime verdicts).
+- His right click in the tick Auto Clear TURNS for a cast (aimAndHold) went out in that tick's handleKeybinds with the new,
+  unheard look: his own Wither Impact flew the cast's way and killed its mob first, so 62-argrim-1122-same-plan-use saw plan
+  casts 0 whenever that mob was the plan's only cast (2 of 3 on the merged jar; the same ride shows on every jar before it,
+  only by chance on a mob the plan needed). aimAndHold now puts the turn off a tick while hisUseClicksQueued > 0 (never two
+  ticks running); the row asserts no Hyperion use goes on a look the server had not heard. Path warps' AOTV clicks still ride
+  the path's look (his etherwarp lands on the planned block; Grim clean).
+
+## Moved off the kill plan by the server (acoptimal-next4-1125-fix2, 2026-11-25)
+- His own Hyperion click (or any correction) mid-room teleports him off the plan's next step; the plan was then left and a new one
+  had to beat the old choice by the full margin again, so the plan often stopped acting (62-argrim-1122-same-plan-use 2 of 5 on
+  default Grim, "left the kill plan at step 4 ... plan casts 0"). Now `leavePlan` checks `corrections` against the count when the
+  plan was taken: a move the server made gets a plan from where he stands with no margin (`KillPlanner.Job.keep`, best = old + 1),
+  and the old choice sends nothing for up to 2 ticks while it comes (`waitingForKeptPlan`), at most 3 times a room. A move during a
+  plan etherwarp is the trip's own to plan again (Path), so it never reaches this. Testkit 62-argrim-1125-plan-moved shoves him on
+  the plan etherwarp's landing.
+- 62-argrim-1117-achype's "no Wither Impact across" (11-25) was the row, not the mod: since the kill plan (3453a2b86) takes that
+  layout, its cast across logs "Wither Impact (room plan) ... 2 mob(s) in its blast" instead of "Wither Impact across"; the row
+  counts both. No lane had run it since 11-19.
+- 62-argrim-1122-planprobe run AFTER the plan rows in one session draws one Simulation (.089) after a 2-warp path landing on the
+  merged base without this fix too (m0 exp-rows); alone it is clean (m0 and fix, def). Open: WORKQUEUE planprobe-order-1125.
