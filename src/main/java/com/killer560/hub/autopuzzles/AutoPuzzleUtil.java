@@ -18,50 +18,7 @@ import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.item.component.ItemLore;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.AirBlock;
-import net.minecraft.world.level.block.BigDripleafStemBlock;
 import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.BubbleColumnBlock;
-import net.minecraft.world.level.block.BushBlock;
-import net.minecraft.world.level.block.ButtonBlock;
-import net.minecraft.world.level.block.CandleBlock;
-import net.minecraft.world.level.block.ComparatorBlock;
-import net.minecraft.world.level.block.CropBlock;
-import net.minecraft.world.level.block.DoublePlantBlock;
-import net.minecraft.world.level.block.DryVegetationBlock;
-import net.minecraft.world.level.block.FireBlock;
-import net.minecraft.world.level.block.FlowerBlock;
-import net.minecraft.world.level.block.FlowerPotBlock;
-import net.minecraft.world.level.block.GrowingPlantBlock;
-import net.minecraft.world.level.block.LadderBlock;
-import net.minecraft.world.level.block.LanternBlock;
-import net.minecraft.world.level.block.LeverBlock;
-import net.minecraft.world.level.block.LiquidBlock;
-import net.minecraft.world.level.block.MushroomBlock;
-import net.minecraft.world.level.block.NetherPortalBlock;
-import net.minecraft.world.level.block.NetherWartBlock;
-import net.minecraft.world.level.block.RailBlock;
-import net.minecraft.world.level.block.RedstoneWireBlock;
-import net.minecraft.world.level.block.RedstoneTorchBlock;
-import net.minecraft.world.level.block.RepeaterBlock;
-import net.minecraft.world.level.block.SaplingBlock;
-import net.minecraft.world.level.block.SeagrassBlock;
-import net.minecraft.world.level.block.ShortDryGrassBlock;
-import net.minecraft.world.level.block.SkullBlock;
-import net.minecraft.world.level.block.SmallDripleafBlock;
-import net.minecraft.world.level.block.SnowLayerBlock;
-import net.minecraft.world.level.block.StemBlock;
-import net.minecraft.world.level.block.SugarCaneBlock;
-import net.minecraft.world.level.block.TallFlowerBlock;
-import net.minecraft.world.level.block.TallGrassBlock;
-import net.minecraft.world.level.block.TallSeagrassBlock;
-import net.minecraft.world.level.block.TorchBlock;
-import net.minecraft.world.level.block.TripWireBlock;
-import net.minecraft.world.level.block.TripWireHookBlock;
-import net.minecraft.world.level.block.VineBlock;
-import net.minecraft.world.level.block.WallSkullBlock;
-import net.minecraft.world.level.block.WebBlock;
-import net.minecraft.world.level.block.piston.PistonHeadBlock;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
@@ -564,23 +521,10 @@ public final class AutoPuzzleUtil {
         return null;
     }
 
-    /** The reference TeleportUtils.blockFlags PASSABLE classification. */
+    /** The one etherwarp pass-through table, {@link com.killer560.hub.livemap.autoclear.TeleportUtils#flagsOf}. */
     public static boolean isPassable(BlockState state) {
-        Block b = state.getBlock();
-        return b instanceof AirBlock || b instanceof FlowerBlock || b instanceof TallGrassBlock || b instanceof BushBlock
-                || b instanceof TallFlowerBlock || b instanceof ShortDryGrassBlock || b instanceof TorchBlock
-                || b instanceof RedstoneTorchBlock || b instanceof TripWireBlock || b instanceof TripWireHookBlock
-                || b instanceof RailBlock || b instanceof FireBlock || b instanceof VineBlock || b instanceof LiquidBlock
-                || b instanceof SaplingBlock || b instanceof CropBlock || b instanceof StemBlock
-                || b instanceof SeagrassBlock || b instanceof TallSeagrassBlock || b instanceof SugarCaneBlock
-                || b instanceof MushroomBlock || b instanceof NetherWartBlock || b instanceof RedstoneWireBlock
-                || b instanceof ComparatorBlock || b instanceof RepeaterBlock || b instanceof SmallDripleafBlock
-                || b instanceof BigDripleafStemBlock || b instanceof DoublePlantBlock || b instanceof LeverBlock
-                || b instanceof SnowLayerBlock || b instanceof BubbleColumnBlock || b instanceof GrowingPlantBlock
-                || b instanceof PistonHeadBlock || b instanceof DryVegetationBlock || b instanceof ButtonBlock
-                || b instanceof LanternBlock || b instanceof SkullBlock || b instanceof WallSkullBlock
-                || b instanceof LadderBlock || b instanceof FlowerPotBlock || b instanceof WebBlock
-                || b instanceof NetherPortalBlock || b instanceof CandleBlock;
+        return (com.killer560.hub.livemap.autoclear.TeleportUtils.flagsOf(state)
+                & com.killer560.hub.livemap.autoclear.TeleportUtils.PASSABLE) != 0;
     }
 
     // ------------------------------------------------------------------ Interactive Map pathing (killer560, 2026-09-27)

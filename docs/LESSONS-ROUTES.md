@@ -70,6 +70,13 @@ and Auto Clear are in [LESSONS-AUTOCLEAR.md](LESSONS-AUTOCLEAR.md). Problem, the
 
 ## Aiming a node
 
+- **One etherwarp pass-through list: `TeleportUtils.flagsOf` (PASSABLE / BLOCKS_FEET)** (etherwarp-vines-1125). The
+  Etherwarp Overlay and AutoPuzzleUtil kept their own copies; the overlay's lacked BigDripleafStemBlock and CandleBlock, so
+  the box stopped at Galatea's hanging mangrove "vines" (big_dripleaf_stem, placed by the server with each regrown tree)
+  while the server warped past them (4 of his logged AOTV warps, 11-24). Both now read the table; the overlay alone also
+  treats a vine as blocking the feet. A new pass-through block goes in `TeleportUtils.buildFlags` only (testkit
+  1125-ew-dripleaf-stem).
+
 - **An etherwarp node's recorded look is right from the node's own spot and nowhere else** (his Museum #10 armed 0.6 off
   center and 0.27 up mid-jump, fired the recorded look, landed a block wide of #11). The ring is up to 0.8 wide either
   side, and only a height difference used to trigger the re-aim. `RouteExecutor.reaimIfMoved` re-aims at the recorded

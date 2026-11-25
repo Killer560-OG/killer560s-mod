@@ -15,49 +15,9 @@ import net.minecraft.world.entity.Pose;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.CustomData;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.AirBlock;
-import net.minecraft.world.level.block.Block;
-import net.minecraft.world.level.block.BubbleColumnBlock;
-import net.minecraft.world.level.block.BushBlock;
-import net.minecraft.world.level.block.ButtonBlock;
-import net.minecraft.world.level.block.ComparatorBlock;
-import net.minecraft.world.level.block.CropBlock;
-import net.minecraft.world.level.block.DoublePlantBlock;
-import net.minecraft.world.level.block.DryVegetationBlock;
-import net.minecraft.world.level.block.FireBlock;
-import net.minecraft.world.level.block.FlowerBlock;
-import net.minecraft.world.level.block.FlowerPotBlock;
-import net.minecraft.world.level.block.GrowingPlantBlock;
-import net.minecraft.world.level.block.LadderBlock;
-import net.minecraft.world.level.block.LanternBlock;
-import net.minecraft.world.level.block.LeverBlock;
-import net.minecraft.world.level.block.LiquidBlock;
-import net.minecraft.world.level.block.MushroomBlock;
-import net.minecraft.world.level.block.NetherPortalBlock;
-import net.minecraft.world.level.block.NetherWartBlock;
-import net.minecraft.world.level.block.RailBlock;
-import net.minecraft.world.level.block.RedstoneWireBlock;
-import net.minecraft.world.level.block.RedstoneTorchBlock;
-import net.minecraft.world.level.block.RepeaterBlock;
-import net.minecraft.world.level.block.SaplingBlock;
-import net.minecraft.world.level.block.SeagrassBlock;
-import net.minecraft.world.level.block.ShortDryGrassBlock;
-import net.minecraft.world.level.block.SkullBlock;
-import net.minecraft.world.level.block.SmallDripleafBlock;
-import net.minecraft.world.level.block.SnowLayerBlock;
-import net.minecraft.world.level.block.StemBlock;
-import net.minecraft.world.level.block.SugarCaneBlock;
-import net.minecraft.world.level.block.TallFlowerBlock;
-import net.minecraft.world.level.block.TallGrassBlock;
-import net.minecraft.world.level.block.TallSeagrassBlock;
-import net.minecraft.world.level.block.TorchBlock;
-import net.minecraft.world.level.block.TripWireBlock;
-import net.minecraft.world.level.block.TripWireHookBlock;
 import net.minecraft.world.level.block.VineBlock;
-import net.minecraft.world.level.block.WallSkullBlock;
-import net.minecraft.world.level.block.WebBlock;
-import net.minecraft.world.level.block.piston.PistonHeadBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import com.killer560.hub.livemap.autoclear.TeleportUtils;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import com.killer560.hub.compat.McCompat;
@@ -507,9 +467,8 @@ public final class EtherwarpOverlayFeature {
         for (int i = 0; i < 1000; i++) {
             BlockPos blockPos = new BlockPos((int) x, (int) y, (int) z);
             BlockState state = level.getBlockState(blockPos);
-            Block block = state.getBlock();
 
-            boolean isPassable = isPassable(block);
+            boolean isPassable = isPassable(state);
             boolean isSolid = !isPassable;
 
             if (isSolid) {
@@ -519,13 +478,13 @@ public final class EtherwarpOverlayFeature {
 
                 BlockPos feetPos = new BlockPos(blockPos.getX(), clearanceBaseY, blockPos.getZ());
                 BlockState feetState = level.getBlockState(feetPos);
-                if (!isPassable(feetState.getBlock()) || blocksFeet(feetState.getBlock())) {
+                if (!isPassable(feetState) || blocksFeet(feetState)) {
                     return new EtherPos(false, blockPos, state);
                 }
 
                 BlockPos headPos = new BlockPos(blockPos.getX(), clearanceBaseY + 1, blockPos.getZ());
                 BlockState headState = level.getBlockState(headPos);
-                if (!isPassable(headState.getBlock()) || blocksFeet(headState.getBlock())) {
+                if (!isPassable(headState) || blocksFeet(headState)) {
                     return new EtherPos(false, blockPos, state);
                 }
 
@@ -550,44 +509,12 @@ public final class EtherwarpOverlayFeature {
         return EtherPos.NONE;
     }
 
-    private static boolean isPassable(Block block) {
-        return block instanceof AirBlock
-                || block instanceof FlowerBlock || block instanceof TallGrassBlock || block instanceof BushBlock
-                || block instanceof TallFlowerBlock || block instanceof ShortDryGrassBlock
-                || block instanceof TorchBlock || block instanceof RedstoneTorchBlock
-                || block instanceof TripWireBlock || block instanceof TripWireHookBlock
-                || block instanceof RailBlock
-                || block instanceof FireBlock
-                || block instanceof VineBlock
-                || block instanceof LiquidBlock
-                || block instanceof SaplingBlock
-                || block instanceof CropBlock || block instanceof StemBlock
-                || block instanceof SeagrassBlock || block instanceof TallSeagrassBlock
-                || block instanceof SugarCaneBlock
-                || block instanceof MushroomBlock
-                || block instanceof NetherWartBlock
-                || block instanceof RedstoneWireBlock || block instanceof ComparatorBlock || block instanceof RepeaterBlock
-                || block instanceof SmallDripleafBlock
-                || block instanceof DoublePlantBlock
-                || block instanceof LeverBlock
-                || block instanceof SnowLayerBlock
-                || block instanceof BubbleColumnBlock
-                || block instanceof GrowingPlantBlock
-                || block instanceof PistonHeadBlock
-                || block instanceof DryVegetationBlock
-                || block instanceof ButtonBlock
-                || block instanceof LanternBlock
-                || block instanceof SkullBlock || block instanceof WallSkullBlock
-                || block instanceof LadderBlock
-                || block instanceof FlowerPotBlock
-                || block instanceof WebBlock
-                || block instanceof NetherPortalBlock;
+    /** The one etherwarp pass-through table ({@link TeleportUtils#flagsOf}), shared with Auto Clear, Auto Routes and the puzzles. */
+    private static boolean isPassable(BlockState state) {
+        return (TeleportUtils.flagsOf(state) & TeleportUtils.PASSABLE) != 0;
     }
 
-    private static boolean blocksFeet(Block block) {
-        return block instanceof SkullBlock || block instanceof WallSkullBlock
-                || block instanceof FlowerPotBlock
-                || block instanceof LadderBlock
-                || block instanceof VineBlock;
+    private static boolean blocksFeet(BlockState state) {
+        return (TeleportUtils.flagsOf(state) & TeleportUtils.BLOCKS_FEET) != 0 || state.getBlock() instanceof VineBlock;
     }
 }

@@ -27,7 +27,8 @@
      "Auto Clear: when the server moves you off a room's kill plan (your own Hyperion click or a correction), the plan is planned again from where you stand instead of being dropped, so its faster casts keep going.",
      "AP3 no longer draws an anticheat flag when your right click lands on a jump tick of a held walk, and Lever Aura no longer throws away a lever click the anticheat would cancel: it waits one tick for a look that reaches the lever instead, so the high Section 2 lever is not missed when you swap items during the EE3 route.",
      "Testkit: new case 1125-autoharp-campfire plays a full 197-note Melody's Harp song with rests and same-column repeats at a 100 ms round trip and needs every note.",
-     "Chest Value: when the list is longer than the panel shows, scroll the mouse wheel over the panel to move through the items (the last line says how many are below and above), and the Reset Position button is gone from its tab."
+     "Chest Value: when the list is longer than the panel shows, scroll the mouse wheel over the panel to move through the items (the last line says how many are below and above), and the Reset Position button is gone from its tab.",
+     "Etherwarp Overlay: the box now goes through the same blocks the server's etherwarp goes through, including big dripleaf stems (the hanging vines on Galatea's mangrove trees) and candles, which used to stop it although the warp went past them."
     ]
    }
   ]
