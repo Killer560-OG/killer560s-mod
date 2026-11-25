@@ -1,5 +1,18 @@
 [
  {
+  "date": "2026-11-25",
+  "summary": "Highlight Optimal Blocks: every box is now a log you can act",
+  "sections": [
+   {
+    "title": "More",
+    "blurb": "Changes in this update.",
+    "items": [
+     "Highlight Optimal Blocks: every box is now a log you can actually hit, touching air and in reach from the ground around the tree (no more branch tips or buried logs; a log nothing on the ground can reach is drawn dim), and once you break a log it shows the best logs on every nearby tree of that kind until you break another kind or leave the island."
+    ]
+   }
+  ]
+ },
+ {
   "date": "2026-11-24",
   "summary": "Beacon Tuner: it now reads the Moonglade Beacon's real Tune ",
   "sections": [

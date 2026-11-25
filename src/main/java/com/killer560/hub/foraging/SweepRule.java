@@ -7,6 +7,7 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 
 import java.util.function.LongPredicate;
+import java.util.function.LongToIntFunction;
 
 /**
  * The Sweep rule (sweepoverlay-build-1124), pure so a test can drive it. A swing fells the hit log plus one log for every
@@ -90,20 +91,44 @@ public final class SweepRule {
      * neighbors (the end of a run, which leaves no split behind), then the lowest position; its fill is then removed.
      */
     public static long[] plan(long[] tree, int n) {
+        return plan(tree, n, c -> 0);
+    }
+
+    /**
+     * {@link #plan(long[], int)} with each log's reach class (0 hit from the ground where he stands, 1 from other ground, 2
+     * open to air but not reachable from the ground, 3 no open face; killer560 2026-11-24: "all need to be touching air and
+     * easy to break"). A swing is taken from the best group that still stands (0 and 1 together, then 2, then 3), so an easy
+     * pick always beats one that fells more; inside a group the one that fells the most logs of class 2 or 3 (a branch tip
+     * no easy pick fells now would need a hard pick later), then the most felled, then class 0 over 1, then the rule above.
+     * Easy picks therefore come first in the result.
+     */
+    public static long[] plan(long[] tree, int n, LongToIntFunction reach) {
         LongOpenHashSet rem = new LongOpenHashSet(tree);
         LongArrayList out = new LongArrayList();
         while (n > 0 && !rem.isEmpty()) {
             long best = 0;
-            int bestSize = 0, bestNb = 0;
+            int bestGroup = Integer.MAX_VALUE, bestCover = 0, bestSize = 0, bestCls = 0, bestNb = 0;
             for (long c : rem) {
-                int size = fill(c, n, rem::contains).length;
-                if (size < bestSize) {
+                int cls = reach.applyAsInt(c), group = Math.max(cls, 1);
+                if (group > bestGroup) {
+                    continue;
+                }
+                long[] f = fill(c, n, rem::contains);
+                int cover = 0;
+                for (long l : f) {
+                    cover += reach.applyAsInt(l) > 1 ? 1 : 0;
+                }
+                int size = f.length;
+                if (group == bestGroup && (cover < bestCover || (cover == bestCover && (size < bestSize || (size == bestSize && cls > bestCls))))) {
                     continue;
                 }
                 int nb = neighbors(c, rem);
-                if (size > bestSize || nb < bestNb || (nb == bestNb && c < best)) {
+                if (group < bestGroup || cover > bestCover || size > bestSize || cls < bestCls || nb < bestNb || (nb == bestNb && c < best)) {
                     best = c;
+                    bestGroup = group;
+                    bestCover = cover;
                     bestSize = size;
+                    bestCls = cls;
                     bestNb = nb;
                 }
             }

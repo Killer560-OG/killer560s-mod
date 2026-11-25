@@ -10,7 +10,11 @@ import com.killer560.hub.util.WorldRenderUtils;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
+import net.fabricmc.fabric.api.event.player.AttackBlockCallback;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.world.InteractionResult;
+import it.unimi.dsi.fastutil.longs.Long2IntOpenHashMap;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
@@ -26,7 +30,8 @@ import java.util.regex.Pattern;
 /**
  * Sweep Overlay and Highlight Optimal Blocks (Galatea). Both read {@link SweepRule}: the overlay outlines the logs the next
  * swing on the looked-at log fells; the optimal highlight boxes EVERY log of the plan that fells the tree he is at in the
- * fewest swings ({@link SweepRule#plan}), the next one to hit also filled. Cached: the sets are rebuilt only when the
+ * fewest swings ({@link SweepRule#plan}) whose picks he can hit from the ground ({@link SweepReach}; hard picks dim), the
+ * next one to hit also filled, and once he broke a log there on every tree of that kind ({@link SweepForest}). Cached: the sets are rebuilt only when the
  * looked-at log, the Sweep value, a setting or a log block anywhere (mixin hook; the plan waits 4 ticks) changes, and the Sweep stat is read from the tab list once a
  * second. Render draws the published arrays only. The wrong-order rule (50 percent fewer) is not modeled: trunk versus
  * branch cannot be told from the blocks.
@@ -64,6 +69,10 @@ public final class SweepOverlay {
     private static volatile float[] ovRgba = new float[4];
     private static volatile float[] optRgba = new float[4];
     private static volatile AABB[] optNext = new AABB[0];
+    private static volatile AABB[] optHard = new AABB[0];
+    private static volatile float[] optHardRgba = new float[4];
+    private static volatile int optEasy;
+    private static boolean forest;
     private static int ovCount, optCount, frames, rebuilds;
     private static long[] lastSet = new long[0];
     private static long[] plan = new long[0];
@@ -79,12 +88,23 @@ public final class SweepOverlay {
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("SweepOptimal.tick", b2, SweepOverlay::update));
         LevelRenderEvents.COLLECT_SUBMITS.register(FeatureGuard.collectFeatures(b1, ctx -> draw(ctx, true)));
         LevelRenderEvents.COLLECT_SUBMITS.register(FeatureGuard.collectFeatures(b2, ctx -> draw(ctx, false)));
+        AttackBlockCallback.EVENT.register((player, lv, hand, pos, dir) -> {
+            int k;
+            if (lv.isClientSide() && galatea && OPT.isEnabledRaw() && (k = SweepRule.kind(lv.getBlockState(pos).getBlock())) >= 0) {
+                SweepForest.onAttack(pos.asLong(), k, lv.getGameTime());
+            }
+            return InteractionResult.PASS;
+        });
     }
 
     /** A block the server set (from the level mixin, before it is applied): any log change dirties the cache. */
-    public static void onChange(BlockState old, BlockState now) {
-        if ((CFG.isEnabledRaw() || OPT.isEnabledRaw()) && (SweepRule.kind(old.getBlock()) >= 0 || SweepRule.kind(now.getBlock()) >= 0)) {
+    public static void onChange(ClientLevel lv, BlockPos pos, BlockState old, BlockState now) {
+        int ko = SweepRule.kind(old.getBlock()), kn = SweepRule.kind(now.getBlock());
+        if ((CFG.isEnabledRaw() || OPT.isEnabledRaw()) && (ko >= 0 || kn >= 0)) {
             version++;
+            if (OPT.isEnabledRaw() && lv == level) {
+                SweepForest.onChange(pos.asLong(), ko, kn, lv.getGameTime());
+            }
         }
     }
 
@@ -104,17 +124,21 @@ public final class SweepOverlay {
             tabSweep = 0;
             plan = new long[0];
             planTree = new LongOpenHashSet();
+            SweepForest.reset();
             setOv(new AABB[0]);
-            setOpt(new AABB[0]);
+            setOpt(new AABB[0], new AABB[0], new AABB[0]);
         }
         if (gt % 20 == 0) {
             galatea = testIsland || "GALATEA".equals(String.valueOf(IslandDetector.graphIsland()));
             tabSweep = galatea ? readSweep(mc) : 0;
         }
         if (!galatea) {
+            if (SweepForest.kind() >= 0) {
+                SweepForest.reset();
+            }
             if (ovCount + optCount > 0) {
                 setOv(new AABB[0]);
-                setOpt(new AABB[0]);
+                setOpt(new AABB[0], new AABB[0], new AABB[0]);
                 plan = new long[0];
                 ovReady = optReady = false;
             }
@@ -150,8 +174,21 @@ public final class SweepOverlay {
      */
     private static void updatePlan(Minecraft mc, long gt, double sw, boolean thrown) {
         boolean opt = OPT.isEnabled();
-        boolean same = optReady && (lastSeed == optKeySeed || planTree.contains(lastSeed)) && sw == optSweep
-                && thrown == optThrown && opt == optOn;
+        int fk = opt ? SweepForest.kind() : -1;
+        if (fk >= 0) {
+            forest = optReady = true;
+            if (SweepForest.tick(mc, gt, SweepRule.logs(fk, sw, thrown))) {
+                AABB[][] b = SweepForest.boxes();
+                plan = new long[0];
+                setOpt(b[0], b[1], b[2]);
+            }
+            return;
+        }
+        if (forest) {
+            forest = optReady = false;   // back to the tree he is at
+        }
+        boolean sameTree = optReady && (lastSeed == optKeySeed || planTree.contains(lastSeed));
+        boolean same = sameTree && sw == optSweep && thrown == optThrown && opt == optOn;
         if (same && (version == optVersion || gt - optGt < 4)) {
             return;
         }
@@ -163,9 +200,9 @@ public final class SweepOverlay {
         optVersion = version;
         optGt = gt;
         rebuilds++;
-        long[] seeds = new long[(same ? plan.length : 0) + 1];
+        long[] seeds = new long[(sameTree ? plan.length : 0) + 1];
         seeds[0] = lastSeed;
-        if (same) {
+        if (sameTree) {   // a Sweep change keeps the tree even when the log he looked at is already felled
             System.arraycopy(plan, 0, seeds, 1, plan.length);
         }
         LongOpenHashSet tree = new LongOpenHashSet();
@@ -181,8 +218,19 @@ public final class SweepOverlay {
             }
         }
         planTree = tree;
-        plan = k < 0 ? new long[0] : SweepRule.plan(tree.toLongArray(), SweepRule.logs(k, sw, thrown));
-        setOpt(boxes(plan));
+        int easy = 0;
+        if (k < 0) {
+            plan = new long[0];
+        } else {
+            Long2IntOpenHashMap r = SweepReach.classes(mc, tree, mc.player.blockPosition());
+            plan = SweepRule.plan(tree.toLongArray(), SweepRule.logs(k, sw, thrown), r::get);
+            while (easy < plan.length && r.get(plan[easy]) <= SweepReach.GROUND) {
+                easy++;
+            }
+        }
+        AABB[] all = boxes(plan);
+        setOpt(java.util.Arrays.copyOf(all, easy), java.util.Arrays.copyOfRange(all, easy, all.length),
+                all.length > 0 ? new AABB[]{all[0]} : all);
     }
 
     /** The logs a swing on {@code seed} fells at this Sweep (empty for a non-log). */
@@ -209,21 +257,30 @@ public final class SweepOverlay {
         ovCount = a.length;
     }
 
-    private static void setOpt(AABB[] o) {
-        optRgba = colors(OPT.num("color"), o.length);
-        optBoxes = o;
-        optNext = o.length > 0 ? new AABB[]{o[0]} : o;
-        optCount = o.length;
+    /** Easy picks, hard picks (no easy set fells the rest: drawn dim and thin) and the next pick of each tree. */
+    private static void setOpt(AABB[] easy, AABB[] hard, AABB[] next) {
+        int n = Math.max(easy.length, Math.max(hard.length, next.length));
+        optRgba = colors(OPT.num("color"), n);
+        optHardRgba = colors(OPT.num("color"), hard.length, 0.35f);
+        optBoxes = easy;
+        optHard = hard;
+        optNext = next;
+        optEasy = easy.length;
+        optCount = easy.length + hard.length;
     }
 
     private static float[] colors(int argb, int n) {
+        return colors(argb, n, 1f);
+    }
+
+    private static float[] colors(int argb, int n, float dim) {
         float[] k = WorldRenderUtils.argbToFloats(argb == DEFAULT_COLOR ? ThemeAccent.accent(argb) : argb);
         float[] c = new float[Math.max(n, 1) * 4];
         for (int i = 0; i < n; i++) {
             c[i * 4] = k[0];
             c[i * 4 + 1] = k[1];
             c[i * 4 + 2] = k[2];
-            c[i * 4 + 3] = k[3] <= 0f ? 1f : k[3];
+            c[i * 4 + 3] = (k[3] <= 0f ? 1f : k[3]) * dim;
         }
         return c;
     }
@@ -256,8 +313,10 @@ public final class SweepOverlay {
                 frames++;
             }
         } else if (optCount > 0 && OPT.isEnabled()) {
-            WorldRenderUtils.renderOutlineBoxes(ctx, optBoxes, optRgba, optCount, 2f, false);
-            WorldRenderUtils.renderFilledBoxes(ctx, optNext, optRgba, 1, 0.35f, false);
+            AABB[] hard = optHard;
+            WorldRenderUtils.renderOutlineBoxes(ctx, optBoxes, optRgba, optEasy, 2f, false);
+            WorldRenderUtils.renderOutlineBoxes(ctx, hard, optHardRgba, hard.length, 1f, false);
+            WorldRenderUtils.renderFilledBoxes(ctx, optNext, optRgba, optNext.length, 0.35f, false);
             frames++;
         }
     }
@@ -284,6 +343,21 @@ public final class SweepOverlay {
     /** The whole plan, next log first. */
     public static long[] optimalPlan() {
         return plan.clone();
+    }
+
+    /** Plan picks no ground spot reaches (drawn dim). */
+    public static int optimalHard() {
+        return optCount - optEasy;
+    }
+
+    /** The tree kind he last broke on this island (every tree of it is planned), or -1. */
+    public static int forestKind() {
+        return SweepForest.kind();
+    }
+
+    /** Every planned tree's plan while {@link #forestKind} is set. */
+    public static long[][] forestPlans() {
+        return SweepForest.plans();
     }
 
     /** Test only: act as if on Galatea. */
