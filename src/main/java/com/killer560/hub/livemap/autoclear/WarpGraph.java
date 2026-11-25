@@ -9,6 +9,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.function.BooleanSupplier;
 import java.util.function.Supplier;
 
 /**
@@ -1494,7 +1495,7 @@ public final class WarpGraph {
                 cellOfNode[u] = tiles == null ? -1 : tiles.cellOf(nx[u], nz[u]);
             }
             fieldBuild = new FieldBuild(n, starts, r, tileOfNode, cellOfNode, tc, Math.max(1, lastThreads));
-            if (System.nanoTime() > end) {
+            if (past(end)) {
                 return false;
             }
         }
@@ -1529,7 +1530,7 @@ public final class WarpGraph {
             } else if (b.next < fc) {
                 b.field(b.next++, 0);
             }
-        } while (b.next < fc && System.nanoTime() <= end);
+        } while (b.next < fc && !past(end));
         if (b.next < fc) {
             return false;
         }
@@ -2672,6 +2673,26 @@ public final class WarpGraph {
      */
     public boolean warm(EtherSearch.Grid grid, Supplier<EtherSearch.Grid> grids, ExecutorService workers, int threads,
                         double sx, double sy, double sz, long budgetNanos) {
+        return warm(grid, grids, workers, threads, sx, sy, sz, budgetNanos, NEVER);
+    }
+
+    private static final BooleanSupplier NEVER = () -> false;
+    /** The background warm-up's "a search is waiting" ({@link #warm} with {@code yieldTo}); NEVER for a click's own. */
+    private BooleanSupplier warmStop = NEVER;
+
+    /** The slice is over: its end passed, or a search is waiting for the planner thread. */
+    private boolean past(long end) {
+        return System.nanoTime() > end || warmStop.getAsBoolean();
+    }
+
+    /**
+     * {@link #warm} that also stops as soon as {@code yieldTo} says a search is waiting, after the node (or field) in
+     * hand rather than at the slice's end. acoptimal-next3-1125: with the full graph warming for 12-20 s of each floor,
+     * Auto Clear's searched trips waited 5-12 ms in the planner's queue behind a 10 ms slice and left a tick late.
+     */
+    public boolean warm(EtherSearch.Grid grid, Supplier<EtherSearch.Grid> grids, ExecutorService workers, int threads,
+                        double sx, double sy, double sz, long budgetNanos, BooleanSupplier yieldTo) {
+        warmStop = yieldTo;
         owner.inner = grid;
         lastWorkers = workers;
         lastGrids = grids;
@@ -2699,8 +2720,9 @@ public final class WarpGraph {
         }
         boolean parallel = workers != null && threads > 1 && grids != null;
         List<Integer> batch = new ArrayList<>();
+        BooleanSupplier stop = yieldTo;
         while (warmHead != warmTail) {
-            if (System.nanoTime() > end) {
+            if (past(end)) {
                 return true;
             }
             // Take the next nodes off the queue; the known ones just pass their neighbors on.
@@ -2753,7 +2775,7 @@ public final class WarpGraph {
                     List<Result> out = new ArrayList<>(selves.length);
                     // Up to the slice's end (at least one node): the rest go back on the queue, so a whole batch never
                     // holds a waiting search past the slice.
-                    for (int k = 0; k < selves.length && (k == 0 || System.nanoTime() <= end); k++) {
+                    for (int k = 0; k < selves.length && (k == 0 || System.nanoTime() <= end && !stop.getAsBoolean()); k++) {
                         x.expandFrom(pos[3 * k], pos[3 * k + 1], pos[3 * k + 2], selves[k], true);
                         out.add(capture(x, selves[k]));
                     }

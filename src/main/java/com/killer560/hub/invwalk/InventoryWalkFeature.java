@@ -74,6 +74,9 @@ public final class InventoryWalkFeature {
     private static final ArrayDeque<Packet<?>> heldClicks = new ArrayDeque<>();
     private static boolean sendingHeld;
     private static int heldClickTicks;
+    /** His menu packets waiting out a short walk's keyless tick ({@link #holdForWalk}). */
+    private static final ArrayDeque<Packet<?>> walkHeld = new ArrayDeque<>();
+    private static int walkHeldTicks;
     /**
      * The open screen and, for the "[InvWalk] server closed" line, its ticks open, the tick his keys first went down in it,
      * the tick of his last click there (-1 = none) and where it opened (invlook-1110: his next log tells what Hypixel closes
@@ -174,6 +177,9 @@ public final class InventoryWalkFeature {
             owedInput = player.getLastSentInput();
             owedSprint = serverSprinting != null && serverSprinting != player.isSprinting() ? player.isSprinting() : null;
         }
+        if (player != null) {
+            sendWalkHeld(client);
+        }
         if (menuWalking) {
             unmaskedTicks = 0;
         } else if (unmaskedTicks < Integer.MAX_VALUE) {
@@ -196,6 +202,7 @@ public final class InventoryWalkFeature {
                 heldClicks.clear();
             }
             carrying.clear();
+            walkHeld.clear();
         } else if (!heldClicks.isEmpty()) {
             // Before the screen check: a close is held after its screen has gone, and still needs its still tick.
             heldClickTicks++;
@@ -512,6 +519,9 @@ public final class InventoryWalkFeature {
                     inputText(mc0.player.getLastSentInput()), inputText(serverInput), mc0.player.isSprinting()));
             return true;
         }
+        if (holdForWalk(mc0, packet)) {
+            return true;
+        }
         standUpForMenu(mc0);
         if (!isClick || !active) {
             return false;
@@ -537,8 +547,9 @@ public final class InventoryWalkFeature {
     /**
      * His container click, close or button going out while the server still hears Auto Clear's etherwarp sneak is GrimAC
      * MultiActionsC / D (ackilllogic-1122, 62-argrim-1122-same-plan-openclick). The server hears him stand up just before
-     * it, vanilla is told so, and the path yields its sneak through the next tick's input (so that input sends nothing:
-     * BadPacketsZ) and its warp waits for the sneak to be heard again. His packet goes at once.
+     * it, vanilla is told so, and the path yields its sneak (and a short walk starting then its keys) through the next tick's
+     * input (so that input sends nothing: BadPacketsZ) and its warp waits for the sneak to be heard again. His packet goes
+     * at once.
      */
     private static void standUpForMenu(Minecraft mc) {
         LocalPlayer p = mc.player;
@@ -551,6 +562,43 @@ public final class InventoryWalkFeature {
         sendRaw(new ServerboundPlayerInputPacket(up));
         ((com.killer560.hub.blink.mixin.BlinkReminderAccessor) p).killer560$setLastSentInput(up);
         com.killer560.hub.livemap.autoclear.ClearExecutor.menuStoodUp();
+        com.killer560.hub.pathfinding.ShortWalk.yieldInput(com.killer560.hub.pathfinding.ShortWalk.YIELD_REPEAT);
+    }
+
+    /**
+     * His menu packet while a short walk (Auto Clear, Auto M5, Green Room) has its keys or sprint at the server is GrimAC
+     * MultiActionsC (lane1125-0321, 62-argrim-1125-walk-openclick). A stop-sprint cannot follow the tick's movement packet
+     * (GrimAC Post), so the packet waits one tick: the walk yields that tick's keys and sprint, vanilla tells the server
+     * before its movement packet, and the packet goes at the next tick's start (acoptimal-next2-1125b).
+     */
+    private static boolean holdForWalk(Minecraft mc, Packet<?> packet) {
+        LocalPlayer p = mc.player;
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED || p == null || !mc.isSameThread()) {
+            return false;
+        }
+        if (walkHeld.isEmpty()) {
+            Input in = p.getLastSentInput();
+            if (!com.killer560.hub.pathfinding.ShortWalk.isDriving() || !(in.forward() || in.backward() || in.left()
+                    || in.right() || in.jump() || ((com.killer560.hub.blink.mixin.BlinkReminderAccessor) p).killer560$wasSprinting())) {
+                return false;
+            }
+            walkHeldTicks = 0;
+            com.killer560.hub.pathfinding.ShortWalk.yieldInput(com.killer560.hub.pathfinding.ShortWalk.YIELD_KEYLESS);
+        }
+        walkHeld.addLast(packet);
+        return true;
+    }
+
+    /** START of every tick: the packets {@link #holdForWalk} held go once the walk's keyless tick has been sent. */
+    private static void sendWalkHeld(Minecraft mc) {
+        if (walkHeld.isEmpty() || ++walkHeldTicks < 2) {
+            return;
+        }
+        LOGGER.info("[InvWalk] {} menu packet(s) sent after the walk's keyless tick", walkHeld.size());
+        standUpForMenu(mc);
+        while (!walkHeld.isEmpty()) {
+            sendRaw(walkHeld.pollFirst());
+        }
     }
 
     /**

@@ -21,4 +21,8 @@ public interface BlinkReminderAccessor {
     /** What vanilla believes the server last heard (invwalk/InventoryWalkFeature#standUpForMenu). */
     @Accessor("lastSentInput")
     void killer560$setLastSentInput(net.minecraft.world.entity.player.Input input);
+
+    /** Whether vanilla believes the server last heard a sprint (invwalk/InventoryWalkFeature#holdForWalk). */
+    @Accessor("wasSprinting")
+    boolean killer560$wasSprinting();
 }

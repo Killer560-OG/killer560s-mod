@@ -567,3 +567,29 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   from both eyes. Fix: primeWarpAfterCast holds the sneak from the in-place cast's own tick (its use leaves in handleKeybinds,
   ahead of that tick's input packet, so it still goes unsneaked). Testkit 1124-sim-ac-presneak: gap 0 trips 0 -> 11 of 16
   rooms, room ticks 510 -> 465. Diagnose such holds by logging `waitReason` right after onTickStart's doInteract.
+
+## Searched trips a tick late (acoptimal-next2-1125, 2026-11-25)
+- A trip whose path is SEARCHED (ClearExecutor.plan, the planner thread) handed its result back through `client.execute`, which
+  runs only after the tick that started it has ended, and startQueue then left `sendNow` false: every multi-warp trip after a
+  kill left a tick late even when the search took 1 ms (137 of 251 kill-to-warp gaps on 1020-sim-ac-speed's 6 floors; all
+  gap-0 warps were "no search, direct" trips). Fix: plan keeps the Future and a run-once hand-back; onTickStart (after Auto
+  Clear's START) waits up to SEARCH_WAIT_NANOS (4 ms) for it, runs the hand-back there and sends the queue as a cached trip
+  does (sendFromThisTick). A slower search falls back to the old hand-back. Testkit 1125-sim-ac-searchtick.
+- The remaining late searched trips mostly waited in the planner's QUEUE (5-10 ms behind a warm-up or TripCache slice), not
+  in the search itself; the classify/show scripts in C:/kmtest/jars/acoptimal-next2-1125 split gaps by source.
+
+## His menu click while Auto Clear walks (acoptimal-next2-1125b, 2026-11-25)
+- After failed etherwarp trips Auto Clear walks (ShortWalk, sprinting), and his container click then went right behind the
+  tick's sprint input: GrimAC MultiActionsC (lane1125-0321 on trip-openclick; origin draws it too once it walks). A raw
+  STOP_SPRINTING after the tick's movement packet is GrimAC Post, so InventoryWalkFeature.holdForWalk holds his menu packets one
+  tick: the walk yields that tick's keys and sprint (ShortWalk.YIELD_KEYLESS), vanilla tells the server before its movement
+  packet, and the packets go at the next tick's start. Testkit 62-argrim-1125-walk-openclick (every trip priced out).
+- The sneak stand-up's raw input after a tick's end was followed by a short walk's first input in the next tick: two inputs in
+  one GrimAC tick (BadPacketsZ, experimental). standUpForMenu now has the walk repeat the input just sent (YIELD_REPEAT).
+
+## Searched trips queued behind the warm-up (acoptimal-next3-1125, 2026-11-25)
+- The full floor graph warms for 12-20 s of every sim floor (19,000 landings), in 10 ms slices on the planner thread that
+  checked "a click is waiting" only between slices, so a searched trip queued 5-15 ms behind one (37 of 213 on 1020-sim-ac-speed's
+  6 floors) and missed the 4 ms in-tick wait. Fix: `WarpGraph.warm(..., yieldTo)` (only the background tickWarm passes it; a
+  click's own finishWarm never yields) also stops after the node in hand per worker and after the field in hand. Queued >= 5 ms
+  45/223 and 39/208 -> 3/211 and 4/210, plan wait 63/57 -> 19/20 ticks, room ticks 2719/2676 -> 2604/2601 (-3.5%). Testkit 1125-sim-ac-warmyield reads the "queued X ms" of every [Path] running line.

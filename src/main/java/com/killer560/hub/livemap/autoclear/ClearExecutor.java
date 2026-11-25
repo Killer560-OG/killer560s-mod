@@ -557,7 +557,9 @@ public final class ClearExecutor {
         pathPendingTicks = 0;
         lastPathFailed = false;
         tripQueued = true;
-        PLANNER.submit(() -> {
+        java.util.concurrent.atomic.AtomicReference<Runnable> back = new java.util.concurrent.atomic.AtomicReference<>();
+        searchBack = back;
+        searchFuture = PLANNER.submit(() -> {
             long start = System.currentTimeMillis();
             long queuedNanos = System.nanoTime() - pressAt;
             List<EtherwarpPathfinder.Node> path = null;
@@ -580,7 +582,7 @@ public final class ClearExecutor {
             long took = System.currentTimeMillis() - start;
             tripQueued = false;   // searched: work that gave way to it may go on while the client thread takes the plan
             List<EtherwarpPathfinder.Node> result = path;
-            client.execute(() -> {
+            back.set(() -> {
                 if (gen == pendingGen) {
                     pathPending = false; // only the search that set it clears it
                 }
@@ -684,7 +686,58 @@ public final class ClearExecutor {
                     improveInBackground(list, to, tileIdx, layout);
                 }
             });
+            client.execute(() -> runHandBack(back));
         });
+    }
+
+    /**
+     * The search {@link #plan} started last and its hand-back (run once, by whichever comes first: the next tick's START
+     * waiting for it, or the client thread's task queue). acoptimal-next2-1125: a searched trip took 1-4 ms on the planner
+     * but its result reached the client thread only after the tick had ended, so every multi-warp trip after a kill left a
+     * tick late (137 of 251 warps over the 1020-sim-ac-speed floors).
+     */
+    private static volatile java.util.concurrent.Future<?> searchFuture;
+    private static volatile java.util.concurrent.atomic.AtomicReference<Runnable> searchBack;
+    /** How long a tick's START waits for that search before letting the tick go without it (the result then comes next tick). */
+    private static final long SEARCH_WAIT_NANOS = 4_000_000L;
+
+    private static void runHandBack(java.util.concurrent.atomic.AtomicReference<Runnable> back) {
+        Runnable r = back == null ? null : back.getAndSet(null);
+        if (r != null) {
+            r.run();
+        }
+    }
+
+    /** Once per search, at the first START after it: wait up to {@link #SEARCH_WAIT_NANOS}, then take its result now. */
+    private static void awaitSearch() {
+        java.util.concurrent.Future<?> f = searchFuture;
+        if (f == null) {
+            return;
+        }
+        searchFuture = null;
+        try {
+            f.get(SEARCH_WAIT_NANOS, java.util.concurrent.TimeUnit.NANOSECONDS);
+        } catch (java.util.concurrent.TimeoutException | java.util.concurrent.ExecutionException
+                 | java.util.concurrent.CancellationException e) {
+            return;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return;
+        }
+        runHandBack(searchBack);
+        List<ClearNode> started = nodes;
+        if (lastPressTick == clientTicks && started != null && !started.isEmpty() && gateHold == null && !sendNow) {
+            // Searched within the tick: it goes as a cached trip does, this tick (its swap first, then the use).
+            searchesInTick++;
+            sendFromThisTick(started);
+        }
+    }
+
+    private static int searchesInTick;
+
+    /** Searched trips whose result was taken in the START of the tick after the search began (testkit 1125-sim-ac-searchtick). */
+    public static int searchesInTick() {
+        return searchesInTick;
     }
 
     /**
@@ -1092,6 +1145,13 @@ public final class ClearExecutor {
         ModChat.log(CHAT, ModChat.text(source.startsWith("planned ahead") ? "Path planned ahead" : "Path precomputed"),
                 ModChat.dim(" (" + list.size() + " warps)"));
         startQueue(list, complete);
+        sendFromThisTick(list);
+        improveInBackground(list, to, tileIdx, DungeonLayout.capture());
+        return true;
+    }
+
+    /** A queue that starts with no wait (planned ahead, cached, or searched within the tick): its hops go as worked out. */
+    private static void sendFromThisTick(List<ClearNode> list) {
         sendNow = true;
         compDelay = 0;
         // The item now, on the tick the queue starts: the first warp then waits only for the sneak.
@@ -1106,8 +1166,6 @@ public final class ClearExecutor {
                 swappedOnTick = now ? clientTicks : clientTicks + 1;
             }
         }
-        improveInBackground(list, to, tileIdx, DungeonLayout.capture());
-        return true;
     }
 
     /** The precomputed trip the running queue came from (TripCache), dropped if the queue goes wrong. */
@@ -1800,6 +1858,9 @@ public final class ClearExecutor {
         if (client.player == null) {
             return;
         }
+        // A trip searched this tick (Auto Clear's START runs first) goes in this tick, as a cached or one-warp trip does.
+        awaitSearch();
+        hasSwappedThisTick = swappedOnTick == clientTicks;
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED
                 && !com.killer560.hub.autoroutes.AutoRoutesConfig.getInstance().isChargedChain()
                 && (nodes != null && !nodes.isEmpty() || issued.size() > confirmed)) {
@@ -2326,6 +2387,7 @@ public final class ClearExecutor {
     }
 
     private static void reset() {
+        searchFuture = null;
         gateHold = null;
         gateRetry = null;
         eatenHop = null;

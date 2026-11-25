@@ -1209,7 +1209,7 @@ public final class EtherwarpPathfinder {
                 boolean more = true;
                 while (more && !clickWaiting.getAsBoolean() && System.nanoTime() - t0 < WARM_TASK_NANOS) {
                     more = gr.warm(new LevelEtherGrid(level), () -> new LevelEtherGrid(level), workers(),
-                            workerCount, p.x, p.y, p.z, WARM_SLICE_NANOS);
+                            workerCount, p.x, p.y, p.z, WARM_SLICE_NANOS, clickWaiting);
                 }
                 warmNanos += System.nanoTime() - t0;
                 if (!quickWasDone && gr.quick.warmDone() && !gr.full.warmDone()) {

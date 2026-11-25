@@ -62,11 +62,11 @@ public final class FloorGraphs {
      * while either has more to do.
      */
     public boolean warm(EtherSearch.Grid grid, Supplier<EtherSearch.Grid> grids, ExecutorService workers, int threads,
-                        double sx, double sy, double sz, long budgetNanos) {
-        if (quick != null && quick.warm(grid, grids, workers, threads, sx, sy, sz, budgetNanos)) {
+                        double sx, double sy, double sz, long budgetNanos, java.util.function.BooleanSupplier yieldTo) {
+        if (quick != null && quick.warm(grid, grids, workers, threads, sx, sy, sz, budgetNanos, yieldTo)) {
             return true;
         }
-        return full.warm(grid, grids, workers, threads, sx, sy, sz, budgetNanos);
+        return full.warm(grid, grids, workers, threads, sx, sy, sz, budgetNanos, yieldTo);
     }
 
     /** True when neither graph has anything left to work out. */

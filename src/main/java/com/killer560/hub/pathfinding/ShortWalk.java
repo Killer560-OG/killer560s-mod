@@ -80,6 +80,11 @@ public final class ShortWalk {
     private static boolean wantRight;
     private static boolean wantJump;
     private static boolean wantSprint;
+    /** What the next input tick presses instead of the walk's keys: {@link #YIELD_NONE}, KEYLESS or REPEAT. */
+    private static int yieldOnce;
+    public static final int YIELD_NONE = 0;
+    public static final int YIELD_KEYLESS = 1;
+    public static final int YIELD_REPEAT = 2;
 
     /** Testkit counters. */
     private static int walksStarted;
@@ -163,6 +168,7 @@ public final class ShortWalk {
             LOGGER.info("[ShortWalk] {}: walk to {} ended - {}", owner, active.goal().toShortString(), why);
         }
         active = null;
+        yieldOnce = YIELD_NONE;
         clearKeys();
     }
 
@@ -287,6 +293,20 @@ public final class ShortWalk {
     public static boolean wantRight() { return wantRight; }
     public static boolean wantJump() { return wantJump; }
     public static boolean wantSprint() { return wantSprint; }
+
+    /**
+     * The next input tick, if a walk drives it: KEYLESS (Inventory Walk holds his menu packet until vanilla has told the
+     * server the keys and sprint are up) or REPEAT (a stand-up input went out after this tick's end: the next input must
+     * send nothing, or GrimAC sees two in one tick, BadPacketsZ).
+     */
+    public static void yieldInput(int mode) { yieldOnce = Math.max(yieldOnce, mode); }
+
+    /** The input mixin, every input tick: this tick's yield (consumed whether a walk drives it or not). */
+    public static int takeYield() {
+        int y = yieldOnce;
+        yieldOnce = YIELD_NONE;
+        return y;
+    }
 
     /** For the testkit. */
     public static int walksStarted() { return walksStarted; }

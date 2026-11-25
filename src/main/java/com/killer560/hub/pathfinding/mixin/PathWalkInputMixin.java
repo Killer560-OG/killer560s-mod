@@ -29,7 +29,19 @@ public abstract class PathWalkInputMixin extends ClientInput {
     private void killer560smod$pathWalkInput(CallbackInfo ci) {
         AutoWalker.onMixinApplied();
         ShortWalk.onMixinApplied();
+        int yield = ShortWalk.takeYield();
         if (ShortWalk.isDriving()) {
+            net.minecraft.client.player.LocalPlayer p = net.minecraft.client.Minecraft.getInstance().player;
+            if (yield != ShortWalk.YIELD_NONE && p != null) {
+                // His menu packet (InventoryWalkFeature.holdForWalk / standUpForMenu): no keys and no sprint, or the input
+                // the server was just sent again, so vanilla sends no second input this tick.
+                Input in = yield == ShortWalk.YIELD_REPEAT ? p.getLastSentInput() : Input.EMPTY;
+                this.keyPresses = new Input(in.forward(), in.backward(), in.left(), in.right(), in.jump(),
+                        this.keyPresses.shift(), in.sprint());
+                this.moveVector = new Vec2((in.left() ? 1f : 0f) - (in.right() ? 1f : 0f),
+                        (in.forward() ? 1f : 0f) - (in.backward() ? 1f : 0f)).normalized();
+                return;
+            }
             // Auto Clear's short walks (ShortWalk): the same record rewrite, with his own sneak kept.
             boolean f = ShortWalk.wantForward();
             boolean b = ShortWalk.wantBack();
