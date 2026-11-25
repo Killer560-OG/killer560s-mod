@@ -25,6 +25,11 @@ public final class BeaconTuneSolver {
         return d > wrap / 2 ? d - wrap : d;
     }
 
+    /** Ticks between a beat's steps at {@code speed}. */
+    public static int period(int speed) {
+        return 15 + 10 * (5 - speed);
+    }
+
     /** A beat's speed from the ticks between two of its steps: 15 ticks at speed 5, 10 more per speed down. */
     public static int speedFromPeriod(int ticks) {
         return Math.max(1, Math.min(5, 5 - Math.round((ticks - 15) / 10f)));

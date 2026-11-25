@@ -45,6 +45,19 @@ public final class BeaconTuner {
         int period = -1;
         int pitch = -1;
         int color = -1;
+        /** Clean pitch reads per level (a beacon beat's pitch is the most read one, so one mixed-up read never flips it). */
+        final int[] votes = new int[3];
+
+        int voted() {
+            if (votes[0] + votes[1] + votes[2] == 0) {
+                return -1;
+            }
+            int best = 0;
+            for (int k = 1; k < 3; k++) {
+                best = votes[k] > votes[best] ? k : best;
+            }
+            return best;
+        }
     }
 
     private static final long[] SOUND_TICK = new long[8];
@@ -62,6 +75,13 @@ public final class BeaconTuner {
     static Beat[] mine = {};
     static int[][] tgtRaw = {};
     static Beat[] beatRaw = {};
+    static boolean[] paused = {};
+    /** The two pitches heard when both beacon beats always step together (same speed): which is whose is a guess, -1 none. */
+    private static final int[] JOINT = {-1, -1};
+    /** The guess from {@link #JOINT} is in use; {@link BeaconAutoTuner} flips {@link #swap} when the tune did not complete on it. */
+    static boolean guessing;
+    static boolean swap;
+    private static long lastNow;
 
     private BeaconTuner() {
     }
@@ -114,6 +134,9 @@ public final class BeaconTuner {
         hintN = 0;
         mine = new Beat[0];
         beatRaw = new Beat[0];
+        JOINT[0] = JOINT[1] = -1;
+        guessing = swap = false;
+        lastNow = 0;
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             BeaconAutoTuner.reset();
         }
@@ -126,11 +149,8 @@ public final class BeaconTuner {
         SOUND_LEVEL[i] = BeaconTuneSolver.pitchLevel(pitch);
     }
 
-    /**
-     * The pitch of beacon beat {@code self}, which stepped at {@code now}: the beat sounds of this tick and the one before, less
-     * one sound for each of your beats and each other known beacon beat that stepped in them; -1 when what is left disagrees.
-     */
-    private static int pitchAt(long now, Beat self, int[][] own) {
+    /** The beat sounds of this tick and the one before, per pitch level, less one for each of your beats that stepped in them. */
+    private static int[] heard(long now, int[][] own) {
         int[] left = new int[3];
         for (int i = 0; i < Math.min(soundN, 8); i++) {
             if (SOUND_TICK[i] >= now - 1 && SOUND_TICK[i] <= now) {
@@ -142,11 +162,11 @@ public final class BeaconTuner {
                 left[own[g][2]]--;
             }
         }
-        for (Beat b : beatRaw) {
-            if (b != self && b.moved >= now - 1 && b.pitch >= 0 && left[b.pitch] > 0) {
-                left[b.pitch]--;
-            }
-        }
+        return left;
+    }
+
+    /** The one level left in {@code left}, else -1 (none, or more than one). */
+    private static int single(int[] left) {
         int found = -1;
         for (int k = 0; k < 3; k++) {
             if (left[k] > 0) {
@@ -250,7 +270,7 @@ public final class BeaconTuner {
         }
         int[][] cur = new int[n][3];
         int[] want = new int[n];
-        boolean[] paused = new boolean[n];
+        paused = new boolean[n];
         for (int g = 0; g < n; g++) {
             String col = BeaconTuneSolver.colorOf(item.apply(ctl[g][0]));
             cur[g][0] = col == null ? -1 : BeaconTuneSpec.COLORS.indexOf(col);
@@ -258,20 +278,53 @@ public final class BeaconTuner {
             cur[g][2] = BeaconTuneSolver.current(item.apply(ctl[g][2]), "pitch");
             want[g] = cur[g][0];
             paused[g] = BeaconTuneSolver.paused(item.apply(ctl[g][3]));
-            mine[g].period = cur[g][1] > 0 ? 15 + 10 * (5 - cur[g][1]) : -1;
+            mine[g].period = cur[g][1] > 0 ? BeaconTuneSolver.period(cur[g][1]) : -1;
+            if (paused[g] && lastNow > 0) {
+                mine[g].moved += now - lastNow; // Pause freezes the step timer, so a long pause is not read as a step overdue
+            }
         }
+        lastNow = now;
         track(mine, row(item, BeaconTuneSpec.BOTTOM), want, paused, now);
         int[] top = row(item, BeaconTuneSpec.TOP);
         boolean[] beaconStepped = track(beatRaw, top, null, new boolean[n], now);
+        int[] left = heard(now, cur);
+        for (int j = 0; j < n; j++) {
+            if (beaconStepped[j]) {
+                int[] l = left.clone();
+                int other = n == 2 && beatRaw[1 - j].moved >= now - 1 ? beatRaw[1 - j].voted() : -1;
+                if (other >= 0 && l[other] > 0) {
+                    l[other]--;
+                }
+                int p = single(l);
+                if (p >= 0) {
+                    beatRaw[j].votes[p]++;
+                }
+            }
+        }
+        if (n == 2 && beaconStepped[0] && beaconStepped[1] && left[0] + left[1] + left[2] == 2 && single(left) < 0) {
+            for (int k = 0, i = 0; k < 3; k++) {
+                if (left[k] > 0) {
+                    JOINT[i++] = k;
+                }
+            }
+        }
+        for (Beat b : beatRaw) {
+            b.pitch = b.voted();
+        }
+        guessing = false;
+        if (n == 2 && JOINT[0] >= 0) { // two different pitches heard together: the reads only pick which is whose, a tie is a guess
+            int keep = beatRaw[0].votes[JOINT[0]] + beatRaw[1].votes[JOINT[1]];
+            int flip = beatRaw[0].votes[JOINT[1]] + beatRaw[1].votes[JOINT[0]];
+            guessing = keep == flip;
+            int f = (guessing ? swap : flip > keep) ? 1 : 0;
+            beatRaw[0].pitch = JOINT[f];
+            beatRaw[1].pitch = JOINT[1 - f];
+        }
         int[][] tgt = new int[n][];
         for (int j = 0; j < n; j++) {
             Beat b = beatRaw[j];
             if (b.slot >= 0 && top[b.slot] >= 0 && (n < 2 || beatRaw[1 - j].slot != b.slot)) {
                 b.color = top[b.slot];
-            }
-            if (beaconStepped[j]) {
-                int p = pitchAt(now, b, cur);
-                b.pitch = p >= 0 ? p : b.pitch;
             }
             tgt[j] = new int[]{b.color, b.period > 0 ? BeaconTuneSolver.speedFromPeriod(b.period) : -1, b.pitch};
         }
