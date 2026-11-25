@@ -3400,7 +3400,10 @@ public final class AutoClearFeature {
                     com.killer560.hub.autoclear.BatLog.expectTarget(targetId);
                 }
                 action = aim.what() + " -> " + targetName;
-                aimAndHold(client, player, weapon.itemId(), weapon.label(), aim, Phase.ATTACK);
+                if (aimAndHold(client, player, weapon.itemId(), weapon.label(), aim, Phase.ATTACK)
+                        && weapon == AutoClearConfig.Weapon.HYPERION) {
+                    primeWarpAfterCast(feet);
+                }
                 return;
             }
         }
@@ -4938,6 +4941,44 @@ public final class AutoClearFeature {
             holdUse(client);   // a Hyperion hop keeps its one held use along the dash until it lands
         }
         return true;
+    }
+
+    /** Ticks an in-place Wither Impact's wait held the sneak down for the etherwarp after it, ever - for the testkit. */
+    private static int primedCastTicks = 0;
+
+    public static int primedCastTicks() {
+        return primedCastTicks;
+    }
+
+    /**
+     * The ticks after an in-place Wither Impact went out, while its deaths come back (acoptimal-next-1124): when every mob
+     * of the room it does not reach is one only an etherwarp goes to next (the plan's next step is one, or each is beyond
+     * a cast across), the sneak goes down now, so a one-warp trip's warp leaves the tick the death is seen
+     * (with the AOTV swap in the same START, slot then use). It waited for a sneak pressed on that tick before: one tick on
+     * every such trip. From the cast's own tick on: that use leaves in handleKeybinds, before the tick's input packet carries
+     * the sneak, so it still goes unsneaked, and the sneak is two ticks old (not fresh, the crouched eye certain) by the death.
+     */
+    private static void primeWarpAfterCast(Vec3 feet) {
+        if (roomMobs.isEmpty()) {
+            return;
+        }
+        List<KillPlanner.Step> st = activePlan == null ? null : activePlan.steps();
+        boolean planWarps = st != null && planAt + 1 < st.size() && st.get(planAt + 1).kind() == KillPlanner.ETHER;
+        double across = WeaponReach.HYPERION_TELEPORT + WeaponReach.HYPERION_RADIUS;
+        boolean left = false;
+        for (Entity e : roomMobs) {
+            AABB box = e.getBoundingBox();
+            if (!e.isAlive() || WeaponReach.hyperionHits(feet, box)) {
+                continue;   // this blast's own
+            }
+            if (!planWarps && box.distanceToSqr(feet) < across * across) {
+                return;     // a cast across or a hop may go next: those go unsneaked
+            }
+            left = true;
+        }
+        if (left && ClearExecutor.primeSneak()) {
+            primedCastTicks++;
+        }
     }
 
     private static void holdUse(Minecraft client) {

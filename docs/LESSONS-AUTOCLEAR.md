@@ -556,3 +556,14 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   Skeleton 360k" stands were in the room; whether those keep the room open is unproven (needs the TG/GS logger lines of a real visit).
 - A "wrong Quiz answer" at 13:00:06 was his own click: Hypixel changed "How many Fairy Souls are there in Hub?" (options 83/81/85, ours
   says 80), so Auto Quiz pressed nothing. quiz-answers.json waits for the real number (83 or 81).
+
+## Kill to first warp (acoptimal-next-1124, 2026-11-25)
+- AutoClearFeature.tick runs BEFORE ClearExecutor.onTickStart in the same START (both default phase, Auto Clear registered
+  first), so a trip Auto Clear starts is already seen by that tick's onTickStart; no extra "send now" hook is needed.
+- Three things held a one-warp trip's warp a tick after the kill was seen: (1) the sneak was pressed only once the trip
+  existed; (2) runPlanned's Hyperion->AOTV swap made `hasSwappedThisTick` true and onTickStart's sendNow slot refused a use on a
+  swap tick (now allowed when the swap went out at once inside the tick, `swappedInTickOn`: slot then use, vanilla's order);
+  (3) a sneak sent one tick before is "fresh" (ZeroPingEtherwarp.sneakFresh) and doInteract waits a tick unless one look lands
+  from both eyes. Fix: primeWarpAfterCast holds the sneak from the in-place cast's own tick (its use leaves in handleKeybinds,
+  ahead of that tick's input packet, so it still goes unsneaked). Testkit 1124-sim-ac-presneak: gap 0 trips 0 -> 11 of 16
+  rooms, room ticks 510 -> 465. Diagnose such holds by logging `waitReason` right after onTickStart's doInteract.

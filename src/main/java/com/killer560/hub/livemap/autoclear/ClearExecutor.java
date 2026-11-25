@@ -883,6 +883,8 @@ public final class ClearExecutor {
     private static boolean sendNow = false;
     /** The tick a pre-planned queue swapped to its item on: no use goes out on that tick (held-item first, use next). */
     private static long swappedOnTick = Long.MIN_VALUE;
+    /** The tick a swap went out at once from inside a tick ({@link #swapById}): ahead of that tick's use, so the use may follow. */
+    private static long swappedInTickOn = Long.MIN_VALUE;
     /** A pre-planned trip may wait at most this long for the request that matches it. */
     private static final long PREPLAN_MAX_AGE_MS = 60_000L;
 
@@ -1094,9 +1096,9 @@ public final class ClearExecutor {
         compDelay = 0;
         // The item now, on the tick the queue starts: the first warp then waits only for the sneak.
         if (list.get(0) instanceof ClearNode.EtherNode && !holdingAny(AOTV)) {
-            // Asked for from a START handler (a route that just ended), the swap goes now and no use goes out this same
-            // tick. Asked for from an END handler (Auto Secret's decide, his toggle key) or a task between ticks (a
-            // search planned ahead coming in), the swap goes with the NEXT tick (util/HotbarSelect: after this tick's
+            // Asked for from a START handler (a route that just ended, an Auto Clear trip), the swap goes now and the
+            // first use may follow it this tick (onTickStart). Asked for from an END handler (Auto Secret's decide, his
+            // toggle key) or a task between ticks (a search planned ahead coming in), the swap goes with the NEXT tick (util/HotbarSelect: after this tick's
             // client_tick_end it was GrimAC Post, testkit 62-argrim-1016-autosecret-key), and that is the tick no use
             // goes on.
             boolean now = com.killer560.hub.util.HotbarSelect.inTick();
@@ -1741,16 +1743,28 @@ public final class ClearExecutor {
      * Asked again every tick it should last (an END handler: the swap goes with the next tick, as in {@link #runPlanned}).
      */
     public static void primeNextWarp() {
-        if (com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()) != null || screenTick >= clientTicks - 1) {
-            return;   // never under his open container, nor the tick after (primeFirstWarp's rule: a swap or sneak beside his click there)
+        if (!primeSneak()) {
+            return;
         }
-        primedTick = clientTicks;
         if (!holdingAny(AOTV) && !hasSwappedThisTick) {
             boolean now = com.killer560.hub.util.HotbarSelect.inTick();
             if (swapById(AOTV)) {
                 swappedOnTick = now ? clientTicks : clientTicks + 1;
             }
         }
+    }
+
+    /**
+     * {@link #primeNextWarp}'s sneak alone, the item left in hand: Auto Clear while an in-place Wither Impact's deaths come
+     * back and only an etherwarp can follow (acoptimal-next-1124), so that warp goes the tick the death is seen.
+     * @return false under his open screen or the tick after it (nothing primed)
+     */
+    public static boolean primeSneak() {
+        if (com.killer560.hub.compat.McCompat.screen(Minecraft.getInstance()) != null || screenTick >= clientTicks - 1) {
+            return false;   // never under his open container, nor the tick after (primeFirstWarp's rule: a swap or sneak beside his click there)
+        }
+        primedTick = clientTicks;
+        return true;
     }
 
     private static boolean forceSneakNow() {
@@ -1848,10 +1862,14 @@ public final class ClearExecutor {
         // hop would go while the previous landing is still on its way, judged from the planned spot, and the server -
         // tracing from where it last had him - took it as the click's second half ("warp 5 never landed", testkit
         // 1015-sim-clickgap, 2026-10-16). It goes next tick instead, through doInteract's own turn-first check.
-        if (sendNow && pendingInteract != null && !hasSwappedThisTick && !com.killer560.hub.util.RightClick.unpaired()) {
+        if (sendNow && pendingInteract != null && (!hasSwappedThisTick || swappedInTickOn == clientTicks)
+                && !com.killer560.hub.util.RightClick.unpaired()) {
             // A queue planned ahead sends each hop on the tick it is worked out rather than the next: the same START slot,
             // ahead of this tick's movement packet, as the hop that would have gone next tick - one tick sooner, and the
-            // pace between hops unchanged. Not on a tick that swapped the item (held-item first, the use a tick later).
+            // pace between hops unchanged. A swap to the warp item sent earlier in this START (the trip's start, handleQueue)
+            // went first, so the use follows it: vanilla's order, as Fast Leap and Auto Routes send it (acoptimal-next-1124:
+            // waiting held every trip off the Hyperion a tick). A swap an END handler or task asked for goes with this tick
+            // through util/HotbarSelect and still waits: its hop goes next tick.
             doInteract(client);
         }
     }
@@ -2758,6 +2776,9 @@ public final class ClearExecutor {
                     // the game mode's carriedIndex agrees and its tick() does not send the same slot a second time
                     // (sent by hand, every swap went out twice). Asked for outside a tick - a trip started from an END
                     // handler or a task - it goes with the next tick instead: util/HotbarSelect (GrimAC Post).
+                    if (com.killer560.hub.util.HotbarSelect.inTick()) {
+                        swappedInTickOn = clientTicks;   // sent now, ahead of any use this tick
+                    }
                     com.killer560.hub.util.HotbarSelect.select(client, player, i);
                     hasSwappedThisTick = true;
                     return true;
