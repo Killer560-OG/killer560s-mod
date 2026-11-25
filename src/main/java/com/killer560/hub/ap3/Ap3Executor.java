@@ -299,6 +299,10 @@ public final class Ap3Executor {
      *  bigger than one block, so the 6 face-neighbors the first cut sampled could all be unchanged even when the
      *  gate really broke (killer560, 2026-09-20: the gate WAS destroyed but AP3 said it wasn't). */
     private static final int BOOM_SCAN_RADIUS = 2;
+    /** The P3 gate (1-3) the current boom is beside, or 0: its arch is then all the boom watches (ee3boomcheck-1124). */
+    private static int boomGate;
+    /** How near (blocks) a P3 gate's box the boom must stand to count as that gate's boom. */
+    private static final double BOOM_GATE_REACH = 6;
 
     // ---- stopwatch (survives across areas; reset on world change) ----
     private static long stopwatchStartMs;
@@ -2385,10 +2389,16 @@ public final class Ap3Executor {
             case BOOM -> {
                 boomTarget = b.getBlockPos(); // never null here: tickStart failed the node instead
                 boomBefore.clear();
-                // Snapshot a cube around the hit block, not just its 6 faces - a Superboom breaks a wider area.
-                for (int dx = -BOOM_SCAN_RADIUS; dx <= BOOM_SCAN_RADIUS; dx++) {
-                    for (int dy = -BOOM_SCAN_RADIUS; dy <= BOOM_SCAN_RADIUS; dy++) {
-                        for (int dz = -BOOM_SCAN_RADIUS; dz <= BOOM_SCAN_RADIUS; dz++) {
+                // Beside a P3 gate only its arch counts: a cube around the hit also held Breaker Aura's picks, whose digs
+                // read as "the gate broke" (ee3boomcheck-1124). Elsewhere a cube around the hit block, not just its 6
+                // faces - a Superboom breaks a wider area.
+                for (BlockPos p : boomGate > 0 ? com.killer560.hub.bosssim.BossGates.arch(client.level, boomGate) : List.<BlockPos>of()) {
+                    boomBefore.put(p, client.level.getBlockState(p));
+                }
+                int r = boomBefore.isEmpty() ? BOOM_SCAN_RADIUS : -1; // the gate's arch, or the cube
+                for (int dx = -r; dx <= r; dx++) {
+                    for (int dy = -r; dy <= r; dy++) {
+                        for (int dz = -r; dz <= r; dz++) {
                             BlockPos p = boomTarget.offset(dx, dy, dz);
                             boomBefore.put(p, client.level.getBlockState(p));
                         }
@@ -5810,6 +5820,20 @@ public final class Ap3Executor {
                 if (stepTicks == 1) {
                     boomLog(node, String.format(Locale.US, "triggered at (%.2f, %.2f, %.2f)", player.getX(), player.getY(),
                             player.getZ()));
+                    // His 11-24 sim run: the gate was already down (blown on an earlier try, or by a teammate), so the boom
+                    // could break nothing and the route stopped 40 ticks later. A blown gate needs no boom: skip it.
+                    // Only in the F7/M7 boss: elsewhere the gate boxes' coordinates mean nothing (a boom near them in
+                    // another world read as "gate already down" and was skipped; train lane 1124-1745, 26.2).
+                    boomGate = com.killer560.hub.secrets.DungeonState.isBossPhaseActive()
+                            ? com.killer560.hub.bosssim.BossGates.near(player.blockPosition(), BOOM_GATE_REACH) : 0;
+                    if (boomGate > 0 && (com.killer560.hub.bosssim.BossGates.blown(client.level, boomGate)
+                            || com.killer560.hub.leveraura.P3SectionTracker.section() == boomGate
+                            && com.killer560.hub.leveraura.P3SectionTracker.gateDestroyed())) {
+                        boomLog(node, "skipped: gate " + boomGate + " is already down");
+                        chat(ModChat.value("#" + number(node) + " Boom"), ModChat.text(" - gate already down, skipped"));
+                        finishNode();
+                        return;
+                    }
                 }
                 BlockHitResult ref = boomRef(player, node);
                 if (ref == null || !boomReachable(player, node, ref)) {
@@ -5826,6 +5850,16 @@ public final class Ap3Executor {
                             ref.getBlockPos().toShortString()));
                     step = Step.DO;
                     stepTicks = 0;
+                }
+            }
+            case DO -> {
+                // The tap is armed but not out yet (ActionGate gave this START to a settle or another actor): wait for it.
+                // finishAct moves the boom to CONFIRM once it is out, or fails it after SWAP_TIMEOUT. Until 11-24 DO fell
+                // to finishNode here, so a tap that went out a tick or more late was never checked (ee3sim-boom-wall-1124).
+                if (actNode != node) {
+                    finishNode();
+                } else if (stepTicks == 1) {
+                    boomLog(node, "tap armed, waiting for its turn to go out");
                 }
             }
             case CONFIRM -> {

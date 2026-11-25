@@ -2,9 +2,12 @@ package com.killer560.hub.bosssim;
 
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.Predicate;
 
 /**
@@ -52,14 +55,36 @@ public final class BossGates {
 
     /** The gate (1-3) whose blocks are within 1.5 of {@code p}, or 0. */
     static int near(BlockPos p) {
+        return near(p, 1.5);
+    }
+
+    /** The gate (1-3) whose blocks are within {@code margin} of {@code p}, or 0 (AP3's boom asks with its reach). */
+    public static int near(BlockPos p, double margin) {
         for (int i = 0; i < 3; i++) {
             int[] b = NEAR[i];
-            if (p.getX() >= b[0] - 1.5 && p.getX() <= b[3] + 1.5 && p.getY() >= b[1] - 1.5 && p.getY() <= b[4] + 1.5
-                    && p.getZ() >= b[2] - 1.5 && p.getZ() <= b[5] + 1.5) {
+            if (p.getX() >= b[0] - margin && p.getX() <= b[3] + margin && p.getY() >= b[1] - margin && p.getY() <= b[4] + margin
+                    && p.getZ() >= b[2] - margin && p.getZ() <= b[5] + margin) {
                 return i + 1;
             }
         }
         return 0;
+    }
+
+    /** Gate {@code s}'s arch blocks standing now: what a Superboom blows ({@link #removeGate}), so AP3's boom watches only these. */
+    public static List<BlockPos> arch(BlockGetter level, int s) {
+        int[] b = DOORS[s - 1];
+        List<BlockPos> out = new ArrayList<>();
+        for (BlockPos p : BlockPos.betweenClosed(b[0], b[1], b[2], b[3], b[4], b[5])) {
+            if (ARCH.test(level.getBlockState(p))) {
+                out.add(p.immutable());
+            }
+        }
+        return out;
+    }
+
+    /** Whether gate {@code s} is already blown: no arch left (never said of a plan-built sim, whose gates have no arch). */
+    public static boolean blown(BlockGetter level, int s) {
+        return !"plan".equals(BossArena.source()) && arch(level, s).isEmpty();
     }
 
     /** Gate {@code s}'s arch goes (a capture's; the plan has none). */

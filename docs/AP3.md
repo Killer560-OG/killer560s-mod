@@ -289,6 +289,14 @@ Route nodes, the align planners and their measured physics. Split out of the pro
   blink make sure the align takes priority over it charging"). Testkit 1027-ap3-live34-*: all six fail on live-blink
   e5d9a683 and pass on 531e0e83.
 
+- **A BOOM beside a P3 gate watches only that gate (ee3boomcheck-1124).** His 11-24 sim EE3 runs: the boom confirmed on any block change in a 5x5x5 cube around its hit, and Breaker Aura's picks (19,125-126,123) sat in that cube, so with gate 2 already down (the sim keeps a blown gate after a /tpto practice teleport, as a teammate's boom does on Hypixel) two tries read "the gate broke" and one waited 40 ticks and stopped AP3 "superboom didn't break anything". Now a boom within 6 blocks of a gate box (`BossGates.near(pos, 6)`) snapshots only that gate's arch (`BossGates.arch`, what the sim's blow and Hypixel's remove) or takes the gate chat line, and a gate already blown (no arch, or the section tracker heard the line in that gate's section) skips the BOOM with one chat line. Other booms keep the cube. Testkit 1124-boss-ee3boom-{gatedown,breakerdig,gateup}.
+- **A BOOM's tap that goes out late is still checked (ee3sim-boom-wall-1124).** armAct sets the boom to DO at END and the tap
+  goes at the next START only if ActionGate gives it that tick; finishAct (END, before tickNode) then moves it to CONFIRM.
+  tickBoom had no DO case (`default -> finishNode()`), so a tap held back one tick or more (a teleport/leap settle, another
+  actor's turn) ended the node at the next END, the tap went out afterwards with `node != activeNode`, and the gate was
+  never checked: no "the gate broke", no "nothing broke" (testkit 1124-boss-ee3boom-breakerdig/gateup, tap 5 ticks after the
+  turn; executor activeNode=null from then on). DO now waits for finishAct (which fails it after SWAP_TIMEOUT).
+
 - **Term Aura stops him; a Stop / Term Aura fires once per entry (2026-11-01, branch ap3-stop-1101).** Owner: "make it so
   a termaura node will make you stop as well just like a stop node" and "if i hit a stop node and stay in it dont have it
   keep overriding other nodes it should fire once then not work again till i reenter it". TERM_AURA is now in
