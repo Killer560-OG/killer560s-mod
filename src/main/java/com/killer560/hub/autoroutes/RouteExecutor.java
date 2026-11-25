@@ -1450,6 +1450,15 @@ public final class RouteExecutor {
             stop("you moved");
             return false;
         }
+        if (warpClickReleases()) {
+            // A warp held with no limit of its own (no look lands, a block in its line, a missing landing block, a pick,
+            // or no landing a round trip after the use) is not a node's few ticks of action: a fresh press is him taking
+            // over. Overriding it kept him frozen 26 s on his 2026-11-25 Pressure Plates #24 (arstuck-1125).
+            LOGGER.info("[AutoRoutes] fresh movement key while node {}'s warp was held ({} tick(s) in {}) - stopping",
+                    nodeTag(activeNode), stepTicks, step);
+            stop("you moved");
+            return false;
+        }
         if (acting) {
             logHold("keys-override", "fresh movement key during node {} (path-less) - overridden for its action",
                     nodeTag(activeNode));
@@ -3971,6 +3980,14 @@ public final class RouteExecutor {
             // looks this tick reports, so the body faces his view now and the warp turns and goes after it (arsneak-1116,
             // 62-argrim-1116-ar-same-*-attack: the use and a turned body in his attack's tick drew Hitboxes). Not while a
             // missing landing block or a pick holds the warp: there his click is the one that sends it (below).
+            // A warp held because no look lands or a block stands in its line says "left click to send it": that click is
+            // taken here, before vanilla could make it an attack, and the warp goes as it is (arstuck-1125: four of his
+            // clicks on 2026-11-25 went out as Dungeon Breaker digs and the warp stayed held).
+            if ((warpAimHoldTicks > 0 || lineWaitTicks > 0) && takeSkipClick(client)) {
+                forceWarpPastHold(node, lineWaitTicks > 0 ? "a block in its line" : "no look from here lands on "
+                        + (warpTarget == null ? "?" : warpTarget.toShortString()),
+                        Math.max(warpAimHoldTicks, lineWaitTicks), true);
+            }
             if (!AutoRoutesConfig.getInstance().isLegitMode() && blockWaitTicks == 0 && pickWaitBlock == null
                     && com.killer560.hub.util.ActionGate.hisClickQueued(client.options.keyAttack)) {
                 BODY.giveBack(player);
