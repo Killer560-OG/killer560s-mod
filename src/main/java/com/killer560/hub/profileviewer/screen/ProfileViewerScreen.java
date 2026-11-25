@@ -1470,23 +1470,24 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             if (!sb) w = Math.max(w, this.font.width(p.cuteName + gameModeTag(p) + "  (selected)") + 12);
         }
         int x = profileButtonX >= 0 ? profileButtonX : panelX + panelW - 6 - w;
-        x = Math.max(panelX + 4, Math.min(x, panelX + panelW - 4 - w));
+        if (!sb) x = Math.max(panelX + 4, Math.min(x, panelX + panelW - 4 - w)); // SkyBlockPV's list is flush left under its button
         int rowH = sb ? 20 : 14;
-        int listH = list.size() * rowH + 4;
+        int listH = list.size() * rowH + (sb ? 0 : 4);
         int y = profileButtonY < 0 ? panelY + 21 : profileButtonY + profileButtonH + 1;
         if (y + listH > this.height && profileButtonY - 1 - listH >= 0) {
             y = profileButtonY - 1 - listH; // no room under the button: open above it
         }
-        popup(g, x, y, w, listH);
+        if (!sb) popup(g, x, y, w, listH);
         for (int i = 0; i < list.size(); i++) {
             SbProfile p = list.get(i);
-            int ry = y + 2 + i * rowH;
+            int ry = sb ? y + i * rowH : y + 2 + i * rowH;
             boolean hover = inside(mx, my, x, ry, w, rowH);
-            if (hover) {
-                selBand(g, x + 1, ry, w - 2, rowH);
+            if (sb) { // SkyBlockPV's entries are its dark buttons (BUTTON_DARK), one under the other, no popup frame
+                PvStyleChrome.button(g, pvStyle, x, ry, w, rowH, sbpvProfileLabel(p), hover, false);
+            } else {
+                if (hover) selBand(g, x + 1, ry, w - 2, rowH);
+                tx(g, p.cuteName + gameModeTag(p) + (p.selected ? "  (selected)" : ""), x + 6, ry + (rowH - 8) / 2, i == profileIndex ? VALUE : TEXT);
             }
-            String label = sb ? sbpvProfileLabel(p) : p.cuteName + gameModeTag(p) + (p.selected ? "  (selected)" : "");
-            tx(g, label, x + 6, ry + (rowH - 8) / 2, i == profileIndex ? VALUE : TEXT);
             final int idx = i;
             overlayHotspots.add(new Hotspot(x, ry, w, rowH, () -> {
                 dropdownOpen = false;
@@ -1595,6 +1596,20 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         return m;
     }
 
+    /** NetworthCategory's names in its order; our category with the same content takes its name, one with no counterpart
+     *  (Bags, Rift Accessory Bag, Essence) keeps ours after them. The numbers are untouched. */
+    private static final List<String> SBPV_WORTH_ORIGINAL = List.of("Purse/Bank", "Inventory", "Armor", "Enderchest", "Backpacks",
+            "Sacks", "Pets", "Loadout", "Equipment", "Talisman Bag");
+    private static final Map<String, String> SBPV_WORTH_NAMES = Map.of("Purse / Bank", "Purse/Bank", "Ender Chest", "Enderchest",
+            "Wardrobe", "Loadout", "Accessory Bag", "Talisman Bag");
+
+    private static String sbpvWorthName(String ours) { return SBPV_WORTH_NAMES.getOrDefault(ours, ours); }
+
+    private static int sbpvWorthOrder(String ours) {
+        int i = SBPV_WORTH_ORIGINAL.indexOf(sbpvWorthName(ours));
+        return i < 0 ? SBPV_WORTH_ORIGINAL.size() : i;
+    }
+
     /** NetworthDisplay's hover: the total, in Booster Cookies and in US dollars (a cookie's 325 gems at 675 for $4.99), and
      *  each source; with no cookie price it has none (only our click line). Its settings note is left out (no such setting). */
     private static List<Component> sbpvWorthTip(long worth, com.killer560.hub.profileviewer.data.Networth.Result nw, Double cookie,
@@ -1608,7 +1623,13 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             t.add(Component.empty());
             t.add(Component.literal("§7Source: "));
             if (nw != null) {
-                for (var c : nw.categories()) t.add(Component.literal("§e" + c.name() + ": §a" + commas(c.total())));
+                nw.categories().stream().filter(c -> !c.name().equals("Museum"))
+                        .sorted(java.util.Comparator.comparingInt(c -> sbpvWorthOrder(c.name())))
+                        .forEach(c -> t.add(Component.literal("§e" + sbpvWorthName(c.name()) + ": §a" + commas(c.total()))));
+                if (museum) {
+                    nw.categories().stream().filter(c -> c.name().equals("Museum"))
+                            .forEach(c -> t.add(Component.literal("§eMuseum: §a" + commas(c.total()))));
+                }
             }
             if (!museum) t.add(Component.literal("§eMuseum: §cNot loaded"));
             if (stranded) {
