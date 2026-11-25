@@ -118,6 +118,8 @@ rendering); the mod menu is [LESSONS-MENU.md](LESSONS-MENU.md).
 
 - **The Moonglade Beacon widget gives whole minutes, never a time of day** (logger sessions 11-22..24: "Cooldown: AVAILABLE" 223 times, "Cooldown: 9m/8m/7m/6m"; stat lines sit between the header and Cooldown). `BeaconReadyAlert` shows "~7m" until the minute drops once (the flip is exactly N minutes from zero), then counts seconds in one cached string per second; nothing is remembered across a world change (testkit 1125-menu-beacon-hud).
 
+- **A new HUD element id must be added to `HudInGameRenderer`'s `UNDRAWN_ELEMENT_IDS` (the set it draws, despite the name).** `beacon_ready` was registered, enabled and had the right text, yet never drew; a text-state test cannot see that. Assert a real frame drew it (`HudSeen.drawnRecently` plus the last drawn string, testkit 1125-hx-beacon-hud-draw).
+
 ## Bars and readouts
 
 - `RenderSystem.setShaderColor` does not exist in 26.1.2, so there is no global color multiplier and item textures cannot

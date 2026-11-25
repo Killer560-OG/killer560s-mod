@@ -12,9 +12,16 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 /** Beacon Ready Alert's one HUD line: the cooldown counting down, then "Beacon Ready" until the beacon is tuned. */
-final class BeaconReadyHud extends BasicHud {
+public final class BeaconReadyHud extends BasicHud {
 
     private static final String SAMPLE = "Beacon: 4m 12s";
+
+    private static volatile String drawn;
+
+    /** What the last frame drew, null when it drew nothing (testkit). */
+    public static String lastDrawn() {
+        return drawn;
+    }
 
     BeaconReadyHud() {
         super("beacon_ready", "Beacon Ready", 10, 150);
@@ -44,6 +51,7 @@ final class BeaconReadyHud extends BasicHud {
     @Override
     public void render(GuiGraphicsExtractor graphics, int x, int y) {
         String t = HudVisibility.hidesHud() ? null : text();
+        drawn = t;
         if (t != null) {
             HudSeen.markDrawn(id());
             graphics.text(Minecraft.getInstance().font, t, x, y,
