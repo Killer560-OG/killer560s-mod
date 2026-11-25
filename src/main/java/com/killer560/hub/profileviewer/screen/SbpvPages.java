@@ -250,6 +250,21 @@ final class SbpvPages {
         String[][] pbLines = new String[0][];
         /** Loadout trees: [0 HotM, 1 HotF][0 = the selected slot, 1..5 = slot n]; null without skill tree data. */
         final Tree[][] trees = new Tree[2][6];
+        /** The same trees with the tier column, for the Mining and Foraging tree categories (index 1..5). */
+        final Tree[][] fullTrees = new Tree[2][6];
+        /** Mining (MainMiningScreen, GlaciteScreen): info lines (0 = the HotM line over its bar), powder table, crystals, forge. */
+        String[] mineInfo = new String[0], glaInfo = new String[0], corpses = new String[0];
+        List<Component>[] mineInfoTips;
+        float hotmProgress;
+        boolean stranded, glacite;
+        String[][] powder = new String[0][];
+        boolean[] crystalOk = new boolean[0];
+        List<Component>[] crystalTips;
+        ItemStack[] forgeItems = new ItemStack[0], fossilIcons = new ItemStack[0];
+        String[] forgeSlot = new String[0], forgeTime = new String[0];
+        List<Component>[] forgeTips, fossilTips;
+        long scrapSacks;
+        CompletableFuture<Object[]> mineGear;
         int[] treeSelected = new int[2];
         CompletableFuture<SbpvGear.Gear> fishGear;
         int[] empW, rarW;
@@ -270,7 +285,120 @@ final class SbpvPages {
         buildForaging(p, ex, m);
         buildLoadouts(p, m);
         buildTrees(p, m);
+        buildMining(p, ex, m);
         return m;
+    }
+
+    private static final String[] ROCK_RARITY = {"§fCommon", "§aUncommon", "§9Rare", "§5Epic", "§6Legendary"};
+    private static final int[] ROCK_ORES = {2500, 7500, 20000, 100000, 250000};
+    private static final String[] MINE_PERKS = {"fungus_fortuna", "harena_fortuna", "treasures_of_the_earth", "dwarven_training",
+            "eager_miner", "rhinestone_infusion", "high_roller", "return_to_sender"};
+    private static final String[] GLACITE_PERKS = {"frozen_skin", "prehistorian", "resourceful", "dwarven_expertise",
+            "chilled_to_the_bone", "cut_loose", "sleight_of_hand"};
+    private static final String[][] CORPSES = {{"lapis", "§9"}, {"tungsten", "§7"}, {"umber", "§6"}, {"vanguard", "§b"}};
+
+    @SuppressWarnings("unchecked")
+    private static void buildMining(SbProfile p, ProfileExtras ex, Model m) {
+        ProfileExtras.Mining mi = ex == null ? null : ex.mining;
+        if (mi == null) return;
+        m.stranded = "island".equals(p.gameMode);
+        m.glacite = p.memberObj("glacite_player_data") != null;
+        List<String> l = new ArrayList<>();
+        List<List<Component>> t = new ArrayList<>();
+        int rock = -1;
+        for (int i = 0; i < ROCK_ORES.length; i++) if (ROCK_ORES[i] <= mi.oresMined()) rock = i;
+        List<String> rockTip = new ArrayList<>(List.of("§fOres Mined: §b" + fmt(mi.oresMined()), ""));
+        for (int i = 0; i < ROCK_ORES.length; i++) {
+            rockTip.add(ROCK_ORES[i] <= mi.oresMined() ? "§f" + ROCK_RARITY[i] + " Rock§f!" : "§8§m" + ROCK_RARITY[i].substring(2) + " Rock!");
+        }
+        String rockLine = "§8Rock Pet: " + (rock < 0 ? "§cNone" : ROCK_RARITY[rock]);
+        long[] table = ExtraTables.tableLongs(ExtraTables.bundled().get("hotm_levels"));
+        LevelTables.Level lvl = LevelTables.cumulative(table, mi.hotmXp(), table.length);
+        if (!m.stranded) {
+            int level = lvl.level();
+            m.hotmProgress = lvl.maxed() ? 1f : (float) Math.max(0, Math.min(1, lvl.progress()));
+            l.add("§8HotM: " + level);
+            t.add(lines(lvl.maxed() ? List.of("§eHotM Level: " + level, "§7Progress to Max: §6Maxed")
+                    : List.of("§eHotM Level: " + level, "§7Progress to Level " + (level + 1) + ": §e" + fmt(lvl.xpIntoLevel()) + "§6/§e"
+                    + fmt(lvl.xpForLevel()) + "§a (" + round(m.hotmProgress * 100) + "%)")));
+            int runs = Integer.MAX_VALUE;
+            for (int i = 0; i < 5; i++) {
+                ProfileExtras.Crystal c = mi.crystals().get(ExtraPages.CRYSTALS[i]);
+                runs = Math.min(runs, c == null ? 0 : c.placed());
+            }
+            l.add("§8Total Runs: " + fmt(mi.crystals().isEmpty() ? 0 : runs));
+            t.add(null);
+            l.add(rockLine);
+            t.add(lines(rockTip));
+            for (String perk : MINE_PERKS) {
+                l.add(perkLine(p, perk));
+                t.add(null);
+            }
+        } else {
+            l.add(rockLine);
+            t.add(lines(rockTip));
+        }
+        m.mineInfo = l.toArray(new String[0]);
+        m.mineInfoTips = t.toArray(new List[0]);
+        String[] names = {"§2Mithril", "§dGemstone", "§bGlacite"};
+        m.powder = new String[4][];
+        m.powder[0] = new String[] {"", "Current", "Total"};
+        for (int i = 0; i < 3; i++) {
+            m.powder[i + 1] = new String[] {names[i], shorten(mi.powderAvailable()[i], 1), shorten(mi.powderTotal()[i], 1)};
+        }
+        int n = ExtraPages.CRYSTALS.length;
+        m.crystalOk = new boolean[n];
+        m.crystalTips = new List[n];
+        for (int i = 0; i < n; i++) {
+            ProfileExtras.Crystal c = mi.crystals().get(ExtraPages.CRYSTALS[i]);
+            String state = c == null ? "NOT_FOUND" : c.state();
+            m.crystalOk[i] = state.equals("FOUND") || state.equals("PLACED");
+            List<String> tip = new ArrayList<>(List.of("§l" + SbProfile.titleCase(ExtraPages.CRYSTALS[i]), "§7State: " + SbProfile.titleCase(state),
+                    "§7Found: " + fmt(c == null ? 0 : c.found())));
+            if (c != null && c.placed() > 0) tip.add("§7Placed: " + fmt(c.placed()));
+            m.crystalTips[i] = lines(tip);
+        }
+        int f = mi.forge().size();
+        m.forgeItems = new ItemStack[f];
+        m.forgeSlot = new String[f];
+        m.forgeTime = new String[f];
+        m.forgeTips = new List[f];
+        java.text.SimpleDateFormat started = new java.text.SimpleDateFormat("dd.MM HH:mm:ss");
+        for (int i = 0; i < f; i++) {
+            ProfileExtras.ForgeSlot slot = mi.forge().get(i);
+            m.forgeItems[i] = ItemIcons.forId(slot.id());
+            m.forgeSlot[i] = "§lSlot " + slot.slot();
+            // The forge recipe times come from the original's item library, which the mod does not have: the start time shows.
+            m.forgeTime[i] = "§7" + started.format(new java.util.Date(slot.startTime()));
+            m.forgeTips[i] = lines(List.of("§l" + m.forgeItems[i].getHoverName().getString(), "§7Started: " + started.format(new java.util.Date(slot.startTime()))));
+        }
+        List<String> gl = new ArrayList<>();
+        gl.add("§8Mineshaft Entered: " + fmt(mi.mineshafts()));
+        for (String perk : GLACITE_PERKS) gl.add(perkLine(p, perk));
+        m.glaInfo = gl.toArray(new String[0]);
+        JsonObject fossils = ExtraTables.section("fossils");
+        List<ItemStack> icons = new ArrayList<>();
+        List<List<Component>> tips = new ArrayList<>();
+        for (Map.Entry<String, JsonElement> e : fossils.entrySet()) {
+            JsonObject fo = e.getValue().isJsonObject() ? e.getValue().getAsJsonObject() : new JsonObject();
+            boolean have = mi.fossils().contains(e.getKey().split("_")[0]) || mi.fossils().contains(e.getKey());
+            String pet = fo.has("pet") ? fo.get("pet").getAsString() : "";
+            boolean inMenu = false;
+            for (SbProfile.Pet pt : p.pets) if (pt.type.equals(pet)) inMenu = true;
+            icons.add(have ? ItemIcons.forId(e.getKey()) : new ItemStack(McItems.GRAY_DYE));
+            tips.add(lines(List.of("§l" + (fo.has("name") ? fo.get("name").getAsString() : SbProfile.titleCase(e.getKey())),
+                    "§7Donated: " + (have ? "§aYes" : "§cNo"),
+                    "§7In Pet Menu: " + (inMenu ? "§aYes" : "§cNo" + " §7(§a" + SbProfile.titleCase(pet) + "§7)"))));
+        }
+        m.fossilIcons = icons.toArray(new ItemStack[0]);
+        m.fossilTips = tips.toArray(new List[0]);
+        List<String> cl = new ArrayList<>();
+        for (String[] c : CORPSES) cl.add("§8" + SbProfile.titleCase(c[0]) + " Corpses: " + c[1] + fmt(mi.corpses().getOrDefault(c[0], 0)));
+        int max = ExtraPages.corpseMilestones().size(), cur = ExtraPages.corpseMilestone(mi.corpses());
+        cl.add("§8Corpse Milestone: " + (cur >= max ? "§a" : "§c") + cur + "§8/" + max);
+        m.corpses = cl.toArray(new String[0]);
+        Long sacks = ex.misc == null ? null : ex.misc.sacks().get("SUSPICIOUS_SCRAP");
+        m.scrapSacks = sacks == null ? 0 : sacks;
     }
 
     /** SimpleSkillTreeVisualizer's grid: one 20 px slot per node at row 9 - y, column x (rows/columns with no node take no room). */
@@ -295,13 +423,65 @@ final class SbpvPages {
         for (int t = 0; t < 2; t++) {
             int sel = (int) p.memberNum("skill_tree.selected_skill_tree_slot." + TREE_SKILL[t]);
             m.treeSelected[t] = Math.max(1, sel);
-            for (int slot = 1; slot <= 5; slot++) m.trees[t][slot] = tree(st, all.getAsJsonArray(TREE_KEY[t]), t, slot);
+            long[] table = ExtraTables.tableLongs(ExtraTables.bundled().get(TREE_KEY[t] + "_levels"));
+            LevelTables.Level lvl = LevelTables.cumulative(table, (long) p.memberNum("skill_tree.experience." + TREE_SKILL[t]), table.length);
+            int treeLevel = lvl.level();
+            for (int slot = 1; slot <= 5; slot++) {
+                m.trees[t][slot] = tree(st, all.getAsJsonArray(TREE_KEY[t]), t, slot, treeLevel);
+                m.fullTrees[t][slot] = withTiers(m.trees[t][slot], t, lvl);
+            }
             m.trees[t][0] = m.trees[t][m.treeSelected[t]];
+            m.fullTrees[t][0] = m.fullTrees[t][m.treeSelected[t]];
         }
     }
 
+    /** LoadoutSkillTreeScreen's grid (showTier): the tier column (x -2) and a 5 px spacer (x -1) before the nodes. */
     @SuppressWarnings("unchecked")
-    private static Tree tree(JsonObject st, com.google.gson.JsonArray rows, int t, int slot) {
+    private static Tree withTiers(Tree tr, int t, LevelTables.Level lvl) {
+        JsonObject all = ExtraTables.bundled().getAsJsonObject("sbpv_tiers");
+        com.google.gson.JsonArray tiers = all == null ? new com.google.gson.JsonArray() : all.getAsJsonArray(TREE_KEY[t]);
+        int n = tr.x.length, k = tiers.size(), level = lvl.level();
+        // the node rows run 9 - y down from the top; a tier's row is the same 9 - y.
+        int rows = Math.max(tr.h / 20, k);
+        Tree out = new Tree(25 + tr.w, Math.max(tr.h, rows * 20), new int[n + k], new int[n + k], new ItemStack[n + k], new String[n + k], new List[n + k]);
+        int shift = (rows * 20 - tr.h);
+        for (int i = 0; i < n; i++) {
+            out.x[i] = tr.x[i] + 25;
+            out.y[i] = tr.y[i] + shift;
+            out.icons[i] = tr.icons[i];
+            out.counts[i] = tr.counts[i];
+            out.tips[i] = tr.tips[i];
+        }
+        for (int j = 0; j < k; j++) {
+            com.google.gson.JsonArray r = tiers.get(j).getAsJsonArray();
+            int y = r.get(0).getAsInt(), tier = y + 1;
+            boolean unlocked = level >= tier, unlocking = !unlocked && level + 1 >= tier;
+            out.x[n + j] = 0;
+            out.y[n + j] = (rows - 1 - y) * 20;
+            out.icons[n + j] = new ItemStack(unlocked ? McItems.GREEN_STAINED_GLASS_PANE : unlocking ? McItems.YELLOW_STAINED_GLASS_PANE : McItems.RED_STAINED_GLASS_PANE);
+            out.counts[n + j] = "";
+            List<String> tip = new ArrayList<>();
+            tip.add((unlocked ? "§a" : unlocking ? "§e" : "§c") + r.get(1).getAsString());
+            if (unlocking) {
+                float progress = lvl.xpForLevel() <= 0 ? 0 : (float) lvl.xpIntoLevel() / lvl.xpForLevel();
+                int green = Math.round(25 * progress);
+                tip.add("");
+                tip.add("§7Progress: §e" + round(progress * 100) + "%");
+                tip.add("§2§m" + " ".repeat(green) + "§f§m" + " ".repeat(25 - green) + "§r §e" + fmt(lvl.xpIntoLevel()) + "§6/§e"
+                        + java.text.NumberFormat.getCompactNumberInstance(Locale.US, java.text.NumberFormat.Style.SHORT).format(lvl.xpForLevel()));
+            }
+            tip.add("");
+            tip.add("§7Rewards");
+            tip.addAll(ExtraTables.strings(r.get(2)));
+            tip.add("");
+            tip.add(unlocked ? "§a§lUNLOCKED" : unlocking ? "§c§lLOCKED" : "§cRequires Tier " + y);
+            out.tips[n + j] = lines(tip);
+        }
+        return out;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Tree tree(JsonObject st, com.google.gson.JsonArray rows, int t, int slot, int treeLevel) {
         String suffix = slot > 1 ? "_" + slot : "";
         JsonObject nodes = asObj(st, "nodes", TREE_SKILL[t] + suffix), base = asObj(st, "nodes", TREE_SKILL[t]);
         JsonElement selAbility = asObj(st, "selected_ability", null) == null ? null : st.getAsJsonObject("selected_ability").get(TREE_SKILL[t] + suffix);
@@ -321,6 +501,7 @@ final class SbpvPages {
             int max = r.get(4).getAsInt();
             int level = nodes != null && nodes.has(id) && nodes.get(id).isJsonPrimitive() ? nodes.get(id).getAsInt() : -1;
             net.minecraft.world.item.Item item;
+            boolean disabled = false;
             if (type.equals("CORE")) {
                 item = level >= max ? TREE_CORE_ITEMS[t][0] : level < 0 ? TREE_CORE_ITEMS[t][3] : level == 1 ? TREE_CORE_ITEMS[t][1] : TREE_CORE_ITEMS[t][2];
             } else if (type.equals("ABILITY")) {
@@ -328,14 +509,15 @@ final class SbpvPages {
                 item = id.equals(selected) ? TREE_ABILITY_ITEMS[t][0] : level > 0 ? TREE_ABILITY_ITEMS[t][1] : TREE_ABILITY_ITEMS[t][2];
             } else {
                 JsonElement toggle = base == null ? null : base.get("toggle_" + id);
-                boolean disabled = toggle != null && toggle.isJsonPrimitive() && !toggle.getAsBoolean();
+                disabled = toggle != null && toggle.isJsonPrimitive() && !toggle.getAsBoolean();
                 item = disabled ? TREE_NODE_ITEMS[t][0] : level < 0 ? TREE_NODE_ITEMS[t][3] : level >= max ? TREE_NODE_ITEMS[t][1] : TREE_NODE_ITEMS[t][2];
             }
             tr.x[i] = colList.indexOf(r.get(2).getAsInt()) * 20;
             tr.y[i] = rowList.indexOf(9 - r.get(3).getAsInt()) * 20;
             tr.icons[i] = new ItemStack(item);
             tr.counts[i] = level > 1 ? String.valueOf(level) : "";
-            tr.tips[i] = lines(List.of((level > 0 ? "§a" : "§c") + name, "§7Level: " + Math.max(0, level) + "/" + max));
+            boolean picked = id.equals(selected);
+            tr.tips[i] = SbpvTreeTips.tip(id, name, type, level, max, type.equals("ABILITY") ? !picked : disabled, picked, treeLevel);
         }
         return tr;
     }
@@ -841,6 +1023,7 @@ final class SbpvPages {
             case ProfileViewerScreen.PAGE_CF -> drawCf(g, m, mx, my);
             case ProfileViewerScreen.PAGE_FORAGING -> drawForaging(g, m, mx, my);
             case ProfileViewerScreen.PAGE_LOADOUT -> drawLoadouts(g, p, m, mx, my);
+            case ProfileViewerScreen.PAGE_MINING -> drawMining(g, p, m, mx, my);
             default -> {
                 return true;
             }
@@ -1097,6 +1280,256 @@ final class SbpvPages {
         }
     }
 
+    // ---------------------------------------------------------------- mining
+
+    private static final List<?>[] MINING_TIPS = {List.of(Component.literal("Main")), List.of(Component.literal("Mining Gear")),
+            List.of(Component.literal("HotM Tree")), List.of(Component.literal("Glacite Tunnels"))};
+    private static ItemStack[] miningIcons;
+    private static final Identifier PICKAXE_SLOT = Identifier.fromNamespaceAndPath("killer560smod", "pv/sbpv/slot_pickaxe");
+    /** The chisel column's empty slot (the original's icon/slot/armorstand). */
+    private static final Identifier ARMORSTAND_SLOT = Identifier.withDefaultNamespace("container/slot/sword");
+
+    private static ItemStack treeSkull(int t) {
+        return skull(ExtraTables.bundled().getAsJsonObject("sbpv_tree_skulls"), TREE_KEY[t]);
+    }
+
+    /** BaseMiningScreen's categories down the right edge: Main, Mining Gear, HotM Tree (not on Stranded), Glacite Tunnels
+     *  (only with glacite data). */
+    @SuppressWarnings("unchecked")
+    private void drawMining(GuiGraphicsExtractor g, SbProfile p, Model m, int mx, int my) {
+        if (miningIcons == null) {
+            miningIcons = new ItemStack[] {new ItemStack(Items.DIAMOND_PICKAXE), new ItemStack(Items.PRISMARINE_SHARD), treeSkull(0),
+                    new ItemStack(Items.BLUE_ICE)};
+        }
+        int slot = 0;
+        for (int i = 0; i < 4; i++) {
+            if (i == 2 && m.stranded || i == 3 && (m.stranded || !m.glacite)) continue;
+            int tx = s.panelX + s.panelW - 9, ty = s.panelY + 20 + 22 * slot++;
+            final int idx = i;
+            PvStyleChrome.sideTab(g, s.pvStyle(), tx, ty, i == s.subView);
+            g.item(miningIcons[i], tx + 10, ty + 2);
+            s.hotspots.add(new ProfileViewerScreen.Hotspot(tx, ty, 31, 20, () -> s.subView = idx));
+            if (hover(mx, my, tx, ty, 31, 20)) s.pendingTooltip = (List<Component>) MINING_TIPS[i];
+        }
+        if (s.subView > 3 || s.subView == 2 && m.stranded || s.subView == 3 && (m.stranded || !m.glacite)) s.subView = 0;
+        switch (s.subView) {
+            case 1 -> drawMiningGear(g, p, m, mx, my);
+            case 2 -> drawTreeCategory(g, m, 0, mx, my);
+            case 3 -> drawGlacite(g, m, mx, my);
+            default -> drawMiningMain(g, m, mx, my);
+        }
+    }
+
+    private int powderW(Model m, int col) {
+        int w = 0;
+        for (String[] row : m.powder) w = Math.max(w, font().width(row[col]));
+        return w;
+    }
+
+    private static final int CRYSTAL_H = 20;
+
+    private int crystalW() {
+        return 2 + 16 + 1 + font().width("§l✔") + 4 + 2;
+    }
+
+    private void drawMiningMain(GuiGraphicsExtractor g, Model m, int mx, int my) {
+        int bx = s.panelX, by = s.contentY, bw = s.panelW, bh = s.panelY + s.panelH - s.contentY;
+        int infoW = Math.max(m.stranded ? 0 : 91, widest(m.mineInfo));
+        int infoH = (m.stranded ? 0 : 16 + 3) + (m.mineInfo.length - (m.stranded ? 0 : 1)) * 12 - 3;
+        int pw0 = powderW(m, 0), pw1 = powderW(m, 1), pw2 = powderW(m, 2), powW = pw0 + pw1 + pw2 + 10, powH = 4 * 9 + 3 * 5;
+        int cryContentW = bw / 3, perRow = Math.max(1, cryContentW / (crystalW() + 5));
+        int cryRows = m.crystalOk.length == 0 ? 0 : (m.crystalOk.length + perRow - 1) / perRow;
+        int cryH = Math.max(0, cryRows * CRYSTAL_H + (cryRows - 1) * 5);
+        int forgeW = 0;
+        for (int i = 0; i < m.forgeSlot.length; i++) forgeW = Math.max(forgeW, font().width(m.forgeSlot[i]) + 1 + 16 + 1 + font().width(m.forgeTime[i]));
+        int forgeH = m.forgeSlot.length * 12 + Math.max(0, m.forgeSlot.length - 1) * 5;
+        int infoLW = labelW(infoW, 10), powLW = labelW(powW, 10), cryLW = m.crystalOk.length == 0 ? 0 : labelW(cryContentW, 10),
+                forLW = m.forgeSlot.length == 0 ? 0 : labelW(forgeW, 10);
+        int left = Math.max(infoLW, powLW), right = Math.max(cryLW, forLW);
+        int leftH = labelH(infoH) + 5 + labelH(powH);
+        int rightH = (cryLW > 0 ? labelH(cryH) : 0) + (forLW > 0 ? (cryLW > 0 ? 5 : 0) + labelH(forgeH) : 0);
+        boolean column = left + right >= bw - 5;
+        g.enableScissor(bx, by, bx + bw, by + bh);
+        if (column) {
+            int y = by - s.pageScroll * 10;
+            y = mineInfo(g, m, bx + (bw - infoLW) / 2, y, infoW, infoH, mx, my) + 5;
+            y = powderTable(g, m, bx + (bw - powLW) / 2, y, powW, powH, pw0, pw1) + 5;
+            if (cryLW > 0) y = crystals(g, m, bx + (bw - cryLW) / 2, y, cryContentW, cryH, perRow, mx, my) + 5;
+            if (forLW > 0) forge(g, m, bx + (bw - forLW) / 2, y, forgeW, forgeH, mx, my);
+        } else {
+            int x0 = bx + (bw - (left + 2 + right)) / 2, x1 = x0 + left + 2;
+            int ly = by + Math.max(0, (bh - leftH) / 2), ry = by + Math.max(0, (bh - rightH) / 2);
+            ly = mineInfo(g, m, x0 + (left - infoLW) / 2, ly, infoW, infoH, mx, my) + 5;
+            powderTable(g, m, x0 + (left - powLW) / 2, ly, powW, powH, pw0, pw1);
+            if (cryLW > 0) ry = crystals(g, m, x1 + (right - cryLW) / 2, ry, cryContentW, cryH, perRow, mx, my) + 5;
+            if (forLW > 0) forge(g, m, x1 + (right - forLW) / 2, ry, forgeW, forgeH, mx, my);
+        }
+        g.disableScissor();
+    }
+
+    /** Information: the HotM line over its bar (hover: level and progress), then the gray lines, 3 apart. Returns its bottom. */
+    private int mineInfo(GuiGraphicsExtractor g, Model m, int x, int y, int w, int h, int mx, int my) {
+        int[] c = label(g, "Information", CLIPBOARD, x, y, w, h, 10);
+        int ly = c[1];
+        for (int i = 0; i < m.mineInfo.length; i++) {
+            g.text(font(), m.mineInfo[i], c[0], ly, text(), false);
+            boolean bar = i == 0 && !m.stranded;
+            if (bar) PvStyleChrome.bar(g, c[0], ly + 11, m.hotmProgress);
+            int rowH = bar ? 16 : 9;
+            if (m.mineInfoTips[i] != null && hover(mx, my, c[0], ly, bar ? 91 : font().width(m.mineInfo[i]), rowH)) {
+                s.pendingTooltip = m.mineInfoTips[i];
+            }
+            ly += rowH + 3;
+        }
+        return y + labelH(h);
+    }
+
+    /** Powder: a 3-column table ("", Current, Total), 5 apart both ways. */
+    private int powderTable(GuiGraphicsExtractor g, Model m, int x, int y, int w, int h, int c0, int c1) {
+        int[] c = label(g, "Powder", null, x, y, w, h, 10);
+        for (int r = 0; r < m.powder.length; r++) {
+            int ry = c[1] + r * 14;
+            g.text(font(), m.powder[r][0], c[0], ry, text(), false);
+            g.text(font(), m.powder[r][1], c[0] + c0 + 5, ry, text(), false);
+            g.text(font(), m.powder[r][2], c[0] + c0 + 5 + c1 + 5, ry, text(), false);
+        }
+        return y + labelH(h);
+    }
+
+    /** Crystals: each crystal on a thin rounded box with a green check or a red cross, rows centered in a third of the width. */
+    private int crystals(GuiGraphicsExtractor g, Model m, int x, int y, int w, int h, int perRow, int mx, int my) {
+        int[] c = label(g, "Crystals", null, x, y, w, h, 10);
+        int cw = crystalW(), n = m.crystalOk.length;
+        for (int r = 0; r * perRow < n; r++) {
+            int inRow = Math.min(perRow, n - r * perRow), rowW = inRow * cw + (inRow - 1) * 5;
+            int cx = c[0] + (w - rowW) / 2, cy = c[1] + r * (CRYSTAL_H + 5);
+            for (int i = r * perRow; i < r * perRow + inRow; i++, cx += cw + 5) {
+                PvStyleChrome.chip(g, s.pvStyle(), cx, cy, cw, CRYSTAL_H);
+                g.item(new ItemStack(ExtraPages.CRYSTAL_ICONS[i]), cx + 2, cy + 2);
+                g.text(font(), m.crystalOk[i] ? "§2§l✔" : "§4§l❌", cx + 19, cy + 6, -1, true);
+                if (hover(mx, my, cx, cy, cw, CRYSTAL_H)) s.pendingTooltip = m.crystalTips[i];
+            }
+        }
+        return y + labelH(h);
+    }
+
+    /** Forge: per slot "Slot n", the item, and its time, in a row; 5 apart. */
+    private void forge(GuiGraphicsExtractor g, Model m, int x, int y, int w, int h, int mx, int my) {
+        int[] c = label(g, "Forge", null, x, y, w, h, 10);
+        for (int i = 0; i < m.forgeSlot.length; i++) {
+            int ry = c[1] + i * 17, rx = c[0];
+            g.text(font(), m.forgeSlot[i], rx, ry + 2, 0xFF555555, false);
+            rx += font().width(m.forgeSlot[i]) + 1;
+            g.item(m.forgeItems[i], rx, ry - 2);
+            rx += 17;
+            g.text(font(), m.forgeTime[i], rx, ry + 2, 0xFF555555, false);
+            if (hover(mx, my, c[0], ry, w, 12)) s.pendingTooltip = m.forgeTips[i];
+        }
+    }
+
+    /** MiningGearScreen: armor + equipment, the four best pickaxes, then the best chisel over the Suspicious Scrap count. */
+    private void drawMiningGear(GuiGraphicsExtractor g, SbProfile p, Model m, int mx, int my) {
+        if (m.mineGear == null) {
+            m.mineGear = p.inventories().handle((inv, err) -> inv).thenApplyAsync(inv -> {
+                List<List<ItemStack>> sets = new ArrayList<>(m.equipSets.values());
+                sets.addAll(m.armorSets.values());
+                return new Object[] {SbpvGear.build(inv, sets, "mining", "pickaxes", null), SbpvGear.best(inv, sets, "mining", "chisels", 1),
+                        SbpvGear.count(inv, sets, "SUSPICIOUS_SCRAP") + m.scrapSacks};
+            }, ProfileViewerApi.EXECUTOR);
+        }
+        Object[] r = m.mineGear.isDone() && !m.mineGear.isCompletedExceptionally() ? m.mineGear.getNow(null) : null;
+        SbpvGear.Gear gear = r == null ? null : (SbpvGear.Gear) r[0];
+        int w = 44 + 5 + 24 + 5 + 24, h = 84;
+        int bx = s.panelX, by = s.contentY, bw = s.panelW, bh = s.panelY + s.panelH - s.contentY;
+        int lw = labelW(w, 0);
+        int[] c = label(g, "Mining Gear", null, bx + (bw - lw) / 2, by + Math.max(0, (bh - labelH(h)) / 2), w, h, 0);
+        for (int i = 0; i < 4; i++) {
+            int sy = c[1] + 2 + i * 20;
+            gearSlot(g, gear == null ? ItemStack.EMPTY : gear.armor().get(i), ARMOR_SLOTS[i], c[0] + 2, sy, mx, my);
+            gearSlot(g, gear == null ? ItemStack.EMPTY : gear.equip().get(i), EQUIP_SLOTS[i], c[0] + 22, sy, mx, my);
+            gearSlot(g, gear == null ? ItemStack.EMPTY : gear.tools().get(i), PICKAXE_SLOT, c[0] + 49 + 2, sy, mx, my);
+        }
+        int cx = c[0] + 49 + 24 + 5, cy = c[1] + (h - 53) / 2;
+        @SuppressWarnings("unchecked") List<ItemStack> chisel = r == null ? null : (List<ItemStack>) r[1];
+        gearSlot(g, chisel == null ? ItemStack.EMPTY : chisel.get(0), ARMORSTAND_SLOT, cx + 2, cy + 2, mx, my);
+        int sy = cy + 24 + 5;
+        ItemStack scrap = ItemIcons.forId("SUSPICIOUS_SCRAP");
+        PvStyleChrome.slot(g, s.pvStyle(), cx, sy, 24);
+        g.item(scrap, cx + 4, sy + 4);
+        long count = r == null ? 0 : (Long) r[2];
+        g.itemDecorations(font(), scrap, cx + 4, sy + 4, String.valueOf(count));
+        if (hover(mx, my, cx, sy, 24, 24)) s.pendingItemTooltip = scrap;
+    }
+
+    /** GlaciteScreen: Info and Fossils in one column, Corpses Looted in the next, 5 apart, from the top; stacked when narrow. */
+    private void drawGlacite(GuiGraphicsExtractor g, Model m, int mx, int my) {
+        int bx = s.panelX, by = s.contentY, bw = s.panelW, bh = s.panelY + s.panelH - s.contentY;
+        int iw = widest(m.glaInfo), ih = m.glaInfo.length * 12 - 3, cw = widest(m.corpses), ch = m.corpses.length * 12 - 3;
+        int fw = 4 * 20 + 4, fh = 2 * 20 + 4;
+        int infoLW = labelW(iw, 10), fosLW = labelW(fw, 0), corLW = labelW(cw, 10);
+        int col = Math.max(infoLW, fosLW);
+        boolean fits = col + 5 + corLW <= bw && 5 + labelH(ih) + 5 + labelH(fh) <= bh;
+        g.enableScissor(bx, by, bx + bw, by + bh);
+        if (fits) {
+            int x0 = bx + (bw - (col + 5 + corLW)) / 2, y = by + 5;
+            int[] c = label(g, "Info", CLIPBOARD, x0 + (col - infoLW) / 2, y, iw, ih, 10);
+            textLines(g, m.glaInfo, null, c[0], c[1], 3, mx, my);
+            fossils(g, m, x0 + (col - fosLW) / 2, y + labelH(ih) + 5, mx, my);
+            c = label(g, "Corpses Looted", null, x0 + col + 5, y, cw, ch, 10);
+            textLines(g, m.corpses, null, c[0], c[1], 3, mx, my);
+        } else {
+            int y = by - s.pageScroll * 10;
+            int[] c = label(g, "Info", CLIPBOARD, bx + (bw - infoLW) / 2, y, iw, ih, 10);
+            textLines(g, m.glaInfo, null, c[0], c[1], 3, mx, my);
+            y += labelH(ih) + 5;
+            fossils(g, m, bx + (bw - fosLW) / 2, y, mx, my);
+            y += labelH(fh) + 5;
+            c = label(g, "Corpses Looted", null, bx + (bw - corLW) / 2, y, cw, ch, 10);
+            textLines(g, m.corpses, null, c[0], c[1], 3, mx, my);
+        }
+        g.disableScissor();
+    }
+
+    private void fossils(GuiGraphicsExtractor g, Model m, int x, int y, int mx, int my) {
+        int[] c = label(g, "Fossils", null, x, y, 4 * 20 + 4, 2 * 20 + 4, 0);
+        for (int i = 0; i < m.fossilIcons.length && i < 8; i++) {
+            slotItem(g, m.fossilIcons[i], null, c[0] + 2 + (i % 4) * 20, c[1] + 2 + (i / 4) * 20, m.fossilTips[i], mx, my);
+        }
+    }
+
+    /** LoadoutSkillTreeScreen (HotM Tree / HotF Tree): the five slot buttons (the tree's skull; the shown slot lit), 10 px, then
+     *  the tree with its tier column. */
+    private final int[] treeView = new int[2];
+    private Model treeViewFor;
+
+    private void drawTreeCategory(GuiGraphicsExtractor g, Model m, int t, int mx, int my) {
+        if (treeViewFor != m) {
+            treeViewFor = m;
+            treeView[0] = m.treeSelected[0];
+            treeView[1] = m.treeSelected[1];
+        }
+        Tree tree = m.fullTrees[t][Math.max(1, treeView[t])];
+        int bx = s.panelX, by = s.contentY, bw = s.panelW, bh = s.panelY + s.panelH - s.contentY;
+        if (tree == null) return;
+        int w = Math.max(5 * 20 + 4 * 2, tree.w), h = 20 + 10 + tree.h;
+        int x = bx + (bw - w) / 2, y = h > bh ? by - s.pageScroll * 10 : by + (bh - h) / 2;
+        g.enableScissor(bx, by, bx + bw, by + bh);
+        ItemStack skull = treeSkull(t);
+        int btnX = x + (w - (5 * 20 + 4 * 2)) / 2;
+        for (int i = 1; i <= 5; i++) {
+            int px = btnX + (i - 1) * 22;
+            boolean on = i == treeView[t] || i == 1 && treeView[t] <= 1, h2 = hover(mx, my, px, y, 20, 20);
+            PvStyleChrome.button(g, s.pvStyle(), px, y, 20, 20, "", h2, on);
+            g.item(skull, px + 2, y + 1);
+            final int idx = i;
+            s.hotspots.add(new ProfileViewerScreen.Hotspot(px, y, 20, 20, () -> treeView[t] = idx));
+            if (h2) s.pendingTooltip = List.of(Component.literal("Slot " + i));
+        }
+        int gx = x + (w - tree.w) / 2, gy = y + 30;
+        for (int i = 0; i < tree.icons.length; i++) slotItem(g, tree.icons[i], tree.counts[i], gx + tree.x[i], gy + tree.y[i], tree.tips[i], mx, my);
+        g.disableScissor();
+    }
+
     private static final ItemStack[] FORAGING_ICONS = {new ItemStack(Items.OAK_WOOD), new ItemStack(Items.OAK_SAPLING)};
     private static final List<?>[] FORAGING_TIPS = {List.of(Component.literal("Main")), List.of(Component.literal("HotF Tree"))};
 
@@ -1114,7 +1547,7 @@ final class SbpvPages {
             if (hover(mx, my, tx, ty, 31, 20)) s.pendingTooltip = (List<Component>) FORAGING_TIPS[i];
         }
         if (s.subView == 1) {
-            s.drawForagingTree(g, mx, my);
+            drawTreeCategory(g, m, 1, mx, my);
             return;
         }
         int w = Math.max(91, widest(m.forInfo));

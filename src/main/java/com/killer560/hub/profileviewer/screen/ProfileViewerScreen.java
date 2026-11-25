@@ -485,14 +485,15 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                     : () -> net.minecraft.client.resources.DefaultPlayerSkin.get(skinId);
             SbProfile shown = profile();
             if (pvStyle != ProfileViewerConfig.Style.DEFAULT && !neu) { // SkyBlockPV: in its player frame, middle column
-                int w = (int) (panelW * 0.2), h = (int) (w * 1.1);
+                sbpvNarrow = sbpvNarrowFor(sbpvMainFor(shown));
+                int w = sbpvPlayerW(), h = (int) (w * 1.1);
                 // MainScreen.getPlayerDisplay: the mannequin wears the armor, scale width / 3, bare while right click is held.
-                PvModel model = PvModel.create(panelX + (panelW - w) / 2, sbpvPlayerY(), w, h, w / 3, lookup, shown.inventories(), true);
+                PvModel model = PvModel.create(sbpvPlayerX(), sbpvPlayerY(), w, h, w / 3, lookup, shown.inventories(), true);
                 if (model != null) {
                     addRenderableWidget(model);
                 } else {
                     PlayerSkinWidget skin = new PlayerSkinWidget(w, h - h / 10, this.minecraft.getEntityModels(), lookup);
-                    skin.setPosition(panelX + (panelW - w) / 2, sbpvPlayerY() + h / 10);
+                    skin.setPosition(sbpvPlayerX(), sbpvPlayerY() + h / 10);
                     addRenderableWidget(skin);
                 }
             } else if (neu && (neuModel = PvModel.create(panelX + m[0], panelY + 44, 80, 113, 36, lookup, shown.inventories(), false)) != null) {
@@ -928,7 +929,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                     case PAGE_PETS -> drawPets(g, p, mouseX, mouseY);
                     default -> {
                         try {
-                            if (page >= PAGE_LOADOUT) {
+                            if (page >= PAGE_LOADOUT || page == PAGE_MINING && sbpvStyle()) {
                                 if (!sbpvPages.draw(g, page, p, mouseX, mouseY)) {
                                     centered(g, sbpvPages.failed() ? "Couldn't read this profile's data." : "Loading" + dots(), contentY + contentH / 2 - 4,
                                             sbpvPages.failed() ? BAD : VALUE);
@@ -1442,21 +1443,61 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     /** SkyBlockPV's player frame on its main page: the middle 20 % column, 1.1 times as high as wide, centered with its
      *  status button (5 + 20 + 3 below) in the content height; its top. */
     private int sbpvPlayerY() {
-        return contentY + (panelY + panelH - contentY - (int) ((int) (panelW * 0.2) * 1.1) - 28) / 2;
+        int h = (int) (sbpvPlayerW() * 1.1) + 28, room = panelY + panelH - contentY;
+        return contentY + (sbpvNarrow ? Math.max(0, (room - h) / 2) : (room - h) / 2);
+    }
+
+    /** The player frame's width: the middle 20 % column, or 35 % in the narrow layout. */
+    private int sbpvPlayerW() {
+        return (int) (panelW * (sbpvNarrow ? 0.35 : 0.2));
+    }
+
+    private int sbpvPlayerX() {
+        return sbpvNarrow ? panelX + 10 : panelX + (panelW - sbpvPlayerW()) / 2;
+    }
+
+    /** MainScreen.create: when the right column (10 px, then Skills, Slayer and Essence 10 apart, side - 20 wide) is not shorter
+     *  than the content, the player takes the left 35 % and everything else one scrolled column beside it. */
+    private boolean sbpvNarrow;
+
+    private boolean sbpvNarrowFor(SbpvMain m) {
+        int middle = (int) (panelW * 0.2), side = (panelW - middle) / 2, h = 0;
+        for (SbpvChips c : m.sections) h += 10 + sbpvChipsH(c, side - 20);
+        return h >= panelY + panelH - contentY;
+    }
+
+    private int sbpvChipsH(SbpvChips c, int w) {
+        int chipW = 0;
+        for (String v : c.values()) chipW = Math.max(chipW, 17 + this.font.width(v));
+        int perRow = Math.max(1, (w - 20) / (chipW + 10)), rows = (c.values().length + perRow - 1) / perRow;
+        return 29 + rows * 21 - 5;
+    }
+
+    private SbpvMain sbpvMainFor(SbProfile p) {
+        ProfileExtras ex = p.extras().isDone() && !p.extras().isCompletedExceptionally() ? p.extras().getNow(null) : null;
+        ExtraPages.NetworthState nw = extraPages.networthState(p);
+        long worth = nw.result() != null ? nw.result().total(ProfileViewerConfig.getInstance().getNetworthView()) : nw.failed() ? -2 : -1;
+        SbpvMain m = sbpvMain;
+        if (m == null || m.profile != p || m.worth != worth || m.extras != ex) {
+            m = sbpvMain = new SbpvMain(p, worth, ex);
+        }
+        return m;
     }
 
     /** SkyBlockPV's main page (MainScreen): Info on the left, the player in the middle 20 %, Skills and Slayer chips on
      *  the right then Essence, each a label (title bar over a box) 10 below the top; lines and chips have their hovers. */
-    /** SkyBlockPV's Foraging tab, HotF Tree category: our perk list (ExtraPages). */
-    void drawForagingTree(GuiGraphicsExtractor g, int mx, int my) {
-        extraPages.drawForagingTree(g, profile(), mx, my);
-    }
-
     private void drawSbpvBasic(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
-        int middle = (int) (panelW * 0.2), side = (panelW - middle) / 2, text = PvStyleChrome.sbpvText(pvStyle);
+        SbpvMain m = sbpvMainFor(p);
+        if (sbpvNarrowFor(m) != sbpvNarrow) {
+            // The player widget is placed in init: lay the screen out again after this frame.
+            sbpvNarrow = !sbpvNarrow;
+            minecraftExecute(this::rebuildSafe);
+            return;
+        }
+        int middle = sbpvPlayerW(), side = (panelW - (int) (panelW * 0.2)) / 2, text = PvStyleChrome.sbpvText(pvStyle);
         int fh = (int) (middle * 1.1), fy = sbpvPlayerY();
-        PvStyleChrome.playerFrame(g, pvStyle, panelX + side, fy, middle, fh);
-        int sx = panelX + side, sy = fy + fh + 5;
+        PvStyleChrome.playerFrame(g, pvStyle, sbpvPlayerX(), fy, middle, fh);
+        int sx = sbpvPlayerX(), sy = fy + fh + 5;
         if (sbpvTagFor != p || !java.util.Objects.equals(sbpvTagName, displayName)) {
             sbpvTagFor = p;
             sbpvTagName = displayName;
@@ -1471,7 +1512,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             float scale = middle / 3;
             int feet = Math.round(fy + fh / 2f + (0.9f + 0.0625f) * scale);
             int tagW = this.font.width(sbpvTag), tagY = Math.max(fy + 2, Math.round(feet - 2.3f * scale) - 9);
-            int tagX = panelX + side + (middle - tagW) / 2;
+            int tagX = sbpvPlayerX() + (middle - tagW) / 2;
             g.fill(tagX - 1, tagY - 1, tagX + tagW + 1, tagY + 8, 0x40000000);
             g.text(this.font, sbpvTag, tagX, tagY, 0xFFFFFFFF, false);
         }
@@ -1490,16 +1531,29 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                     Component.literal(statusOpen ? "Click to hide" : "Click to check status").withStyle(style(DIM)));
         }
         // Info: the gray lines centered in the column, 10 below the top (MainScreen's spacer); all text built once.
-        ProfileExtras ex = p.extras().isDone() && !p.extras().isCompletedExceptionally() ? p.extras().getNow(null) : null;
-        ExtraPages.NetworthState nw = extraPages.networthState(p);
-        long worth = nw.result() != null ? nw.result().total(ProfileViewerConfig.getInstance().getNetworthView()) : nw.failed() ? -2 : -1;
-        SbpvMain m = sbpvMain;
-        if (m == null || m.profile != p || m.worth != worth || m.extras != ex) {
-            m = sbpvMain = new SbpvMain(p, worth, ex);
-        }
         int maxW = 0;
         for (String line : m.info) {
             maxW = Math.max(maxW, this.font.width(line));
+        }
+        int bottom = panelY + panelH;
+        if (sbpvNarrow) {
+            // One column right of the player (uiWidth - 35 % - 40 wide), Info then the chip sections 10 apart, scrolled.
+            int cw = panelW - middle - 40, cx = panelX + middle + 10, cy = contentY - pageScroll * 10;
+            g.enableScissor(cx, contentY, cx + cw + 27, bottom);
+            int iy = sbpvLabel(g, "Info", cx, cy, cw, 7 + m.info.length * 11 - 2 + 7, text, SbpvPages.CLIPBOARD);
+            int ix = cx + (cw - maxW) / 2;
+            for (int i = 0; i < m.info.length; i++) {
+                if (m.infoTips[i] != null && !dropdownOpen && my >= contentY && inside(mx, my, ix, iy - 1, this.font.width(m.info[i]), 10)) {
+                    pendingTooltip = m.infoTips[i];
+                }
+                iy = sbpvLine(g, m.info[i], ix, iy, cw - 20, text);
+            }
+            iy = cy + 20 + 7 + m.info.length * 11 - 2 + 7 + 10;
+            for (SbpvChips c : m.sections) {
+                iy = sbpvChips(g, c, cx, iy, cw, mx, my, text) + 10;
+            }
+            g.disableScissor();
+            return;
         }
         int y = sbpvLabel(g, "Info", panelX, contentY + 10, side, 7 + m.info.length * 11 - 2 + 7, text, SbpvPages.CLIPBOARD);
         int lx = panelX + (side - maxW) / 2;

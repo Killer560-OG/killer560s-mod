@@ -538,9 +538,9 @@ final class ExtraPages {
     }
 
 
-    private static final String[] CRYSTALS = {"jade_crystal", "amethyst_crystal", "topaz_crystal", "sapphire_crystal", "amber_crystal",
+    static final String[] CRYSTALS = {"jade_crystal", "amethyst_crystal", "topaz_crystal", "sapphire_crystal", "amber_crystal",
             "ruby_crystal", "jasper_crystal", "opal_crystal", "aquamarine_crystal", "citrine_crystal", "peridot_crystal", "onyx_crystal"};
-    private static final Item[] CRYSTAL_ICONS = {McItems.LIME_STAINED_GLASS, McItems.PURPLE_STAINED_GLASS, McItems.YELLOW_STAINED_GLASS,
+    static final Item[] CRYSTAL_ICONS = {McItems.LIME_STAINED_GLASS, McItems.PURPLE_STAINED_GLASS, McItems.YELLOW_STAINED_GLASS,
             McItems.LIGHT_BLUE_STAINED_GLASS, McItems.ORANGE_STAINED_GLASS, McItems.RED_STAINED_GLASS, McItems.MAGENTA_STAINED_GLASS,
             McItems.WHITE_STAINED_GLASS, McItems.BLUE_STAINED_GLASS, McItems.BROWN_STAINED_GLASS, McItems.GREEN_STAINED_GLASS, McItems.BLACK_STAINED_GLASS};
     private static final long[] ROCK_BRACKETS = {2500, 7500, 20000, 100000, 250000};
@@ -757,7 +757,21 @@ final class ExtraPages {
     /** The bundled corpse milestone requirements, parsed on first use (the table never changes). */
     private static List<Map<String, Integer>> corpseMilestones;
 
-    private static synchronized List<Map<String, Integer>> corpseMilestones() {
+    /** The highest corpse milestone whose every requirement the looted counts meet. */
+    static int corpseMilestone(Map<String, Integer> corpses) {
+        List<Map<String, Integer>> milestones = corpseMilestones();
+        int milestone = 0;
+        for (int i = 0; i < milestones.size(); i++) {
+            boolean ok = true;
+            for (Map.Entry<String, Integer> e : milestones.get(i).entrySet()) {
+                if (corpses.getOrDefault(e.getKey(), 0) < e.getValue()) ok = false;
+            }
+            if (ok) milestone = i + 1;
+        }
+        return milestone;
+    }
+
+    static synchronized List<Map<String, Integer>> corpseMilestones() {
         if (corpseMilestones == null) {
             List<Map<String, Integer>> out = new ArrayList<>();
             JsonObject bundled = ExtraTables.bundled();
@@ -782,20 +796,7 @@ final class ExtraPages {
         title(g, "Glacite Tunnels", x, y);
         y += 12;
         y = s.stat2(g, x, y, w, "Mineshafts Entered", commas(m.mineshafts()));
-        List<Map<String, Integer>> milestones = corpseMilestones();
-        int milestone = 0;
-        for (int i = 0; i < milestones.size(); i++) {
-            boolean ok = true;
-            for (Map.Entry<String, Integer> e : milestones.get(i).entrySet()) {
-                if (m.corpses().getOrDefault(e.getKey(), 0) < e.getValue()) {
-                    ok = false;
-                }
-            }
-            if (ok) {
-                milestone = i + 1;
-            }
-        }
-        y = s.stat2(g, x, y, w, "Corpse Milestone", milestone + " / " + milestones.size());
+        y = s.stat2(g, x, y, w, "Corpse Milestone", corpseMilestone(m.corpses()) + " / " + corpseMilestones().size());
         y += 4;
         title(g, "Corpses Looted", x, y);
         y += 11;

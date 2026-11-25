@@ -60,8 +60,8 @@ were read from their sources.
 
 `src/main/resources/assets/killer560smod/profileviewer/extras.json` carries tables from
 [meowdding-repo](https://github.com/meowdding/meowdding-repo) (`repo/pv`: Crimson Isle, Rift, corpse milestones, fossils,
-garden, chocolate factory, foraging, essence perks, gear lists, and the HotM/HotF node positions from `repo/mining/hotmperks`
-and `repo/foraging/hotfperks`), used under the MIT License: Copyright (c) 2026 meowdding. Permission is hereby granted, free
+garden, chocolate factory, foraging, essence perks, gear lists, and the HotM/HotF node positions, perk texts, level formulas, costs and tier rewards from
+`repo/mining/hotmperks` and `repo/foraging/hotfperks`), used under the MIT License: Copyright (c) 2026 meowdding. Permission is hereby granted, free
 of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in
 the Software without restriction, subject to the condition that the above copyright notice and this permission notice shall
 be included in all copies or substantial portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF

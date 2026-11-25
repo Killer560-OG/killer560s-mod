@@ -51,12 +51,7 @@ final class SbpvGear {
         Collections.reverse(worn);
         List<ItemStack> equip = new ArrayList<>(4);
         for (String k : equipKeys) equip.add(first(worn, ids(g, k)));
-        List<ItemStack> tools = new ArrayList<>();
-        Set<String> toolIds = ids(g, toolKey);
-        for (ItemStack st : all) if (toolIds.contains(LegacyItems.skyblockId(st))) tools.add(st);
-        tools.sort(Comparator.comparingInt(SbpvGear::score).reversed());
-        List<ItemStack> top = new ArrayList<>(tools.subList(0, Math.min(4, tools.size())));
-        while (top.size() < 4) top.add(ItemStack.EMPTY);
+        List<ItemStack> top = best(all, ids(g, toolKey), 4);
         List<ItemStack> side = null;
         if (sideKey != null) {
             Set<String> sideIds = ids(g, sideKey);
@@ -65,6 +60,29 @@ final class SbpvGear {
             side = armorColumn(matched);
         }
         return new Gear(side, armorColumn(worn), equip, top);
+    }
+
+    /** PvWidgets.tools: the {@code n} best-scored stacks whose id is in {@code ids}, EMPTY-padded to {@code n}. */
+    private static List<ItemStack> best(List<ItemStack> all, Set<String> ids, int n) {
+        List<ItemStack> tools = new ArrayList<>();
+        for (ItemStack st : all) if (ids.contains(LegacyItems.skyblockId(st))) tools.add(st);
+        tools.sort(Comparator.comparingInt(SbpvGear::score).reversed());
+        List<ItemStack> top = new ArrayList<>(tools.subList(0, Math.min(n, tools.size())));
+        while (top.size() < n) top.add(ItemStack.EMPTY);
+        return top;
+    }
+
+    /** {@code n} best stacks of the gear table's {@code kind}.{@code key} ids from everything the profile holds. */
+    static List<ItemStack> best(SbProfile.Inventories inv, Collection<List<ItemStack>> loadoutSets, String kind, String key, int n) {
+        JsonObject t = ExtraTables.bundled().getAsJsonObject("sbpv_gear");
+        return best(all(inv, loadoutSets), ids(t == null ? null : t.getAsJsonObject(kind), key), n);
+    }
+
+    /** How many of item {@code id} the profile holds in its inventories (sacks are added by the caller). */
+    static int count(SbProfile.Inventories inv, Collection<List<ItemStack>> loadoutSets, String id) {
+        int n = 0;
+        for (ItemStack st : all(inv, loadoutSets)) if (id.equals(LegacyItems.skyblockId(st))) n += st.getCount();
+        return n;
     }
 
     /** armorDisplay: the first stack whose id contains HELMET, CHESTPLATE, LEGGINGS, BOOTS. */
