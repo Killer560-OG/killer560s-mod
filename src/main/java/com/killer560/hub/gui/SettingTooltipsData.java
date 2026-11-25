@@ -3273,6 +3273,8 @@ final class SettingTooltipsData {
         d.put("tree gift messages", "Hides the chat block shown when a Galatea tree falls: TREE GIFT, You helped cut, rewards gained, and the lines around them. Other messages and their separators stay.");
         d.put("tree gift messages/keep rare drops", "Keeps the BONUS GIFT lines and any mob that fell from the tree visible. Off hides the whole block.");
         d.put("beacon ready alert/alert sound", "Also plays a pling with the title.");
+        d.put("beacon ready alert/keep showing until tuned", "Instead of a title that fades, a Beacon Ready line stays on the HUD (movable in the HUD editor) until you tune the beacon. The sound still follows Repeat After.");
+        d.put("beacon ready alert/cooldown hud", "A HUD line counting down to the next time the beacon can be tuned. The tab list only gives whole minutes, so it shows ~7m until the minute drops once, then counts seconds. Beacon: Ready when it can be tuned.");
         d.put("beacon ready alert/repeat after", "While the beacon stays available, the title comes back after this many minutes.");
         d.put("beacon tuner", "In the Moonglade Beacon tuning menu, outlines the button to press for each of Color, Speed and Pitch that does not match yet and shows how many presses it needs. It never clicks for you.");
         d.put("beacon tuner/auto tune", "Cheat build. In the Tune Frequency and Upgrade Signal Strength menus, clicks your Color, Speed and Pitch buttons to match the beacon's beat and uses Pause (or Speed 5 to catch up) to put your pane in step with the beacon's; the click that makes everything match completes the tune. One click at a time, spaced by Click Delay; your own clicks are never held. It stops when you close the menu.");

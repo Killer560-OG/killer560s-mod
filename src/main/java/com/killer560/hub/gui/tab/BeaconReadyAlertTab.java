@@ -10,6 +10,8 @@ public class BeaconReadyAlertTab extends IslandFeatureTab {
     @Override
     protected void rows(Rows r) {
         r.toggle("Alert Sound", "sound");
+        r.toggle("Keep Showing Until Tuned", "keep");
+        r.toggle("Cooldown HUD", "cooldownHud");
         r.slider("Repeat After", "repeat", " min");
     }
 }

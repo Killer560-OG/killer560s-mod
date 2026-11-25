@@ -13,7 +13,8 @@
      "The Text Shadow and Background settings of the dungeon timer HUDs no longer cost any frame time while you play.",
      "Invisibug Highlight: the box now goes the moment you catch the bug, a new bug is boxed after 3 particles (half a second) instead of 7, and the new Remembered Spots setting (on by default) marks every spot an Invisibug was found at with a ring and a post, so you can walk to one that is too far away for its particles to reach you; a bug at a remembered spot is boxed from its first particle.",
      "Beacon Tuner Auto Tune is now far faster than tuning by hand: it starts as soon as the beacon's colors and speeds are read, pauses your pane for exactly as long as it needs (or catches up at Speed 5) so both step together, no longer mixes up your two panes after a pause or re-turns Pitch, and no longer waits when both beacon beats step together",
-     "Auto Clear: after a Wither Impact that leaves only mobs an etherwarp reaches, the next warp now goes the same tick the kill is seen instead of one or two ticks later (about 8% faster room clears in the dungeon sim)"
+     "Auto Clear: after a Wither Impact that leaves only mobs an etherwarp reaches, the next warp now goes the same tick the kill is seen instead of one or two ticks later (about 8% faster room clears in the dungeon sim)",
+     "Beacon Ready Alert has two new settings: Keep Showing Until Tuned (a Beacon Ready line stays on your HUD until you tune the beacon instead of a title that fades) and Cooldown HUD (counts down to the next time you can tune it). Both are off by default and the line can be moved in the HUD editor."
     ]
    }
   ]
