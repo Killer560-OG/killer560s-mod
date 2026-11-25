@@ -203,6 +203,39 @@ public final class TripCache {
                 b.toShortString());
     }
 
+    /**
+     * Client thread: the hop from the block {@code stand} onto {@code landing} has no ray once he settles (a held hop,
+     * ClearExecutor): it is banned in the graphs ({@link WarpGraph#banSettledMiss}) and every stored trip with it is dropped,
+     * so neither a plan nor a precomputed trip sends it again (clickgap-loop-1125).
+     */
+    static void dropSettledMiss(BlockPos stand, BlockPos landing) {
+        WarpGraph.banSettledMiss(stand, landing);
+        int n = 0;
+        for (Map<String, Entry> byFrom : TRIPS.values()) {
+            for (Map.Entry<String, Entry> me : byFrom.entrySet()) {
+                double[] c = me.getValue().corridor;
+                for (int i = 0; i + 5 < c.length; i += 6) {
+                    if ((int) Math.floor(c[i + 3]) == landing.getX() && (int) Math.floor(c[i + 4]) == landing.getY()
+                            && (int) Math.floor(c[i + 5]) == landing.getZ() && (int) Math.floor(c[i]) == stand.getX()
+                            && (int) Math.floor(c[i + 2]) == stand.getZ()
+                            && (int) Math.floor(c[i + 1] - EtherSearch.SNEAK_EYE - 0.2) == stand.getY()) {
+                        if (byFrom.remove(me.getKey(), me.getValue())) {
+                            n++;
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        if (n > 0) {
+            SIZE.addAndGet(-n);
+            removals.addAndGet(n);
+            dropped += n;
+        }
+        LOGGER.info("[Path] the warp from {} onto {} has no ray once he settles - no plan takes it again ({} stored trip(s) "
+                + "dropped)", stand.toShortString(), landing.toShortString(), n);
+    }
+
     /** The landing blocks refused from {@code at}'s spot ({@link #refuseHop}), or null. Any thread. */
     public static java.util.Set<Long> refusedLandings(Vec3 at) {
         if (REFUSED_HOPS.isEmpty()) {

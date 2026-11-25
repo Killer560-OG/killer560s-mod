@@ -21,7 +21,8 @@
      "Compactor Preview now previews only the Personal Deletor (no compactor shows a preview any more), and How Lucky Are You counts Looting from a held axe or fishing rod.",
      "Dungeons Autopilot no longer gets stuck going back and forth between two spots it cannot warp out of, and Auto Routes waits a tick after a server teleport before stepping back onto a warp spot, which no longer draws an anticheat flag.",
      "Auto Clear: a trip that needs a searched path no longer waits behind the map's background route warm-up, so more trips after a kill leave on the same tick (about 3.5% faster room clears in the dungeon sim).",
-     "Interactive Map, Auto Clear and Dungeons Autopilot: a warp that waits a tick behind a block click is now aimed again from where you settled at every floor height; at some heights it kept its old aim and landed a block off the planned path."
+     "Interactive Map, Auto Clear and Dungeons Autopilot: a warp that waits a tick behind a block click is now aimed again from where you settled at every floor height; at some heights it kept its old aim and landed a block off the planned path.",
+     "Auto Clear: a warp that misses once you settle behind a block click is never planned again on that floor (no more bouncing onto nearby leaves); a use aimed exactly through a block edge is nudged off it, and a right click the server sees meeting a block now clicks that block first, so the server no longer ignores the use; an etherwarp right after a menu click waits until the server has heard the sneak again instead of going out as a plain teleport."
     ]
    }
   ]

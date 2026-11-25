@@ -2517,6 +2517,16 @@ public final class ClearExecutor {
             return;
         }
         LocalPlayer player = client.player;
+        // An etherwarp goes only while the server has him sneaking. A screen of his opened and shut inside the tick (his
+        // inventory, a click) releases every key, and the player_input saying so leaves before a hop sent late in that
+        // tick: the server took the use as an Instant Transmission and nothing landed (62-argrim-1122-same-plan-openclick,
+        // openclick-nolanding-1125). The sneak is pressed again and the hop goes once the server has heard it.
+        if (pendingBlock != null && !player.getLastSentInput().shift()) {
+            String why = "the server hearing the sneak again (his own input released it)";
+            if (!why.equals(waitReason)) { LOGGER.info("[Path] Warp: held until {}", why); }
+            waitReason = why;
+            return;
+        }
         // A hop that waited a tick is aimed again from where he stands when it goes: it is planned from a landing 1.05 up
         // and he rests 0.05 lower a few ticks later (Auto Routes' reaimIfMoved does the same).
         if (pendingHeldTicks > 0 && pendingBlock != null && pendingFrom != null) {
@@ -2539,10 +2549,14 @@ public final class ClearExecutor {
                     interact = new float[]{rot.yaw(), rot.pitch()};
                     pendingInteract = interact;
                     pendingFrom = at;
-                } else if (replanHeldHop(at)) {
-                    pendingInteract = null;
-                    return;
                 } else {
+                    // Planned from the landing 0.05 up, it has no ray from where he settles: no plan may take it again,
+                    // or the plan from here warps onto his own block for the 0.05 and holds it once more (clickgap-loop-1125).
+                    TripCache.dropSettledMiss(BlockPos.containing(at.x, at.y - 0.2, at.z), pendingBlock);
+                    if (replanHeldHop(at)) {
+                        pendingInteract = null;
+                        return;
+                    }
                     LOGGER.info("[Path] Warp: held {} tick(s), no ray from {} lands on {} - sending the planned look",
                             pendingHeldTicks, fmt(at), pendingBlock.toShortString());
                     pendingFrom = at;

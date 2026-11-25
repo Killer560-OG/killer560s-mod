@@ -573,6 +573,21 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   ahead of that tick's input packet, so it still goes unsneaked). Testkit 1124-sim-ac-presneak: gap 0 trips 0 -> 11 of 16
   rooms, room ticks 510 -> 465. Diagnose such holds by logging `waitReason` right after onTickStart's doInteract.
 
+## Held hops, edge looks and the menu unsneak (acclick3-1125, 2026-11-25)
+- A hop held behind a block click goes from the SETTLED eye (+1.0), but graph edges are aimed from the +1.05 landing. An edge
+  that clears leaves or grass by about 0.05 drops onto them once he settles, and replanning took the same edge again (stored
+  trips too) more than 300 times. Fix: when the held re-aim finds no ray, `TripCache.dropSettledMiss` bans that stand->landing
+  edge in every plan for the floor (`WarpGraph.SETTLED_MISSES`, capped at 64) and drops the stored trips that use it. This is
+  geometric, so it happens on Hypixel at any height (1015-sim-clickgap).
+- The mod's `look()` uses Math.sin, while the server (and 1.8 Hypixel) uses a sine table. They differ by about 1e-4 rad, and on a
+  look through a block's exact edge or corner that decides whether the ray hits. `RightClick.serverRay` traces every look model,
+  and a use that would pair with an unpaired click (`unpairable`) is nudged off the edge first (`RightClick.nudgeIfUnpairable`,
+  used by Auto Clear's bat/aim-and-hold use).
+- A menu click (setScreen releaseAll, Inventory Walk's menuStoodTick) sends player_input shift=false in that tick. An
+  etherwarp use behind it is then a transmission: a real Instant Transmission on Hypixel, and a silent no-op at y 69 pitch down
+  in the testkit ("never landed", 62-argrim-1122-same-plan-openclick). ClearExecutor.doInteract waits until the server has
+  heard the sneak again.
+
 ## Searched trips a tick late (acoptimal-next2-1125, 2026-11-25)
 - A trip whose path is SEARCHED (ClearExecutor.plan, the planner thread) handed its result back through `client.execute`, which
   runs only after the tick that started it has ended, and startQueue then left `sendNow` false: every multi-warp trip after a

@@ -221,8 +221,8 @@ public final class RightClick {
         } else {
             LOGGER.debug(line); // a use with no block click near it: nothing to pair, not worth a line in his log
         }
-        if (ray != null) {
-            unpaired = false;
+        if (ray != null && serverRay(player, sentFeet(player), sentYaw, sentPitch, true) != null) {
+            unpaired = false; // only when every look the server may trace meets a block: else the click may still wait
         }
     }
 
@@ -345,12 +345,11 @@ public final class RightClick {
         BlockHitResult hit = client.level.clip(new ClipContext(eye, end, ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE,
                 player));
         if (hit == null || hit.getType() != HitResult.Type.BLOCK) {
-            if (srv != null) {
-                LOGGER.warn("{}: the server's ray meets {} at {} but this client's look reaches no block - the use goes "
-                                + "alone and Hypixel may take it as the block click's second half", who,
-                        blockName(player, srv.getBlockPos()), srv.getBlockPos().toShortString());
-            }
-            return false;
+            if (srv == null) return false;
+            // The server's look model or eye meets a block this client's pick just misses (an edge or the reach limit): the
+            // use alone would be ignored as the click's second half, and again on every retry (acclick3-1125). The block
+            // half goes on the block the server's ray meets, which is the one it pairs.
+            hit = srv;
         }
         boolean sneaking = player.getLastSentInput().shift();
         if (!sneaking && opens(client.level.getBlockState(hit.getBlockPos()).getBlock())) {
@@ -644,24 +643,64 @@ public final class RightClick {
     private static Vec3 sentFeet(LocalPlayer player) { return sentKnown ? new Vec3(sentX, sentY, sentZ) : player.position(); }
 
     private static BlockHitResult serverRay(LocalPlayer player, Vec3 feet, float yaw, float pitch) {
+        return serverRay(player, feet, yaw, pitch, false);
+    }
+
+    /**
+     * The trace from every eye height the server may use and along every look it may compute: 1.8's
+     * ({@link #look}, Math.sin) and the sine table's ({@code Vec3.directionFromRotation}, wrapped and running yaw). They
+     * differ by ~1e-4 rad, which decides a ray through a block's exact corner - a bat aimed from a block center at a mob
+     * on the diagonal met the corner of Cobblestone Stairs for the server's look and missed it for this one, so the use
+     * went unchecked and was dropped (clickgap-bat-1125). {@code every} false: the nearest block any of them meets (it
+     * MAY meet one). True: null unless every one of them meets a block (it surely does).
+     */
+    private static BlockHitResult serverRay(LocalPlayer player, Vec3 feet, float yaw, float pitch, boolean every) {
         Level lvl = player.level();
         if (lvl == null) return null;
-        double x = feet.x;
-        double y = feet.y;
-        double z = feet.z;
-        Vec3 dir = look(yaw, pitch).scale(SERVER_TRACE);
+        Vec3[] dirs = {look(yaw, pitch), Vec3.directionFromRotation(pitch, yaw),
+                Vec3.directionFromRotation(pitch, Mth.wrapDegrees(yaw))};
         BlockHitResult best = null;
         for (double h : player.getLastSentInput().shift() ? SNEAK_EYES : STAND_EYES) {
-            Vec3 eye = new Vec3(x, y + h, z);
-            BlockHitResult hit = lvl.clip(new ClipContext(eye, eye.add(dir), ClipContext.Block.OUTLINE,
-                    ClipContext.Fluid.NONE, player));
-            if (hit != null && hit.getType() == HitResult.Type.BLOCK
-                    && (best == null || hit.getLocation().distanceToSqr(eye) < best.getLocation().distanceToSqr(eye))) {
-                best = hit;
+            Vec3 eye = new Vec3(feet.x, feet.y + h, feet.z);
+            for (Vec3 d : dirs) {
+                BlockHitResult hit = lvl.clip(new ClipContext(eye, eye.add(d.scale(SERVER_TRACE)), ClipContext.Block.OUTLINE,
+                        ClipContext.Fluid.NONE, player));
+                boolean meets = hit != null && hit.getType() == HitResult.Type.BLOCK;
+                if (every && !meets) return null;
+                if (meets && (best == null || hit.getLocation().distanceToSqr(eye) < best.getLocation().distanceToSqr(eye))) {
+                    best = hit;
+                }
             }
         }
         return best;
     }
+
+    /**
+     * When the use at the body's look now could only be dropped ({@link #unpairable}: the server's ray may meet a block
+     * this client's pick cannot click): the nearest look a few hundredths of a degree off whose rays meet nothing, or that
+     * this client can click; null when the look is fine or none nearby works. For a use with no block to aim at (a bat, a
+     * Hyperion) - an etherwarp re-aims at its block with {@link #reaimIfUnpairable}.
+     */
+    public static float[] nudgeIfUnpairable(Minecraft client, LocalPlayer player, String who) {
+        float yaw = player.getYRot();
+        float pitch = player.getXRot();
+        if (!unpairable(client, player, null, yaw, pitch)) return null;
+        for (float step : NUDGE_DEGREES) {
+            for (float[] o : new float[][]{{step, 0}, {-step, 0}, {0, step}, {0, -step}}) {
+                float np = Mth.clamp(pitch + o[1], -90f, 90f);
+                if (!unpairable(client, player, null, yaw + o[0], np)) {
+                    LOGGER.info("{}: the server's ray along {} / {} may meet a block this client's look cannot click - nudged "
+                                    + "{} / {} so the use is not dropped", who, String.format(Locale.US, "%.2f",
+                                    Mth.wrapDegrees(yaw)), String.format(Locale.US, "%.2f", pitch),
+                            String.format(Locale.US, "%+.2f", o[0]), String.format(Locale.US, "%+.2f", o[1]));
+                    return new float[]{yaw + o[0], np};
+                }
+            }
+        }
+        return null;
+    }
+
+    private static final float[] NUDGE_DEGREES = {0.05f, 0.15f, 0.4f};
 
     private static Vec3 sentEye(LocalPlayer player, BlockHitResult ray) {
         double x = sentKnown ? sentX : player.getX();

@@ -4934,6 +4934,17 @@ public final class AutoClearFeature {
         if (swapped) {
             return false;   // already aimed: the use goes next tick, a tick after the swap the server has heard
         }
+        // A block click of his may still wait for its second half and the server's ray along this look may meet a block
+        // this client cannot click (a ray through a block's exact corner): the use would be taken as that click's end and
+        // dropped (clickgap-bat-1125, a bat from a block center at a mob on the diagonal). A hair off, heard next tick.
+        float[] nudge = com.killer560.hub.util.RightClick.nudgeIfUnpairable(client, player, "[AutoClear] " + label);
+        if (nudge != null) {
+            releaseUse(client);
+            BODY.turn(player, nudge[0], nudge[1]);
+            phase = Phase.IDLE;
+            tickKind = "turning";
+            return false;
+        }
         phase = next;
         if (next == Phase.ATTACK) {
             pressUse(client);

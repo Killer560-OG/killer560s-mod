@@ -606,6 +606,7 @@ public final class WarpGraph {
             byRepColumn.clear();
             repsByColumn.clear();
             bannedEdges.clear();   // a new floor (a ban left after a smaller change only ever costs a warp)
+            SETTLED_MISSES.clear();
         }
         int[] c;
         List<int[]> boxes = null;
@@ -1759,6 +1760,13 @@ public final class WarpGraph {
      */
     public List<EtherSearch.Hop> plan(EtherSearch.Grid grid, EtherSearch.Hop start, Goal goal, long deadlineNanos,
                                       int maxWarps) {
+        for (long[] m : SETTLED_MISSES) {
+            int u = find(m[0]);
+            int v = find(m[1]);
+            if (u >= 0 && v >= 0) {
+                bannedEdges.add(edgeKey(u, v));
+            }
+        }
         bannedFromStart.clear();
         bannedIntoGoal.clear();
         directBanned = false;
@@ -1801,6 +1809,24 @@ public final class WarpGraph {
 
     /** Edges (from << 32 | to) no aim holds for: never taken again by this graph. */
     private final java.util.HashSet<Long> bannedEdges = new java.util.HashSet<>();
+
+    /**
+     * Hops (packed stand block, packed landing block) with no ray left once he settled 0.05 under the landing they were
+     * aimed from: a hop held behind a block click (util/RightClick) goes from there. Every graph bans them as edges at its
+     * next plan, so no trip takes them again on this floor. Before (clickgap-loop-1125, 1015-sim-clickgap imap+clicks on
+     * 26.2): the replan warped onto his own block to get the 0.05 back, the hop was held again, its look met the Oak
+     * Leaves it cleared by 0.05 and he landed on them, and every plan from there took the same hop, 300 times over.
+     */
+    private static final java.util.Set<long[]> SETTLED_MISSES = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    /** Client thread: the hop from {@code stand}'s node onto {@code landing} missed from where he settled (ClearExecutor). */
+    static void banSettledMiss(net.minecraft.core.BlockPos stand, net.minecraft.core.BlockPos landing) {
+        if (SETTLED_MISSES.size() >= 64) {
+            SETTLED_MISSES.clear();
+        }
+        SETTLED_MISSES.add(new long[]{EtherSearch.pack(stand.getX(), stand.getY(), stand.getZ()),
+                EtherSearch.pack(landing.getX(), landing.getY(), landing.getZ())});
+    }
     /** Per plan: landings his own position has no firm aim at, and nodes with no firm aim onto the exact goal. */
     private final java.util.HashSet<Integer> bannedFromStart = new java.util.HashSet<>();
     private final java.util.HashSet<Integer> bannedIntoGoal = new java.util.HashSet<>();
