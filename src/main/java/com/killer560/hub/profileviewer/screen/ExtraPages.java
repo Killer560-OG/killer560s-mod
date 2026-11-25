@@ -279,7 +279,7 @@ final class ExtraPages {
         return LevelTables.cumulative(table, xp, table.length);
     }
 
-    private static int countAtOrBelow(long[] thresholds, long amount) {
+    static int countAtOrBelow(long[] thresholds, long amount) {
         int n = 0;
         for (long t : thresholds) {
             if (amount >= t) {
@@ -1000,7 +1000,7 @@ final class ExtraPages {
         ScreenChrome.progress(g, l + 280, t + 100, 112, 4, total == 0 ? 0 : done / (float) total, done == total ? MAXED : ACCENT);
     }
 
-    private static long familyKills(ProfileExtras ex, ExtraTables.BestiaryFamily fam) {
+    static long familyKills(ProfileExtras ex, ExtraTables.BestiaryFamily fam) {
         long k = 0;
         for (String mob : fam.mobs()) {
             k += ex.bestiaryKills.getOrDefault(mob, 0L);
@@ -1008,7 +1008,7 @@ final class ExtraPages {
         return k;
     }
 
-    private static int countAtOrBelow(int[] thresholds, long amount) {
+    static int countAtOrBelow(int[] thresholds, long amount) {
         int n = 0;
         for (int t : thresholds) {
             if (amount >= t) {

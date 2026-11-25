@@ -32,6 +32,10 @@ OUT = ROOT / "build/theme-assets"
 MEDIUM = {"amber_aurora": 95}
 PREVIEW_DIV = 4
 PREVIEW_QUALITY = 75
+# Other on-demand files, each folder of theme-assets/ its own release (no in-jar preview, kept in that folder of the cache).
+# "published": False until that release's files are uploaded; the mod then uses a file already in its cache but never
+# downloads one (so it never asks for a release that does not exist). Flip it after the upload and run this again.
+EXTRA = {"pv-panorama": {"release": "pv-panorama-1", "published": False}}
 
 
 def preview_bytes(path):
@@ -53,7 +57,13 @@ def main():
     check = "--check" in sys.argv[1:]
     files = sorted(p for p in SRC.iterdir() if p.is_file() and p.suffix in (".webp", ".ogg"))
     assets = [{"name": p.name, "sha256": hashlib.sha256(p.read_bytes()).hexdigest(), "size": p.stat().st_size} for p in files]
-    manifest = json.dumps({"release": RELEASE, "assets": assets}, indent=2) + "\n"
+    extra = []
+    for folder, info in EXTRA.items():
+        ex = sorted(p for p in (SRC / folder).iterdir() if p.is_file() and p.suffix == ".webp")
+        extra.append({"folder": folder, "release": info["release"], "published": info["published"],
+                      "assets": [{"name": p.name, "sha256": hashlib.sha256(p.read_bytes()).hexdigest(),
+                                  "size": p.stat().st_size} for p in ex]})
+    manifest = json.dumps({"release": RELEASE, "assets": assets, "extra": extra}, indent=2) + "\n"
     stale = []
     target = RES / "theme-assets.json"
     if not target.exists() or target.read_text(encoding="utf-8") != manifest:
@@ -81,6 +91,14 @@ def main():
         shutil.copyfile(p, OUT / p.name)
     print(f"manifest {target.relative_to(ROOT)} ({len(assets)} assets, release {RELEASE})")
     print(f"upload to the {RELEASE} pre-release: " + ", ".join(f"{a['name']} ({a['size']:,})" for a in assets))
+    for e in extra:
+        dst = OUT / e["folder"]
+        dst.mkdir(parents=True, exist_ok=True)
+        for a in e["assets"]:
+            shutil.copyfile(SRC / e["folder"] / a["name"], dst / a["name"])
+        print(f"upload build/theme-assets/{e['folder']}/* ({len(e['assets'])} files, "
+              f"{sum(a['size'] for a in e['assets']):,} bytes) to the {e['release']} pre-release"
+              + ("" if e["published"] else f", then set EXTRA[{e['folder']!r}]['published'] = True and run this again"))
 
 
 if __name__ == "__main__":

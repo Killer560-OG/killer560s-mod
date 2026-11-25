@@ -65,7 +65,8 @@ final class PvStyleChrome {
             NEU_PET_SEL = id("neu/pet_sel"), NEU_PETS = id("neu/pv_pets"),
             NEU_COLS = id("neu/pv_cols"), NEU_CRIMSON = id("neu/pv_crimson"),
             NEU_MUSEUM = id("neu/pv_museum"), NEU_BESTIARY = id("neu/pv_bestiary"), NEU_RIFT = id("neu/pv_rift"), NEU_GARDEN = id("neu/pv_garden"),
-            NEU_TROPHY = id("neu/pv_trophy"), NEU_BINGO_TAB = id("neu/pv_bingo_tab");
+            NEU_TROPHY = id("neu/pv_trophy"), NEU_BINGO_TAB = id("neu/pv_bingo_tab"), NEU_LEVELS = id("neu/pv_levels"), NEU_DROPDOWN_LIST = id("neu/dropdown_list"),
+            NEU_SIDE = id("neu/side"), NEU_SIDE_TOP_ON = id("neu/side_top_on"), NEU_SIDE_ON = id("neu/side_on");
     /** The boxes, {x, y, w, h} from the panel corner, measured off the two textures' painted areas. */
     static final int[] NEU_BASIC_MODEL = {23, 44, 81, 108};
     static final int[] NEU_DUNG_LEVEL = {16, 16, 124, 55}, NEU_DUNG_STATS = {16, 76, 124, 57}, NEU_DUNG_CLASS = {16, 138, 124, 48},
@@ -171,9 +172,23 @@ final class PvStyleChrome {
     static void button(GuiGraphicsExtractor g, Style s, int x, int y, int w, int h, String label, boolean hover, boolean selected) {
         Sprites sp = of(s);
         g.blitSprite(RenderPipelines.GUI_TEXTURED, hover || selected ? sp.buttonHover : sp.button, x, y, w, h);
+        if (s == Style.NEU) {
+            neuCenteredScaled(g, label, x + w / 2f, y + h / 2f, w - 10, NEU_BUTTON_TEXT);
+            return;
+        }
         String t = MenuStyle.ellipsize(label, w - 6);
-        g.text(MenuStyle.font(), t, x + (w - MenuStyle.font().width(t)) / 2, y + (h - 8) / 2,
-                s == Style.NEU ? NEU_BUTTON_TEXT : 0xFFFFFFFF, true);
+        g.text(MenuStyle.font(), t, x + (w - MenuStyle.font().width(t)) / 2, y + (h - 8) / 2, 0xFFFFFFFF, true);
+    }
+
+    /** NEU's drawStringCenteredScaledMaxWidth: centered on cx, cy with shadow, shrunk to maxW when wider. */
+    static void neuCenteredScaled(GuiGraphicsExtractor g, String text, float cx, float cy, int maxW, int color) {
+        int w = MenuStyle.font().width(text);
+        float k = w > maxW ? maxW / (float) w : 1f;
+        g.pose().pushMatrix();
+        g.pose().translate(cx - w * k / 2f, cy - 4 * k);
+        g.pose().scale(k, k);
+        g.text(MenuStyle.font(), text, 0, 0, color, true);
+        g.pose().popMatrix();
     }
 
     /** NEU's skill bar (GuiProfileViewer.renderBar): vanilla's 182 x 5 boss bar, the left half of the width from the
@@ -303,16 +318,19 @@ final class PvStyleChrome {
     /** NEU's profile and second button text color (GuiProfileViewer :333-340, Color(63, 224, 208)). */
     static final int NEU_BUTTON_TEXT = 0xFF3FE0D0;
 
-    /** NEU's gamemode icons beside the profile button (pv_ironman, pv_bingo, pv_stranded; 16 x 16). */
+    /** NEU's gamemode icons beside the profile button (pv_ironman, pv_bingo, pv_stranded; 16 x 16); any other game mode
+     *  (one newer than these) shows its pv_unknown icon, a normal profile none. */
     static Identifier neuGameMode(String mode) {
         return switch (mode == null ? "" : mode) {
             case "ironman" -> NEU_IRONMAN;
             case "bingo" -> NEU_BINGO;
             case "island" -> NEU_STRANDED;
-            default -> null;
+            case "", "normal" -> null;
+            default -> NEU_UNKNOWN;
         };
     }
-    private static final Identifier NEU_IRONMAN = id("neu/pv_ironman"), NEU_BINGO = id("neu/pv_bingo"), NEU_STRANDED = id("neu/pv_stranded");
+    private static final Identifier NEU_IRONMAN = id("neu/pv_ironman"), NEU_BINGO = id("neu/pv_bingo"), NEU_STRANDED = id("neu/pv_stranded"),
+            NEU_UNKNOWN = id("neu/pv_unknown");
 
     /** NEU's recent-player tab on the panel's right edge (pv_elements u 196-256, v 144-200: the top one, a lower one,
      *  each selected or not), 32 x 28 drawn 3 px left of the edge. */

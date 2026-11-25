@@ -304,6 +304,8 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     private final WeightPage weightPage = new WeightPage(this);
     private final SbpvPages sbpvPages = new SbpvPages(this);
     private final NeuTrophyPage neuTrophy = new NeuTrophyPage(this);
+    /** NEU Classic's second Basic page (subView 1 of PAGE_BASIC). */
+    private final NeuLevelPage neuLevel = new NeuLevelPage(this);
     private final NeuBingoPage neuBingo = new NeuBingoPage(this);
     private final List<int[]> tabRects = new ArrayList<>();
     /** The networth the Basic Info line last showed (null while calculating); read by the testkit. */
@@ -693,6 +695,9 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (page == PAGE_BASIC && subView == 0 && neuPage() && com.killer560.hub.compat.McInput.button(event) <= 1) {
+            neuPanorama.pressed((int) event.x(), (int) event.y()); // the drag, before the player model takes the click
+        }
         if (com.killer560.hub.compat.McInput.button(event) == 0) {
             for (Hotspot h : overlayHotspots) {
                 if (h.contains(event.x(), event.y())) {
@@ -897,7 +902,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                 drawNeuRecent(g, mouseX, mouseY, true);
             }
             Identifier over = !neuPage() ? null : switch (page) { // The Mining page has none: plain pv_bg
-                case PAGE_BASIC -> PvStyleChrome.NEU_BASIC;
+                case PAGE_BASIC -> subView == 1 ? PvStyleChrome.NEU_LEVELS : PvStyleChrome.NEU_BASIC;
                 case PAGE_DUNGEONS -> PvStyleChrome.NEU_DUNG;
                 case PAGE_INVENTORIES -> PvStyleChrome.NEU_INVS;
                 case PAGE_PETS -> PvStyleChrome.NEU_PETS;
@@ -1010,7 +1015,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
         SbProfile p = profile();
         // NEU's profile button says only the profile's name, its gamemode icon 21 px left of it (:333-350).
-        String profileLabel = p == null ? null : neuChrome ? p.cuteName : "Profile: " + p.cuteName + gameModeTag(p) + " ▾";
+        String profileLabel = p == null ? null : neuChrome ? p.cuteName : sbpvStyle() ? sbpvProfileLabel(p) : "Profile: " + p.cuteName + gameModeTag(p) + " ▾";
         String styleLabel = "Style: " + pvStyle.label;
         String refresh = neuChrome ? "Refresh" : "⟳ Refresh";
         Identifier modeIcon = neuChrome && p != null ? PvStyleChrome.neuGameMode(p.gameMode) : null;
@@ -1023,9 +1028,9 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         // The profile button is as wide as its longest label ("Profile: Pomegranate ▾"), never a fixed 100.
         int profW = Math.max(100, profileLabel == null ? 0 : this.font.width(profileLabel) + 10);
         if (pvStyle == ProfileViewerConfig.Style.NEU) {
-            // 20 tall dropdowns 3 px under the panel (GuiProfileViewer.java:331-357); wider than 100 only for a long name.
+            // 100 x 20 dropdowns 3 px under the panel (GuiProfileViewer.java:331-357); a long name is drawn smaller to fit 90.
             bh = 20;
-            px = panelX; py = panelY + panelH + 3; pw = profW;
+            px = panelX; py = panelY + panelH + 3; pw = 100;
             sx = 5; sy = 5; sw = this.font.width(styleLabel) + 10; // the Style button is top left in every style (killer560, 2026-11-09)
             rx = px + pw + 6; ry = py; rw = 100;
             stx = rx + rw + 6; sty = py;
@@ -1067,7 +1072,13 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             profileButtonX = px;
             profileButtonY = py;
             profileButtonH = bh;
-            button(g, px, py, pw, bh, profileLabel, mx, my, dropdownOpen, () -> dropdownOpen = !dropdownOpen);
+            button(g, px, py, pw, bh, profileLabel, mx, my, dropdownOpen, () -> {
+                if (neuChrome && this.minecraft.getWindow().getGuiScale() >= 4 && result != null && !result.profiles().isEmpty()) {
+                    selectProfile((profileIndex + 1) % result.profiles().size()); // the original's big-scale button steps instead
+                } else {
+                    dropdownOpen = !dropdownOpen;
+                }
+            });
         }
         // Style: left click the next one, right click the one before; saved at once (the settings tab's Style row).
         styleButton[0] = sx;
@@ -1143,7 +1154,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             g.item(neu ? neuPageIcon(i) : i == PAGE_DUNGEONS ? SBPV_COMBAT_ICON : pageIcon(i), tx + PvStyleChrome.iconDx(pvStyle),
                     ty + PvStyleChrome.iconDy(pvStyle, sel));
             final int idx = i;
-            hotspots.add(new Hotspot(tx, ty, w, h, () -> { if (!(isCombatPage(page) && idx == PAGE_DUNGEONS && !neuStyle())) setPage(idx); }));
+            hotspots.add(new Hotspot(tx, ty, w, h, () -> {
+                if (neu && idx == page) subView = 0; // the original leaves the second page on any tab click
+                if (!(isCombatPage(page) && idx == PAGE_DUNGEONS && !neuStyle())) setPage(idx);
+            }));
             if (inside(mx, my, tx, ty, w, h) && !dropdownOpen) {
                 pendingTooltip = neu ? neuTabTip(i) : i == PAGE_DUNGEONS ? SBPV_COMBAT_TIP : List.of(Component.literal(PAGES[i]).withStyle(style(VALUE)));
             }
@@ -1162,6 +1176,18 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             }
         }
         PvStyleChrome.pageTitle(g, pvStyle, PAGES[page], panelX, panelY, panelW, panelH);
+    }
+
+    /** SkyBlockPV's profile dropdown entry (button and rows): a filled diamond and underline on the selected profile, an
+     *  empty one otherwise, then its game mode mark (an unknown mode as obfuscated red). */
+    static String sbpvProfileLabel(SbProfile p) {
+        return "§f" + (p.selected ? "§n◆ " : "◇ ") + p.cuteName + switch (p.gameMode) {
+            case "bingo" -> " §9Ⓑ";
+            case "ironman" -> " ♻";
+            case "island" -> " §a☀";
+            case "", "normal" -> "";
+            default -> " §c§ka";
+        };
     }
 
     private static String gameModeTag(SbProfile p) {
@@ -1356,6 +1382,24 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     }
 
     private static final int NEU_RECENT_MAX = 7;
+    private static final ItemStack NEU_HOME_ICON = new ItemStack(Items.PAPER);
+
+    /** NEU Classic's two Basic page buttons on the panel's left edge (Home with paper, Level with the level skull, 28 apart);
+     *  the open one is the wider pressed cell, the hover is its gray name. */
+    private void drawNeuSideButtons(GuiGraphicsExtractor g, int mx, int my) {
+        for (int i = 0; i < 2; i++) {
+            boolean on = subView == i;
+            int x = panelX - 28, y = panelY + i * 28;
+            g.blitSprite(RenderPipelines.GUI_TEXTURED, on ? (i == 0 ? PvStyleChrome.NEU_SIDE_TOP_ON : PvStyleChrome.NEU_SIDE_ON) : PvStyleChrome.NEU_SIDE,
+                    x, y, on ? 32 : 28, 28);
+            g.item(i == 0 ? NEU_HOME_ICON : NeuLevelPage.skull(), x + 8, y + 7);
+            final int view = i;
+            hotspots.add(new Hotspot(x - 1, y, 29, 28, () -> subView = view));
+            if (inside(mx, my, x, y, 28, 28) && !dropdownOpen) {
+                pendingTooltip = List.of(Component.literal(i == 0 ? "§7Home" : "§7Level"));
+            }
+        }
+    }
 
     private void neuRecentRow(GuiGraphicsExtractor g, int x, int y, boolean top, UUID id, String storedName,
                               int mx, int my, boolean front, ProfileViewerConfig.RecentView v) {
@@ -1416,13 +1460,18 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     private void drawDropdown(GuiGraphicsExtractor g, int mx, int my) {
         if (result == null) return;
         List<SbProfile> list = result.profiles();
-        int w = 150;
+        if (pvStyle == ProfileViewerConfig.Style.NEU) {
+            drawNeuDropdown(g, list);
+            return;
+        }
+        boolean sb = sbpvStyle(); // SkyBlockPV: its 100 x 20 rows
+        int w = sb ? 100 : 150;
         for (SbProfile p : list) {
-            w = Math.max(w, this.font.width(p.cuteName + gameModeTag(p) + "  (selected)") + 12);
+            if (!sb) w = Math.max(w, this.font.width(p.cuteName + gameModeTag(p) + "  (selected)") + 12);
         }
         int x = profileButtonX >= 0 ? profileButtonX : panelX + panelW - 6 - w;
         x = Math.max(panelX + 4, Math.min(x, panelX + panelW - 4 - w));
-        int rowH = 14;
+        int rowH = sb ? 20 : 14;
         int listH = list.size() * rowH + 4;
         int y = profileButtonY < 0 ? panelY + 21 : profileButtonY + profileButtonH + 1;
         if (y + listH > this.height && profileButtonY - 1 - listH >= 0) {
@@ -1436,22 +1485,53 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             if (hover) {
                 selBand(g, x + 1, ry, w - 2, rowH);
             }
-            String label = p.cuteName + gameModeTag(p) + (p.selected ? "  (selected)" : "");
-            tx(g, label, x + 6, ry + 3, i == profileIndex ? VALUE : TEXT);
+            String label = sb ? sbpvProfileLabel(p) : p.cuteName + gameModeTag(p) + (p.selected ? "  (selected)" : "");
+            tx(g, label, x + 6, ry + (rowH - 8) / 2, i == profileIndex ? VALUE : TEXT);
             final int idx = i;
             overlayHotspots.add(new Hotspot(x, ry, w, rowH, () -> {
-                profileIndex = idx;
                 dropdownOpen = false;
-                invPage = 0;
-                invScroll = 0;
-                pageScroll = 0;
-                subView = 0;
-                subPage = 0;
-                petScroll = 0;
-                pinnedPet = null;
-                rebuildSafe();
+                selectProfile(idx);
             }));
         }
+    }
+
+    /** NEU Classic's profile list (GuiProfileViewer :375-430): pv_dropdown's right half under the profile button, 100 wide,
+     *  a row per profile 20 tall (10 at GUI scale 3; none at 4 and up, where a click on the button steps the profile
+     *  instead), each name centered in #217068 at most 90 wide and its gamemode icon 21 px left of the panel. */
+    private void drawNeuDropdown(GuiGraphicsExtractor g, List<SbProfile> list) {
+        int scale = (int) this.minecraft.getWindow().getGuiScale();
+        if (scale >= 4) {
+            dropdownOpen = false;
+            return;
+        }
+        int row = scale == 3 ? 10 : 20, size = list.size() * row, x = panelX, y = panelY + panelH + 23;
+        g.blitSprite(RenderPipelines.GUI_TEXTURED, PvStyleChrome.NEU_DROPDOWN_LIST, 100, 185, 0, 0, x, y - 3, 100, 3);
+        int mid = Math.max(0, Math.min(181, size - 4));
+        g.blitSprite(RenderPipelines.GUI_TEXTURED, PvStyleChrome.NEU_DROPDOWN_LIST, 100, 185, 0, 181 - mid, x, y, 100, mid);
+        g.blitSprite(RenderPipelines.GUI_TEXTURED, PvStyleChrome.NEU_DROPDOWN_LIST, 100, 185, 0, 181, x, y + size - 4, 100, 4);
+        for (int i = 0; i < list.size(); i++) {
+            SbProfile p = list.get(i);
+            PvStyleChrome.neuCenteredScaled(g, p.cuteName, x + 50, y + row / 2f + row * i, 90, 0xFF217068);
+            Identifier icon = PvStyleChrome.neuGameMode(p.gameMode);
+            if (icon != null) g.blitSprite(RenderPipelines.GUI_TEXTURED, icon, panelX - 21, y + 2 + row * i, 16, 16);
+            final int idx = i;
+            overlayHotspots.add(new Hotspot(x, y + row * i, 100, row, () -> {
+                dropdownOpen = false;
+                if (idx != profileIndex) selectProfile(idx);
+            }));
+        }
+    }
+
+    private void selectProfile(int idx) {
+        profileIndex = idx;
+        invPage = 0;
+        invScroll = 0;
+        pageScroll = 0;
+        subView = 0;
+        subPage = 0;
+        petScroll = 0;
+        pinnedPet = null;
+        rebuildSafe();
     }
 
     private void drawError(GuiGraphicsExtractor g, int mx, int my) {
@@ -1508,10 +1588,40 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         ExtraPages.NetworthState nw = extraPages.networthState(p);
         long worth = nw.result() != null ? nw.result().total(ProfileViewerConfig.getInstance().getNetworthView()) : nw.failed() ? -2 : -1;
         SbpvMain m = sbpvMain;
-        if (m == null || m.profile != p || m.worth != worth || m.extras != ex) {
-            m = sbpvMain = new SbpvMain(p, worth, ex);
+        Double cookie = com.killer560.hub.pricetooltip.PriceData.bazaarBuy("BOOSTER_COOKIE");
+        if (m == null || m.profile != p || m.worth != worth || m.extras != ex || m.cookie == null && cookie != null) {
+            m = sbpvMain = new SbpvMain(p, worth, ex, nw.result(), cookie);
         }
         return m;
+    }
+
+    /** NetworthDisplay's hover: the total, in Booster Cookies and in US dollars (a cookie's 325 gems at 675 for $4.99), and
+     *  each source; with no cookie price it has none (only our click line). Its settings note is left out (no such setting). */
+    private static List<Component> sbpvWorthTip(long worth, com.killer560.hub.profileviewer.data.Networth.Result nw, Double cookie,
+            boolean stranded, boolean museum) {
+        List<Component> t = new ArrayList<>();
+        if (cookie != null && cookie > 0) {
+            double cookies = worth / cookie;
+            t.add(Component.literal("§eNetworth: §a" + commas(worth)));
+            t.add(Component.literal("§eNet worth in Cookies: §6" + commas(Math.round(cookies))));
+            t.add(Component.literal("§eNet worth in USD: §a$" + String.format(Locale.US, "%,.2f", cookies * 325.0 / 675.0 * 4.99)));
+            t.add(Component.empty());
+            t.add(Component.literal("§7Source: "));
+            if (nw != null) {
+                for (var c : nw.categories()) t.add(Component.literal("§e" + c.name() + ": §a" + commas(c.total())));
+            }
+            if (!museum) t.add(Component.literal("§eMuseum: §cNot loaded"));
+            if (stranded) {
+                t.add(Component.empty());
+                t.add(Component.literal("§7* Stranded players do not have museum data"));
+            } else if (!museum) {
+                t.add(Component.empty());
+                t.add(Component.literal("§7* Open Museum tab to include Museum net worth"));
+            }
+            t.add(Component.empty());
+        }
+        t.add(Component.literal("§7Click for the Networth page"));
+        return t;
     }
 
     /** SkyBlockPV's main page (MainScreen): Info on the left, the player in the middle 20 %, Skills and Slayer chips on
@@ -1618,15 +1728,17 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         final SbProfile profile;
         final long worth;
         final ProfileExtras extras;
+        final Double cookie;
         final String[] info;
         final List<Component>[] infoTips;
         final List<SbpvChips> sections = new ArrayList<>();
 
         @SuppressWarnings("unchecked")
-        SbpvMain(SbProfile p, long worth, ProfileExtras ex) {
+        SbpvMain(SbProfile p, long worth, ProfileExtras ex, com.killer560.hub.profileviewer.data.Networth.Result nw, Double cookie) {
             this.profile = p;
             this.worth = worth;
             this.extras = ex;
+            this.cookie = cookie;
             double sum = 0;
             int count = 0;
             if (p.skillXp != null) {
@@ -1687,9 +1799,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                         + (deaths == 0 ? "∞" : SbpvPages.round((double) kills / deaths)) + ")");
                 tips.add(null);
             }
-            lines.add("Net Worth: " + (worth >= 0 ? SbpvPages.shorten(worth, 1) : worth == -2 ? "Failed to load" : "Loading..."));
-            tips.add(worth >= 0 ? List.of(Component.literal("§eNetworth: §a" + commas(worth)),
-                    Component.literal("§7Click for the Networth page")) : null);
+            // NetworthDisplay: a * while the museum is not in it (not on Stranded, which has none)
+            boolean stranded = "island".equals(p.gameMode), museum = stranded || nw != null && nw.museumIncluded();
+            lines.add("Net Worth: " + (worth >= 0 ? SbpvPages.shorten(worth, 1) + (museum ? "" : "*") : worth == -2 ? "Failed to load" : "Loading..."));
+            tips.add(worth >= 0 ? sbpvWorthTip(worth, nw, cookie, stranded, museum) : null);
             info = lines.toArray(new String[0]);
             infoTips = tips.toArray(new List[0]);
 
@@ -1940,7 +2053,12 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             return;
         }
         if (neuPage()) {
-            drawNeuBasic(g, p, mx, my);
+            drawNeuSideButtons(g, mx, my);
+            if (subView == 1) {
+                neuLevel.draw(g, p, mx, my);
+            } else {
+                drawNeuBasic(g, p, mx, my);
+            }
             return;
         }
         minRowScale = 1f;
@@ -2083,6 +2201,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         var f = this.font;
         int gx = panelX, gy = panelY;
         boolean hov = !dropdownOpen;
+        // BasicPage: the panorama of the island the loaded status shows ("unknown" before), behind the player
+        ProfileViewerApi.StatusResult st = uuid == null ? null : ProfileViewerApi.getCachedStatus(uuid);
+        int[] box = PvStyleChrome.NEU_BASIC_MODEL;
+        neuPanorama.draw(g, gx + box[0], gy + box[1], box[2], box[3], st == null ? "" : st.mode(), mx, my);
         if (!nb.name.isEmpty()) {
             int half = f.width(nb.name) / 2;
             g.fill(gx + 63 - half - 1, gy + 53, gx + 63 + half + 1, gy + 62, 0x40000000);
@@ -2117,8 +2239,9 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         g.pose().pushMatrix();
         g.pose().translate(gx + 162, gy + 74);
         g.pose().scale(1.5f, 1.5f);
-        g.item(headFor(uuid), 0, 0);
+        g.item(NeuLevelPage.skull(), 0, 0);
         g.pose().popMatrix();
+        hotspots.add(new Hotspot(gx + 128, gy + 49, 89, 65, () -> subView = 1)); // a click in the level box opens the Level page
         g.pose().pushMatrix();
         g.pose().translate(gx + 171 - f.width(nb.sbLevel) * 0.75f, gy + 62 - 6f);
         g.pose().scale(1.5f, 1.5f);
@@ -2178,6 +2301,22 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         return neuRankName;
     }
     private PvModel neuModel;
+    private final NeuPanorama neuPanorama = new NeuPanorama();
+
+    /** Testkit: the NEU Basic panorama's set, whether it is up, frames drawn. */
+    String panoramaForTest() { return neuPanorama.stateForTest(); }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        neuPanorama.released((int) event.x());
+        return super.mouseReleased(event);
+    }
+
+    @Override
+    public void removed() {
+        neuPanorama.release();
+        super.removed();
+    }
 
     /** One NEU skill or slayer cell: its panel position, the text and bar it draws and its hover. */
     private record NeuCell(int x, int y, ItemStack icon, String name, int color, String level, float progress, boolean maxed,

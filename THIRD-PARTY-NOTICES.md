@@ -39,8 +39,20 @@ were read from their sources.
   `pv_elements.png`, `pv_basic.png`, `pv_dung.png`, `pv_invs.png`, `pv_pets.png`, `pv_cols.png`, `pv_dropdown.png`, `slot.png` (one cell of `pv_invs.png`), and
   `inv_tab.png`, `inv_tab_on.png`, `pet_sel.png` (one `pv_elements.png` cell: as drawn, turned, and tinted as NEU tints it),
   `recent_top.png`, `recent_top_on.png`, `recent.png`, `recent_on.png` (`pv_elements.png` cells), `pv_ironman.png`, `pv_bingo.png`, `pv_trophy.png` (`pv_trophy_fish_tab.png`), `pv_bingo_tab.png`,
-  `pv_stranded.png`), Copyright NotEnoughUpdates contributors, licensed under the
+  `pv_levels.png`, `side.png`, `side_top_on.png`, `side_on.png` (`pv_elements.png` side-button cells), `dropdown_list.png` (right half of `pv_dropdown.png`),
+  `pv_stranded.png`, `pv_unknown.png`), Copyright NotEnoughUpdates contributors, licensed under the
   GNU Lesser General Public License v3.0 (https://www.gnu.org/licenses/lgpl-3.0.html).
+- `theme-assets/pv-panorama/pvpano_*.webp` (not in the jar; downloaded on demand from the `pv-panorama-1` release): the 144
+  profile viewer panoramas of [NotEnoughUpdates](https://github.com/NotEnoughUpdates/NotEnoughUpdates) (commit 9b1fcfe,
+  `assets/notenoughupdates/panoramas/<set>/panorama_<i>.jpg`), re-encoded to WebP and renamed, Copyright NotEnoughUpdates
+  contributors, licensed under the GNU Lesser General Public License v3.0 (license texts beside them, `COPYING.LESSER`, `COPYING`).
+- `assets/killer560smod/profileviewer/sblevels.json`: the SkyBlock level task table from
+  [NotEnoughUpdates-REPO](https://github.com/NotEnoughUpdates/NotEnoughUpdates-REPO) (`constants/sblevels.json` and `misc.json`
+  `minionXp` at commit 5a5e9866a, `constants/essenceshops.json` perk ids), used under the MIT License: Copyright (c)
+  2020 Moulberry. Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+  associated documentation files (the "Software"), to deal in the Software without restriction, subject to the condition that
+  the above copyright notice and this permission notice shall be included in all copies or substantial portions of the
+  Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
 - `pv/sbpv/light`, `pv/sbpv/dark`, `pv/sbpv/clear`: from [SkyBlockPv](https://github.com/meowdding/skyblock-pv)
   (its default, darkmode and neu theme sprites; `slot.png` is one cell of each theme's `inventory/mono.png`, `side_tab.png` and
   `side_tab_on.png` are its `tabs/right` sprites, `title.png` its `box/title`, `chip.png` its `box/rounded_box_thin`, `player_bg.png` its `buttons/disabled`, and `bar_*.png` its `progressbar` sprites), and in `pv/sbpv` itself

@@ -46,5 +46,734 @@
       "sha256": "d75f1557460a4b78f52abdc7ab96eca66db0e05f4e7c0e884c4cfa4138074ac8",
       "size": 454713
     }
+  ],
+  "extra": [
+    {
+      "folder": "pv-panorama",
+      "release": "pv-panorama-1",
+      "published": false,
+      "assets": [
+        {
+          "name": "pvpano_combat_1_day_0.webp",
+          "sha256": "1e29c287383e470c6f357dad3d9066b49162352498c215c161e4b4f6becbf902",
+          "size": 13818
+        },
+        {
+          "name": "pvpano_combat_1_day_1.webp",
+          "sha256": "054235046af896edcc36aa4a1ea736ca4d95c8b9136ea0d1e04ed52c71d8f0b2",
+          "size": 14008
+        },
+        {
+          "name": "pvpano_combat_1_day_2.webp",
+          "sha256": "303b0a07f0a3ec721121cc6216278aa77f8be917209fad0ce284bc706f107a19",
+          "size": 12074
+        },
+        {
+          "name": "pvpano_combat_1_day_3.webp",
+          "sha256": "badb6bb940d4d62c45b2e340d2fa92dfb1a65cbfd7e18ab58b9b69717424056e",
+          "size": 13792
+        },
+        {
+          "name": "pvpano_combat_1_day_4.webp",
+          "sha256": "1110dda382c0d8f72cd72f14ca8da4d62935a65ca369c1175b1e34a8471dd154",
+          "size": 10910
+        },
+        {
+          "name": "pvpano_combat_1_day_5.webp",
+          "sha256": "e5fd73f5be7f95f3e35103195d3558e8359a4ec2c05cb9072f429b9f72941fe2",
+          "size": 5630
+        },
+        {
+          "name": "pvpano_combat_1_night_0.webp",
+          "sha256": "72c4030d372b7fe5acb221daedf738f1f2f695010b8478afe951d1fc40690b4c",
+          "size": 8062
+        },
+        {
+          "name": "pvpano_combat_1_night_1.webp",
+          "sha256": "11eca6a7e2c0d9d44ea489039366069e283ca8d4f592bca250102549d5a389cb",
+          "size": 6954
+        },
+        {
+          "name": "pvpano_combat_1_night_2.webp",
+          "sha256": "36cc9aa4a358e0f248ee05674dc631ac9cbd799e628749441233007dd4f7bab4",
+          "size": 5726
+        },
+        {
+          "name": "pvpano_combat_1_night_3.webp",
+          "sha256": "9c59bdaa40a2de52ec7a0f9fa0d3d2b3651afe5b0b4d5a66f512d5df0c75c10c",
+          "size": 5346
+        },
+        {
+          "name": "pvpano_combat_1_night_4.webp",
+          "sha256": "c00ec3dbd1c528b97ae3bf54e28f3aeb3733243287a53969d7ecf1dbce361769",
+          "size": 4804
+        },
+        {
+          "name": "pvpano_combat_1_night_5.webp",
+          "sha256": "396f9bf5dd04dfc61e8f05a264c1efe61068d1bbfe1b04d1b3f90740f8ff144f",
+          "size": 6682
+        },
+        {
+          "name": "pvpano_combat_3_day_0.webp",
+          "sha256": "2b431d044edb2abccdd45e2584a73f8d7629c09dcb89b5d965dc623afecbbafa",
+          "size": 20552
+        },
+        {
+          "name": "pvpano_combat_3_day_1.webp",
+          "sha256": "f46a667d969f4266a97f8ede4e817161eed4fb6b420ca9514e57a5f3f130f997",
+          "size": 16246
+        },
+        {
+          "name": "pvpano_combat_3_day_2.webp",
+          "sha256": "cee9a9f8f27fed80d319fce29472d95a734efe4468680c96f63a1c5e43cc5daf",
+          "size": 12842
+        },
+        {
+          "name": "pvpano_combat_3_day_3.webp",
+          "sha256": "ade4360c858c219f52eb19510f7a80821711d62990622b41af2f5666babbfe94",
+          "size": 17588
+        },
+        {
+          "name": "pvpano_combat_3_day_4.webp",
+          "sha256": "cfed1a2ad13f52c1552637e2b751d8d049b12ae138e7f3abf5e415d3579d5b5e",
+          "size": 11070
+        },
+        {
+          "name": "pvpano_combat_3_day_5.webp",
+          "sha256": "276070d20f10ddb06bdfb1c696612e43b4700dec5064abe4791f609cdbce4abf",
+          "size": 10620
+        },
+        {
+          "name": "pvpano_combat_3_night_0.webp",
+          "sha256": "ca9c578b53f48285de06fc5ca50ce1f0bd252de2d5f73aa980bfe1c1468bcb71",
+          "size": 9242
+        },
+        {
+          "name": "pvpano_combat_3_night_1.webp",
+          "sha256": "0c55a8d43877431b2e724d5b080e408a571bd5d0091086bfa685f0854f9971f9",
+          "size": 5408
+        },
+        {
+          "name": "pvpano_combat_3_night_2.webp",
+          "sha256": "31c05b10b935193322d2f924420b263c808e285c9cd84ae2e9084f60a92b5022",
+          "size": 7124
+        },
+        {
+          "name": "pvpano_combat_3_night_3.webp",
+          "sha256": "d975cfe05dd056c13bdbc9f50dc2fefa977200cd70856a6cee0bf6a13d5c163c",
+          "size": 9784
+        },
+        {
+          "name": "pvpano_combat_3_night_4.webp",
+          "sha256": "cc812327f10d22c105eb00b1d8df2821987f4ca97273e01efda98f2c22726d15",
+          "size": 5048
+        },
+        {
+          "name": "pvpano_combat_3_night_5.webp",
+          "sha256": "a44161b307012e2fcc06f65fb6021e5269b145ab8fe597089b2ff889751084c1",
+          "size": 4828
+        },
+        {
+          "name": "pvpano_crimson_isle_0.webp",
+          "sha256": "c82c0ba9aa05dcf20a75234a8e85f81f321e84d63e1a6c0f1baade09aee26ad6",
+          "size": 381664
+        },
+        {
+          "name": "pvpano_crimson_isle_1.webp",
+          "sha256": "8a7e8594369a49fd19e16dc7804274b3c24cf032b9a6341d3d589498c627089c",
+          "size": 272964
+        },
+        {
+          "name": "pvpano_crimson_isle_2.webp",
+          "sha256": "41c87d53da55fc0df0970cf5d9f6d9e66be5c5e5338fb9ce4f81d8c37ceefefc",
+          "size": 144880
+        },
+        {
+          "name": "pvpano_crimson_isle_3.webp",
+          "sha256": "0beff9a1dd42a81021e1a82ceeada799892998d8cc17321c451e33ca0a52275b",
+          "size": 271232
+        },
+        {
+          "name": "pvpano_crimson_isle_4.webp",
+          "sha256": "9f0dc6c6ab3425163b5b6e3df14a0ed9c4737dc80131964eb1227ce8bbe3f1bf",
+          "size": 40868
+        },
+        {
+          "name": "pvpano_crimson_isle_5.webp",
+          "sha256": "6cdb0cc04f4849709aceaeb60674bd442bbc2aa8af044c5ca2765223d95ab22f",
+          "size": 98944
+        },
+        {
+          "name": "pvpano_crystal_hollows_0.webp",
+          "sha256": "756aa8723e725c8feb11c14bd54e9e2f361a366e73d1c7434479e90674e8b1ed",
+          "size": 22050
+        },
+        {
+          "name": "pvpano_crystal_hollows_1.webp",
+          "sha256": "74bf02d3fefac3e132c0613835b9ec83b0d03323df19962377deeb8c59c33615",
+          "size": 25480
+        },
+        {
+          "name": "pvpano_crystal_hollows_2.webp",
+          "sha256": "9844893c9a21dbc9a845a2ba8618a44a72cf70530f1e0fb474e253b45ad72deb",
+          "size": 23916
+        },
+        {
+          "name": "pvpano_crystal_hollows_3.webp",
+          "sha256": "6c78d0ab04aae8a8af64bdfc5c6906ed28d8fee9fe4ff359a213475f88a69d84",
+          "size": 25282
+        },
+        {
+          "name": "pvpano_crystal_hollows_4.webp",
+          "sha256": "6e9cfcd4625d363374db250e62a8c15ec655fcbddca983801a296d9953de2d14",
+          "size": 26594
+        },
+        {
+          "name": "pvpano_crystal_hollows_5.webp",
+          "sha256": "1b99d6447fa6a49d2e3926014bc30263d89b728fb8606aaf76edb80f217d137d",
+          "size": 6954
+        },
+        {
+          "name": "pvpano_dark_auction_0.webp",
+          "sha256": "221d1b4e2618df21692fb26f3fa7912a9ee781410bd575e08b518f8837d89a43",
+          "size": 11016
+        },
+        {
+          "name": "pvpano_dark_auction_1.webp",
+          "sha256": "1701e4affde950bb98bf82587ee101a9c7a4315b6e419f97beda2d80f25976de",
+          "size": 11514
+        },
+        {
+          "name": "pvpano_dark_auction_2.webp",
+          "sha256": "95e4d0e792a14096070562181e88c9c00f967516480d990392fdbf81ba489e9c",
+          "size": 10874
+        },
+        {
+          "name": "pvpano_dark_auction_3.webp",
+          "sha256": "3b4f4e2fbc9356a4bf5fc9750c070c1cc4009664cbc46915eeaee46e66569346",
+          "size": 11412
+        },
+        {
+          "name": "pvpano_dark_auction_4.webp",
+          "sha256": "4bd1c77dcd6f90884a91948ae7d321d3d0a75fbc7a6b20df1aadca5cd14782f1",
+          "size": 11066
+        },
+        {
+          "name": "pvpano_dark_auction_5.webp",
+          "sha256": "258453e6e790052f2fc645df1a6e17f0484f3de2535f0af88d5cc671ffcef4ac",
+          "size": 8124
+        },
+        {
+          "name": "pvpano_dungeon_0.webp",
+          "sha256": "490e6f0925ae9596ffdcd4d5325b4eeee5ec3dc0a84bfff863b77995d20cbe7a",
+          "size": 7676
+        },
+        {
+          "name": "pvpano_dungeon_1.webp",
+          "sha256": "5b6def74ccf1a0ce13b90f1290c552e5d016ec80a19be734c207273d37cdf678",
+          "size": 10246
+        },
+        {
+          "name": "pvpano_dungeon_2.webp",
+          "sha256": "dd6563e447881e8c90506ee4b390f17b0056571c3bbe13f41972e3b628495721",
+          "size": 8676
+        },
+        {
+          "name": "pvpano_dungeon_3.webp",
+          "sha256": "b521bb195bbba0d2f9571a85094dfc9d6b5b4d8c41eb9cb8e661fc12c978e441",
+          "size": 9168
+        },
+        {
+          "name": "pvpano_dungeon_4.webp",
+          "sha256": "d07f3a20c6148adb566c34eae19401e8f49d1029c812bf65c422e17e6744b59e",
+          "size": 9852
+        },
+        {
+          "name": "pvpano_dungeon_5.webp",
+          "sha256": "80170f0095cc0eb49a236ec7cddaf40e29bf11d690fb2461ce1e2469200ba1b5",
+          "size": 7842
+        },
+        {
+          "name": "pvpano_dungeon_hub_0.webp",
+          "sha256": "490e6f0925ae9596ffdcd4d5325b4eeee5ec3dc0a84bfff863b77995d20cbe7a",
+          "size": 7676
+        },
+        {
+          "name": "pvpano_dungeon_hub_1.webp",
+          "sha256": "5b6def74ccf1a0ce13b90f1290c552e5d016ec80a19be734c207273d37cdf678",
+          "size": 10246
+        },
+        {
+          "name": "pvpano_dungeon_hub_2.webp",
+          "sha256": "dd6563e447881e8c90506ee4b390f17b0056571c3bbe13f41972e3b628495721",
+          "size": 8676
+        },
+        {
+          "name": "pvpano_dungeon_hub_3.webp",
+          "sha256": "b521bb195bbba0d2f9571a85094dfc9d6b5b4d8c41eb9cb8e661fc12c978e441",
+          "size": 9168
+        },
+        {
+          "name": "pvpano_dungeon_hub_4.webp",
+          "sha256": "d07f3a20c6148adb566c34eae19401e8f49d1029c812bf65c422e17e6744b59e",
+          "size": 9852
+        },
+        {
+          "name": "pvpano_dungeon_hub_5.webp",
+          "sha256": "80170f0095cc0eb49a236ec7cddaf40e29bf11d690fb2461ce1e2469200ba1b5",
+          "size": 7842
+        },
+        {
+          "name": "pvpano_dynamic_day_0.webp",
+          "sha256": "07f3237a3fb91d1863956543acd79cd89fa79e308b4a18f176b9668cfb835945",
+          "size": 21216
+        },
+        {
+          "name": "pvpano_dynamic_day_1.webp",
+          "sha256": "ff0d98e0b2be1c20a2c67141e18175fa9e710691a8458868848ee5c2e9b6b74d",
+          "size": 20068
+        },
+        {
+          "name": "pvpano_dynamic_day_2.webp",
+          "sha256": "dd5b5e719f07399bca99728751fe520414ec4cdb9dbe8e1c19e16d529cb7989c",
+          "size": 22392
+        },
+        {
+          "name": "pvpano_dynamic_day_3.webp",
+          "sha256": "ecc3df88d39f3cc22b09272db73914955d9015634e427ae111098d05dd0f9765",
+          "size": 27180
+        },
+        {
+          "name": "pvpano_dynamic_day_4.webp",
+          "sha256": "b50a6184f8e3c3b7105b778aa8ad5edd36f44eea10798cc269267e960b9e7aca",
+          "size": 14406
+        },
+        {
+          "name": "pvpano_dynamic_day_5.webp",
+          "sha256": "f61adab042f803505e4573e8d82bc7947f859237ba2a060943833a35a447c374",
+          "size": 11126
+        },
+        {
+          "name": "pvpano_dynamic_night_0.webp",
+          "sha256": "acc2e2b32261460db1f147d33de8136392095122d3ee1cce27c1a15ed5a172ec",
+          "size": 16972
+        },
+        {
+          "name": "pvpano_dynamic_night_1.webp",
+          "sha256": "1b4b9b6df182cc6a0a6f136d78bab7ab2d776899d68235deaeeb2e362801980b",
+          "size": 19288
+        },
+        {
+          "name": "pvpano_dynamic_night_2.webp",
+          "sha256": "138498b32de23419351cde4cb9e6e95259713693c3963b965627429d25c5a0d7",
+          "size": 18834
+        },
+        {
+          "name": "pvpano_dynamic_night_3.webp",
+          "sha256": "71cdc779edcf269719ee13a0fbae037d75bcab269ef779e4b4e659ccb5b6f8ca",
+          "size": 18388
+        },
+        {
+          "name": "pvpano_dynamic_night_4.webp",
+          "sha256": "2551f4c59d2a284b2a3d63f632c2e2fb1034393af5aad2e2f9285b0a821a004f",
+          "size": 15196
+        },
+        {
+          "name": "pvpano_dynamic_night_5.webp",
+          "sha256": "3a689d1892e46753dc56967fb9f920497c9dd8074c3ae509cb6e6ff02b7ae971",
+          "size": 11184
+        },
+        {
+          "name": "pvpano_farming_1_day_0.webp",
+          "sha256": "7f5c009cbc2bc19d279549a610da7ee8eeada9e3e9b060338e494c60c2fda956",
+          "size": 20900
+        },
+        {
+          "name": "pvpano_farming_1_day_1.webp",
+          "sha256": "8f9148658be7ec0adef7eaba9cba123ee9d02ecf23e42725483d6cb4c279aa50",
+          "size": 29592
+        },
+        {
+          "name": "pvpano_farming_1_day_2.webp",
+          "sha256": "5eac771da9a441eb9aebd16da2a932d54f130990de6953a56fab9708421a099e",
+          "size": 29344
+        },
+        {
+          "name": "pvpano_farming_1_day_3.webp",
+          "sha256": "01018663a522ed20731f0afbea4d0ec83ad2a2a6398a7164992a0e6317b472f3",
+          "size": 23408
+        },
+        {
+          "name": "pvpano_farming_1_day_4.webp",
+          "sha256": "c8a88788af0a0b2bf9b89610c909c521c1504288e736521f1648710b103cc183",
+          "size": 8804
+        },
+        {
+          "name": "pvpano_farming_1_day_5.webp",
+          "sha256": "5425b052180597ff53a21a7d3e58511733b01120c2855f071cbf7e0028c6cf3a",
+          "size": 29410
+        },
+        {
+          "name": "pvpano_farming_1_night_0.webp",
+          "sha256": "5835eca323656108a39f654813211483aec962af2d4bf32bd1e3504ae766a1ab",
+          "size": 11214
+        },
+        {
+          "name": "pvpano_farming_1_night_1.webp",
+          "sha256": "f8940f6b3aa68aefb9dcbedf897d19ffaa957394bab5fec92eb99d9eda36e883",
+          "size": 13664
+        },
+        {
+          "name": "pvpano_farming_1_night_2.webp",
+          "sha256": "f248bb058c75e284d7e2352e5c2ef4fbcbed490d4e12e9669e1c000adb79d6b6",
+          "size": 15640
+        },
+        {
+          "name": "pvpano_farming_1_night_3.webp",
+          "sha256": "7243fc872e02abdee1cbbdd1f12047921b0e4bbf244e840a14bdae1cbcdd6b46",
+          "size": 12584
+        },
+        {
+          "name": "pvpano_farming_1_night_4.webp",
+          "sha256": "f2d0dc87859494ee230ee837f9ea2fa94855fd15a1046aa5457d5097152b5831",
+          "size": 4678
+        },
+        {
+          "name": "pvpano_farming_1_night_5.webp",
+          "sha256": "1e027ab8273e3d480cad122d087719b4ea43e857f75fd527c43bfc7e22fdcb77",
+          "size": 16266
+        },
+        {
+          "name": "pvpano_farming_2_day_0.webp",
+          "sha256": "28e905138af166867575bb6bb6494cdfe9546b1937d32f2f67744f633a7b7c53",
+          "size": 19364
+        },
+        {
+          "name": "pvpano_farming_2_day_1.webp",
+          "sha256": "d191f5626f6574ed102db7db0efd00e5951c84ece06f84a4e57ac8ec92509315",
+          "size": 19510
+        },
+        {
+          "name": "pvpano_farming_2_day_2.webp",
+          "sha256": "e5afd4ab236714e29783a4d93d1beec97b0209a2728514bf182729086a59ec82",
+          "size": 19286
+        },
+        {
+          "name": "pvpano_farming_2_day_3.webp",
+          "sha256": "c37348d9bcbea3368fe4ea352788edd42df6c699300e85550996b9980fe5e108",
+          "size": 19646
+        },
+        {
+          "name": "pvpano_farming_2_day_4.webp",
+          "sha256": "1f8981868d2248c8fdab1762505dd89e2b8922fa77a5022e817c3959d6d92b0e",
+          "size": 5396
+        },
+        {
+          "name": "pvpano_farming_2_day_5.webp",
+          "sha256": "b5df5f57f1be15fc9c39cd37555a985473c732cde7190506548510bacbbca2ba",
+          "size": 15128
+        },
+        {
+          "name": "pvpano_farming_2_night_0.webp",
+          "sha256": "2ccf07c37924d182fccf9261a615760fd009745c99325c3f0632b163acb26ec4",
+          "size": 10644
+        },
+        {
+          "name": "pvpano_farming_2_night_1.webp",
+          "sha256": "7f3c3f8301eff3b32cfc496375ba92faf7e79cc261e86aa42fcdfe9fc65cb136",
+          "size": 7724
+        },
+        {
+          "name": "pvpano_farming_2_night_2.webp",
+          "sha256": "22621dea02fa74600dd0308ce18386c3b9f279d78152441690e0a305d5f60078",
+          "size": 8304
+        },
+        {
+          "name": "pvpano_farming_2_night_3.webp",
+          "sha256": "598e4305f0eed170fdd7ec186c553e63707fb8b31a5ca545fc6606b429bddc67",
+          "size": 8966
+        },
+        {
+          "name": "pvpano_farming_2_night_4.webp",
+          "sha256": "cfe1723cbada34c0da8ba3d3155a5ee06d67da5409e3882f15341f9f3759cdcb",
+          "size": 2632
+        },
+        {
+          "name": "pvpano_farming_2_night_5.webp",
+          "sha256": "50ca941cd2edae32d33e058d4d28fec68c8e622c9060699a3ef6fd2e036b2782",
+          "size": 8318
+        },
+        {
+          "name": "pvpano_foraging_1_day_0.webp",
+          "sha256": "ed657cc81f6c7661592f4f364b22d518d3faeba7cd26c1fddac19c5e3c0d9b5f",
+          "size": 27218
+        },
+        {
+          "name": "pvpano_foraging_1_day_1.webp",
+          "sha256": "fb14292b01edcf44c8b7b8148318e8483cc2c8cb422c69d4171b7c64a8f4e74c",
+          "size": 19170
+        },
+        {
+          "name": "pvpano_foraging_1_day_2.webp",
+          "sha256": "6a13ee879167030b50c18d043d6245b1d28b2039c8066be6962fd3efc9bed708",
+          "size": 22024
+        },
+        {
+          "name": "pvpano_foraging_1_day_3.webp",
+          "sha256": "fb836663f046f0cf8c0d00e86ecc43a69c3df0b0a1efa8d6e08d4aa777b61aac",
+          "size": 21372
+        },
+        {
+          "name": "pvpano_foraging_1_day_4.webp",
+          "sha256": "4e029d7e3db6db2c1bd6d60adb636e4f952d11879838f386a49e14a1466ca34a",
+          "size": 14636
+        },
+        {
+          "name": "pvpano_foraging_1_day_5.webp",
+          "sha256": "3d8803a53543e46d5ca5b0c63148142928886b351941588962c89fab4a771dd6",
+          "size": 17952
+        },
+        {
+          "name": "pvpano_foraging_1_night_0.webp",
+          "sha256": "8a9b3ce21be3486036ec370c783755f5a0a1fda84f8eb05747512ebc3df3ad61",
+          "size": 8346
+        },
+        {
+          "name": "pvpano_foraging_1_night_1.webp",
+          "sha256": "f3ff2af60be1e5ca5cbfa8b19ae2b6d6740b7d1a9268983afe81821ed9c1ed77",
+          "size": 7880
+        },
+        {
+          "name": "pvpano_foraging_1_night_2.webp",
+          "sha256": "2e3aa7e2c86eea547817ad0ae53e10518180c9fd1e9d9bdcc8923ed0653bb2e0",
+          "size": 7820
+        },
+        {
+          "name": "pvpano_foraging_1_night_3.webp",
+          "sha256": "4be7623f7a0907dac43cfc4ba1f1dccde2f977c8fccecd55faf709d01ac7d77e",
+          "size": 9086
+        },
+        {
+          "name": "pvpano_foraging_1_night_4.webp",
+          "sha256": "a4790f2ebc5a41787a69b1c4cdddec9f12be9fab68ac7fd596dc7c7618b38b0f",
+          "size": 5638
+        },
+        {
+          "name": "pvpano_foraging_1_night_5.webp",
+          "sha256": "3df29d31f008eacd2bcf266a94fa1e5efc2288513e9ac1b1ca55fa8a8b9852d7",
+          "size": 8836
+        },
+        {
+          "name": "pvpano_hub_day_0.webp",
+          "sha256": "b99a49a1d34e16865da0c64bf6fb454b185b7b052124388c9c094fcb5941cb0b",
+          "size": 11822
+        },
+        {
+          "name": "pvpano_hub_day_1.webp",
+          "sha256": "6b3d41bb741bd91218fd2cae6809233030054a7266f4b9f88f6b14162f2179b8",
+          "size": 12474
+        },
+        {
+          "name": "pvpano_hub_day_2.webp",
+          "sha256": "0719f5767ce131ac3f6e5a0b5597e3ff6bd263bc8a3705318c6a05f51525e435",
+          "size": 14184
+        },
+        {
+          "name": "pvpano_hub_day_3.webp",
+          "sha256": "ce9bd0dc180bad51fa9fc0522d4656dad214726899b31930bc020dbe19ef634e",
+          "size": 15470
+        },
+        {
+          "name": "pvpano_hub_day_4.webp",
+          "sha256": "e5319094f39d89fa930d1fb3a59b241c8e2b0ad5fcc126b8c01a560399f1cb8f",
+          "size": 4552
+        },
+        {
+          "name": "pvpano_hub_day_5.webp",
+          "sha256": "3ae921cc459ba5eadab57d015d8e98ddec6066dd4146b270c8fd50c90fb7fca0",
+          "size": 8400
+        },
+        {
+          "name": "pvpano_hub_night_0.webp",
+          "sha256": "8c71c0e00e71507bb7e732c2937548f90d734ae1acdc9841c8e623c6f722aee3",
+          "size": 9316
+        },
+        {
+          "name": "pvpano_hub_night_1.webp",
+          "sha256": "1f733f7bc124965a5ea09a65374025c6fa715e6446f9527658c216f2ba7b1787",
+          "size": 9484
+        },
+        {
+          "name": "pvpano_hub_night_2.webp",
+          "sha256": "bcd18134cf34ccfbf1cd5d0266dd47cee68cbbf1b3d56d70a652a9a369e43132",
+          "size": 8424
+        },
+        {
+          "name": "pvpano_hub_night_3.webp",
+          "sha256": "e469c8d793b9b8b6ec043cb030eae3dda4afed2461b342d7edfd7359aa679529",
+          "size": 9802
+        },
+        {
+          "name": "pvpano_hub_night_4.webp",
+          "sha256": "eebaf8bbde761c4cbfd87f555efe127233907712c30552bab43bbfcfc2549133",
+          "size": 1862
+        },
+        {
+          "name": "pvpano_hub_night_5.webp",
+          "sha256": "ffe94750149271deb08e4faf08925bede069ff89a9800082e069903836805bc4",
+          "size": 6584
+        },
+        {
+          "name": "pvpano_mining_1_day_0.webp",
+          "sha256": "e59c448030221c66e003b4ba41eaa2fd57108a1c32746b029a7aaa4f595cec84",
+          "size": 25518
+        },
+        {
+          "name": "pvpano_mining_1_day_1.webp",
+          "sha256": "6e307cd439b7cfc78083e28ba6bc705b376f3921431a36697b38138adb32f519",
+          "size": 21692
+        },
+        {
+          "name": "pvpano_mining_1_day_2.webp",
+          "sha256": "ad4bf73c4a6a87b1af9100625faa689b3fab96fafd9378d9a9622cfb2299e49b",
+          "size": 19352
+        },
+        {
+          "name": "pvpano_mining_1_day_3.webp",
+          "sha256": "ff6a5e9a8f1f6c1586d27a80d688bfa77798debbe76790fe1485e8af90089427",
+          "size": 19520
+        },
+        {
+          "name": "pvpano_mining_1_day_4.webp",
+          "sha256": "d7c79df5907b55a79e09fa0cf320ac2ad1cd2bcee9d68ae2937e98be85001cf2",
+          "size": 8450
+        },
+        {
+          "name": "pvpano_mining_1_day_5.webp",
+          "sha256": "42c706778318427e8bec6707972cd4861fd3b7780feaf3a434a1c65ef5157b53",
+          "size": 13780
+        },
+        {
+          "name": "pvpano_mining_1_night_0.webp",
+          "sha256": "71293d2b4ea968e0668b9c346088f0a4f798dd35be8a1893d151ae42c49cc2b2",
+          "size": 15518
+        },
+        {
+          "name": "pvpano_mining_1_night_1.webp",
+          "sha256": "90ea3fa298bcf7130478a960c4596b6558dd7748f3850d79038ecb417031027a",
+          "size": 13088
+        },
+        {
+          "name": "pvpano_mining_1_night_2.webp",
+          "sha256": "7bcd1136d5542ef50b31b86a1b37f6953fc071ae3c324e60bcb3c62b2b105791",
+          "size": 9840
+        },
+        {
+          "name": "pvpano_mining_1_night_3.webp",
+          "sha256": "cf7506cc87273143178f9639047e877f380a0f87ed1e692365e5a937fe27fc5a",
+          "size": 10278
+        },
+        {
+          "name": "pvpano_mining_1_night_4.webp",
+          "sha256": "78d53a589f1adffa16ba930427a4c64dc98d73000aa43a6095fa36f7b34f4433",
+          "size": 5144
+        },
+        {
+          "name": "pvpano_mining_1_night_5.webp",
+          "sha256": "dcedd0992cb5a6048f08c4becb182c9db50d8824f068506173a2cd3d7ed38c38",
+          "size": 8188
+        },
+        {
+          "name": "pvpano_mining_2_0.webp",
+          "sha256": "f7f4d7e0b802b76b2a72beb296d83a4992943162b0a96589cafbff2772f5bafe",
+          "size": 10102
+        },
+        {
+          "name": "pvpano_mining_2_1.webp",
+          "sha256": "f10c79b1d70dc5b4c844d3cb3ec935fb3c78943f0fae33c30188519f027dea40",
+          "size": 4442
+        },
+        {
+          "name": "pvpano_mining_2_2.webp",
+          "sha256": "d22b4683dc448047675146916a50aed3dc17406e0fe557c1c2ff6e9e87ed0219",
+          "size": 5676
+        },
+        {
+          "name": "pvpano_mining_2_3.webp",
+          "sha256": "a8ecdf0c568062e0ba0face7405ea2e5f12906723e29c7f5d50fa020c8edb85b",
+          "size": 6186
+        },
+        {
+          "name": "pvpano_mining_2_4.webp",
+          "sha256": "95fd7dee9d774d8ad946adde9f763bdaa49fcbee192887bd6576cc28700bc8b9",
+          "size": 3868
+        },
+        {
+          "name": "pvpano_mining_2_5.webp",
+          "sha256": "6923ce5a6c699009eeaf5cf2a1fd4f5312cd13efd93b182ac5df375da035c2fc",
+          "size": 4438
+        },
+        {
+          "name": "pvpano_mining_3_0.webp",
+          "sha256": "f9f4ced251ca6a5f80e272d6a9ca216ce892190718f45f36597e6c7279e604f0",
+          "size": 24220
+        },
+        {
+          "name": "pvpano_mining_3_1.webp",
+          "sha256": "fbe1cbeea38722382be50f3ff446abfb494ac0772aa9e3d1833aa976f086aa29",
+          "size": 27720
+        },
+        {
+          "name": "pvpano_mining_3_2.webp",
+          "sha256": "4733f971c75114d34ccfbe1776db5d1b7a96d011bcd39a7e5982bfcc72a4a7e0",
+          "size": 26210
+        },
+        {
+          "name": "pvpano_mining_3_3.webp",
+          "sha256": "71678a6cb8bdbc596ad7f6d8223e6842372744e5e2728603bb2152cc22ef7875",
+          "size": 32902
+        },
+        {
+          "name": "pvpano_mining_3_4.webp",
+          "sha256": "8aefbc11d3ebcf4fc1670350a75656525f7db7365561286ec2ee0a9afe2d0104",
+          "size": 22198
+        },
+        {
+          "name": "pvpano_mining_3_5.webp",
+          "sha256": "71af23da8669b7d342392472163299efa826ca3a0396e7a83ce6d3433529fc01",
+          "size": 17782
+        },
+        {
+          "name": "pvpano_unknown_0.webp",
+          "sha256": "99f29ce96c18e0e505d0afe86b4b4eed8dec73592a6dfc908533da3b7d7b73c2",
+          "size": 17448
+        },
+        {
+          "name": "pvpano_unknown_1.webp",
+          "sha256": "1a0ed81db3fad23db9543ab656b408358c87aef58c7c81dd018861a756705e7b",
+          "size": 17166
+        },
+        {
+          "name": "pvpano_unknown_2.webp",
+          "sha256": "593531e5f647a340aa4fec1e6c949c3d065c980ebf83e034fa0ed36a1af8fb7e",
+          "size": 16138
+        },
+        {
+          "name": "pvpano_unknown_3.webp",
+          "sha256": "2a828c684e5d96452b547d85f7e4208f3964bcf0ab5edc5329079fbecae75eeb",
+          "size": 16562
+        },
+        {
+          "name": "pvpano_unknown_4.webp",
+          "sha256": "d6ca5c7854c106469ba6174b11aea872f128c0e4fcdeaabbf3ce721c8d602381",
+          "size": 17216
+        },
+        {
+          "name": "pvpano_unknown_5.webp",
+          "sha256": "3e2c459a8e4b2f0dc6b44d236d161b7891546dba5d44d794fd5e9d5003e92df4",
+          "size": 16692
+        }
+      ]
+    }
   ]
 }

@@ -85,6 +85,12 @@ public final class SbProfile {
     /** An object at a dotted path in this member's JSON, or null. */
     public JsonObject memberObj(String dotted) { return asObj(path(memberJson, dotted)); }
 
+    /** An array at a dotted path in this member's JSON, or null. */
+    public JsonArray memberArr(String dotted) { return asArr(path(memberJson, dotted)); }
+
+    /** An object at a dotted path in the whole profile's JSON (community upgrades, members), or null. */
+    public JsonObject profileObj(String dotted) { return asObj(path(profileJson, dotted)); }
+
     /** {@code fastest} is Hypixel's {@code fastest_time} - the floor's best clear at ANY score, milliseconds. */
     public record Floor(long completions, long fastestS, long fastestSPlus, long bestScore, long fastest) {
     }

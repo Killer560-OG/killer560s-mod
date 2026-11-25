@@ -454,7 +454,11 @@ public final class ProfileViewerApi {
      *  player record has one (0 otherwise). */
     public enum StatusState { ONLINE, OFFLINE, HIDDEN, UNAVAILABLE }
 
-    public record StatusResult(StatusState state, String where, long lastSeenMs, long fetchedAt) {
+    /** {@code mode} is the session's raw mode while online on SkyBlock ("hub", "mining_3", ...; NEU Classic's panorama), else "". */
+    public record StatusResult(StatusState state, String where, long lastSeenMs, long fetchedAt, String mode) {
+        public StatusResult(StatusState state, String where, long lastSeenMs, long fetchedAt) {
+            this(state, where, lastSeenMs, fetchedAt, "");
+        }
     }
 
     /** Asked for only on a click; one answer per player is kept {@link #STATUS_CACHE_MS}. */
@@ -553,7 +557,7 @@ public final class ProfileViewerApi {
         String where = "SkyBlock".equalsIgnoreCase(game.replace(" ", "")) || "SKYBLOCK".equals(jsonStr(session, "gameType", ""))
                 ? "SkyBlock: " + (!map.isEmpty() ? map : SB_MODES.getOrDefault(mode, mode.isEmpty() ? "Unknown" : SbProfile.titleCase(mode)))
                 : game + (mode.isEmpty() ? "" : ": " + SbProfile.titleCase(mode));
-        return new StatusResult(StatusState.ONLINE, where, 0, now);
+        return new StatusResult(StatusState.ONLINE, where, 0, now, where.startsWith("SkyBlock: ") ? mode : "");
     }
 
     private static String jsonStr(JsonObject o, String key, String def) {

@@ -49,7 +49,11 @@ public final class ThemeAssets {
     /** A failed download is tried again no sooner than this. */
     private static final long RETRY_NANOS = 120_000_000_000L;
 
-    public record Asset(String name, String sha256, long size) {
+    /** {@code folder} null = a theme file (top of the cache, the manifest's own release, downloads only with the custom
+     *  title screen on); else an "extra" group (pv-panorama-1124k: the NEU Classic Profile Viewer panoramas), kept in that
+     *  folder of the cache, from its own release, and downloaded only once that release is {@code published}. */
+    public record Asset(String name, String sha256, long size, String release, String folder, boolean published) {
+        boolean theme() { return folder == null; }
     }
 
     private enum State { PENDING, READY, MISSING, FAILED }
@@ -84,10 +88,13 @@ public final class ThemeAssets {
                         if (in == null) throw new IOException("theme-assets.json is not in the jar");
                         JsonObject o = JsonParser.parseString(new String(in.readAllBytes(), StandardCharsets.UTF_8)).getAsJsonObject();
                         release = o.get("release").getAsString();
-                        for (JsonElement e : o.getAsJsonArray("assets")) {
-                            JsonObject x = e.getAsJsonObject();
-                            Asset asset = new Asset(x.get("name").getAsString(), x.get("sha256").getAsString(), x.get("size").getAsLong());
-                            a.put(asset.name(), asset);
+                        put(a, o.getAsJsonArray("assets"), release, null, true);
+                        if (o.has("extra")) {
+                            for (JsonElement g : o.getAsJsonArray("extra")) {
+                                JsonObject x = g.getAsJsonObject();
+                                put(a, x.getAsJsonArray("assets"), x.get("release").getAsString(), x.get("folder").getAsString(),
+                                        x.get("published").getAsBoolean());
+                            }
                         }
                     } catch (IOException | RuntimeException e) {
                         LOGGER.warn("[MainMenu] no theme asset manifest, so no theme downloads: {}", e.toString());
@@ -99,6 +106,15 @@ public final class ThemeAssets {
         return a;
     }
 
+    private static void put(Map<String, Asset> a, com.google.gson.JsonArray list, String rel, String folder, boolean published) {
+        for (JsonElement e : list) {
+            JsonObject x = e.getAsJsonObject();
+            Asset asset = new Asset(x.get("name").getAsString(), x.get("sha256").getAsString(), x.get("size").getAsLong(),
+                    rel, folder, published);
+            a.put(asset.name(), asset);
+        }
+    }
+
     /** The cache folder, one per PC (a test client's own sandbox in a testkit run). */
     public static Path dir() { return SharedRecords.root().resolve("theme-assets"); }
 
@@ -106,7 +122,7 @@ public final class ThemeAssets {
     static Path file(Asset a) {
         String n = a.name();
         int dot = n.lastIndexOf('.');
-        return dir().resolve(n.substring(0, dot) + "-" + a.sha256().substring(0, 12) + n.substring(dot));
+        return (a.theme() ? dir() : dir().resolve(a.folder())).resolve(n.substring(0, dot) + "-" + a.sha256().substring(0, 12) + n.substring(dot));
     }
 
     /** Bumped whenever an asset becomes ready or goes, so a caller can cache what it resolved. */
@@ -142,7 +158,7 @@ public final class ThemeAssets {
     /** Looks every asset up in the cache, in the background (client init), so {@link #ready} knows a cached one at once. */
     public static void scan() {
         for (Asset a : assets().values()) {
-            if (STATE.putIfAbsent(a.name(), State.PENDING) == null) {
+            if (a.theme() && STATE.putIfAbsent(a.name(), State.PENDING) == null) {
                 executor().execute(() -> fetch(a, false));
             }
         }
@@ -160,7 +176,7 @@ public final class ThemeAssets {
             return;
         }
         if (s == State.FAILED && System.nanoTime() - FAILED_AT.getOrDefault(name, 0L) < RETRY_NANOS) return;
-        if (!allowed()) return;
+        if (a.theme() && !allowed()) return;
         STATE.put(name, State.PENDING);
         executor().execute(() -> fetch(a, true));
     }
@@ -207,12 +223,17 @@ public final class ThemeAssets {
             STATE.remove(a.name(), State.PENDING);
             return;
         }
-        if (!allowed()) { // switched to no custom title screen while this waited
+        if (a.theme() && !allowed()) { // switched to no custom title screen while this waited
             STATE.remove(a.name(), State.PENDING);
             return;
         }
+        if (!a.published()) { // its release is not uploaded yet: only a file already in the cache is used (looked again in 2 min)
+            FAILED_AT.put(a.name(), System.nanoTime());
+            set(a.name(), State.FAILED);
+            return;
+        }
         Path part = target.resolveSibling(target.getFileName() + ".part");
-        String url = ModNet.url(SERVICE, "https://github.com/" + AutoUpdater.REPO + "/releases/download/" + release + "/" + a.name());
+        String url = ModNet.url(SERVICE, "https://github.com/" + AutoUpdater.REPO + "/releases/download/" + a.release() + "/" + a.name());
         try {
             Files.createDirectories(target.getParent());
             DOWNLOADS.incrementAndGet();
@@ -290,7 +311,7 @@ public final class ThemeAssets {
                 LOGGER.warn("[MainMenu] could not delete every unused theme download: {}", e.toString());
             }
             for (Asset a : assets().values()) {
-                if (!keep.contains(file(a).getFileName()) && STATE.remove(a.name()) != null) {
+                if (a.theme() && !keep.contains(file(a).getFileName()) && STATE.remove(a.name()) != null) {
                     version++;
                 }
             }
@@ -321,7 +342,10 @@ public final class ThemeAssets {
         return a == null ? null : file(a);
     }
 
-    public static java.util.List<String> namesForTest() { return java.util.List.copyOf(assets().keySet()); }
+    /** The theme assets' names (not the extra groups'). */
+    public static java.util.List<String> namesForTest() {
+        return assets().values().stream().filter(Asset::theme).map(Asset::name).toList();
+    }
 
     /** Forgets every state and the counters (the next request or scan looks again); waits for queued work first. */
     public static void resetForTest() throws Exception {
