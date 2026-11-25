@@ -350,6 +350,9 @@ public final class LeapManager {
     // Driving
 
     private static void submit(Request request) {
+        if (!com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+            return; // every automated leap goes through here: a legit jar never leaps
+        }
         incoming = request;
     }
 
