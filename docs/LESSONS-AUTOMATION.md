@@ -112,6 +112,16 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   `preHeld` flushes as soon as our own sends pass (before them); and at charge off the held answers go out BEFORE the held
   scroll, or a flying + slot + answer is Post again.
   BadPacketsV (a position packet that did not move) in 63-ap3's Blink shot cases is Blink's, not fixed here.
+- **A bare use, then his block click (argrim-planuse-exp-1125).** GrimAC 2.3.74 PacketOrderN (experimental, read from
+  the v2.3.74 source): inside one server tick a `use_item` that no block placement went before sets `usingWithoutPlacing`,
+  and every `use_item_on` after it flags until the tick packet. Vanilla never sends it (two clicks in one tick read the same
+  pick). Auto Clear's path hop sends its `use_item` at START (often bare: the hop's look meets no block in reach), and his
+  right click then goes in handleKeybinds on his crosshair, a block: `use_item(F), use_item_on, use_item, use_item_on` =
+  PacketOrderN x2. `ClearExecutor.doInteract` now waits a tick while a use press that is not Auto Clear's own is queued
+  (`AutoClearFeature.hisUseClicksQueued`). The old testkit row (SameTick `Act.USE`, a raw `gameMode.useItem` at START LATE,
+  before the tick's pick, never a `use_item_on`) flagged on origin only by the test's own bare use; `Act.USE_CLICK`
+  (pressed at END, sent at START LATE as vanilla's `startUseItem` on the tick's own pick) is his real click.
+  62-argrim-1122-same-plan-use: origin and acoptimal-next-1124 flag, the fix is clean on both configs.
 - **His hand during a body-turning aura (grimgapB-1105).** GrimAC judges his attack by the look of the NEXT movement
   packet, so an attack of his while Breaker Aura (BreakerAim) or a TurnFirst aura (Secret Aura...) has the body turned is
   Hitboxes on the entity under his crosshair. Both now give the body back in the tick his attack click is queued

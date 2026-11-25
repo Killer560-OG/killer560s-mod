@@ -4996,6 +4996,13 @@ public final class AutoClearFeature {
     /** The client tick of Auto Clear's last press. */
     private static long lastPressTick = Long.MIN_VALUE / 2;
 
+    /** Presses of the use key still queued for this tick's handleKeybinds that are not Auto Clear's own. */
+    public static int hisUseClicksQueued(Minecraft client) {
+        int queued = client.options.keyUse instanceof com.killer560.hub.zpew.mixin.ZpewKeyMappingAccessor k
+                ? k.killer560smod$getClickCount() : 0;
+        return queued - (lastPressTick == ClearExecutor.clientTick() ? 1 : 0);
+    }
+
     /**
      * One fresh press of the use key this tick, unless the last went out under {@link #FAST_REPEAT_TICKS} ago: vanilla's
      * own click path then sends the use in this tick's {@code handleKeybinds}, after the body turned a tick earlier (the

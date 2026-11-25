@@ -2547,6 +2547,14 @@ public final class ClearExecutor {
             pendingHeldTicks++;
             return;
         }
+        if (com.killer560.hub.autoclear.AutoClearFeature.hisUseClicksQueued(client) > 0) {
+            // His right click goes out in this tick's handleKeybinds, after us, on his crosshair: a block click of his after
+            // the hop's bare use_item in one tick is GrimAC PacketOrderN (experimental, 62-argrim-1122-same-plan-use).
+            waitReason = "letting his right click go first";
+            LOGGER.info("[Path] hop held a tick: his right click goes first");
+            pendingHeldTicks++;
+            return;
+        }
         if (com.killer560.hub.util.RightClick.mustTurnFirst(player, serverFeet, yaw, pitch, "[Path] Warp")) {
             BODY.turn(player, yaw, pitch);
             waitReason = "the server hearing the hop's look first (a block click is unpaired)";

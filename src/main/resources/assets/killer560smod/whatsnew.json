@@ -15,7 +15,8 @@
      "Beacon Tuner Auto Tune is now far faster than tuning by hand: it starts as soon as the beacon's colors and speeds are read, pauses your pane for exactly as long as it needs (or catches up at Speed 5) so both step together, no longer mixes up your two panes after a pause or re-turns Pitch, and no longer waits when both beacon beats step together",
      "Auto Clear: after a Wither Impact that leaves only mobs an etherwarp reaches, the next warp now goes the same tick the kill is seen instead of one or two ticks later (about 8% faster room clears in the dungeon sim)",
      "Beacon Ready Alert has two new settings: Keep Showing Until Tuned (a Beacon Ready line stays on your HUD until you tune the beacon instead of a title that fades) and Cooldown HUD (counts down to the next time you can tune it). Both are off by default and the line can be moved in the HUD editor.",
-     "Beacon Ready Alert's HUD line now actually appears on screen (it was missing from the HUD draw list)."
+     "Beacon Ready Alert's HUD line now actually appears on screen (it was missing from the HUD draw list).",
+     "Auto Clear: a path warp no longer draws an anticheat flag when your own right click on a block lands in the same tick; the warp waits one tick and goes right after your click."
     ]
    }
   ]
