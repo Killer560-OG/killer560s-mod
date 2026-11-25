@@ -108,7 +108,8 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     }
 
     static final String[] PAGES = {"Basic Info", "Dungeons", "Inventories", "Pets", "Collections", "Mining", "Bestiary",
-            "Crimson Isle", "Museum", "Rift", "Farming", "Networth", "Misc", "Weight"};
+            "Crimson Isle", "Museum", "Rift", "Farming", "Networth", "Misc", "Weight", "Loadout", "Fishing", "Foraging", "Chocolate Factory",
+            "Kills and Deaths"};
     static final int PAGE_BASIC = 0;
     static final int PAGE_DUNGEONS = 1;
     static final int PAGE_INVENTORIES = 2;
@@ -124,6 +125,8 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     static final int PAGE_MISC = 12;
     /** Appended last so a remembered page index from an older config still points at the same page. */
     static final int PAGE_WEIGHT = 13;
+    /** SkyBlockPV-only pages (SbpvPages): Default and NEU Classic stop at {@link #DEFAULT_PAGES}. */
+    static final int PAGE_LOADOUT = 14, PAGE_FISHING = 15, PAGE_FORAGING = 16, PAGE_CF = 17, PAGE_KILLS = 18, DEFAULT_PAGES = 14;
 
     private static final String[] INV_VIEWS = {"Inventory", "Ender Chest", "Backpacks", "Wardrobe", "Accessories", "Vault", "Quiver",
             "Fishing Bag", "Potion Bag", "Sacks"};
@@ -295,6 +298,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     int subPage = 0;
     private final ExtraPages extraPages = new ExtraPages(this);
     private final WeightPage weightPage = new WeightPage(this);
+    private final SbpvPages sbpvPages = new SbpvPages(this);
     private final List<int[]> tabRects = new ArrayList<>();
     /** The networth the Basic Info line last showed (null while calculating); read by the testkit. */
     volatile Long lastBasicNetworth;
@@ -549,11 +553,11 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
     private void layoutTabs() {
         tabRects.clear();
-        int perRow = (PAGES.length + TAB_ROWS - 1) / TAB_ROWS;
+        int perRow = (DEFAULT_PAGES + TAB_ROWS - 1) / TAB_ROWS;
         int avail = panelW - 12;
         for (int row = 0; row < TAB_ROWS; row++) {
             int from = row * perRow;
-            int to = Math.min(PAGES.length, from + perRow);
+            int to = Math.min(DEFAULT_PAGES, from + perRow);
             if (from >= to) break;
             int gaps = (to - from - 1) * 3;
             int natural = 0;
@@ -742,6 +746,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             }
             return true;
         }
+        if (page == PAGE_KILLS && state == State.READY) {
+            sbpvPages.scroll(mouseX, scrollY);
+            return true;
+        }
         if (page > PAGE_PETS && state == State.READY) {
             pageScroll = Math.max(0, pageScroll - (int) Math.signum(scrollY));
             return true;
@@ -790,7 +798,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                 }
                 return true;
             }
-            if (event.key() >= InputConstants.KEY_1 && event.key() <= InputConstants.KEY_9 && event.key() - InputConstants.KEY_1 < PAGES.length) {
+            if (event.key() >= InputConstants.KEY_1 && event.key() <= InputConstants.KEY_9 && event.key() - InputConstants.KEY_1 < DEFAULT_PAGES) {
                 setPage(event.key() - InputConstants.KEY_1);
                 return true;
             }
@@ -856,6 +864,9 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     }
 
     private void drawScreen(GuiGraphicsExtractor g, int mouseX, int mouseY, float partialTick) {
+        if (page >= DEFAULT_PAGES && (pvStyle == ProfileViewerConfig.Style.DEFAULT || pvStyle == ProfileViewerConfig.Style.NEU)) {
+            page = 0; // a SkyBlockPV-only page remembered from another style
+        }
         hotspots.clear();
         rightHotspots.clear();
         overlayHotspots.clear();
@@ -917,7 +928,12 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                     case PAGE_PETS -> drawPets(g, p, mouseX, mouseY);
                     default -> {
                         try {
-                            if (page == PAGE_WEIGHT) {
+                            if (page >= PAGE_LOADOUT) {
+                                if (!sbpvPages.draw(g, page, p, mouseX, mouseY)) {
+                                    centered(g, sbpvPages.failed() ? "Couldn't read this profile's data." : "Loading" + dots(), contentY + contentH / 2 - 4,
+                                            sbpvPages.failed() ? BAD : VALUE);
+                                }
+                            } else if (page == PAGE_WEIGHT) {
                                 weightPage.draw(g, p, mouseX, mouseY);
                             } else {
                                 extraPages.draw(g, page, p, mouseX, mouseY);
@@ -1056,7 +1072,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             drawIconTabs(g, mx, my, false);
             return;
         }
-        for (int i = 0; i < PAGES.length && i < tabRects.size(); i++) {
+        for (int i = 0; i < DEFAULT_PAGES && i < tabRects.size(); i++) {
             int[] rect = tabRects.get(i);
             int tx = panelX + rect[0];
             int ty = panelY + 28 + rect[1] * 21;
@@ -1156,19 +1172,21 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     /** NEU Classic's tab order (GuiProfileViewer.ProfileViewerPage): Basic, Dungeon, Extra (our Misc), Inventories,
      *  Collections, Pets, Mining, Bestiary, Crimson, Museum, Rift, Garden; our Networth and Weight pages after them. */
     static final int[] NEU_TAB_ORDER = {0, 1, 12, 2, 4, 3, 5, 6, 7, 8, 9, 10, 11, 13};
-    /** SkyBlockPV's tab order (PvTab): Main, Combat (our Dungeons, with Bestiary and Crimson Isle as its right-edge
-     *  categories), Inventory, Collections, Mining, Pets, Farming, Museum, Rift; our Networth, Misc and Weight after them. */
-    static final int[] SBPV_TAB_ORDER = {0, 1, 2, 4, 5, 3, 10, 8, 9, 11, 12, 13};
-    private static final int[] SBPV_COMBAT_PAGES = {PAGE_DUNGEONS, PAGE_BESTIARY, PAGE_CRIMSON};
+    /** SkyBlockPV's tab order (PvTab): Main, Combat (our Dungeons, with Bestiary, Crimson Isle and Kills and Deaths as its
+     *  right-edge categories), Inventory, Loadout, Collections, Mining, Fishing, Foraging, Pets, Farming, Museum, Chocolate Factory,
+     *  Rift; our Networth, Misc and Weight after them. */
+    static final int[] SBPV_TAB_ORDER = {PAGE_BASIC, PAGE_DUNGEONS, PAGE_INVENTORIES, PAGE_LOADOUT, PAGE_COLLECTIONS, PAGE_MINING,
+            PAGE_FISHING, PAGE_FORAGING, PAGE_PETS, PAGE_FARMING, PAGE_MUSEUM, PAGE_CF, PAGE_RIFT, PAGE_NETWORTH, PAGE_MISC, PAGE_WEIGHT};
+    private static final int[] SBPV_COMBAT_PAGES = {PAGE_DUNGEONS, PAGE_BESTIARY, PAGE_CRIMSON, PAGE_KILLS};
     private static final ItemStack SBPV_COMBAT_ICON = new ItemStack(Items.DIAMOND_SWORD);
     private static final ItemStack[] SBPV_COMBAT_ICONS = {new ItemStack(Items.WITHER_SKELETON_SKULL), new ItemStack(Items.WRITABLE_BOOK),
-            new ItemStack(Items.NETHERRACK)};
+            new ItemStack(Items.NETHERRACK), new ItemStack(Items.ZOMBIE_HEAD)};
     private static final List<Component> SBPV_COMBAT_TIP = List.of(Component.literal("Combat"));
     private static final List<?>[] SBPV_COMBAT_TIPS = {List.of(Component.literal("Dungeons")), List.of(Component.literal("Bestiary")),
-            List.of(Component.literal("Crimson Isle"))};
+            List.of(Component.literal("Crimson Isle")), List.of(Component.literal("Kills and Deaths"))};
 
     private static boolean isCombatPage(int page) {
-        return page == PAGE_DUNGEONS || page == PAGE_BESTIARY || page == PAGE_CRIMSON;
+        return page == PAGE_DUNGEONS || page == PAGE_BESTIARY || page == PAGE_CRIMSON || page == PAGE_KILLS;
     }
 
     private boolean neuStyle() {
@@ -1248,6 +1266,11 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             case PAGE_FARMING -> Items.WHEAT;
             case PAGE_NETWORTH -> Items.GOLD_INGOT;
             case PAGE_WEIGHT -> Items.ANVIL;
+            case PAGE_LOADOUT -> Items.BARREL;
+            case PAGE_FISHING -> Items.FISHING_ROD;
+            case PAGE_FORAGING -> Items.OAK_WOOD;
+            case PAGE_CF -> Items.COOKIE;
+            case PAGE_KILLS -> Items.ZOMBIE_HEAD;
             default -> Items.PAPER;
         });
     }
@@ -1424,6 +1447,11 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
 
     /** SkyBlockPV's main page (MainScreen): Info on the left, the player in the middle 20 %, Skills and Slayer chips on
      *  the right then Essence, each a label (title bar over a box) 10 below the top; lines and chips have their hovers. */
+    /** SkyBlockPV's Foraging tab, HotF Tree category: our perk list (ExtraPages). */
+    void drawForagingTree(GuiGraphicsExtractor g, int mx, int my) {
+        extraPages.drawForagingTree(g, profile(), mx, my);
+    }
+
     private void drawSbpvBasic(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
         int middle = (int) (panelW * 0.2), side = (panelW - middle) / 2, text = PvStyleChrome.sbpvText(pvStyle);
         int fh = (int) (middle * 1.1), fy = sbpvPlayerY();
@@ -1473,7 +1501,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         for (String line : m.info) {
             maxW = Math.max(maxW, this.font.width(line));
         }
-        int y = sbpvLabel(g, "Info", panelX, contentY + 10, side, 7 + m.info.length * 11 - 2 + 7, text);
+        int y = sbpvLabel(g, "Info", panelX, contentY + 10, side, 7 + m.info.length * 11 - 2 + 7, text, SbpvPages.CLIPBOARD);
         int lx = panelX + (side - maxW) / 2;
         for (int i = 0; i < m.info.length; i++) {
             if (m.infoTips[i] != null && !dropdownOpen && inside(mx, my, lx, y - 1, this.font.width(m.info[i]), 10)) {
@@ -1530,7 +1558,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             List<List<Component>> tips = new ArrayList<>();
             lines.add("Purse: " + commas(p.purse));
             tips.add(null);
-            String solo = p.personalBank > 0 ? shorten(p.personalBank) : null, coop = p.bank > 0 ? shorten(p.bank) : null;
+            String solo = p.personalBank > 0 ? SbpvPages.shorten(p.personalBank, 2) : null, coop = p.bank > 0 ? SbpvPages.shorten(p.bank, 2) : null;
             lines.add("Bank: " + (p.bank < 0 ? "API off" : solo != null && coop != null ? solo + "/" + coop : solo != null ? solo : coop != null ? coop : "0"));
             if (p.bank < 0) {
                 tips.add(null);
@@ -1562,7 +1590,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                 tips.add(List.of(Component.literal(SBPV_JOIN_FULL.format(at))));
             }
             if (count > 0) {
-                lines.add("Skill Avg: " + String.format(Locale.ROOT, "%.2f", sum / count));
+                lines.add("Skill Avg: " + SbpvPages.round(sum / count));
                 tips.add(null);
             }
             lines.add("Fairy Souls: " + p.fairySouls);
@@ -1571,11 +1599,11 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                 long kills = 0, deaths = 0;
                 for (long v : ex.misc.kills().values()) kills = Math.max(kills, v);
                 for (long v : ex.misc.deaths().values()) deaths = Math.max(deaths, v);
-                lines.add("K/D: " + shorten(kills) + "/" + shorten(deaths) + " ("
-                        + (deaths == 0 ? "∞" : String.format(Locale.ROOT, "%.2f", (double) kills / deaths)) + ")");
+                lines.add("K/D: " + SbpvPages.shorten(kills, 1) + "/" + SbpvPages.shorten(deaths, 1) + " ("
+                        + (deaths == 0 ? "∞" : SbpvPages.round((double) kills / deaths)) + ")");
                 tips.add(null);
             }
-            lines.add("Net Worth: " + (worth >= 0 ? shorten(worth) : worth == -2 ? "Failed to load" : "Loading..."));
+            lines.add("Net Worth: " + (worth >= 0 ? SbpvPages.shorten(worth, 1) : worth == -2 ? "Failed to load" : "Loading..."));
             tips.add(worth >= 0 ? List.of(Component.literal("§eNetworth: §a" + commas(worth)),
                     Component.literal("§7Click for the Networth page")) : null);
             info = lines.toArray(new String[0]);
@@ -1597,14 +1625,14 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                     values[i] = String.valueOf(lvl.level());
                     List<Component> t = new ArrayList<>();
                     t.add(Component.literal("§e" + (def != null ? def.name() : SbProfile.titleCase(id))));
-                    t.add(Component.literal("§7Exp: " + shorten(xp)));
+                    t.add(Component.literal("§7Exp: " + SbpvPages.shorten(xp, 1)));
                     boolean capped = def != null && cap > 0 && cap < def.maxLevel() && lvl.maxed();
                     t.add(Component.literal("§7Progress: " + (lvl.maxed() && !capped ? "§cMaxed!" : capped ? "§5Reached max skill cap!"
-                            : "§a" + String.format(Locale.ROOT, "%.2f", lvl.progress() * 100) + "% to next")));
+                            : "§a" + SbpvPages.round((float) lvl.progress() * 100) + "% to next")));
                     if (def != null && def.totalXp().length > 0 && lvl.level() != def.maxLevel()) {
                         long need = def.totalXp()[Math.min(def.maxLevel(), def.totalXp().length) - 1];
-                        t.add(Component.literal("§7Progress to max: §e" + commas(xp) + "§6/§e" + shorten(need)
-                                + "§a (" + String.format(Locale.ROOT, "%.2f", xp * 100.0 / need) + "%)"));
+                        t.add(Component.literal("§7Progress to max: §e" + commas(xp) + "§6/§e" + SbpvPages.shorten(need, 1)
+                                + "§a (" + SbpvPages.round((float) xp / need * 100) + "%)"));
                     }
                     chipTips[i] = List.copyOf(t);
                 }
@@ -1633,11 +1661,11 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                 t.add(Component.literal("§e" + SbProfile.titleCase(s.key())));
                 t.add(Component.literal(kills.toString()));
                 t.add(Component.literal("§7Exp: §e" + commas(xp) + (last > 0 && xp >= last ? " §cMaxed!"
-                        : "§6/§e" + commas(last) + "§a (" + String.format(Locale.ROOT, "%.2f", last <= 0 ? 0 : xp * 100.0 / last) + "%)")));
+                        : "§6/§e" + commas(last) + "§a (" + SbpvPages.round(last <= 0 ? 0 : (float) xp / last * 100) + "%)")));
                 if (!lvl.maxed() && lvl.level() < s.leveling().length) {
                     long next = s.leveling()[lvl.level()];
                     t.add(Component.literal("§7Next Level: §e" + commas(xp) + "§6/§e" + commas(next)
-                            + "§a (" + String.format(Locale.ROOT, "%.2f", xp * 100.0 / Math.max(1, next)) + "%)"));
+                            + "§a (" + SbpvPages.round((float) xp / Math.max(1, next) * 100) + "%)"));
                 }
                 chipTips[i] = List.copyOf(t);
             }
@@ -1652,7 +1680,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                     String[] ev = new String[k];
                     for (int i = 0; i < k; i++) {
                         ei[i] = essenceIcon(es.get(i).getKey());
-                        ev[i] = shorten(es.get(i).getValue());
+                        ev[i] = SbpvPages.shorten(es.get(i).getValue(), 1);
                     }
                     sections.add(new SbpvChips("Essence", ei, ev, new List[k]));
                 }
@@ -1710,8 +1738,8 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                 sbpvDunLevels[i + 1] = SbProfile.titleCase(SBPV_CLASSES[i]) + ": " + l.level();
                 sbpvDunDone[i + 1] = l.maxed() ? 1 : (float) l.progress();
             }
-            sbpvDunInfo = new String[] {"Class Average: " + String.format(Locale.ROOT, "%.2f", sum / 5), "Secrets: " + commas(d.secrets()),
-                    "Secrets/Run: " + String.format(Locale.ROOT, "%.2f", d.totalRuns() == 0 ? 0 : (double) d.secrets() / d.totalRuns())};
+            sbpvDunInfo = new String[] {"Class Average: " + SbpvPages.round(sum / 5), "Secrets: " + commas(d.secrets()),
+                    "Secrets/Run: " + SbpvPages.round(d.totalRuns() == 0 ? 0 : (double) d.secrets() / d.totalRuns())};
             sbpvDunRuns = new String[9][];
             sbpvDunRuns[0] = new String[] {"", "Cata", "Master"};
             long cTotal = 0, mTotal = 0;
@@ -1740,7 +1768,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         boolean row = infoW + levW + runW + 120 + 10 <= panelW;
         int x = row ? panelX + (panelW - infoW - levW - runW - 130) / 2 : 0, y = contentY;
         int lx = row ? x : panelX + (panelW - infoW - 40) / 2;
-        int cy = sbpvLabel(g, "Dungeon Info", lx, y, infoW + 50, 7 + 3 * 11 - 2 + 7, text);
+        int cy = sbpvLabel(g, "Dungeon Info", lx, y, infoW + 50, 7 + 3 * 11 - 2 + 7, text, SbpvPages.CLIPBOARD);
         for (String line : sbpvDunInfo) {
             cy = sbpvLine(g, line, lx + 20, cy, infoW, text);
         }
@@ -1773,7 +1801,15 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     }
 
     private int sbpvLabel(GuiGraphicsExtractor g, String title, int x, int y, int w, int inner, int text) {
+        return sbpvLabel(g, title, x, y, w, inner, text, null);
+    }
+
+    /** The label with PvWidgets.getTitleWidget's 12 px title icon, 4 in from the bar's left and top. */
+    int sbpvLabel(GuiGraphicsExtractor g, String title, int x, int y, int w, int inner, int text, Identifier icon) {
         PvStyleChrome.title(g, pvStyle, x, y, w - 10, 20);
+        if (icon != null) {
+            g.blitSprite(RenderPipelines.GUI_TEXTURED, icon, x + 4, y + 4, 12, 12);
+        }
         g.text(this.font, title, x + (w - this.font.width(title)) / 2, y + 6, text, false);
         box(g, x, y + 20, w - 10, inner);
         return y + 27;
@@ -1787,7 +1823,7 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             chipW = Math.max(chipW, 17 + this.font.width(v));
         }
         int perRow = Math.max(1, (w - 20) / (chipW + 10)), rows = (n + perRow - 1) / perRow;
-        int cy = sbpvLabel(g, c.title(), x, y, w, 14 + rows * 16 + (rows - 1) * 5, text);
+        int cy = sbpvLabel(g, c.title(), x, y, w, 14 + rows * 16 + (rows - 1) * 5, text, "Skills".equals(c.title()) ? SbpvPages.SWORD : null);
         for (int r = 0; r < rows; r++) {
             int k0 = r * perRow, k1 = Math.min(n, k0 + perRow), rowW = -5;
             for (int i = k0; i < k1; i++) {

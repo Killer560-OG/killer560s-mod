@@ -823,6 +823,15 @@ final class ExtraPages {
         }
     }
 
+    /** SkyBlockPV's HotF Tree category: the Foraging view in one box left of the category tabs. */
+    void drawForagingTree(GuiGraphicsExtractor g, SbProfile p, int mx, int my) {
+        ProfileExtras ex = extras(g, p);
+        if (ex == null) return;
+        int rw = s.contentW - 30;
+        s.box(g, s.contentX, s.contentY, rw, s.contentH);
+        drawForaging(g, ex.foraging, s.contentX, rw, mx, my);
+    }
+
     private void drawForaging(GuiGraphicsExtractor g, ProfileExtras.Foraging fo, int rx, int rw, int mx, int my) {
         if (!fo.present()) {
             center(g, "No Heart of the Forest data.", rx, rw, DIM);
