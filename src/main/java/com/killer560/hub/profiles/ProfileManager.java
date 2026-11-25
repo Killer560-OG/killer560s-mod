@@ -98,6 +98,7 @@ public final class ProfileManager {
             "killer560smod-sim-room-drills.json",
             "killer560smod-room-costs.json",
             "killer560smod-guild-list.json",
+            "killer560smod-invisibug-spots.json",
             // an old recording of Hypixel's Auction House menus - a log, not a setting (2026-11-02).
             "killer560smod-ahflip-menudump.txt",
             // Item Browser's downloaded Hypixel item list - a network cache, not a setting (2026-09-15 audit).

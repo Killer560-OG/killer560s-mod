@@ -3256,6 +3256,7 @@ final class SettingTooltipsData {
         d.put("beacon ready alert", "When the tab list's foraging beacon widget says Cooldown: AVAILABLE, a Beacon Ready title tells you it can be tuned again.");
         d.put("agatha contest overlay", "While an Agatha's Contest runs, a HUD shows the time left, your score and tier, what the next tier needs, your gain rate and where that rate ends up. It only reads the game's own sidebar lines, so a changed sidebar shows nothing rather than a wrong number.");
         d.put("agatha contest overlay/show final result", "Keeps the last numbers on screen for a few seconds after the contest ends.");
+        d.put("invisibug highlight/remembered spots", "Marks every spot an Invisibug was found at before with a ring and a post, so you can walk to one that is too far away for its particles to reach you. Bugs come back to the same spots; the spots are shared by every instance.");
         d.put("beeheemoth highlight", "Draws a box on the Beeheemoth while it is in plain sight on Galatea. It is found by its name tag, so how well the box fits the mob is an estimate.");
         d.put("beeheemoth highlight/highlight", "Shows the box. Off keeps the feature on but draws nothing.");
         d.put("beeheemoth highlight/color", "The box color. Left alone it follows the menu theme.");

@@ -364,9 +364,19 @@ public final class RecordCatalog {
         }
     });
 
+    /** Invisibug Highlight's learned Galatea spots (invisibug-finder-1124): "spots" = [{k ("x,y,z" to 0.1), x, y, z}], one
+     *  per spot a bug was confirmed at, for every instance; the mod keeps at most 64. */
+    public static final Kind INVISIBUG_SPOTS = new Kind("killer560smod-invisibug-spots.json", null, "invisibug-spots.json",
+            Scope.GLOBAL, new JsonMerge.Policy() {
+        @Override
+        public Function<JsonElement, String> arrayKey(String path) {
+            return path.equals("spots") ? JsonMerge.fields("k") : null;
+        }
+    });
+
     public static final List<Kind> ALL = List.of(CROESUS_LOG, CROESUS_RUNS, RNG_ITEM_LOG, EXPERIMENTS, BAZAAR_FLIP,
             NPC_SOLD, RUN_HISTORY, BEST_FRIENDS, EGG_TRACKER, LUCK, CARRY, SIM_MOB_LOOKS, CARNIVAL, ACCOUNT_ACTIVITY, GUILD_LIST, BOARD_BESTS,
-            SIM_DEVICE_PRACTICE, ROOM_COSTS, DEATH_PATTERNS, SIM_ROOM_DRILLS);
+            SIM_DEVICE_PRACTICE, ROOM_COSTS, DEATH_PATTERNS, SIM_ROOM_DRILLS, INVISIBUG_SPOTS);
 
     /** Sorts the array {@code key} of {@code root} by a field (numbers, or ISO timestamps as strings); returns it. */
     static JsonArray sortBy(JsonObject root, String key, String field, boolean descending) {

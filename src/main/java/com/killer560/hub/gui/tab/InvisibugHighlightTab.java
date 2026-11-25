@@ -12,6 +12,7 @@ public class InvisibugHighlightTab extends IslandFeatureTab {
     @Override
     protected void rows(Rows r) {
         r.color("Box Color", "color", 0);
+        r.toggle("Remembered Spots", "spots");
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             r.header("Cheat", true);
             r.toggle("Through Walls", "throughWalls");

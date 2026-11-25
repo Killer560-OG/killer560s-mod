@@ -10,7 +10,8 @@
      "Highlight Optimal Blocks: every box is now a log you can actually hit, touching air and in reach from the ground around the tree (no more branch tips or buried logs; a log nothing on the ground can reach is drawn dim), and once you break a log it shows the best logs on every nearby tree of that kind until you break another kind or leave the island.",
      "Regenerating Trees now stops marking a tree the moment its last log is back, instead of lingering after it is fully regrown.",
      "Profile Viewer SkyBlockPV styles: the profile list now looks like the original's dark buttons, and the Net Worth hover lists its sources under the original's category names in its order.",
-     "The Text Shadow and Background settings of the dungeon timer HUDs no longer cost any frame time while you play."
+     "The Text Shadow and Background settings of the dungeon timer HUDs no longer cost any frame time while you play.",
+     "Invisibug Highlight: the box now goes the moment you catch the bug, a new bug is boxed after 3 particles (half a second) instead of 7, and the new Remembered Spots setting (on by default) marks every spot an Invisibug was found at with a ring and a post, so you can walk to one that is too far away for its particles to reach you; a bug at a remembered spot is boxed from its first particle."
     ]
    }
   ]
