@@ -357,12 +357,11 @@ final class SettingTooltipsData {
         d.put("accessory advisor/reset position", "Puts the panel back beside the Accessory Bag after you dragged it somewhere else.");
         d.put("chest value", "While a chest, Ender Chest page or Backpack is open, a panel beside it lists what is inside with each line's value, highest first, and the total on top. A line is worth the Price Tooltip's Est. Item Value times its count; items with no price show ? and are left out of the total.");
         d.put("chest value/sort", "Value: most valuable line first. Name: alphabetical. Left click goes forward, right click back.");
-        d.put("chest value/max lines", "How many item lines the panel lists (3-30); the rest read \"+N more\". Left click goes up, right click down.");
+        d.put("chest value/max lines", "How many item lines the panel lists (3-30); the rest read \"+N more\" and scroll with the mouse wheel over the panel. Left click goes up, right click down.");
         d.put("chest value/chests", "Show the panel over chests on your island.");
         d.put("chest value/ender chest", "Show the panel over Ender Chest pages.");
         d.put("chest value/backpacks", "Show the panel over Backpacks.");
         d.put("chest value/other containers", "Also show it over any other menu that holds only real items (no buttons). May appear over a menu that is not really a container.");
-        d.put("chest value/reset position", "Puts the panel back beside the container after you dragged it somewhere else in Edit HUD.");
         d.put("accessory advisor/rows", "How many suggestions the panel lists (3-15). Left click goes up, right click down.");
         d.put("compactor preview/skyblock only", "Only show the grid on Hypixel Skyblock.");
     }

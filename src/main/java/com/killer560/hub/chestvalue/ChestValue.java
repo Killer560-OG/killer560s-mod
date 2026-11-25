@@ -13,6 +13,7 @@ import com.killer560.hub.util.ItemNbt;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.SkyblockGate;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -49,7 +50,7 @@ public final class ChestValue {
     }
 
     /** What a container is worth: lines sorted and cut, the total of the priced ones, how many were unpriced or cut. */
-    public record Result(double total, List<Line> lines, int unpriced, int more) {
+    public record Result(double total, List<Line> lines, int unpriced, int more, List<Line> all) {
     }
 
     private static final List<String> SAMPLE = List.of("§lChest Value: §r§6125.4k", "§712x §fEnchanted Diamond  §632k",
@@ -61,6 +62,8 @@ public final class ChestValue {
     private static long lastTouchMs;
     private static Result last;
     private static int computes;
+    private static int scroll;
+    private static int panelX, panelY;
 
     private ChestValue() {
     }
@@ -105,6 +108,8 @@ public final class ChestValue {
             return;
         }
         builtKey = "";
+        scroll = 0;
+        ScreenMouseEvents.allowMouseScroll(screen).register((s, mx, my, sx, sy) -> !onScroll(client, mx, my, sy));
         ScreenEvents.afterExtract(screen).register((s, g, mouseX, mouseY, partialTick) -> {
             try {
                 render(client, container, kind, g);
@@ -144,13 +149,8 @@ public final class ChestValue {
                 stacks.add(menu.slots.get(i).getItem());
             }
             last = kind == OTHER && !plain(stacks) ? null : compute(stacks, cfg.getSort(), cfg.getMaxLines());
-            lines = last == null ? List.of() : format(last);
-            Font font = client.font;
-            int w = 0;
-            for (String l : lines) {
-                w = Math.max(w, font.width(l));
-            }
-            panelWidth = w + PAD * 2;
+            scroll = 0;
+            rebuildLines(client);
         }
         if (lines.isEmpty()) {
             return;
@@ -160,8 +160,33 @@ public final class ChestValue {
         if (x < 0) {
             x = acc.killer560smod$getLeftPos() + 176 + 4;
         }
+        panelX = x;
+        panelY = acc.killer560smod$getTopPos();
         g.nextStratum();
         element.draw(g, x, acc.killer560smod$getTopPos(), panelWidth, panelHeight(), ChestValue::drawPanel);
+    }
+
+    private static void rebuildLines(Minecraft client) {
+        lines = last == null ? List.of() : format(last, scroll);
+        int w = 0;
+        for (String l : lines) {
+            w = Math.max(w, client.font.width(l));
+        }
+        panelWidth = w + PAD * 2;
+    }
+
+    /** The wheel over the panel while the list is longer than its window moves the window one line per notch; true = consumed. */
+    private static boolean onScroll(Minecraft client, double mx, double my, double dy) {
+        if (last == null || last.more() <= 0 || lines.isEmpty() || dy == 0 || mx < panelX || mx >= panelX + panelWidth
+                || my < panelY || my >= panelY + panelHeight()) {
+            return false;
+        }
+        int next = Math.max(0, Math.min(last.all().size() - last.lines().size(), scroll - (int) Math.signum(dy)));
+        if (next != scroll) {
+            scroll = next;
+            rebuildLines(client);
+        }
+        return true;
     }
 
     /** A plain "other" container holds only Skyblock items: a button menu (panes, arrows, close) has stacks with no id. */
@@ -218,17 +243,18 @@ public final class ChestValue {
         Comparator<Line> byName = Comparator.comparing(l -> l.name().toLowerCase(java.util.Locale.ROOT));
         all.sort(sort == ChestValueConfig.Sort.NAME ? byName : Comparator.comparingDouble(Line::value).reversed().thenComparing(byName));
         int shown = Math.min(maxLines, all.size());
-        return new Result(total, List.copyOf(all.subList(0, shown)), unpriced, all.size() - shown);
+        return new Result(total, List.copyOf(all.subList(0, shown)), unpriced, all.size() - shown, List.copyOf(all));
     }
 
     private static String coins(double v) {
         return DungeonChestValuer.formatCoins(Math.round(v));
     }
 
-    private static List<String> format(Result r) {
+    private static List<String> format(Result r, int offset) {
         List<String> out = new ArrayList<>();
         out.add("§lChest Value: §r§6" + coins(r.total()));
-        for (Line l : r.lines()) {
+        int n = r.lines().size();
+        for (Line l : r.all().subList(offset, offset + n)) {
             String name = l.name();
             Font font = Minecraft.getInstance().font;
             if (font.width(name) > NAME_PX) {
@@ -237,7 +263,9 @@ public final class ChestValue {
             out.add("§7" + l.count() + "x §f" + name + "  " + (l.value() < 0 ? "§8?" : "§6" + coins(l.value())));
         }
         if (r.more() > 0) {
-            out.add("§8+" + r.more() + " more");
+            int below = r.all().size() - offset - n;
+            out.add("§8" + (below > 0 ? "+" + below + " more" : "") + (below > 0 && offset > 0 ? ", " : "")
+                    + (offset > 0 ? offset + " above" : ""));
         }
         if (r.unpriced() > 0) {
             out.add("§8" + r.unpriced() + " unpriced");
@@ -257,12 +285,6 @@ public final class ChestValue {
         }
     }
 
-    /** Back beside the container (forgets a dragged or Edit HUD spot). */
-    public static void resetPosition() {
-        com.killer560.hub.hud.HudConfig.getInstance().clearPosition(ELEMENT_ID);
-        com.killer560.hub.hud.HudConfig.getInstance().save();
-    }
-
     // Testkit hooks.
     public static Result lastResultForTest() {
         return last;
@@ -270,6 +292,15 @@ public final class ChestValue {
 
     public static List<String> linesForTest() {
         return lines;
+    }
+
+    /** Testkit: the wheel as the screen event sees it (mouse in GUI pixels); true when the panel took it. */
+    public static boolean scrollForTest(double mx, double my, double dy) {
+        return onScroll(Minecraft.getInstance(), mx, my, dy);
+    }
+
+    public static int[] panelRectForTest() {
+        return new int[]{panelX, panelY, panelWidth, panelHeight()};
     }
 
     public static int computesForTest() {
