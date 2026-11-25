@@ -29,7 +29,8 @@
      "Testkit: new case 1125-autoharp-campfire plays a full 197-note Melody's Harp song with rests and same-column repeats at a 100 ms round trip and needs every note.",
      "Chest Value: when the list is longer than the panel shows, scroll the mouse wheel over the panel to move through the items (the last line says how many are below and above), and the Reset Position button is gone from its tab.",
      "Etherwarp Overlay: the box now goes through the same blocks the server's etherwarp goes through, including big dripleaf stems (the hanging vines on Galatea's mangrove trees) and candles, which used to stop it although the warp went past them.",
-     "Beacon Ready Alert: new Color setting for the title and HUD line (Auto follows the menu theme; right click puts it back to Auto)."
+     "Beacon Ready Alert: new Color setting for the title and HUD line (Auto follows the menu theme; right click puts it back to Auto).",
+     "Invisibug Highlight: a new Tracer Line option draws a line to the nearest Invisibug that has been found, and when none is found it leads you through the remembered spots you have not checked yet. Remembered spots are now a flat circle where bugs spawn instead of a ring with a post, and sightings a few blocks apart are one spot with a larger circle instead of many circles."
     ]
    }
   ]
