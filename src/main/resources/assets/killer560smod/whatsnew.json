@@ -7,7 +7,8 @@
     "title": "More",
     "blurb": "Changes in this update.",
     "items": [
-     "Highlight Optimal Blocks: every box is now a log you can actually hit, touching air and in reach from the ground around the tree (no more branch tips or buried logs; a log nothing on the ground can reach is drawn dim), and once you break a log it shows the best logs on every nearby tree of that kind until you break another kind or leave the island."
+     "Highlight Optimal Blocks: every box is now a log you can actually hit, touching air and in reach from the ground around the tree (no more branch tips or buried logs; a log nothing on the ground can reach is drawn dim), and once you break a log it shows the best logs on every nearby tree of that kind until you break another kind or leave the island.",
+     "Regenerating Trees now stops marking a tree the moment its last log is back, instead of lingering after it is fully regrown."
     ]
    }
   ]

@@ -33,8 +33,11 @@ import java.util.Set;
  * any block of it"): its first chopped log coming back. The 11-23 logger data (546 trees) shows no server signal for the
  * start (no chat, action bar, sound or particle at the first return, only the block update); the first log returns 600-1100
  * ticks after the chop. A chopped log's position is remembered ({@link #GONE}, for {@link #MAX_AGE} ticks) only to know
- * which logs are returns: on the tick after one, the logs joined to it are seeded into {@link #PRESENT}, and they stay drawn
- * while a tracked chop is in their chunk column or the next one, each dropping out when broken.
+ * which logs are returns: on the tick after one, the logs joined to it are seeded into {@link #PRESENT}. A returned log leaves
+ * {@code GONE} at once, and a standing log stays drawn only while it is joined (through standing logs) to a log still missing,
+ * so the whole tree stops being drawn the tick its last log is back (killer560, 11-24: "sticking around a long time after the
+ * tree is fully regenerated"; it had waited out the {@link #MAX_AGE} of every chop in its chunk and the next ones), each log
+ * dropping out when broken.
  * Event-driven from block updates (the old state is read in {@code ClientLevel.setServerVerifiedBlockState} and
  * {@code setBlock}, so a log he breaks himself counts too; a return as chunk data is caught by the 10-tick recheck);
  * the draw arrays are rebuilt only on a change or every 10 ticks, and nothing is allocated per frame.
@@ -51,7 +54,7 @@ public final class TreeRegen {
     /** The Style row's labels in saved order (index 2, Outline, is the default). */
     public static final String[] STYLES = {"Fill", "Fill + Outline", "Outline", "Recolor Block"};
 
-    /** Ticks a chop still marks its tree (the 95th percentile of the returns is under 1,000). */
+    /** Ticks a chop that never returns is still remembered (the 95th percentile of the returns is under 1,000). */
     static final int MAX_AGE = 1400;
     private static final int MAX_LOGS = 1500;
     private static final int MAX_DRAWN = 400;
@@ -99,7 +102,7 @@ public final class TreeRegen {
         }
         long key = pos.asLong();
         if (is) {
-            if (GONE.containsKey(key)) {
+            if (GONE.remove(key) != null) {
                 regrown(key);
             }
             return;
@@ -155,18 +158,18 @@ public final class TreeRegen {
         }
         dirty = false;
         style = CFG.num("style");
-        // An expired chop drops its tree; a tracked log back as chunk data (no block update) joins the highlight.
-        Set<Long> columns = new HashSet<>();
+        // An expired chop is forgotten; a tracked log back as chunk data (no block update) joins the highlight.
         for (Iterator<Map.Entry<Long, Integer>> it = GONE.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<Long, Integer> e = it.next();
             if (clock - e.getValue() > MAX_AGE) {
                 it.remove();
                 continue;
             }
-            BlockPos g = BlockPos.of(e.getKey());
-            columns.add(column(g.getX() >> 4, g.getZ() >> 4));
-            if (!PRESENT.contains(e.getKey()) && mc.level.getBlockState(g).is(BlockTags.LOGS)) {
-                regrown(e.getKey());
+            if (mc.level.getBlockState(BlockPos.of(e.getKey())).is(BlockTags.LOGS)) {
+                it.remove();
+                if (!PRESENT.contains(e.getKey())) {
+                    regrown(e.getKey());
+                }
             }
         }
         for (long seed : SEEDS) {
@@ -176,10 +179,11 @@ public final class TreeRegen {
         AABB[] b = new AABB[Math.min(PRESENT.size(), MAX_DRAWN)];
         double px = mc.player.getX(), py = mc.player.getY(), pz = mc.player.getZ();
         int n = 0;
-        // A standing log is drawn while it is a log and a tracked chop is in its chunk column or a neighbor.
+        // A standing log is drawn while it is a log and joined to a log still missing: a whole tree is not drawn.
+        Set<Long> joined = joinedToMissing();
         for (Iterator<Long> it = PRESENT.iterator(); it.hasNext(); ) {
             BlockPos p = BlockPos.of(it.next());
-            if (!mc.level.getBlockState(p).is(BlockTags.LOGS) || !nearColumn(columns, p)) {
+            if (!mc.level.getBlockState(p).is(BlockTags.LOGS) || !joined.contains(p.asLong())) {
                 it.remove();
                 continue;
             }
@@ -202,19 +206,29 @@ public final class TreeRegen {
         counted = n;
     }
 
-    private static long column(int cx, int cz) {
-        return ((long) cx << 32) ^ (cz & 0xFFFFFFFFL);
-    }
-
-    private static boolean nearColumn(Set<Long> columns, BlockPos p) {
-        for (int dx = -1; dx <= 1; dx++) {
-            for (int dz = -1; dz <= 1; dz++) {
-                if (columns.contains(column((p.getX() >> 4) + dx, (p.getZ() >> 4) + dz))) {
-                    return true;
+    /** The standing logs reachable, through standing logs, from a log still missing (a chopped log's spot touches its own tree). */
+    private static Set<Long> joinedToMissing() {
+        Set<Long> joined = new HashSet<>();
+        if (PRESENT.isEmpty()) {
+            return joined;
+        }
+        ArrayDeque<Long> todo = new ArrayDeque<>(GONE.keySet());
+        BlockPos.MutableBlockPos q = new BlockPos.MutableBlockPos();
+        while (!todo.isEmpty()) {
+            BlockPos c = BlockPos.of(todo.poll());
+            for (int dx = -1; dx <= 1; dx++) {
+                for (int dy = -1; dy <= 1; dy++) {
+                    for (int dz = -1; dz <= 1; dz++) {
+                        q.set(c.getX() + dx, c.getY() + dy, c.getZ() + dz);
+                        long k = q.asLong();
+                        if (PRESENT.contains(k) && joined.add(k)) {
+                            todo.add(k);
+                        }
+                    }
                 }
             }
         }
-        return false;
+        return joined;
     }
 
     /** The tree that lost {@code from} (now air): every log joined to it, up to {@link #SEED_LOGS}. */
