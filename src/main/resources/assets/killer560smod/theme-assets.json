@@ -51,7 +51,7 @@
     {
       "folder": "pv-panorama",
       "release": "pv-panorama-1",
-      "published": false,
+      "published": true,
       "assets": [
         {
           "name": "pvpano_combat_1_day_0.webp",

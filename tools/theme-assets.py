@@ -35,7 +35,7 @@ PREVIEW_QUALITY = 75
 # Other on-demand files, each folder of theme-assets/ its own release (no in-jar preview, kept in that folder of the cache).
 # "published": False until that release's files are uploaded; the mod then uses a file already in its cache but never
 # downloads one (so it never asks for a release that does not exist). Flip it after the upload and run this again.
-EXTRA = {"pv-panorama": {"release": "pv-panorama-1", "published": False}}
+EXTRA = {"pv-panorama": {"release": "pv-panorama-1", "published": True}}
 
 
 def preview_bytes(path):
