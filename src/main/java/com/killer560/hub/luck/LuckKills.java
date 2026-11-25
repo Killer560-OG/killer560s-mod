@@ -37,7 +37,7 @@ import java.util.regex.Pattern;
  * (the stand right after the mob's id, like Mob ESP reads it), and looked up in the table by name and level.
  *
  * <p>Death: the mob's health reaches 0 ({@code isDeadOrDying}), its nametag reads 0❤, or - for a mob he hit himself in the
- * last 3 s - it is removed. Each mob counts once. Looting is the held weapon's ({@code enchantments.looting} in its
+ * last 3 s - it is removed. Each mob counts once. Looting is the held item's (any weapon, an axe or a fishing rod: patch 11-24;{@code enchantments.looting} in its
  * Skyblock data) when the death is seen, as the Looting page says: the weapon held when the mob dies.
  *
  * <p>"Hit by me" is also set (luckcount-1118; before it only melee set it, so kills by Implosion, Spirit Sceptre and the

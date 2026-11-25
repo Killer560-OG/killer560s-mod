@@ -348,7 +348,7 @@ final class SettingTooltipsData {
         for (com.killer560.hub.slottext.SlotTextType t : com.killer560.hub.slottext.SlotTextType.values()) {
             d.put("slot text/" + t.label.toLowerCase(java.util.Locale.ROOT), t.description);
         }
-        d.put("compactor preview", "Hover a Personal Compactor and its tooltip lists the Sack items it compacts; hover a Personal Deletor and it shows a grid of the items it deletes. No need to open either.");
+        d.put("compactor preview", "Hover a Personal Deletor and its tooltip shows a grid of the items it deletes. No need to open it.");
         d.put("compactor preview/show", "On Hover adds the preview to the tooltip whenever you hover the item. While Holding Key adds it only while the key is held. Left click goes forward, right click back.");
         d.put("compactor preview/highlight enabled / disabled", "In a skill compactor menu (Personal Mining Compactor and the like), entries that are on get a green slot and entries that are off a red one. Needs Compactor Preview on.");
         d.put("compactor preview/key", "The key (or mouse button) that shows the grid in While Holding Key mode. Click, then press the key. Backspace clears it.");

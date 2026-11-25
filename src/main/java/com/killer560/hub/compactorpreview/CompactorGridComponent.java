@@ -7,7 +7,7 @@ import net.minecraft.world.item.ItemStack;
 
 import java.util.Map;
 
-/** The slot grid {@link CompactorPreviewFeature} adds to a Personal Compactor / Deletor tooltip: a "Contents" label and
+/** The slot grid {@link CompactorPreviewFeature} adds to a Personal Deletor tooltip: a "Contents" label and
  *  one 18-unit square per slot of the item (rows x columns by tier), the configured ones holding their item. Drawn with
  *  plain fills in vanilla's slot colors, so it needs no texture. */
 final class CompactorGridComponent implements ClientTooltipComponent {
@@ -35,7 +35,7 @@ final class CompactorGridComponent implements ClientTooltipComponent {
     }
 
     private String label() {
-        return contents.deletor() ? "Deletes" : "Compacts";
+        return "Deletes";
     }
 
     @Override

@@ -1,9 +1,6 @@
 package com.killer560.hub.compactorpreview;
 
-import com.killer560.hub.itembrowser.SkyblockItemEntry;
-import com.killer560.hub.itembrowser.SkyblockItemRepository;
 import com.killer560.hub.petwheel.mixin.AbstractContainerScreenAccessor;
-import com.killer560.hub.profileviewer.data.SbProfile;
 import com.killer560.hub.profileviewer.item.ItemIcons;
 import com.killer560.hub.util.ItemNbt;
 import com.killer560.hub.util.KeyUtil;
@@ -26,41 +23,35 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * "Compactor Preview" - hover a Personal Compactor and its tooltip lists the Sack items it compacts; hover a Personal
- * Deletor and the items it deletes are drawn as a small slot grid, so you do not have to open either menu. Shown on
- * hover, or only while a key is held (setting). Visual only, on both builds.
+ * "Compactor Preview" - hover a Personal Deletor and the items it deletes are drawn as a small slot grid, so you do not
+ * have to open its menu (killer560, 2026-11-25: "no preview for anything but the deletor"; compactors get none). Shown
+ * on hover, or only while a key is held (setting). Visual only, on both builds.
  * <p>
- * Data shape: the item's custom data holds one string entry per configured item, {@code personal_compact_<n>} or
- * {@code personal_deletor_<n>}, whose value is a SkyBlock id; a deletor also has {@code PERSONAL_DELETOR_ACTIVE}.
- * SkyBlock 0.27.3 (2026-11-17) reworked compactors: no slots, they compact the Sack items you toggle on, and each skill
- * has its own ({@code PERSONAL_COMPACTOR_<SKILL>_4000}). Where that version keeps its toggles is not captured yet
- * (killer560s-mod-logs/pv0273-1117/NEEDS-CAPTURE.md), so a compactor lists the ids it carries as ON and otherwise points
- * at /compactor. Deletor slots by tier (rows of 7): 4000 7, 5000 14, 6000 21, 7000 28 (patch notes 0.27.3).
+ * Data shape: the item's custom data holds one string entry per configured item, {@code personal_deletor_<n>}, whose
+ * value is a SkyBlock id, and {@code PERSONAL_DELETOR_ACTIVE}. Deletor slots by tier (rows of 7): 4000 7, 5000 14,
+ * 6000 21, 7000 28 (patch notes 0.27.3).
  * <p>
  * The grid and lines are {@link ClientTooltipComponent}s spliced into the tooltip list by {@code CompactorPreviewTooltipMixin}
  * just before vanilla draws it, so they move, flip and clamp with the tooltip like any other line.
  */
 public final class CompactorPreviewFeature {
 
-    private static final Pattern ITEM_ID = Pattern.compile("^PERSONAL_(COMPACTOR|DELETOR)_(?:([A-Z]{1,16})_)?(\\d{1,5})$");
+    private static final Pattern ITEM_ID = Pattern.compile("^PERSONAL_DELETOR_(\\d{1,5})$");
 
     /** A deletor's rows of 7 by tier. */
     private static final Map<String, Integer> DELETOR_ROWS = Map.of("4000", 1, "5000", 2, "6000", 3, "7000", 4);
-    /** Most compactor lines listed before "+N more". */
-    private static final int MAX_LINES = 12;
 
     private CompactorPreviewFeature() {
     }
 
-    /** What a compactor or deletor holds. {@code slots}: slot number -> SkyBlock id, in slot order; {@code skill} is the
-     *  skill of a 0.27.3 compactor ("MINING"), else null; a compactor has no grid (0 rows). */
-    public record Contents(boolean deletor, String skill, String tier, int rows, int cols, Map<Integer, String> slots, Boolean active) {
+    /** What a deletor holds. {@code slots}: slot number -> SkyBlock id, in slot order. */
+    public record Contents(String tier, int rows, int cols, Map<Integer, String> slots, Boolean active) {
         public int capacity() {
             return rows * cols;
         }
     }
 
-    /** The contents of {@code stack}, or null when it is not a Personal Compactor / Deletor. Public for the tests. */
+    /** The contents of {@code stack}, or null when it is not a Personal Deletor. Public for the tests. */
     public static Contents contentsOf(ItemStack stack) {
         CompoundTag tag = ItemNbt.view(stack);
         if (tag == null) {
@@ -70,10 +61,8 @@ public final class CompactorPreviewFeature {
         if (!m.matches()) {
             return null;
         }
-        boolean deletor = m.group(1).equals("DELETOR");
-        String skill = m.group(2);
-        String tier = m.group(3);
-        String prefix = deletor ? "personal_deletor_" : "personal_compact_";
+        String tier = m.group(1);
+        String prefix = "personal_deletor_";
         Map<Integer, String> slots = new TreeMap<>();
         for (String key : tag.keySet()) {
             if (!key.startsWith(prefix)) {
@@ -90,9 +79,9 @@ public final class CompactorPreviewFeature {
                 slots.put(index, value);
             }
         }
-        int rows = deletor ? DELETOR_ROWS.getOrDefault(tier, 1) : 0;
+        int rows = DELETOR_ROWS.getOrDefault(tier, 1);
         Boolean active = tag.contains("PERSONAL_DELETOR_ACTIVE") ? tag.getBooleanOr("PERSONAL_DELETOR_ACTIVE", false) : null;
-        return new Contents(deletor, skill, tier, rows, deletor ? 7 : 0, slots, active);
+        return new Contents(tier, rows, 7, slots, active);
     }
 
     /** Whether the grid should be added to a tooltip this frame: feature on, Skyblock gate, mode/key rule. */
@@ -175,19 +164,13 @@ public final class CompactorPreviewFeature {
         return out;
     }
 
-    /** The lines to add for {@code stack}, or null when it is not a compactor / deletor. */
+    /** The lines to add for {@code stack}, or null when it is not a deletor. */
     private static List<ClientTooltipComponent> buildExtra(ItemStack stack) {
         Contents contents = contentsOf(stack);
         if (contents == null) {
             return null;
         }
         List<ClientTooltipComponent> extra = new ArrayList<>(4);
-        if (!contents.deletor()) {
-            for (Component line : compactorLines(contents)) {
-                extra.add(ClientTooltipComponent.create(line.getVisualOrderText()));
-            }
-            return extra;
-        }
         if (contents.active() != null) {
             extra.add(ClientTooltipComponent.create(Component.literal("Active: ")
                     .append(Component.literal(contents.active() ? "YES" : "NO")
@@ -233,47 +216,5 @@ public final class CompactorPreviewFeature {
 
     private static ItemStack iconFor(String skyblockId) {
         return ItemIcons.catalogIcon(skyblockId);
-    }
-
-    /**
-     * A compactor's lines: "Compacts:" and each Sack item it carries turned ON (by name, at most {@link #MAX_LINES}),
-     * or, when the item carries none, where to set them. Public for the tests.
-     */
-    public static List<Component> compactorLines(Contents contents) {
-        List<Component> out = new ArrayList<>();
-        if (contents.skill() != null) {
-            out.add(Component.literal(SbProfile.titleCase(contents.skill()) + " Compactor").withStyle(ChatFormatting.GRAY));
-        }
-        if (contents.slots().isEmpty()) {
-            out.add(Component.literal("Choose the Sack items it compacts in /compactor").withStyle(ChatFormatting.GRAY));
-            return out;
-        }
-        out.add(Component.literal("Compacts:").withStyle(ChatFormatting.GRAY));
-        int shown = 0;
-        for (String id : contents.slots().values()) {
-            if (shown++ == MAX_LINES) {
-                out.add(Component.literal(" +" + (contents.slots().size() - MAX_LINES) + " more").withStyle(ChatFormatting.DARK_GRAY));
-                break;
-            }
-            out.add(Component.literal(" ON ").withStyle(ChatFormatting.GREEN)
-                    .append(Component.literal(nameFor(id)).withStyle(ChatFormatting.WHITE)));
-        }
-        return out;
-    }
-
-    /** The catalog's plain name for an id, else the id in title case. */
-    private static String nameFor(String id) {
-        try {
-            SkyblockItemEntry e = SkyblockItemRepository.findOnDisk(id);
-            if (e != null && e.name() != null) {
-                String plain = ChatFormatting.stripFormatting(e.name());
-                if (plain != null && !plain.isBlank()) {
-                    return plain;
-                }
-            }
-        } catch (Exception ignored) {
-            // fall back to the id
-        }
-        return SbProfile.titleCase(id);
     }
 }
