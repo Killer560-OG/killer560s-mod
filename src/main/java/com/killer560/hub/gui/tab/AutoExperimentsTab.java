@@ -310,7 +310,7 @@ public class AutoExperimentsTab extends BaseTab {
     private static Component titanicPriceText() {
         double price = ExperimentsConfig.getInstance().getTitanicMaxPriceCoins();
         return Component.literal(price <= 0
-                ? "Max Titanic Price: §7Disabled"
+                ? "Max Titanic Price: §70 (never buys, stops at low XP)"
                 : String.format("Max Titanic Price: §b%,.0f coins", price));
     }
 }

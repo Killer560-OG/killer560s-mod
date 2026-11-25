@@ -392,7 +392,12 @@ final class ExperimentNavigator {
                     LOGGER.warn("{} stakes: still loading after {} ms ({} tier item(s)), picking from what is there",
                             title, STAKES_SETTLE_MAX_MS, scan.tiers());
                 }
-                if (scan.betterLockedByExperience() && titanicMaxPriceCoins > 0) {
+                if (scan.betterLockedByExperience()) {
+                    if (titanicMaxPriceCoins <= 0) {
+                        // Never play a lower stake than the one the table offers: stop and say why (killer560, 11-24).
+                        doneReason = "the best stake needs more XP and Max Titanic Price is 0 (never buy a bottle)";
+                        return DONE_SIGNAL;
+                    }
                     pendingTitanicPurchase = true;
                     return CLOSED_SIGNAL;
                 }

@@ -17,7 +17,7 @@ public final class ExperimentsConfig {
      *  from the automation (see {@link #enabled} and {@link #isAutonomousMode()}). Written by every
      *  {@link #save()}; a file without it is pre-split and gets the one-time fix-up in {@link #load()}.
      *  No setting's KEY changed in that split - only which of two now-independent toggles owns it. */
-    private static final int CURRENT_CONFIG_VERSION = 2;
+    private static final int CURRENT_CONFIG_VERSION = 3;
 
     /** Floor of Random Delay (max): 0 turns the jitter off. */
     public static final int MIN_DELAY_MS = 0;
@@ -39,7 +39,7 @@ public final class ExperimentsConfig {
     public static final int DEFAULT_DELAY_MS = 400;
     public static final int DEFAULT_FIRST_CLICK_DELAY_MS = 600;
     public static final int DEFAULT_RANDOM_DELAY_MAX_MS = 50;
-    public static final double DEFAULT_TITANIC_MAX_PRICE = 0;
+    public static final double DEFAULT_TITANIC_MAX_PRICE = 1_000_000;
     public static final int DEFAULT_AUTO_RENEW_COUNT = 0;
     public static final int MIN_AUTO_RENEW_COUNT = 0;
     public static final int MAX_AUTO_RENEW_COUNT = 3;
@@ -119,7 +119,7 @@ public final class ExperimentsConfig {
     private int autoRenewCount = DEFAULT_AUTO_RENEW_COUNT;
     /** Max Bazaar buy price (coins) autonomous mode will pay to instantly buy a Titanic Experience
      *  Bottle when the table's own "Missing experience?" prompt shows up - 0 means never auto-buy
-     *  (the default; killer560, 2026-10-15: off for everyone). No practical minimum beyond 0; capped at
+     *  (the default was 0 from 2026-10-15 to 2026-11-24, 1,000,000 since: killer560, 11-24). No practical minimum beyond 0; capped at
      *  3,000,000 per killer560's own limit. */
     private double titanicMaxPriceCoins = DEFAULT_TITANIC_MAX_PRICE;
     /** Random extra delay (0-1000ms) added on top of whatever fixed delay already decided it was
@@ -233,7 +233,7 @@ public final class ExperimentsConfig {
             }
             // Version 2 (2026-10-15): killer560's delays became the defaults. A file written before then gets the
             // new default for every delay still at the OLD default (it was never chosen), and keeps every one its
-            // owner changed. The skips and the Titanic price are not migrated: their defaults did not change. The
+            // owner changed. The skips are not migrated: their defaults did not change. The
             // delay floor needs no step here: clampInt already raised anything below MIN_CLICK_DELAY_MS.
             if (version < 2) {
                 if (clampInt(obj, "delayMs", OLD_DEFAULT_DELAY_MS, 0, MAX_DELAY_MS) == OLD_DEFAULT_DELAY_MS) {
@@ -246,6 +246,11 @@ public final class ExperimentsConfig {
                 if (clampInt(obj, "randomDelayMaxMs", 0, MIN_DELAY_MS, MAX_DELAY_MS) == 0) {
                     cfg.randomDelayMaxMs = DEFAULT_RANDOM_DELAY_MAX_MS;
                 }
+            }
+            // Version 3 (2026-11-24): the price defaults to 1,000,000. A file below version 3 holding 0 got it from the
+            // old default, never chosen, so it moves once; a 0 set on the version-3 file stays.
+            if (version < 3 && ConfigJson.getDouble(obj, "titanicMaxPriceCoins", 0) <= 0) {
+                cfg.titanicMaxPriceCoins = DEFAULT_TITANIC_MAX_PRICE;
             }
             instance = cfg;
         } catch (Exception e) {
