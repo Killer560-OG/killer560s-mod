@@ -2525,12 +2525,16 @@ public final class ClearExecutor {
             // yet - a hop goes on from the prediction while the last one is in flight - and the server already has him
             // there, so the planned look is the right one (aimed from the old spot it sent 1015-sim-clickgap's hops off
             // the plan, 2026-10-15).
-            if (at.distanceTo(pendingFrom) > 0.05 && at.distanceTo(pendingFrom) < 1.0) {
+            // Past 0.01, not 0.05 (Auto Routes' REAIM_EPSILON): the settle is 0.05 itself, and at block tops such as 69, -8
+            // or -40 the double reads 0.0499999, so those hops went with the look aimed 0.05 too high and landed a block
+            // off the plan (1015-sim-clickgap, clickgap-262-1125).
+            double off = at.distanceTo(pendingFrom);
+            if (off > 0.01 && off < 1.0) {
                 Vec3 eye = new Vec3(at.x, at.y + TeleportUtils.eyeHeight(true), at.z);
                 TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(eye, pendingBlock, hopRange() + 1.0);
                 if (rot != null) {
                     LOGGER.info("[Path] Warp: held {} tick(s), aimed again from {} ({} off the planned spot) at {}",
-                            pendingHeldTicks, fmt(at), String.format(java.util.Locale.ROOT, "%.2f", at.distanceTo(pendingFrom)),
+                            pendingHeldTicks, fmt(at), String.format(java.util.Locale.ROOT, "%.2f", off),
                             pendingBlock.toShortString());
                     interact = new float[]{rot.yaw(), rot.pitch()};
                     pendingInteract = interact;

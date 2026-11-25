@@ -20,7 +20,8 @@
      "Profile Viewer: the Classic style's island panorama pictures are now available to download on demand (they are fetched for the island you are viewing and checked before use).",
      "Compactor Preview now previews only the Personal Deletor (no compactor shows a preview any more), and How Lucky Are You counts Looting from a held axe or fishing rod.",
      "Dungeons Autopilot no longer gets stuck going back and forth between two spots it cannot warp out of, and Auto Routes waits a tick after a server teleport before stepping back onto a warp spot, which no longer draws an anticheat flag.",
-     "Auto Clear: a trip that needs a searched path no longer waits behind the map's background route warm-up, so more trips after a kill leave on the same tick (about 3.5% faster room clears in the dungeon sim)."
+     "Auto Clear: a trip that needs a searched path no longer waits behind the map's background route warm-up, so more trips after a kill leave on the same tick (about 3.5% faster room clears in the dungeon sim).",
+     "Interactive Map, Auto Clear and Dungeons Autopilot: a warp that waits a tick behind a block click is now aimed again from where you settled at every floor height; at some heights it kept its old aim and landed a block off the planned path."
     ]
    }
   ]

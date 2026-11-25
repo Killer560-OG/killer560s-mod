@@ -90,6 +90,11 @@ there); Auto Routes is in [LESSONS-ROUTES.md](LESSONS-ROUTES.md); the sim's side
   `RightClick.unpaired()` is false; otherwise it goes the next tick through `doInteract`'s turn-first check
   (1015-sim-clickgap 3 of 3 runs, 0 hops ignored). The other early senders (Auto Routes' landing-tick warp,
   AutoReposition) only send after the landing is known and already go through `RightClick.mustTurnFirst`.
+- **Never gate on a distance equal to the thing measured.** A held hop was aimed again only when he stood `> 0.05` from its
+  planned spot, and the settle after a landing IS 0.05: at block tops such as 69, -8 or -40 the double reads 0.0499999, so
+  those hops kept the look planned 0.05 higher and landed a block off ("warp N put you 1.0 blocks from where it was aimed",
+  1015-sim-clickgap on 26.2 2 runs of 3 on origin; not 26.2-only, 26.3's sim floors just sat at -18). Now `> 0.01`, Auto
+  Routes' `REAIM_EPSILON` (clickgap-262-1125).
 - **One item use per tick.** `ClearExecutor.onTickStart` has two hop slots, the held hop's (`doInteract` first thing) and a
   precomputed/planned-ahead queue's `sendNow` slot after `handleQueue`. A first hop held behind an unpaired block click
   went from the first slot with its block half, which paired the click, so the `!unpaired()` guard on the second slot let
