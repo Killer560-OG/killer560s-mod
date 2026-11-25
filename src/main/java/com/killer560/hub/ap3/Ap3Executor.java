@@ -6091,6 +6091,9 @@ public final class Ap3Executor {
      * the FACING, 45 degrees off the walk during a strafe. In the air it strafes again ("I want that movespeed buff"):
      * W+A moves at yaw - 45, W+D at yaw + 45, whichever is the shorter turn.
      */
+    /** The most a use's look may sit off the walk and still be kept on a snap (PlaceRotationGuard nudges by 0.01 steps). */
+    private static final float USE_LOOK_KEPT = 0.1f;
+
     private static float snapToWalk(LocalPlayer player) {
         float yaw = player.getYRot();
         float walkYaw = walkYawDeg();
@@ -6100,7 +6103,11 @@ public final class Ap3Executor {
             walkYaw = steer;
         }
         float delta = Mth.wrapDegrees(walkFacing(yaw, walkYaw) - yaw);
-        if (Math.abs(delta) > 1e-4f) {
+        // His use went this tick at a look PlaceRotationGuard moved a few hundredths off the walk: the movement packet
+        // must report that look (GrimAC BadPacketsJ), and so little moves a jump by under 0.001 blocks (ee3-rowfix-1125:
+        // r34a's jump ticks under his right click drew BadPacketsJ x2 on both Grim configs). The keys still face the walk.
+        if (Math.abs(delta) > 1e-4f && !(Math.abs(delta) <= USE_LOOK_KEPT
+                && com.killer560.hub.util.PlaceRotationGuard.useSinceMove())) {
             player.setYRot(yaw + delta);
             RouteRotation.rebase();
         }

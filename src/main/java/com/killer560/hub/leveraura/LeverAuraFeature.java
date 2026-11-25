@@ -302,18 +302,27 @@ public final class LeverAuraFeature {
             // A look asked for last tick that did not land (his use or dig took that packet) is not asked again: the
             // lever may be in reach this one tick only.
             boolean asked = askedPos == pos.asLong() && askedTick == ActionGate.currentTick() - 1;
-            if (!packetLook || !cfg.isNoLookClick() || (!(asked || ActionGate.hisUseGoesThisTick(client))
-                    && com.killer560.hub.util.BlockHits.boxDistanceSq(eyeNext, pos) <= r * r)) {
+            boolean hisUse = ActionGate.hisUseGoesThisTick(client);
+            boolean reachNext = com.killer560.hub.util.BlockHits.boxDistanceSq(eyeNext, pos) <= r * r;
+            // A no-look click while GrimAC RotationPlace's buffer is up is CANCELED (util/GrimHitBuffer): with the lever
+            // still in reach next tick and no use of his in this one, ask the look again instead (ee3-rowfix-1125: r34g's
+            // high lever clicked on the heard look at 4.42 under his swap, thrown away, out of reach before the retry).
+            // Not while his uses keep coming (a use tick carries no look either, and GrimHitBuffer reads a miss where the
+            // server may not: in the same-use rows the no-look click at buffer 0.7 was taken).
+            boolean canceled = !com.killer560.hub.util.GrimHitBuffer.placeClear() && !hisUse && reachNext
+                    && !com.killer560.hub.util.PlaceRotationGuard.usedLately();
+            if (!packetLook || !cfg.isNoLookClick() || canceled || (!(asked || hisUse) && reachNext)) {
                 if (packetLook) {
-                    logHeld("packetLook", "lever " + pos.toShortString() + " waits for a one-packet look (body untouched)");
+                    logHeld("packetLook", "lever " + pos.toShortString() + " waits for a one-packet look (body untouched"
+                            + (canceled ? ", a no-look click would be canceled" : "") + ")");
                 } else {
                     LOGGER.info("[LeverAura] turning body to lever {} first (reported look does not reach it) tick={}",
                             pos.toShortString(), ActionGate.currentTick());
                 }
                 return false;
             }
-            LOGGER.info("[LeverAura] no packet can carry a look to lever {}: clicked on the heard look tick={}",
-                    pos.toShortString(), ActionGate.currentTick());
+            LOGGER.info("[LeverAura] no packet can carry a look to lever {}: clicked on the heard look (place buffer {}) tick={}",
+                    pos.toShortString(), com.killer560.hub.util.GrimHitBuffer.placeValue(), ActionGate.currentTick());
         }
         // The click is the outline hit along the look the server was told about (the body's), the way a real click is
         // picked; the aimed point is only the fallback when the turn left the look a rounding short of it.

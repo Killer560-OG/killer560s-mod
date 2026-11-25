@@ -56,6 +56,7 @@ public final class PlaceRotationGuard {
     public static void onPacketSent(Packet<?> p) {
         if (p instanceof net.minecraft.network.protocol.game.ServerboundUseItemPacket) {
             useSinceMove = true;
+            lastUseTick = ActionGate.currentTick();
         } else if (p instanceof ServerboundMovePlayerPacket || p instanceof net.minecraft.network.protocol.game.ServerboundClientTickEndPacket) {
             useSinceMove = false;
         }
@@ -159,6 +160,14 @@ public final class PlaceRotationGuard {
         }
         return yaw;
     }
+
+    /** An item use went out since the last movement packet or tick end: this tick's movement packet must report its look. */
+    public static boolean useSinceMove() { return useSinceMove; }
+
+    private static long lastUseTick = Long.MIN_VALUE / 2;
+
+    /** An item use went out this client tick or the one before (a player using every tick will likely use again). */
+    public static boolean usedLately() { return ActionGate.currentTick() - lastUseTick <= 1; }
 
     /** Turns moved so far (only goes up) - read by the testkit. */
     public static int nudges() { return nudges; }

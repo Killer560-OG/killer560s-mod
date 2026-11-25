@@ -425,6 +425,17 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   round trip is sent again (LeverAuraFeature `notTaken`, at most 3). Testkit 1117-leverplace-* prime the buffer first.
   A lever in reach for exactly one tick (the EE3 route's high lever) needs its packet look requested on the APPROACH tick:
   `TurnFirst.preLook`, called from `LeverAuraFeature.preTurn` while AP3 runs or keys are held, so the look rides that tick's packet.
+- (ee3-rowfix-1125) Lever Aura's "no packet can carry a look" click went out while RotationPlace's buffer was up, and the
+  server canceled it (r34g same-swap: the high lever at box 4.42, the same click taken in the rows without his swap, out of
+  reach before the 4-tick retry). With `GrimHitBuffer.placeClear()` false, the lever in reach next tick and no use of his
+  this tick or the last (`PlaceRotationGuard.usedLately`), it now asks the look again (the next tick clicks at 4.37 with
+  one). Not under his use streak: the mirror read 0.7 where the server took the no-look click (r34a same-use), and a use
+  tick carries no look anyway.
+- (ee3-rowfix-1125) A JUMP tick of an AP3 held walk snapped the body onto the walk (`snapToWalk`) after his use_item had
+  gone at a yaw `PlaceRotationGuard.beforeUse` had nudged 0.01: the move reported 146.25 against the use's 146.24,
+  BadPacketsJ x2 on both Grim configs (r34a same-use). `snapToWalk` now keeps a look within 0.1 degree of the walk while
+  `PlaceRotationGuard.useSinceMove()`; the jump moves under 0.001 blocks differently. Every "held walk: the body was turned
+  from X to X+-0.01" line is such a pre-use nudge (input install runs after handleKeybinds, before sendPosition).
 
 ## Right clicks on Hypixel's 1.8 server (`util/RightClick`)
 

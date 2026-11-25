@@ -24,7 +24,8 @@
      "Interactive Map, Auto Clear and Dungeons Autopilot: a warp that waits a tick behind a block click is now aimed again from where you settled at every floor height; at some heights it kept its old aim and landed a block off the planned path.",
      "Auto Clear: a warp that misses once you settle behind a block click is never planned again on that floor (no more bouncing onto nearby leaves); a use aimed exactly through a block edge is nudged off it, and a right click the server sees meeting a block now clicks that block first, so the server no longer ignores the use; an etherwarp right after a menu click waits until the server has heard the sneak again instead of going out as a plain teleport.",
      "Profile Viewer's gold tier and tab colors are recognized as meaningful colors, not menu theme leftovers.",
-     "Auto Clear: when the server moves you off a room's kill plan (your own Hyperion click or a correction), the plan is planned again from where you stand instead of being dropped, so its faster casts keep going."
+     "Auto Clear: when the server moves you off a room's kill plan (your own Hyperion click or a correction), the plan is planned again from where you stand instead of being dropped, so its faster casts keep going.",
+     "AP3 no longer draws an anticheat flag when your right click lands on a jump tick of a held walk, and Lever Aura no longer throws away a lever click the anticheat would cancel: it waits one tick for a look that reaches the lever instead, so the high Section 2 lever is not missed when you swap items during the EE3 route."
     ]
    }
   ]
