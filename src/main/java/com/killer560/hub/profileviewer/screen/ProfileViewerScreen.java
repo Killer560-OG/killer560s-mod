@@ -239,16 +239,25 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         });
     }
 
+    /** pv_basic's skills box starts at x 232 (its 2 x 8 grid from 237). */
+    private static final int NEU_SKILLS_BOX_X = 232;
+
     private void drawStatus(GuiGraphicsExtractor g) {
         if (sbpvStyle()) return; // SkyBlockPV shows the text inside its own box
         List<String> lines = statusLines();
         boolean inPage = statusInPage();
-        int w = inPage ? statusButton[2] : 60;
-        if (inPage) { // under the player / the Joined row: wrapped to the button's width, never wider than it
+        // NEU: the free strip under the model box and the stats box (up to the skills box), else the button's own width
+        int w = inPage ? (pvStyle == ProfileViewerConfig.Style.NEU
+                ? NEU_SKILLS_BOX_X - PvStyleChrome.NEU_BASIC_MODEL[0] - 4 : statusButton[2]) : 60;
+        if (inPage) { // wrapped at spaces to that width, never wider
             List<String> wrapped = new ArrayList<>();
             for (String s : lines) {
                 while (!s.isEmpty()) {
                     String part = this.font.plainSubstrByWidth(s, w - 8);
+                    if (part.length() < s.length()) {
+                        int sp = part.lastIndexOf(' ');
+                        if (sp > 0) part = part.substring(0, sp);
+                    }
                     if (part.isEmpty()) part = s.substring(0, 1);
                     wrapped.add(part);
                     s = s.substring(part.length()).stripLeading();
@@ -458,21 +467,35 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         contentW = panelW - 16;
         contentH = Math.max(60, panelY + panelH - 8 - contentY);
 
-        if (page == PAGE_BASIC && skinProfile != null && profile() != null && ProfileViewerConfig.getInstance().isShowSkin()) {
+        // NEU and SkyBlockPV stand the player there before its skin arrives (the default skin until then); Default waits for it.
+        if (page == PAGE_BASIC && (skinProfile != null || pvStyle != ProfileViewerConfig.Style.DEFAULT && uuid != null)
+                && profile() != null && ProfileViewerConfig.getInstance().isShowSkin()) {
             // NEU Classic: in pv_basic's model frame; otherwise at the top of the left box.
             boolean neu = pvStyle == ProfileViewerConfig.Style.NEU;
             int[] m = PvStyleChrome.NEU_BASIC_MODEL;
             // NEU draws the player at scale 36 standing on (63, 135) under the name at y 54 (BasicPage.java:636-643).
             int skinH = neu ? 78 : Math.min(120, contentH - 90);
+            UUID skinId = uuid;
+            java.util.function.Supplier<net.minecraft.world.entity.player.PlayerSkin> lookup = skinProfile != null
+                    ? this.minecraft.getSkinManager().createLookup(skinProfile, false)
+                    : () -> net.minecraft.client.resources.DefaultPlayerSkin.get(skinId);
+            SbProfile shown = profile();
             if (pvStyle != ProfileViewerConfig.Style.DEFAULT && !neu) { // SkyBlockPV: in its player frame, middle column
                 int w = (int) (panelW * 0.2), h = (int) (w * 1.1);
-                PlayerSkinWidget skin = new PlayerSkinWidget(w, h - h / 10, this.minecraft.getEntityModels(),
-                        this.minecraft.getSkinManager().createLookup(skinProfile, false));
-                skin.setPosition(panelX + (panelW - w) / 2, sbpvPlayerY() + h / 10);
-                addRenderableWidget(skin);
+                // MainScreen.getPlayerDisplay: the mannequin wears the armor, scale width / 3, bare while right click is held.
+                PvModel model = PvModel.create(panelX + (panelW - w) / 2, sbpvPlayerY(), w, h, w / 3, lookup, shown.inventories(), true);
+                if (model != null) {
+                    addRenderableWidget(model);
+                } else {
+                    PlayerSkinWidget skin = new PlayerSkinWidget(w, h - h / 10, this.minecraft.getEntityModels(), lookup);
+                    skin.setPosition(panelX + (panelW - w) / 2, sbpvPlayerY() + h / 10);
+                    addRenderableWidget(skin);
+                }
+            } else if (neu && (neuModel = PvModel.create(panelX + m[0], panelY + 44, 80, 113, 36, lookup, shown.inventories(), false)) != null) {
+                // BasicPage: drawEntityOnScreen(guiLeft + 63, guiTop + 135, 36) with the armor on; the box centers the feet at 135.
+                addRenderableWidget(neuModel);
             } else if (skinH >= 50) {
-                PlayerSkinWidget skin = new PlayerSkinWidget(skinH / 2 + 10, skinH, this.minecraft.getEntityModels(),
-                        this.minecraft.getSkinManager().createLookup(skinProfile, false));
+                PlayerSkinWidget skin = new PlayerSkinWidget(skinH / 2 + 10, skinH, this.minecraft.getEntityModels(), lookup);
                 skin.setPosition(neu ? panelX + 63 - (skinH / 2 + 10) / 2 : contentX + (118 - (skinH / 2 + 10)) / 2,
                         neu ? panelY + 138 - skinH : contentY + 4);
                 addRenderableWidget(skin);
@@ -1069,24 +1092,42 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         int w = PvStyleChrome.tabW(pvStyle);
         int h = PvStyleChrome.tabH(pvStyle);
         int x0 = panelX + PvStyleChrome.tabX0(pvStyle);
-        int step = Math.min(PvStyleChrome.tabStep(pvStyle), (panelX + panelW - x0) / PAGES.length);
-        int ty = panelY - PvStyleChrome.tabRise(pvStyle);
         boolean neu = pvStyle == ProfileViewerConfig.Style.NEU;
-        for (int slot = 0; slot < PAGES.length; slot++) {
-            int i = neu ? NEU_TAB_ORDER[slot] : slot;
-            if ((i == page) == unpressed) continue;
+        int[] order = neu ? NEU_TAB_ORDER : SBPV_TAB_ORDER;
+        int step = Math.min(PvStyleChrome.tabStep(pvStyle), (panelX + panelW - x0) / order.length);
+        int ty = panelY - PvStyleChrome.tabRise(pvStyle);
+        boolean combat = !neu && isCombatPage(page);
+        for (int slot = 0; slot < order.length; slot++) {
+            int i = order[slot];
+            boolean sel = i == page || combat && i == PAGE_DUNGEONS;
+            if (sel == unpressed) continue;
             int tx = x0 + slot * step;
-            PvStyleChrome.tab(g, pvStyle, slot, tx, ty, i == page, inside(mx, my, tx, ty, w, h) && !dropdownOpen);
+            PvStyleChrome.tab(g, pvStyle, slot, tx, ty, sel, inside(mx, my, tx, ty, w, h) && !dropdownOpen);
         }
         if (unpressed) return;
-        for (int slot = 0; slot < PAGES.length; slot++) {
-            int i = neu ? NEU_TAB_ORDER[slot] : slot;
+        for (int slot = 0; slot < order.length; slot++) {
+            int i = order[slot];
+            boolean sel = i == page || combat && i == PAGE_DUNGEONS;
             int tx = x0 + slot * step;
-            g.item(neu ? neuPageIcon(i) : pageIcon(i), tx + PvStyleChrome.iconDx(pvStyle), ty + PvStyleChrome.iconDy(pvStyle, i == page));
+            g.item(neu ? neuPageIcon(i) : i == PAGE_DUNGEONS ? SBPV_COMBAT_ICON : pageIcon(i), tx + PvStyleChrome.iconDx(pvStyle),
+                    ty + PvStyleChrome.iconDy(pvStyle, sel));
             final int idx = i;
-            hotspots.add(new Hotspot(tx, ty, w, h, () -> setPage(idx)));
+            hotspots.add(new Hotspot(tx, ty, w, h, () -> { if (!(isCombatPage(page) && idx == PAGE_DUNGEONS && !neuStyle())) setPage(idx); }));
             if (inside(mx, my, tx, ty, w, h) && !dropdownOpen) {
-                pendingTooltip = neu ? neuTabTip(i) : List.of(Component.literal(PAGES[i]).withStyle(style(VALUE)));
+                pendingTooltip = neu ? neuTabTip(i) : i == PAGE_DUNGEONS ? SBPV_COMBAT_TIP : List.of(Component.literal(PAGES[i]).withStyle(style(VALUE)));
+            }
+        }
+        if (combat) {
+            // SkyBlockPV's Combat tab (BaseCombatScreen): Dungeons, Bestiary and Crimson Isle as category tabs down the right edge.
+            for (int k = 0; k < SBPV_COMBAT_PAGES.length; k++) {
+                int tx = panelX + panelW - 9, cy = panelY + 20 + 22 * k, target = SBPV_COMBAT_PAGES[k];
+                PvStyleChrome.sideTab(g, pvStyle, tx, cy, target == page);
+                g.item(SBPV_COMBAT_ICONS[k], tx + 10, cy + 2);
+                hotspots.add(new Hotspot(tx, cy, 31, 20, () -> setPage(target)));
+                if (inside(mx, my, tx, cy, 31, 20) && !dropdownOpen) {
+                    @SuppressWarnings("unchecked") List<Component> t = (List<Component>) SBPV_COMBAT_TIPS[k];
+                    pendingTooltip = t;
+                }
             }
         }
         PvStyleChrome.pageTitle(g, pvStyle, PAGES[page], panelX, panelY, panelW, panelH);
@@ -1115,6 +1156,24 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     /** NEU Classic's tab order (GuiProfileViewer.ProfileViewerPage): Basic, Dungeon, Extra (our Misc), Inventories,
      *  Collections, Pets, Mining, Bestiary, Crimson, Museum, Rift, Garden; our Networth and Weight pages after them. */
     static final int[] NEU_TAB_ORDER = {0, 1, 12, 2, 4, 3, 5, 6, 7, 8, 9, 10, 11, 13};
+    /** SkyBlockPV's tab order (PvTab): Main, Combat (our Dungeons, with Bestiary and Crimson Isle as its right-edge
+     *  categories), Inventory, Collections, Mining, Pets, Farming, Museum, Rift; our Networth, Misc and Weight after them. */
+    static final int[] SBPV_TAB_ORDER = {0, 1, 2, 4, 5, 3, 10, 8, 9, 11, 12, 13};
+    private static final int[] SBPV_COMBAT_PAGES = {PAGE_DUNGEONS, PAGE_BESTIARY, PAGE_CRIMSON};
+    private static final ItemStack SBPV_COMBAT_ICON = new ItemStack(Items.DIAMOND_SWORD);
+    private static final ItemStack[] SBPV_COMBAT_ICONS = {new ItemStack(Items.WITHER_SKELETON_SKULL), new ItemStack(Items.WRITABLE_BOOK),
+            new ItemStack(Items.NETHERRACK)};
+    private static final List<Component> SBPV_COMBAT_TIP = List.of(Component.literal("Combat"));
+    private static final List<?>[] SBPV_COMBAT_TIPS = {List.of(Component.literal("Dungeons")), List.of(Component.literal("Bestiary")),
+            List.of(Component.literal("Crimson Isle"))};
+
+    private static boolean isCombatPage(int page) {
+        return page == PAGE_DUNGEONS || page == PAGE_BESTIARY || page == PAGE_CRIMSON;
+    }
+
+    private boolean neuStyle() {
+        return pvStyle == ProfileViewerConfig.Style.NEU;
+    }
     private static final ItemStack[] NEU_ICONS = new ItemStack[PAGES.length];
     private static final List<?>[] NEU_TIPS = new List<?>[PAGES.length];
 
@@ -1370,10 +1429,29 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         int fh = (int) (middle * 1.1), fy = sbpvPlayerY();
         PvStyleChrome.playerFrame(g, pvStyle, panelX + side, fy, middle, fh);
         int sx = panelX + side, sy = fy + fh + 5;
+        if (sbpvTagFor != p || !java.util.Objects.equals(sbpvTagName, displayName)) {
+            sbpvTagFor = p;
+            sbpvTagName = displayName;
+            // FakePlayer's name tag: "[level] name", the level in its SkyBlock level color, the brackets dark gray.
+            sbpvTag = Component.literal("[").withStyle(style(0xFF555555))
+                    .append(Component.literal(String.valueOf(p.sbLevel)).withStyle(style(PvStyleChrome.sbLevelColor(p.sbLevel))))
+                    .append(Component.literal("] ").withStyle(style(0xFF555555)))
+                    .append(Component.literal(displayName == null ? "" : displayName).withStyle(style(0xFFFFFFFF)));
+        }
+        if (ProfileViewerConfig.getInstance().isShowSkin()) {
+            // Over the head as the world draws a name tag: 0.5 blocks above the 1.8-block body, on a 25 % black box.
+            float scale = middle / 3;
+            int feet = Math.round(fy + fh / 2f + (0.9f + 0.0625f) * scale);
+            int tagW = this.font.width(sbpvTag), tagY = Math.max(fy + 2, Math.round(feet - 2.3f * scale) - 9);
+            int tagX = panelX + side + (middle - tagW) / 2;
+            g.fill(tagX - 1, tagY - 1, tagX + tagW + 1, tagY + 8, 0x40000000);
+            g.text(this.font, sbpvTag, tagX, tagY, 0xFFFFFFFF, false);
+        }
         PvStyleChrome.playerFrame(g, pvStyle, sx, sy, middle, 20);
         // The empty box under the player holds the status: "Status" until clicked, then the fetched text (full text on hover).
         String full = statusOpen ? String.join(", ", statusLines()) : "Status";
-        centeredIn(g, this.font.plainSubstrByWidth(full, middle - 8), sx, middle, sy + 6, PvStyleChrome.sbpvText(pvStyle));
+        String shown = this.font.plainSubstrByWidth(full, middle - 8);
+        g.text(this.font, shown, sx + (middle - this.font.width(shown)) / 2, sy + 6, text, false);
         statusButton[0] = sx;
         statusButton[1] = sy;
         statusButton[2] = middle;
@@ -1415,6 +1493,9 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     }
 
     private SbpvMain sbpvMain;
+    private SbProfile sbpvTagFor;
+    private String sbpvTagName;
+    private Component sbpvTag;
 
     /** One SkyBlockPV chip section: its title, and per chip the icon, the text and the hover (null for none). */
     private record SbpvChips(String title, ItemStack[] icons, String[] values, List<Component>[] tips) {
@@ -1451,8 +1532,28 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             tips.add(null);
             String solo = p.personalBank > 0 ? shorten(p.personalBank) : null, coop = p.bank > 0 ? shorten(p.bank) : null;
             lines.add("Bank: " + (p.bank < 0 ? "API off" : solo != null && coop != null ? solo + "/" + coop : solo != null ? solo : coop != null ? coop : "0"));
-            tips.add(p.bank < 0 ? null : List.of(Component.literal("§7Solo Bank: §6" + commas(Math.max(0, p.personalBank))),
-                    Component.literal("§7Profile Bank: §6" + commas(Math.max(0, p.bank)))));
+            if (p.bank < 0) {
+                tips.add(null);
+            } else {
+                // MainScreen's bank hover: Solo and Profile bank, then the 7 newest transactions between struck-through rules.
+                List<Component> bt = new ArrayList<>();
+                bt.add(Component.literal("§7Solo Bank: §6" + commas(Math.max(0, p.personalBank))));
+                bt.add(Component.literal("§7Profile Bank: §6" + commas(Math.max(0, p.bank))));
+                if (!p.bankHistory.isEmpty()) {
+                    bt.add(Component.empty());
+                    bt.add(Component.literal("§7Bank History:"));
+                    bt.add(Component.literal(SBPV_RULE));
+                    for (SbProfile.BankTx t : p.bankHistory) {
+                        bt.add(Component.literal("§6" + commas(t.amount()) + "§7 " + ("WITHDRAW".equals(t.action()) ? "withdrawn" : "deposited")
+                                + " by " + t.initiator()));
+                        bt.add(Component.literal("§7Date: §e" + SBPV_JOIN_FULL.format(Instant.ofEpochMilli(t.timestamp()).atZone(ZoneId.systemDefault()))));
+                        bt.add(Component.literal(SBPV_RULE));
+                    }
+                }
+                tips.add(List.copyOf(bt));
+            }
+            lines.add("Cookie Buff: " + (p.memberTrue("profile.cookie_buff_active") ? "§aActive" : "§cInactive"));
+            tips.add(null);
             lines.add("SkyBlock Level: " + sb);
             tips.add(List.of(Component.literal("§7Progress: " + p.sbLevelProgress + "/100")));
             if (p.firstJoin > 0) {
@@ -1574,6 +1675,8 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         });
     }
 
+    /** SkyBlockPV's divider in hovers: 43 struck-through dark gray spaces. */
+    private static final String SBPV_RULE = "§8§m" + " ".repeat(43);
     private static final DateTimeFormatter SBPV_JOIN_FULL = DateTimeFormatter.ofPattern("yyyy.MM.dd HH:mm", Locale.US);
 
 
@@ -1852,9 +1955,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         ExtraPages.NetworthState nw = extraPages.networthState(p);
         long worth = nw.result() != null ? nw.result().total(ProfileViewerConfig.getInstance().getNetworthView()) : nw.failed() ? -2 : -1;
         lastBasicNetworth = worth >= 0 ? worth : null;
+        String rankName = neuRankName(p);
         NeuBasic nb = neuBasic;
-        if (nb == null || nb.profile != p || nb.worth != worth || !java.util.Objects.equals(nb.name, displayName)) {
-            nb = neuBasic = new NeuBasic(p, worth, displayName, uuid);
+        if (nb == null || nb.profile != p || nb.worth != worth || !java.util.Objects.equals(nb.plainName, displayName) || nb.rankName != rankName) {
+            nb = neuBasic = new NeuBasic(p, worth, displayName, rankName);
         }
         var f = this.font;
         int gx = panelX, gy = panelY;
@@ -1877,6 +1981,15 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             pendingTooltip = nb.worthTip;
         }
         hotspots.add(new Hotspot(nwX, gy + 32, nwW, 12, () -> setPage(PAGE_NETWORTH)));
+        if (nb.pet != null) {
+            // BasicPage: the active pet's item bobs at 1.5x beside the player, 15 px up and down every 800 ms * 2 pi.
+            float bob = 15f * (float) Math.sin((net.minecraft.util.Util.getMillis() - openedAt) / 800f % (2 * Math.PI));
+            g.pose().pushMatrix();
+            g.pose().translate(gx + 20, gy + 82 + bob);
+            g.pose().scale(1.5f, 1.5f);
+            g.item(nb.pet, 0, 0);
+            g.pose().popMatrix();
+        }
         statusButtonAt(g, gx + PvStyleChrome.NEU_BASIC_MODEL[0], gy + PvStyleChrome.NEU_BASIC_MODEL[1]
                 + PvStyleChrome.NEU_BASIC_MODEL[3] + 3, PvStyleChrome.NEU_BASIC_MODEL[2], mx, my);
 
@@ -1917,6 +2030,34 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     }
 
     private NeuBasic neuBasic;
+    private final long openedAt = net.minecraft.util.Util.getMillis();
+    private SbProfile neuRankFor;
+    private CompletableFuture<ProfileViewerApi.AuxResult> neuRankFuture;
+    private String neuRankName;
+
+    /** NEU's rank-colored name line (BasicPage: "§{color}[§{tag}TAG{plus}§{color}] name" plus the gamemode icon), built once
+     *  when the player record (Hypixel /player through our relay, the same call the Misc page makes) arrives; null until then. */
+    private String neuRankName(SbProfile p) {
+        if (neuRankFor != p) {
+            neuRankFor = p;
+            neuRankName = null;
+            neuRankFuture = extraPages.aux(ProfileViewerApi.AuxKind.PLAYER, p.member.toString());
+        }
+        if (neuRankName == null && neuRankFuture.isDone()) {
+            ProfileViewerApi.AuxResult r = neuRankFuture.isCompletedExceptionally() ? null : neuRankFuture.getNow(null);
+            String prefix = ExtraPages.rankPrefix(r == null ? null : r.data());
+            String icon = switch (p.gameMode) {
+                case "island" -> " §a☀";
+                case "bingo" -> " §7Ⓑ";
+                case "ironman" -> " §7♲";
+                default -> "";
+            };
+            String name = displayName == null ? "" : displayName;
+            neuRankName = (prefix == null ? "§7" + name : prefix + " " + name) + icon;
+        }
+        return neuRankName;
+    }
+    private PvModel neuModel;
 
     /** One NEU skill or slayer cell: its panel position, the text and bar it draws and its hover. */
     private record NeuCell(int x, int y, ItemStack icon, String name, int color, String level, float progress, boolean maxed,
@@ -1927,7 +2068,8 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
     private static final class NeuBasic {
         final SbProfile profile;
         final long worth;
-        final String name, worthLine, sbLevel, sbProgress;
+        final String name, plainName, rankName, worthLine, sbLevel, sbProgress;
+        final ItemStack pet;
         final String[] weights = new String[2];
         @SuppressWarnings("unchecked")
         final List<Component>[] weightTips = (List<Component>[]) new List<?>[2];
@@ -1946,10 +2088,17 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
         private static final String[] SLAYER_NAMES = {"Rev Slayer", "Tara Slayer", "Sven Slayer", "Ender Slayer",
                 "Blaze Slayer", "Vampire Slayer"};
 
-        NeuBasic(SbProfile p, long worth, String name, UUID uuid) {
+        NeuBasic(SbProfile p, long worth, String name, String rankName) {
             this.profile = p;
             this.worth = worth;
-            this.name = name == null ? "" : name;
+            this.plainName = name;
+            this.rankName = rankName;
+            this.name = rankName != null ? rankName : name == null ? "" : "§7" + name;
+            ItemStack active = null;
+            for (SbProfile.Pet pet : p.pets) {
+                if (pet.active) active = pet.icon();
+            }
+            this.pet = active;
             SkyblockWeight.Both both = SkyblockWeight.compute(p);
             SkyblockWeight.Result[] rs = {both.senither(), both.lily()};
             String[] labels = {"Senither Weight: ", "Lily Weight: "};
@@ -1995,6 +2144,10 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
                 out.add(skillCell(p, SKILLS[i], SKILL_NAMES[i], SKILL_COLORS[i], 237 + 86 * (i / 8), 24 + 21 * (i % 8), SKILL_ICONS[i]));
             }
             out.add(skillCell(p, "SOCIAL", "Social", 0xFF00AA00, 132, 124, Items.EMERALD));
+            // Hunting is newer than NEU's grid: it takes the next spot in Social's column, in the same cell look.
+            if (LevelTables.skill("HUNTING") != null) {
+                out.add(skillCell(p, "HUNTING", "Hunting", 0xFF00AAAA, 132, 145, Items.LEAD));
+            }
             out.addAll(slayerCells);
             cells = List.copyOf(out);
         }
@@ -2012,8 +2165,19 @@ public class ProfileViewerScreen extends Screen implements MenuThemedScreen {
             LevelTables.Skill def = LevelTables.skill(id);
             int maxLevel = def == null ? 0 : Math.min(def.totalXp().length, cap > 0 ? cap : def.maxLevel());
             long maxXp = maxLevel == 0 ? 0 : def.totalXp()[maxLevel - 1];
+            List<Component> tip = tip(name, color, lvl, xp, maxXp, maxLevel);
+            if (id.equals("FARMING")) {
+                // BasicPage's farming extras: Double Drops (gold at the max 15 perk), Pelts, then the medal inventory.
+                int dd = (int) p.memberNum("jacobs_contest.perks.double_drops");
+                tip.add(lit("§7Double Drops: " + (dd == 15 ? "§6" : "§5") + dd * 2 + "%"));
+                tip.add(lit("§7Pelts: §e" + (int) p.memberNum("quests.trapper_quest.pelt_count")));
+                tip.add(lit(" "));
+                tip.add(lit("§7§cBronze: §f" + (int) p.memberNum("jacobs_contest.medals_inv.bronze")));
+                tip.add(lit("§7§fSilver: §f" + (int) p.memberNum("jacobs_contest.medals_inv.silver")));
+                tip.add(lit("§7§6Gold: §f" + (int) p.memberNum("jacobs_contest.medals_inv.gold")));
+            }
             return new NeuCell(x, y, new ItemStack(icon), name, color, String.valueOf(lvl.level()), (float) lvl.progress(),
-                    lvl.maxed(), List.copyOf(tip(name, color, lvl, xp, maxXp, maxLevel)));
+                    lvl.maxed(), List.copyOf(tip));
         }
 
         /** NEU's skill hover: the name, Progress (cur/max to the next level, or MAXED!) and Total XP to the max level. */

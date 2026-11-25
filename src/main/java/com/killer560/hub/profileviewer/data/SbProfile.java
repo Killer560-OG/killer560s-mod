@@ -66,6 +66,25 @@ public final class SbProfile {
     public record SlayerStat(long xp, Map<Integer, Integer> kills) {
     }
 
+    /** One {@code banking.transactions} entry: coins, DEPOSIT/WITHDRAW, the initiator's colored name, epoch ms. */
+    public record BankTx(double amount, String action, String initiator, long timestamp) {
+    }
+
+    /** The 7 newest bank transactions, newest first (empty when the bank API is off). */
+    public final List<BankTx> bankHistory;
+
+    /** A number at a dotted path in this member's JSON (0 when absent), read when a page builds its text, never per frame. */
+    public double memberNum(String dotted) { return num(path(memberJson, dotted)); }
+
+    /** True when a dotted path in this member's JSON holds {@code true} (or a non-zero number). */
+    public boolean memberTrue(String dotted) {
+        JsonElement el = path(memberJson, dotted);
+        return el != null && el.isJsonPrimitive() && (el.getAsJsonPrimitive().isBoolean() ? el.getAsBoolean() : num(el) != 0);
+    }
+
+    /** An object at a dotted path in this member's JSON, or null. */
+    public JsonObject memberObj(String dotted) { return asObj(path(memberJson, dotted)); }
+
     /** {@code fastest} is Hypixel's {@code fastest_time} - the floor's best clear at ANY score, milliseconds. */
     public record Floor(long completions, long fastestS, long fastestSPlus, long bestScore, long fastest) {
     }
@@ -148,6 +167,16 @@ public final class SbProfile {
         JsonElement bankEl = path(profile, "banking.balance");
         bank = bankEl == null ? -1 : num(bankEl);
         personalBank = num(path(memberObj, "profile.bank_account"));
+        List<BankTx> txs = new ArrayList<>();
+        JsonElement txEl = path(profile, "banking.transactions");
+        if (txEl != null && txEl.isJsonArray()) {
+            for (JsonElement e : txEl.getAsJsonArray()) {
+                JsonObject t = asObj(e);
+                if (t != null) txs.add(new BankTx(num(t.get("amount")), str(t, "action", ""), str(t, "initiator_name", ""), (long) num(t.get("timestamp"))));
+            }
+        }
+        txs.sort((a, b) -> Long.compare(b.timestamp(), a.timestamp()));
+        bankHistory = List.copyOf(txs.subList(0, Math.min(7, txs.size())));
 
         JsonObject experience = asObj(path(memberObj, "player_data.experience"));
         if (experience == null) {

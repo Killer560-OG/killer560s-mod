@@ -168,7 +168,7 @@ final class ExtraPages {
         return ex;
     }
 
-    private CompletableFuture<ProfileViewerApi.AuxResult> aux(ProfileViewerApi.AuxKind kind, String id) {
+    CompletableFuture<ProfileViewerApi.AuxResult> aux(ProfileViewerApi.AuxKind kind, String id) {
         return aux.computeIfAbsent(kind.name() + ":" + id, k -> ProfileViewerApi.fetchAux(kind, id, bypassAux));
     }
 
@@ -2379,9 +2379,15 @@ final class ExtraPages {
 
     /** Hypixel network rank prefix from {@code /v2/player} (same precedence Hypixel uses). */
     private static Component rank(JsonObject player) {
-        if (player == null) return LegacyText.parse("§7None");
+        String r = rankPrefix(player);
+        return LegacyText.parse(r == null ? "§7None" : r);
+    }
+
+    /** The rank prefix in legacy codes ("§b[MVP§c+§b]"), or null for no rank / no player record. */
+    static String rankPrefix(JsonObject player) {
+        if (player == null) return null;
         String prefix = str(player, "prefix");
-        if (prefix != null && !prefix.isBlank()) return LegacyText.parse(prefix);
+        if (prefix != null && !prefix.isBlank()) return prefix;
         String special = str(player, "rank");
         if (special != null && !special.equals("NORMAL")) {
             String s = switch (special) {
@@ -2392,25 +2398,25 @@ final class ExtraPages {
                 case "YOUTUBER" -> "§c[§fYOUTUBE§c]";
                 default -> "§7[" + special + "]";
             };
-            return LegacyText.parse(s);
+            return s;
         }
         String plus = colorCode(str(player, "rankPlusColor"), "§c");
         if ("SUPERSTAR".equals(str(player, "monthlyPackageRank"))) {
             String base = "AQUA".equals(str(player, "monthlyRankColor")) ? "§b" : "§6";
-            return LegacyText.parse(base + "[MVP" + plus + "++" + base + "]");
+            return base + "[MVP" + plus + "++" + base + "]";
         }
         String pkg = str(player, "newPackageRank");
         if (pkg == null || pkg.equals("NONE")) {
             pkg = str(player, "packageRank");
         }
-        String s = pkg == null ? "§7None" : switch (pkg) {
+        String s = pkg == null ? null : switch (pkg) {
             case "MVP_PLUS" -> "§b[MVP" + plus + "+§b]";
             case "MVP" -> "§b[MVP]";
             case "VIP_PLUS" -> "§a[VIP§6+§a]";
             case "VIP" -> "§a[VIP]";
-            default -> "§7None";
+            default -> null;
         };
-        return LegacyText.parse(s);
+        return s;
     }
 
     private static String str(JsonObject o, String key) {

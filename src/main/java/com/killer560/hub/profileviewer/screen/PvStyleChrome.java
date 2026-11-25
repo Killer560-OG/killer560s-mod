@@ -182,7 +182,47 @@ final class PvStyleChrome {
         int half = w / 2;
         int fill = maxed ? w : Math.round(Math.round(Math.max(0f, Math.min(1f, done)) * 20f) / 20f * w);
         neuBarPart(g, BOSS_BG, x, y, half, w, w);
-        neuBarPart(g, maxed ? BOSS_GOLD : BOSS_PINK, x, y, half, w, fill);
+        if (maxed) {
+            neuMaxedBar(g, x, y, w);
+        } else {
+            neuBarPart(g, BOSS_PINK, x, y, half, w, fill);
+        }
+    }
+
+    /** NEU's maxed bar (renderGoldBar + its make_gold shader): the boss bar's rows with the hue turned by
+     *  {@code amount + clipX * 4} and the saturation at 0.7, so a rainbow drifts across it once every 10 s. Drawn from one
+     *  4-cycle hue strip built once (1024 x 5, no disk), its start and stretch set from the bar's screen x. */
+    private static void neuMaxedBar(GuiGraphicsExtractor g, int x, int y, int w) {
+        Identifier strip = rainbowStrip();
+        int gw = Math.max(1, g.guiWidth());
+        float amount = (float) ((-net.minecraft.util.Util.getMillis() / 10000.0) % 1.0);
+        float start = (amount + 8f * (x + 1) / gw) % 1f;
+        if (start < 0) start += 1f;
+        int span = Math.max(1, Math.round((w - 2) * 8f / gw * 256f));
+        g.blit(RenderPipelines.GUI_TEXTURED, strip, x + 1, y, start * 256f, 0f, w - 2, 5, Math.min(span, 768), 5, 1024, 5);
+    }
+
+    private static Identifier rainbow;
+    /** The pink boss bar's five row brightnesses (vanilla boss_bar/pink_progress, hue 0.87, full saturation). */
+    private static final float[] ROW_V = {0.290f, 0.925f, 0.725f, 0.549f, 0.290f};
+
+    private static Identifier rainbowStrip() {
+        if (rainbow == null) {
+            com.mojang.blaze3d.platform.NativeImage img = new com.mojang.blaze3d.platform.NativeImage(1024, 5, false);
+            for (int u = 0; u < 1024; u++) {
+                float hue = (0.87f + u / 256f) % 1f;
+                for (int r = 0; r < 5; r++) {
+                    int rgb = java.awt.Color.HSBtoRGB(hue, 0.7f, ROW_V[r]);
+                    img.setPixel(u, r, 0xFF000000 | rgb);
+                }
+            }
+            rainbow = id("neu_maxed_bar");
+            net.minecraft.client.renderer.texture.DynamicTexture tex =
+                    new net.minecraft.client.renderer.texture.DynamicTexture(() -> "killer560smod neu maxed bar", img);
+            tex.upload();
+            net.minecraft.client.Minecraft.getInstance().getTextureManager().register(rainbow, tex);
+        }
+        return rainbow;
     }
 
     private static void neuBarPart(GuiGraphicsExtractor g, Identifier sprite, int x, int y, int half, int w, int upTo) {
@@ -193,8 +233,7 @@ final class PvStyleChrome {
     }
 
     private static final Identifier BOSS_BG = Identifier.withDefaultNamespace("boss_bar/pink_background"),
-            BOSS_PINK = Identifier.withDefaultNamespace("boss_bar/pink_progress"),
-            BOSS_GOLD = Identifier.withDefaultNamespace("boss_bar/yellow_progress");
+            BOSS_PINK = Identifier.withDefaultNamespace("boss_bar/pink_progress");
 
     /** NEU's soft text outline (Utils.renderAlignedString / renderShadowedString): the text in black at the twelve
      *  half-pixel offsets around it (alpha 200 one step out, 100 two steps out), then the text itself, no shadow. */
