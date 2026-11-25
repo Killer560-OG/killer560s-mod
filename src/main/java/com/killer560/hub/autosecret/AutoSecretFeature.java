@@ -3629,10 +3629,14 @@ public final class AutoSecretFeature {
     }
 
     private static void arrived(Trip t) {
-        tripFailures.remove(target);
         Minecraft mc = Minecraft.getInstance();
-        if (t != Trip.RECOVER && mc.player != null) {
-            lastArrival = mc.player.blockPosition();
+        // A recovery warp lands on the way out, not at the target: its failures still count, or two no-chain blocks that
+        // each recover to the other retry the same unreachable room forever (argrim-origin-fails-1125).
+        if (t != Trip.RECOVER) {
+            tripFailures.remove(target);
+            if (mc.player != null) {
+                lastArrival = mc.player.blockPosition();
+            }
         }
         switch (t) {
             case RECOVER -> setPhase(Phase.SETTLE);

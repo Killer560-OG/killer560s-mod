@@ -932,6 +932,7 @@ public final class RouteExecutor {
         chainAfterLanding = false;
         landingConfirmed = false;
         execTicks = 0;
+        serverMovedAt = Long.MIN_VALUE / 2;
         aimTurnPos = null; // execTicks starts again: a count from the last run must not carry over
         // A route most often starts on the map's warp landing (the start node arms on that tick, no hold): a boom there
         // gets the landing-tick retry too.
@@ -1163,6 +1164,7 @@ public final class RouteExecutor {
                     ServerCorrections.lastMoveDistance(), ServerCorrections.MIN_MOVE_BLOCKS);
             return; // rotation-only: he is where he was
         }
+        serverMovedAt = execTicks;
         if (!inFlight.isEmpty() && zeroPingPacket(client, player)) {
             return;
         }
@@ -3850,7 +3852,9 @@ public final class RouteExecutor {
         }
         warpCentreTicks++;
         wantForward = wantBackward = wantLeft = wantRight = false;
-        if (h > CENTRE_TOLERANCE / 2) {
+        // GrimAC mispredicts a SNEAKING step in the first ticks after a server teleport (plain keys too:
+        // 62-argrim-1125-tp-walk-control), so the step waits those out with the sneak held (62-argrim-1125-tp-armed).
+        if (h > CENTRE_TOLERANCE / 2 && execTicks - serverMovedAt > TP_STEP_WAIT_TICKS) {
             double yr = Math.toRadians(player.getYRot());
             double fwd = (dx * -Math.sin(yr) + dz * Math.cos(yr)) / h;
             double lft = (dx * Math.cos(yr) + dz * Math.sin(yr)) / h;
@@ -3867,6 +3871,10 @@ public final class RouteExecutor {
 
     /** How close (blocks, horizontally) to a warp's spot counts as back on it when stepping there. */
     private static final double CENTRE_TOLERANCE = 0.12;
+    /** Route tick of the last server position packet that moved him (a teleport or a correction). */
+    private static long serverMovedAt = Long.MIN_VALUE / 2;
+    /** Ticks after such a packet before a step back presses a movement key (see {@link #stepOntoWarpSpot}). */
+    private static final int TP_STEP_WAIT_TICKS = 1;
     /** Ticks to spend stepping back onto a warp's spot before firing the saved look regardless. */
     private static final int CENTRE_TIMEOUT = 40;
     /** {@link #warpCentreTicks} once this warp's step back is over (on its spot, or timed out): it is not tried again. */

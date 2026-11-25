@@ -965,6 +965,16 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   above it, and a hold over that drop drew Simulation 0.029 decaying in 1 run of 2 on 26.2 (`spawnSettle`, at most 60 ticks).
 - A server teleport that lands while he is sprinting draws GrimAC Simulation 0.196 with Blink idle (1027-blink-c-tpsprint,
   Charge off, 26.1.2 3 of 6 rows, 26.2 4 of 6; the same rate with Charge on). GrimAC's, not Blink's; compare against that control.
+- A SNEAKING step on the first tick after a server teleport draws GrimAC 2.3.74 Simulation .013062 on 26.3, every time, both
+  configs, with plain vanilla keys (62-argrim-1125-tp-walk-control: sneak+W or W+A on tick 0 flags; walking, or sneaking a tick
+  later, never). 26.3's accept_teleportation carries the position and no PosRot follows it (javap of handleMovePlayer). Auto
+  Routes' step back onto a warp spot hit it when a tp landed while node #1 waited for the sneak (62-argrim-1125-tp-armed), so
+  `RouteExecutor.stepOntoWarpSpot` presses no movement key until TP_STEP_WAIT_TICKS after a position packet that moved him.
+  The zpew-map / imwarp-run flags on origin came from the cases themselves: a run before them left him ON the route's START
+  node, so the route's load fired it and the case's tp broke it off; caseMapWarp now tps him off before writing the route.
+- A no-chain spot that recovers to another no-chain spot looped Dungeons Autopilot forever (62-argrim-1016-autosecret-key
+  "still running", mostly under load, when the route's pickup was missed): `arrived(RECOVER)` cleared the target's trip
+  failures, so MAX_TRIP_FAILURES was never reached. A recovery arrival keeps the count (argrim-origin-fails-1125).
 - Charge's answer delay followed the cap (50 x Charge Ticks - 10 ms), so a bank kept when Charge Ticks was lowered (owner:
   the bank is kept) was bigger than what that delay lets GrimAC cover: with Charge Ticks 2 and 17 banked the delay was 90 ms
   and the shot drew Timer however long he stood (1027-blink-c-mixed). The delay now covers max(cap, banked).
