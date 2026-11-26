@@ -34,6 +34,8 @@ public final class DigWindow {
     private static final Logger LOGGER = ModLog.get("killer560smod-digwindow");
 
     private static boolean dug;
+    /** A Burst Multi Break dig went in this server tick (the owner's accepted MultiBreak, la-digwindow-1126). */
+    private static boolean burstTick;
     private static BlockPos lastPos;
     private static Direction lastFace;
     private static boolean movedBeforeTickEnd;
@@ -42,6 +44,7 @@ public final class DigWindow {
 
     private static long digs;
     private static long conflicts;
+    private static long burstConflicts;
     private static long holds;
 
     private DigWindow() {
@@ -51,10 +54,12 @@ public final class DigWindow {
     public static void onPacketSent(Packet<?> p) {
         if (p instanceof ServerboundMovePlayerPacket) {
             dug = false;
+            burstTick = false;
             movedBeforeTickEnd = true;
         } else if (p instanceof ServerboundClientTickEndPacket) {
             if (!movedBeforeTickEnd) {
                 dug = false;
+                burstTick = false;
             }
             movedBeforeTickEnd = false;
         } else if (p instanceof ServerboundPlayerActionPacket a
@@ -62,7 +67,11 @@ public final class DigWindow {
                 || a.getAction() == ServerboundPlayerActionPacket.Action.STOP_DESTROY_BLOCK)) {
             BlockPos pos = a.getPos();
             Direction face = a.getDirection();
-            if (dug && (!pos.equals(lastPos) || face != lastFace)) {
+            if (dug && (!pos.equals(lastPos) || face != lastFace) && burstTick) {
+                // Burst Multi Break dug in this tick: the owner's accepted MultiBreak (its label says so), not a fault.
+                // All 379 WARNs in his 11-24..26 logs were this (la-digwindow-1126), so it is counted, not logged.
+                burstConflicts++;
+            } else if (dug && (!pos.equals(lastPos) || face != lastFace)) {
                 conflicts++;
                 LOGGER.warn("[DigWindow] two digs in one server tick: {} {} after {} {} (GrimAC MultiBreak would flag it)",
                         pos.toShortString(), face, lastPos.toShortString(), lastFace);
@@ -125,6 +134,10 @@ public final class DigWindow {
     /** A dig on {@code pos} is queued for the head of this tick's movement packet ({@link BeforeMove}). */
     public static void reserve(BlockPos pos) { pending = pos.immutable(); }
 
+    /** A Burst Multi Break dig is about to go (Breaker Aura's burst, a route breaker on Burst): any second block in this
+     *  server tick is the burst the owner chose, counted in {@link #burstConflicts} and not warned about. */
+    public static void burst() { burstTick = true; }
+
     /** From {@link BeforeMove} once its queue has run (a queued dig that was refused never went) or was dropped. */
     public static void clearPending() { pending = null; }
 
@@ -133,6 +146,9 @@ public final class DigWindow {
     public static long digs() { return digs; }
 
     public static long conflicts() { return conflicts; }
+
+    /** Second blocks in a server tick that a Burst Multi Break dig shared (not in {@link #conflicts}). */
+    public static long burstConflicts() { return burstConflicts; }
 
     public static long holds() { return holds; }
 }

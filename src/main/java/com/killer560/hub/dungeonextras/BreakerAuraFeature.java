@@ -1080,6 +1080,9 @@ public final class BreakerAuraFeature {
             // Say so before sending, so the outbound probe files this under OURS rather than under whatever other
             // mod happens to be running - see ForeignBreakerProbe.
             ForeignBreakerProbe.ours();
+            if (burst) {
+                com.killer560.hub.util.DigWindow.burst();
+            }
             String blockName = level.getBlockState(pos).getBlock().getName().getString(); // before any prediction
             boolean stands = standsOn(player, pos);
             // Inside a Blink Charge shot the break is predicted at once: the shot's next ticks move him into that spot before

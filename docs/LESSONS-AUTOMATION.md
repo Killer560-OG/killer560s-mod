@@ -148,6 +148,16 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   mirrors MultiBreak from the send tap and every automated dig asks `mayDig` first and waits a tick when the window is
   taken (a dig queued at `BeforeMove` reserves it). His own hand dig after automation in the same tick is not covered.
   Testkit `harness/MultiBreakWatch` replays the check on the packets.
+- **DigWindow's "two digs in one server tick" WARN was the owner's Burst, every time (la-digwindow-1126).** His 26.3 logs
+  of 11-24..26 held 379 of them, all with Burst Multi Break on (his card since 11-14): 198 Breaker Aura bursts, 180 route
+  breaker bursts (node and linger: `breakBurst()` follows the card), 1 his held left click in the tick the aura's burst
+  dug (Burst skips `handDigsThisTick` by design); none with no burst sender. Each burst sender now calls
+  `DigWindow.burst()` first: a second block on that tick counts in `burstConflicts()` and is not logged, so the WARN (and
+  `conflicts()`) mean a real fault again. `ForeignBreakerProbe` labeled every START of the aura's tick "by=ours", his hand
+  dig too; `ours()` now covers one START. Classifier: killer560s-mod-logs/la-digwindow-1126-classify.py. Testkit
+  62-argrim-1126-digwindow(-burst); 1102-breaker-aura-burst and 1110-...-offlook assert the burst count. Breaker Aura
+  beside a route is not a real pairing (the aura digs only in a boss, routes only in a room; the F7 sim override that
+  wakes the aura also takes the route's room frame away).
 - **A session's first turned dig flags RotationBreak on a fresh server (multibreak-1102).** The first dig a new test server
   processes takes it longer than GrimAC's 15 ms window, so a dig sent at the movement packet's head as the session's first
   draws RotationBreak post-flying and then pre-flying on every later dig (36 lines, 62-argrim-breaker run alone on 26.3);

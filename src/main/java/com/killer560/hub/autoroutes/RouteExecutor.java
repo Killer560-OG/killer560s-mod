@@ -6835,6 +6835,9 @@ public final class RouteExecutor {
         }
         lastDugAt.put(pos, digNow);
         aimTurnPos = null; // a dig went: the next target's turns count from 1
+        if (AutoRoutesConfig.getInstance().breakBurst()) {
+            com.killer560.hub.util.DigWindow.burst(); // the owner's Burst: a second block this tick is not a fault
+        }
         // The face the eye actually sees (Breaker Aura's clip, BlockHits). It was always UP, which no dig from below
         // a block's top can carry: GrimAC PositionBreakA flagged and canceled every breaker block above the feet
         // (2026-10-05, 62-argrim), so those blocks never broke.

@@ -50,6 +50,8 @@ public final class ForeignBreakerProbe {
 
     /** Set by Breaker Aura on the tick it sends, so its own packets are not counted as somebody else's. */
     private static long oursOnTick = -1;
+    /** One START per {@link #ours()} call: his own held dig later in the same tick is his, not ours (la-digwindow-1126). */
+    private static boolean oursStart;
     private static long tick;
 
     private static long windowFrom;
@@ -77,6 +79,7 @@ public final class ForeignBreakerProbe {
     /** Breaker Aura calls this immediately before it sends, so this tick's packets are attributed to us. */
     public static void ours() {
         oursOnTick = tick;
+        oursStart = true;
     }
 
     public static void onClientTick(Minecraft client) {
@@ -133,7 +136,8 @@ public final class ForeignBreakerProbe {
                     pos == null ? "null" : pos.toShortString(), sequence);
             return;
         }
-        if (oursOnTick == tick) {
+        if (oursOnTick == tick && oursStart) {
+            oursStart = false;
             ourSends++;
             LOGGER.debug("[ForeignBreaker] START_DESTROY_BLOCK sent by=ours (Breaker Aura) pos={} face={} seq={} probeTick={}"
                             + " tick={} boxDist={}", pos.toShortString(), face, sequence, tick,
