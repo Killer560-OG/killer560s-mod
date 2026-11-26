@@ -223,8 +223,14 @@ public final class SecretAuraFeature {
         return "skull is not essence or a loose Redstone Key (or that option is off)";
     }
 
-    /** The body turn for a secret the reported look does not reach (see util/TurnFirst); the camera never moves. */
-    private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst().aura();
+    /**
+     * The body turn for a secret the reported look does not reach (see util/TurnFirst); the camera never moves. Auto Secret's
+     * held first warp (ClearExecutor.heldAtStart) holds the camera while it waits for this very click and turns nobody, so
+     * it is no foreign turn to wait out: the 10-tick foreign wait held every last-node chest click until the 20-tick cap
+     * (lastsecret-cap-1125, Flags/Rails in testkit 147).
+     */
+    private static final com.killer560.hub.util.TurnFirst TURN = new com.killer560.hub.util.TurnFirst(() -> { },
+            com.killer560.hub.livemap.autoclear.ClearExecutor::heldAtStart).aura();
 
     static void tick(Minecraft client) {
         // First, always: a body turned for a click is held for it and given back the tick after, whatever gates below.

@@ -204,6 +204,11 @@ and Auto Clear are in [LESSONS-AUTOCLEAR.md](LESSONS-AUTOCLEAR.md). Problem, the
   click (counted from `client_tick_end` packets, the server's own clock); the testkit's `HypixelClickThenUse` plays the
   rule (96-ar-1019-clickgap: main ignored the warp and retried, 7 ticks; fixed 3). `ar1019-refusals.py` in
   killer560s-mod-logs rebuilds the table from any log.
+- **Auto Secret's held first warp is no foreign camera hold for Secret Aura** (lastsecret-cap-1125, testkit 147 Flags and
+  Rails): the held warp's BodyAim keeps ViewFreeze held, so Secret Aura's TurnFirst waited out FOREIGN_WAIT (10 ticks)
+  before turning to the room's last chest, and its click went on the 20-tick cap's own tick (chosen 1781, clicked 1792, cap
+  1793). Its TURN now passes `ClearExecutor::heldAtStart` as ownHold. The click itself was never lost: it goes out before
+  the warp on the same connection and the sim counts it a tick later.
 
 ## Awaits
 
