@@ -37,7 +37,8 @@
      "Auto Sell no longer clicks in the Bazaar: the price, confirm-offer and order screens were treated as a sell menu, and each click opened an item's product page and threw you off the price screen.",
      "Command Auto Correct: /sax is a known command, and a command typed without its first letter (/ax) is sent as the one command that ends with those letters",
      "Dungeon Mob Highlight: a plain mob standing next to a starred one that just died is no longer highlighted (or targeted by Auto Clear) as starred, and a mob with its own plain name tag is never taken for a starred one",
-     "Menu search: a result row's on/off switch now matches the feature's real state after a setting changes by keybind, command or profile, and pressing it flips the setting you see."
+     "Menu search: a result row's on/off switch now matches the feature's real state after a setting changes by keybind, command or profile, and pressing it flips the setting you see.",
+     "Blood Camp: the Mobs Left HUD reads the right number on a real Watcher bar (it read one high on many steps, an F7 camp now starts at 15), with Never Miss a click that did no damage is clicked again at your weapon's pace, and a mob of the next run is no longer taken for a blood mob of the last one."
     ]
    }
   ]

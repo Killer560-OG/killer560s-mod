@@ -676,6 +676,7 @@ public final class BloodCampFeature {
             }
             lastLevel = client.level;
             TAG_MEMO.clear(); // entity ids belong to the level
+            BLOOD_IDS.clear(); // ids repeat across Hypixel servers: a stale one made a mob of the next run a blood mob
             DEAD_IDS.clear();
             FLOOR_CLICKS.clear();
             bloodMobs.clear();
@@ -1001,7 +1002,7 @@ public final class BloodCampFeature {
                     if (mob == null || remainingTicks < -RETRY_STALE_TICKS || now - data.lastClickTick < data.retryGap) {
                         continue;
                     }
-                    boolean windowOver = now - data.lastClickTick > retryWindow;
+                    boolean windowOver = now - data.lastClickTick > missRetryTicks(pingMs, neverMiss);
                     boolean nowReachable = !data.lastClickAttacked
                             && resolveAttackTarget(client, entity, data.endVector, reach) != null;
                     if (!windowOver && !nowReachable) {
@@ -1369,12 +1370,12 @@ public final class BloodCampFeature {
                 reason = "already clicked, no mob on the spot to retry on";
             } else if (data.clicks > 0) {
                 key = "confirm";
-                reason = "clicked " + data.clicks + "x, waiting " + hitConfirmTicks(pingMs) + " ticks to see a hit";
+                reason = "clicked " + data.clicks + "x, waiting " + missRetryTicks(pingMs, neverMiss) + " ticks to see a hit";
             }
             break;
         }
         if (target == null) {
-            int confirm = hitConfirmTicks(pingMs);
+            int confirm = missRetryTicks(pingMs, neverMiss);
             for (Entity mob : floorMobs(client, now)) {
                 if (!aimedAtRoughly(client, mob.getBoundingBox())) {
                     continue;
@@ -1907,6 +1908,7 @@ public final class BloodCampFeature {
      */
     private static Entity triggerFloorMob(Minecraft client, long now, int pingMs, boolean neverMiss) {
         int confirm = hitConfirmTicks(pingMs);
+        int missRetry = missRetryTicks(pingMs, neverMiss);
         Entity best = null;
         double bestD = Double.MAX_VALUE;
         Vec3 eye = client.player.getEyePosition();
@@ -1915,7 +1917,7 @@ public final class BloodCampFeature {
             // A hit mob that is still alive is clicked again: with Never Miss at once, at the weapon's pace, while his look is
             // on it (nevermiss-1102); without it once the last hit's hurt flash is over (bloodcamp2-1102 hitButAlive).
             if (fc != null && fc.hit ? !(neverMiss ? mob.isAlive() : hitButAlive(mob, fc, now, confirm))
-                    : fc != null && (fc.clicks > MAX_RETRIES || now - fc.lastTick <= confirm)) {
+                    : fc != null && (fc.clicks > MAX_RETRIES || now - fc.lastTick <= missRetry)) {
                 continue;
             }
             if (!aimedAtRoughly(client, mob.getBoundingBox())) {
@@ -2110,6 +2112,19 @@ public final class BloodCampFeature {
 
     static int hitConfirmTicks(int pingMs) {
         return (int) Math.ceil(pingMs / 50.0) + HIT_CONFIRM_TICKS;
+    }
+
+    /** With Never Miss, ticks after a click that showed no hit before it is clicked again (nevermiss2t-1125). */
+    private static final int NEVER_MISS_RETRY_MARGIN = 2;
+
+    /**
+     * Ticks a click that showed nothing waits before it counts as a miss and is clicked again. Never Miss (killer560,
+     * 2026-11-25: "our camp should be 2 ticking on the cant miss setting"): one round trip + 2 ticks, so the retry goes at
+     * the weapon's pace; his camps showed a kill 1-2 ticks past the round trip and the old 4-tick margin put every retry
+     * after a miss 2 ticks past his weapon's cooldown. Off: {@link #hitConfirmTicks}.
+     */
+    static int missRetryTicks(int pingMs, boolean neverMiss) {
+        return neverMiss ? (int) Math.ceil(pingMs / 50.0) + NEVER_MISS_RETRY_MARGIN : hitConfirmTicks(pingMs);
     }
 
     /** The one Aura turn controller (per-frame smooth, his mouse wins - see {@link BloodCampAim}). */

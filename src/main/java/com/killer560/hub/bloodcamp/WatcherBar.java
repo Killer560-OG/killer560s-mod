@@ -23,9 +23,8 @@ import java.util.LinkedHashSet;
  *   go: the "Watcher Bar" both print {@code round(progress * amount) + "/" + amount}.</li>
  *   <li>The camp's size: the wiki (hypixelskyblock.minecraft.wiki/w/The_Watcher) says he summons "9 in Entrance and
  *   increasing by 1 with each floor", quoting Hypixel staff "9 + (floorTier)" - F7 16. Other implementations use 8 + floor
- *   (F7 15). The two disagree by one, so the size is not trusted from either: it is CALIBRATED from the bar itself. The
- *   bar steps by whole mobs (k of N), so every settled value times the right N is a whole number, and a wrong N by one
- *   is off by at least 1/N. Until the first step the floor's default (the wiki's 9 + tier) is used.</li>
+ *   (F7 15), and his real F7 camps are 15 (bcmobs-1125). The size is still CALIBRATED from the bar itself: the bar steps
+ *   by whole mobs (k of N, sent rounded to two decimals), see {@link #step}. Until the first step 8 + tier is used.</li>
  *   <li>Rounding: up, never down - a value between two steps (the client eases the bar over 100 ms, or a partly drained
  *   step) reads the higher count. So "1" only when one mob is left in the whole camp.</li>
  * </ul>
@@ -69,13 +68,14 @@ final class WatcherBar {
         return Float.NaN;
     }
 
-    /** The default camp size for a floor ("F7", "M3", "E"): the wiki's 9 + tier. */
+    /** The default camp size for a floor ("F7", "M3", "E"): 8 + tier (bcmobs-1125: every one of his 55 F7 camps stepped in
+     *  fifteenths; the wiki's 9 + tier made the HUD read 16 until the first kill and calibrate off the rounded values). */
     static int defaultTotal(String floor) {
         int tier = 0;
         if (floor != null && !floor.isEmpty() && Character.isDigit(floor.charAt(floor.length() - 1))) {
             tier = floor.charAt(floor.length() - 1) - '0';
         }
-        return 9 + tier;
+        return 8 + tier;
     }
 
     private static String floor() {
@@ -138,12 +138,23 @@ final class WatcherBar {
 
     private static boolean fits(int n) {
         for (float v : SETTLED) {
-            double x = v * (double) n;
-            if (Math.abs(x - Math.rint(x)) > 0.02) {
+            if (step(v, n) < 0) {
                 return false;
             }
         }
         return true;
+    }
+
+    /**
+     * The whole mobs k of n that the bar value v shows, or -1 when v is no step of n. Hypixel sends the bar rounded to two
+     * decimals (bcmobs-1125: 55 of his F7 camps read only 0.93, 0.87, 0.8 ... 0.07, each k/15 rounded), so a value that
+     * is a whole hundredth may sit up to 0.005 off its step; any other value (an exact k/n, the client's 100 ms ease) must
+     * be the step itself. The old fixed 0.02 on v * n missed 0.93 * 15 = 13.95, fitted 0.53 to 17 and 0.07 to 14.
+     */
+    static int step(float v, int n) {
+        double k = Math.rint(v * (double) n);
+        boolean hundredth = Math.abs(v * 100.0 - Math.rint(v * 100.0)) < 0.001;
+        return Math.abs(v - k / n) <= (hundredth ? 0.0051 : 0.0002) ? (int) k : -1;
     }
 
     /** The camp's size: calibrated from the bar, else the floor's default. */
@@ -151,8 +162,10 @@ final class WatcherBar {
         return calibrated > 0 ? calibrated : defaultTotal(floor());
     }
 
+    /** A step of the bar reads its whole mobs; a value between two steps (mid-ease, part drained) reads the higher. */
     static int left(float progress, int total) {
-        return Math.max(0, (int) Math.ceil(progress * (double) total - 0.02));
+        int k = step(progress, total);
+        return k >= 0 ? k : Math.max(0, (int) Math.ceil(progress * (double) total - 0.02));
     }
 
     /** Mobs the camp still needs, from the bar, or -1 when no Watcher bar is shown. */

@@ -287,6 +287,16 @@ scoring, terminals, and the Interactive Map's planner as the features call it. P
   print the bar against 8 + floor. `bloodcamp/WatcherBar` starts from the wiki's and recalibrates from the bar's own
   settled steps (k of N is whole only for the right N), rounding up; it logs "[BloodCampStats] Watcher bar ..." each step,
   so the first real camp's log settles which size Hypixel uses.
+  SETTLED (bcmobs-1125, his 55 F7 camps 11-23..25): an F7 camp is 15 (8 + tier, now the default) and Hypixel sends the bar
+  ROUNDED TO TWO DECIMALS (0.93, 0.87, 0.8 ... 0.07). The old fixed 0.02 tolerance on v * N missed 0.93 * 15 = 13.95, fitted
+  the camp to 14, 16 or 17 by chance, and rounding up read 0.67 as 11 (10 left) and 0.27 as 5 (4). `WatcherBar.step` now
+  takes a whole-hundredth value within 0.005 of k/N as step k; any other value must be the step itself. Testkit
+  1125-bloodcamp-watcher-bar-rounded drives the bar the same way.
+- **Never Miss retries a click that showed nothing at the weapon's pace** (bcmobs-1125, killer560 11-25: "should be 2
+  ticking on the cant miss setting"). In his camps the Trigger Bot clicked 98% of free mobs on the tick they were tagged and
+  they died 1-2 ticks past the round trip; the mod's own slow cases were misses, retried after round trip + 4 ticks (7 at
+  80 ms) while his weapon allowed 5. `missRetryTicks` is round trip + 2 with Never Miss (Off keeps `hitConfirmTicks`).
+  The other slow mobs were his (not yet in the room, look elsewhere, a mob that survived a hit). Testkit 1125-bloodcamp-nevermiss-ping.
 - **A skull 20 blocks from the Watcher is not the edge of the Blood Room** (owner's F7 camp, 2026-11-02, "missed a wall
   spawn"). Other implementations both track a skull's trip only within 20 blocks of the Watcher, but he flies to the case of
   the mob he picks (wiki) and the cases sit on walls 24 blocks apart, so a skull leaving the far wall while he was at the
