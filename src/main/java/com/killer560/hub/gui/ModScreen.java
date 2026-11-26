@@ -286,6 +286,7 @@ public class ModScreen extends Screen {
     @Override
     protected void init() {
         FeatureCards.clearText();
+        FeatureCards.invalidate();
         ensureTabs();
         if (pendingTabName != null) {
             String want = pendingTabName;
@@ -1930,6 +1931,7 @@ public class ModScreen extends Screen {
      *  once per search and kept, so a keystroke does not rebuild every tab. */
     private void computeResults() {
         results.clear();
+        FeatureCards.invalidate();
         if (searchQuery.isBlank()) {
             MenuSearch.invalidate();
             return;

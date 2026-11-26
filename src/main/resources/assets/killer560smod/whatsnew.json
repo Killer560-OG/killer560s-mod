@@ -36,7 +36,8 @@
      "Chest Value now also works in a minion's menu: it totals the items in the minion's storage, the coins its hopper holds and the fuel, hopper, upgrades and skin in its slots, shows how much the minion has generated, and lists the minion's Craft Cost from tier I up to its tier apart from the total (new Minions switch in the Chest Value tab, on by default).",
      "Auto Sell no longer clicks in the Bazaar: the price, confirm-offer and order screens were treated as a sell menu, and each click opened an item's product page and threw you off the price screen.",
      "Command Auto Correct: /sax is a known command, and a command typed without its first letter (/ax) is sent as the one command that ends with those letters",
-     "Dungeon Mob Highlight: a plain mob standing next to a starred one that just died is no longer highlighted (or targeted by Auto Clear) as starred, and a mob with its own plain name tag is never taken for a starred one"
+     "Dungeon Mob Highlight: a plain mob standing next to a starred one that just died is no longer highlighted (or targeted by Auto Clear) as starred, and a mob with its own plain name tag is never taken for a starred one",
+     "Menu search: a result row's on/off switch now matches the feature's real state after a setting changes by keybind, command or profile, and pressing it flips the setting you see."
     ]
    }
   ]

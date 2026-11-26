@@ -84,6 +84,15 @@ public final class FeatureCards {
     /** Last known master state: TRUE / FALSE, or absent when the tab has no master toggle. */
     private static final Map<BaseTab, Boolean> STATE = new IdentityHashMap<>();
     private static final Map<BaseTab, Boolean> HAS_MASTER = new IdentityHashMap<>();
+    /** The epoch a tab's state was read in; an older one is re-read when next drawn ({@link #invalidate}). */
+    private static final Map<BaseTab, Integer> READ_AT = new IdentityHashMap<>();
+    private static int epoch;
+
+    /** The cached states may be out of date (the menu opened, or a search ran: a keybind, command or profile can have
+     *  changed a setting meanwhile): each card or result row re-reads its own tab once, when it is next drawn. */
+    public static void invalidate() {
+        epoch++;
+    }
 
     /** Forget the cards' laid-out text (the menu's {@code init}: a resize, or a resource reload that may change glyphs). */
     public static void clearText() {
@@ -96,6 +105,7 @@ public final class FeatureCards {
         DESCRIPTIONS.clear();
         STATE.clear();
         HAS_MASTER.clear();
+        READ_AT.clear();
     }
 
     /** The tab's master toggle, freshly built with {@code requestRebuild} as its rebuild hook, or null. */
@@ -132,6 +142,7 @@ public final class FeatureCards {
     public static Boolean refresh(BaseTab tab) {
         MasterSwitch m = masterSwitch(tab, null);
         HAS_MASTER.put(tab, m != null);
+        READ_AT.put(tab, epoch);
         if (m == null) {
             STATE.remove(tab);
             return null;
@@ -142,7 +153,7 @@ public final class FeatureCards {
 
     /** The last known master state (reads it once if never read); null = the tab has no master toggle. */
     public static Boolean state(BaseTab tab) {
-        if (!HAS_MASTER.containsKey(tab)) {
+        if (!HAS_MASTER.containsKey(tab) || READ_AT.getOrDefault(tab, -1) != epoch) {
             return refresh(tab);
         }
         return STATE.get(tab);
@@ -151,6 +162,7 @@ public final class FeatureCards {
     /** Record a state read elsewhere (the open drawer's own master row, read every frame). */
     public static void setKnownState(BaseTab tab, boolean on) {
         HAS_MASTER.put(tab, true);
+        READ_AT.put(tab, epoch);
         STATE.put(tab, on);
     }
 
