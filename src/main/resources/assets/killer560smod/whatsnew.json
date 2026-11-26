@@ -7,7 +7,8 @@
     "title": "More",
     "blurb": "Changes in this update.",
     "items": [
-     "Dungeons Autopilot has a new Face Door on Arrival switch (off by default) that turns you to look at the wither or blood door when it gets there."
+     "Dungeons Autopilot has a new Face Door on Arrival switch (off by default) that turns you to look at the wither or blood door when it gets there.",
+     "Etherwarp tab: the Multi Warps and Warps Per Tick hovers now say plainly that warp chains (Auto Routes, Interactive Map, Dungeons Autopilot and Auto Clear trips) and Tick Split go several to a tick only while Blink Charge is charging; without a Blink bank a chain goes one warp per tick"
     ]
    }
   ]
