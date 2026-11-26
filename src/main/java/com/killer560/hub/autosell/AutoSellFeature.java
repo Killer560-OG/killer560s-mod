@@ -385,12 +385,22 @@ public final class AutoSellFeature {
      * inventory to sell" or ends "Click to buyback" (Item Protection's sell-menu test, from the reference).
      */
     static boolean isSellScreen(AbstractContainerScreen<?> screen, AutoSellConfig cfg) {
-        if (compileOrDefault(cfg.getScreenTitlePattern()).matcher(titleOf(screen)).matches()) {
+        String title = titleOf(screen);
+        if (BAZAAR_FLOW.matcher(title).find()) {
+            return false;
+        }
+        if (compileOrDefault(cfg.getScreenTitlePattern()).matcher(title).matches()) {
             return true;
         }
         return cfg.isAnyNpcMenu() && com.killer560.hub.itemprotect.ItemProtect.lossScreenOf(screen)
                 == com.killer560.hub.itemprotect.ItemProtect.LossScreen.SELL;
     }
+
+    /** Bazaar screens whose title says "sell" ("At what price are you selling?", "Confirm Sell Offer"): a click on an
+     *  inventory item there opens its product page, so they are never a sell menu (killer560, 2026-11-25). Product pages
+     *  are "Bazaar ➜ ..." / "Item ➜ Sub"; the rest are the order and offer screens. */
+    private static final Pattern BAZAAR_FLOW = Pattern.compile(
+            "(?i)^bazaar|➜|^at what price|^confirm (sell|buy)|^how (many|much)|bazaar orders|^order options|^(sell|buy) (instantly|offer|order)");
 
     private static final Pattern POTION_COUNT_TAIL = Pattern.compile("(?<=POTION)_X[0-9]+$");
 
