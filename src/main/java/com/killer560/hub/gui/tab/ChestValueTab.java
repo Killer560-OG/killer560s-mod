@@ -52,6 +52,8 @@ public class ChestValueTab extends BaseTab {
         widgets.add(onOffButton("Backpacks", cfg::isBackpacks, cfg::setBackpacks, cfg::save, null, contentX, y,
                 contentWidth, 18));
         y += 22;
+        widgets.add(onOffButton("Minions", cfg::isMinions, cfg::setMinions, cfg::save, null, contentX, y, contentWidth, 18));
+        y += 22;
         widgets.add(onOffButton("Other Containers", cfg::isOther, cfg::setOther, cfg::save, null, contentX, y,
                 contentWidth, 18));
         return widgets;

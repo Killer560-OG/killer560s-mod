@@ -43,7 +43,7 @@ public final class ChestValue {
     private static final Logger LOGGER = ModLog.get("killer560smod-chestvalue");
     private static final String ELEMENT_ID = "chest_value_panel";
     private static final int PAD = 4, LINE = 10, NAME_PX = 120;
-    private static final int CHESTS = 0, ENDER = 1, BACKPACK = 2, OTHER = 3;
+    private static final int CHESTS = 0, ENDER = 1, BACKPACK = 2, OTHER = 3, MINION = 4;
 
     /** One merged line: the same item (and the same worth) with the stacks added. */
     public record Line(String name, int count, double value) {
@@ -61,6 +61,7 @@ public final class ChestValue {
     private static String builtKey = "";
     private static long lastTouchMs;
     private static Result last;
+    private static MinionValue.Result minion;
     private static int computes;
     private static int scroll;
     private static int panelX, panelY;
@@ -87,6 +88,9 @@ public final class ChestValue {
         if (StorageOverlayFeature.storageKeyForTitle(title) != null) {
             return title.startsWith("Ender Chest") ? ENDER : BACKPACK;
         }
+        if (MinionValue.isTitle(title)) {
+            return MINION;
+        }
         return title.equals("Storage") ? -1 : OTHER;
     }
 
@@ -95,6 +99,7 @@ public final class ChestValue {
             case CHESTS -> cfg.isChests();
             case ENDER -> cfg.isEnderChest();
             case BACKPACK -> cfg.isBackpacks();
+            case MINION -> cfg.isMinions();
             default -> cfg.isOther();
         };
     }
@@ -120,6 +125,7 @@ public final class ChestValue {
         ScreenEvents.remove(screen).register(s -> {
             lines = List.of();
             last = null;
+            minion = null;
         });
     }
 
@@ -141,14 +147,16 @@ public final class ChestValue {
             sig = sig * 31 + System.identityHashCode(s) * 3L + s.getCount();
         }
         String key = sig + "/" + ChestValueConfig.version() + "/" + PriceData.generation() + "/"
-                + PriceTooltipConfig.getInstance().getValueMode() + "/" + System.identityHashCode(menu);
+                + PriceTooltipConfig.getInstance().getValueMode() + "/" + System.identityHashCode(menu) + "/" + MinionValue.arrivals();
         if (!key.equals(builtKey)) {
             builtKey = key;
             List<ItemStack> stacks = new ArrayList<>(top);
             for (int i = 0; i < top; i++) {
                 stacks.add(menu.slots.get(i).getItem());
             }
-            last = kind == OTHER && !plain(stacks) ? null : compute(stacks, cfg.getSort(), cfg.getMaxLines());
+            minion = kind == MINION ? MinionValue.compute(screen.getTitle().getString(), stacks, cfg) : null;
+            last = minion != null ? minion.storage() : kind == OTHER && !plain(stacks) ? null
+                    : compute(stacks, cfg.getSort(), cfg.getMaxLines());
             scroll = 0;
             rebuildLines(client);
         }
@@ -167,7 +175,7 @@ public final class ChestValue {
     }
 
     private static void rebuildLines(Minecraft client) {
-        lines = last == null ? List.of() : format(last, scroll);
+        lines = minion != null ? MinionValue.format(minion, scroll) : last == null ? List.of() : format(last, scroll);
         int w = 0;
         for (String l : lines) {
             w = Math.max(w, client.font.width(l));
@@ -208,7 +216,6 @@ public final class ChestValue {
     /** Values the stacks (empty and id-less ones are skipped), merges the same item and sorts; pure, no screen needed. */
     public static Result compute(List<ItemStack> stacks, ChestValueConfig.Sort sort, int maxLines) {
         computes++;
-        PriceTooltipConfig.ValueMode mode = PriceTooltipConfig.getInstance().getValueMode();
         record Acc(String name, int[] count, double[] value, boolean priced) {
         }
         Map<String, Acc> merged = new LinkedHashMap<>();
@@ -224,7 +231,7 @@ public final class ChestValue {
                 continue;
             }
             String name = s.getHoverName().getString();
-            double unit = ItemValueCalc.compute(tag, ItemKeys.priceKey(tag, name), mode).total();
+            double unit = unitValue(s);
             boolean priced = unit > 0;
             Acc a = merged.computeIfAbsent(id + "|" + name + "|" + Math.round(unit) + "|" + priced,
                     k -> new Acc(name, new int[1], new double[1], priced));
@@ -250,17 +257,26 @@ public final class ChestValue {
         return DungeonChestValuer.formatCoins(Math.round(v));
     }
 
-    private static List<String> format(Result r, int offset) {
+    /** One unit's Est. Item Value (the Price Tooltip's Value Mode), 0 for no price or no Skyblock id. */
+    static double unitValue(ItemStack s) {
+        CompoundTag tag = s.isEmpty() ? null : ItemNbt.view(s);
+        String name = s.getHoverName().getString();
+        return tag == null || ItemKeys.id(tag) == null ? 0
+                : ItemValueCalc.compute(tag, ItemKeys.priceKey(tag, name), PriceTooltipConfig.getInstance().getValueMode()).total();
+    }
+
+    /** An item name cut to the panel's name width with "...". */
+    static String clip(String name) {
+        Font font = Minecraft.getInstance().font;
+        return font.width(name) <= NAME_PX ? name : font.plainSubstrByWidth(name, NAME_PX - font.width("...")) + "...";
+    }
+
+    static List<String> format(Result r, int offset) {
         List<String> out = new ArrayList<>();
         out.add("§lChest Value: §r§6" + coins(r.total()));
         int n = r.lines().size();
         for (Line l : r.all().subList(offset, offset + n)) {
-            String name = l.name();
-            Font font = Minecraft.getInstance().font;
-            if (font.width(name) > NAME_PX) {
-                name = font.plainSubstrByWidth(name, NAME_PX - font.width("...")) + "...";
-            }
-            out.add("§7" + l.count() + "x §f" + name + "  " + (l.value() < 0 ? "§8?" : "§6" + coins(l.value())));
+            out.add("§7" + l.count() + "x §f" + clip(l.name()) + "  " + (l.value() < 0 ? "§8?" : "§6" + coins(l.value())));
         }
         if (r.more() > 0) {
             int below = r.all().size() - offset - n;
@@ -288,6 +304,10 @@ public final class ChestValue {
     // Testkit hooks.
     public static Result lastResultForTest() {
         return last;
+    }
+
+    public static MinionValue.Result minionForTest() {
+        return minion;
     }
 
     public static List<String> linesForTest() {

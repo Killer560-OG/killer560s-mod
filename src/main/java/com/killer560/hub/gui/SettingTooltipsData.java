@@ -361,6 +361,7 @@ final class SettingTooltipsData {
         d.put("chest value/chests", "Show the panel over chests on your island.");
         d.put("chest value/ender chest", "Show the panel over Ender Chest pages.");
         d.put("chest value/backpacks", "Show the panel over Backpacks.");
+        d.put("chest value/minions", "Show the panel in a minion's menu: the total of its storage, the coins in its hopper and the fuel, hopper, upgrades and skin it holds, then its lifetime Generated count and, apart from the total, the Craft Cost of the minion from tier I up to its tier.");
         d.put("chest value/other containers", "Also show it over any other menu that holds only real items (no buttons). May appear over a menu that is not really a container.");
         d.put("accessory advisor/rows", "How many suggestions the panel lists (3-15). Left click goes up, right click down.");
         d.put("compactor preview/skyblock only", "Only show the grid on Hypixel Skyblock.");

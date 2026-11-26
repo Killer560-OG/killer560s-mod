@@ -31,6 +31,7 @@ public final class ChestValueConfig {
             .add("chests", true, c -> c.chests, (c, v) -> c.chests = v)
             .add("enderChest", true, c -> c.enderChest, (c, v) -> c.enderChest = v)
             .add("backpacks", true, c -> c.backpacks, (c, v) -> c.backpacks = v)
+            .add("minions", true, c -> c.minions, (c, v) -> c.minions = v)
             .add("other", false, c -> c.other, (c, v) -> c.other = v);
 
     private static ChestValueConfig instance;
@@ -40,6 +41,7 @@ public final class ChestValueConfig {
     private boolean chests = true;
     private boolean enderChest = true;
     private boolean backpacks = true;
+    private boolean minions = true;
     private boolean other = false;
     private Sort sort = Sort.VALUE;
     private int maxLines = 10;
@@ -116,6 +118,15 @@ public final class ChestValueConfig {
 
     public void setBackpacks(boolean v) {
         backpacks = v;
+        version++;
+    }
+
+    public boolean isMinions() {
+        return minions;
+    }
+
+    public void setMinions(boolean v) {
+        minions = v;
         version++;
     }
 

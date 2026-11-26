@@ -32,7 +32,8 @@
      "Beacon Ready Alert: new Color setting for the title and HUD line (Auto follows the menu theme; right click puts it back to Auto).",
      "Invisibug Highlight: a new Tracer Line option draws a line to the nearest Invisibug that has been found, and when none is found it leads you through the remembered spots you have not checked yet. Remembered spots are now a flat circle where bugs spawn instead of a ring with a post, and sightings a few blocks apart are one spot with a larger circle instead of many circles.",
      "Testing only: the Auto Routes warp-after-click test now expects the warp three ticks after firing, which the sneak-age rule requires.",
-     "Auto Routes: a warp that cannot go from where you stand no longer freezes you - a movement key takes over and stops the route, and a left click really sends the warp instead of hitting a block"
+     "Auto Routes: a warp that cannot go from where you stand no longer freezes you - a movement key takes over and stops the route, and a left click really sends the warp instead of hitting a block",
+     "Chest Value now also works in a minion's menu: it totals the items in the minion's storage, the coins its hopper holds and the fuel, hopper, upgrades and skin in its slots, shows how much the minion has generated, and lists the minion's Craft Cost from tier I up to its tier apart from the total (new Minions switch in the Chest Value tab, on by default)."
     ]
    }
   ]
