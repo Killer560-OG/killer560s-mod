@@ -302,6 +302,9 @@ public final class BeaconTuner {
             if (was && lastNow > 0) {
                 mine[g].moved += now - lastNow;
             }
+            if (was != paused[g] && com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && CFG.on("autoTune")) {
+                BeaconAutoTuner.pauseSeen(g, paused[g], now);
+            }
         }
         lastNow = now;
         int[] bottom = row(item, BeaconTuneSpec.BOTTOM);

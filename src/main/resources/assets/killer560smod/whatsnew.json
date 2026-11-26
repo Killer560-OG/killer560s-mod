@@ -10,7 +10,8 @@
      "Dungeons Autopilot: switched on in the green room before the run starts, it now etherwarps you onto the spot right by the Entrance gate instead of walking there (new Warp to Door Before Start switch, off by default; it still walks without an etherwarp item).",
      "Dungeons Autopilot: switched on in the green room before the run starts, it can now etherwarp you onto the spot right by the Entrance gate instead of walking there (new Warp to Door Before Start switch, off by default; it still walks without an etherwarp item). Auto Clear and that warp: a right click of yours in a warp's tick now goes with your own item, never the warp item, and a warp asked for in that tick goes a tick later instead of not going at all.",
      "Auto Clear: when a wither door trip cannot be planned it now gives up after 4 tries and waits until you are in another room or the door changes, instead of retrying every tick",
-     "Craft Cost panel: quantity, full item name and cost now sit in aligned columns (names never cut, the Makes line is gone), and left-clicking an ingredient row opens its Bazaar or Auction House page"
+     "Craft Cost panel: quantity, full item name and cost now sit in aligned columns (names never cut, the Makes line is gone), and left-clicking an ingredient row opens its Bazaar or Auction House page",
+     "Auto Tune finishes Upgrade Signal Strength much faster (well under 10 s on the recorded upgrades, which took up to 28 s): it unpauses the last beat on its beacon pane's slot, the click every upgrade completes on, times each unpause from when its Pause click went out so the panes land on the same tick, never misses a due unpause behind another click, leaves a lined-up pane alone instead of re-running it at Speed 5 just before the finish, and no longer sends Speed clicks that undo each other."
     ]
    }
   ]
