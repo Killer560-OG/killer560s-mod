@@ -20,8 +20,10 @@ import java.util.function.IntFunction;
  * Moonglade Beacon Tuner (both builds, off by default): in the beacon's "Tune Frequency" and "Upgrade Signal Strength"
  * menus it reads the beacon's own beats (color from the pane, speed from the ticks between its steps, pitch from the note
  * block sound that plays as it steps) and outlines the Color, Speed and Pitch buttons that still differ from your beat,
- * with the clicks needed (L = left click, R = right click), and Pause when your pane is not in the beacon's slot (P) or is
- * paused on it (U). No text readout over the menu (killer560 11-24: "there should be no hud for the tuning"). It clicks
+ * with the clicks needed (L = left click, R = right click), and Pause when your pane is out of step with the beacon's (P:
+ * another slot, or the same slot but stepping a few ticks apart) or is paused on its slot (U). When running at Speed 5 to
+ * catch up is quicker than pausing for the rest of the lap, it outlines Speed toward 5 instead, and no Speed hint back
+ * until the clicks down would land your pane in step ({@link BeaconTuneSolver#boostQuicker}, the same plan Auto Tune uses). No text readout over the menu (killer560 11-24: "there should be no hud for the tuning"). It clicks
  * nothing itself; {@link BeaconAutoTuner} does in the cheat build. The layout is {@link BeaconTuneSpec}.
  * <p>
  * Beats are followed by their panes, never by color: the beacon's two upgrade beats can share a color (both brown on
@@ -80,7 +82,15 @@ public final class BeaconTuner {
     private static final int[] JOINT = {-1, -1};
     /** The guess from {@link #JOINT} is in use; {@link BeaconAutoTuner} flips {@link #swap} when the tune did not complete on it. */
     static boolean guessing;
+    /** Use the other way round from what the reads (or the tie's guess) say. */
     static boolean swap;
+    /** Which of your panes is whose is read, not guessed: they have differed in color at least once (or there is one). */
+    static boolean known;
+
+    /** The two beacon beats' pitches were only heard together, so which is whose comes from reads. */
+    static boolean joint() {
+        return JOINT[0] >= 0;
+    }
     private static long lastNow;
 
     private BeaconTuner() {
@@ -134,8 +144,9 @@ public final class BeaconTuner {
         hintN = 0;
         mine = new Beat[0];
         beatRaw = new Beat[0];
+        paused = new boolean[0];
         JOINT[0] = JOINT[1] = -1;
-        guessing = swap = false;
+        guessing = swap = known = false;
         lastNow = 0;
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             BeaconAutoTuner.reset();
@@ -270,35 +281,54 @@ public final class BeaconTuner {
         }
         int[][] cur = new int[n][3];
         int[] want = new int[n];
-        paused = new boolean[n];
+        if (paused.length != n) {
+            paused = new boolean[n];
+        }
         for (int g = 0; g < n; g++) {
             String col = BeaconTuneSolver.colorOf(item.apply(ctl[g][0]));
             cur[g][0] = col == null ? -1 : BeaconTuneSpec.COLORS.indexOf(col);
             cur[g][1] = BeaconTuneSolver.current(item.apply(ctl[g][1]), "speed");
             cur[g][2] = BeaconTuneSolver.current(item.apply(ctl[g][2]), "pitch");
             want[g] = cur[g][0];
-            paused[g] = BeaconTuneSolver.paused(item.apply(ctl[g][3]));
+            ItemStack pause = item.apply(ctl[g][3]);
+            // A Pause button the click's pickup just emptied keeps its last state: read as unpaused it stopped the freeze a
+            // round trip early, so the pane's step timer ran 1-2 ticks ahead of the server's and an in-step pane was paused again.
+            boolean was = paused[g];
+            paused[g] = pause.isEmpty() ? paused[g] : BeaconTuneSolver.paused(pause);
             mine[g].period = cur[g][1] > 0 ? BeaconTuneSolver.period(cur[g][1]) : -1;
-            if (paused[g] && lastNow > 0) {
-                mine[g].moved += now - lastNow; // Pause freezes the step timer, so a long pause is not read as a step overdue
+            // Pause freezes the step timer, so a long pause is not read as a step overdue. The ticks since the last read
+            // count as paused when the button said PAUSED at their start: counting them from the read that first says so
+            // froze the timer a tick early, and every unpause landed 1-2 ticks early (11-25 testkit server clicks).
+            if (was && lastNow > 0) {
+                mine[g].moved += now - lastNow;
             }
         }
         lastNow = now;
-        track(mine, row(item, BeaconTuneSpec.BOTTOM), want, paused, now);
+        int[] bottom = row(item, BeaconTuneSpec.BOTTOM);
+        track(mine, bottom, want, paused, now);
+        if (n == 2 && mine[0].slot >= 0 && mine[1].slot >= 0 && want[0] != want[1] && bottom[mine[0].slot] == want[1]
+                && bottom[mine[1].slot] == want[0]) {
+            // Your two panes of one color are told apart at the opening only by a guess: once a Color click makes them
+            // differ, each pane's color says whose it is (T7 11-25: both white, read the wrong way round, so each beat was
+            // lined up by the other's pane and both ended on one slot).
+            Beat t = mine[0];
+            mine[0] = mine[1];
+            mine[1] = t;
+            int p = t.period;
+            t.period = mine[0].period;
+            mine[0].period = p;
+        }
+        known |= n < 2 || want[0] != want[1] && want[0] >= 0 && want[1] >= 0;
         int[] top = row(item, BeaconTuneSpec.TOP);
         boolean[] beaconStepped = track(beatRaw, top, null, new boolean[n], now);
         int[] left = heard(now, cur);
         for (int j = 0; j < n; j++) {
-            if (beaconStepped[j]) {
-                int[] l = left.clone();
-                int other = n == 2 && beatRaw[1 - j].moved >= now - 1 ? beatRaw[1 - j].voted() : -1;
-                if (other >= 0 && l[other] > 0) {
-                    l[other]--;
-                }
-                int p = single(l);
-                if (p >= 0) {
-                    beatRaw[j].votes[p]++;
-                }
+            // Two pitches heard on one step of both beacon beats say nothing about which is whose (the sounds carry no
+            // place): taking the other's voted pitch off made every joint step vote against the last read, so the pairing
+            // flipped each step and Pitch was turned back and forth all tune (T7, 11-25 4:54 PM). Only one level heard votes.
+            int p = beaconStepped[j] ? single(left) : -1;
+            if (p >= 0) {
+                beatRaw[j].votes[p]++;
             }
         }
         if (n == 2 && beaconStepped[0] && beaconStepped[1] && left[0] + left[1] + left[2] == 2 && single(left) < 0) {
@@ -316,7 +346,7 @@ public final class BeaconTuner {
             int keep = beatRaw[0].votes[JOINT[0]] + beatRaw[1].votes[JOINT[1]];
             int flip = beatRaw[0].votes[JOINT[1]] + beatRaw[1].votes[JOINT[0]];
             guessing = keep == flip;
-            int f = (guessing ? swap : flip > keep) ? 1 : 0;
+            int f = (guessing ? swap : (flip > keep) ^ swap) ? 1 : 0;
             beatRaw[0].pitch = JOINT[f];
             beatRaw[1].pitch = JOINT[1 - f];
         }
@@ -335,18 +365,42 @@ public final class BeaconTuner {
         hintN = 0;
         for (int g = 0; g < n; g++) {
             int[] t = tgt[pick[g]];
+            Beat b = beatRaw[pick[g]];
+            Beat m = mine[g];
+            boolean placed = b.slot >= 0 && m.slot >= 0 && t[1] > 0 && cur[g][1] > 0;
+            boolean timed = placed && m.steps > 0; // your pane's step timer is known only once it has stepped
+            double ahead = timed ? BeaconTuneSolver.wrap7(BeaconTuneSolver.pos(m, BeaconTuneSolver.period(cur[g][1]), now)
+                    - BeaconTuneSolver.pos(b, BeaconTuneSolver.period(t[1]), now)) : 0;
+            // At Speed 5 catching a slower beacon pane up: no Speed hint until the clicks back down would land it in step.
+            boolean catching = timed && !paused[g] && cur[g][1] == 5 && t[1] < 5 && ahead >= 1
+                    && 7 - ahead > BeaconTuneSolver.downGain(t[1], HAND_STEP, 2);
             for (int k = 0; k < 3; k++) {
-                int p = cur[g][k] < 0 || t[k] < 0 ? 0 : BeaconTuneSolver.presses(cur[g][k], t[k], BeaconTuneSpec.WRAP[k]);
+                int p = cur[g][k] < 0 || t[k] < 0 || k == 1 && catching ? 0 : BeaconTuneSolver.presses(cur[g][k], t[k], BeaconTuneSpec.WRAP[k]);
                 if (p != 0) {
                     hint(ctl[g][k], (p > 0 ? "L" : "R") + Math.abs(p));
                 }
             }
-            Beat b = beatRaw[pick[g]];
-            if (b.slot >= 0 && mine[g].slot >= 0 && t[1] > 0 && cur[g][1] == t[1] && (paused[g] == (b.slot == mine[g].slot))) {
-                hint(ctl[g][3], paused[g] ? "U" : "P");
+            if (!placed || cur[g][1] != t[1]) {
+                continue;
+            }
+            if (paused[g]) {
+                if (b.slot == m.slot) {
+                    hint(ctl[g][3], "U"); // the unpause click on the beacon's slot is the one that completes
+                }
+            } else if (b.slot != m.slot || m.steps > 0 && b.steps > 1 && Math.abs(m.moved - b.moved) > 1) {
+                // Out of step (also on one slot but stepping a few ticks apart): to Speed 5 to catch up when quicker, else Pause.
+                int up = BeaconTuneSolver.presses(t[1], 5, 5);
+                if (timed && BeaconTuneSolver.boostQuicker(ahead, t[1], BeaconTuneSolver.speedClicks(t[1], 5) + BeaconTuneSolver.speedClicks(5, t[1]), HAND_STEP)) {
+                    hint(ctl[g][1], (up > 0 ? "L" : "R") + Math.abs(up));
+                } else {
+                    hint(ctl[g][3], "P");
+                }
             }
         }
     }
+
+    /** Ticks a hand needs between two clicks, for the hints' choice between a pause and a run at Speed 5. */
+    private static final int HAND_STEP = 6;
 
     private static void hint(int slot, String text) {
         HINT_SLOT[hintN] = slot;

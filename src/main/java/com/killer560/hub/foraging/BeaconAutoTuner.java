@@ -28,12 +28,16 @@ import java.util.Arrays;
  * since lining up needs the periods equal. A pane ahead of its beacon pane by d ticks of travel is paused at once for d
  * ticks: it is unpaused when the beacon pane is the click's round trip short of it, so both then step together (11-24
  * slow runs: it waited for its own step to pause and for a step after the unpause, and a long pause read as a step,
- * which swapped your two panes and re-turned Pitch over and over). A pane behind by more than it gains in
- * {@link #BEHIND} ticks catches up at Speed 5 when that is quicker than a pause of nearly a lap. Color and Pitch are turned
- * while it waits; the click that makes everything match is the one the server completes on. Nothing counts clicks: every
- * decision reads what the panes and buttons show, so a click that did not take is redone; when everything matches and the
- * menu stays open it turns Pitch away and back (the click back is checked), or tries the other way round when the two
- * beacon pitches could only be heard together; {@link #MAX_ALIGNS} pauses or three such tries stop it with a chat line.
+ * which swapped your two panes and re-turned Pitch over and over). In step means stepping on the same tick ({@link #PHASE}),
+ * not only sharing the slot: a pane that steps a few ticks after its beacon pane is paused for the rest of the lap (11-25,
+ * killer560: "the top would move a hair before the bottom it needed to pause it and wait a cycle"), or catches up at Speed 5
+ * when that is quicker. Color and Pitch are turned while it waits; the click that makes everything match is the one the
+ * server completes on. Nothing counts clicks: every decision reads what the panes and buttons show, so a click that did not
+ * take is redone; when everything matches and the menu stays open it turns Pitch away and back, tries the other way round
+ * and back when the two beacon pitches could only be heard together, then pauses beat 0 and unpauses it on the same slot (every
+ * completion recorded 11-25 came on an unpause); {@link #MAX_ALIGNS} pauses or five such tries stop it with a chat line.
+ * Running at Speed 5 instead of pausing is chosen whenever it is quicker ({@link BeaconTuneSolver#boostQuicker}).
+ * Nothing is lined up before your pane has stepped once: until then its step timer is unknown.
  * <p>
  * One container click a tick at most, through {@link ActionGate} and the normal click path, at least Click Delay ticks
  * apart; his own clicks are never held or touched.
@@ -42,13 +46,16 @@ final class BeaconAutoTuner {
 
     private static final int NO_ANSWER_TICKS = 12;
     private static final int MAX_ALIGNS = 8;
-    /** Ticks a pane may run ahead of (leaves first) or behind its beacon pane and still count as in step. */
-    private static final int AHEAD = 3;
-    private static final int BEHIND = 6;
-    /** Ticks both panes must still have in their shared slot for a checking click to land before either steps. */
-    private static final int MARGIN = 5;
+    /**
+     * Ticks apart a pane may step from its beacon pane and still count as in step. Sharing the slot is not enough: his VIII
+     * upgrade of 11-25 had his white pane stepping 5 ticks after the beacon's (the old 6-tick slack read that as in step), and
+     * no Pitch click completed it until he paused it for most of a lap.
+     */
+    private static final int PHASE = 1;
+    /** Ticks from either end of your pane's step count a lining-up pause may not freeze it at. */
+    private static final int FREEZE_MARGIN = 2;
     /** Ticks after the last click before a menu that stays open with everything matched is tried again. */
-    private static final int NO_DONE = 20;
+    private static final int NO_DONE = 8;
 
     private static boolean running;
     private static boolean gaveUp;
@@ -67,8 +74,8 @@ final class BeaconAutoTuner {
     private static final boolean[] boost = new boolean[2];
     private static int aligns;
     private static int attempts;
-    /** The last click sent should have completed the tune. */
-    private static boolean fin;
+    /** Beat paused only to finish: unpaused at once on its beacon pane's slot, the click the server completes on. */
+    private static int tap = -1;
 
     private BeaconAutoTuner() {
     }
@@ -87,14 +94,16 @@ final class BeaconAutoTuner {
         pair = null;
         aligns = 0;
         attempts = 0;
-        fin = false;
+        tap = -1;
         Arrays.fill(boost, false);
     }
 
     /** The menu closed (done, or he closed it) or the world changed. */
     static void stop() {
         if (running) {
-            ModChat.send("Auto Tune", ModChat.text(fin ? "done" : "stopped, the menu closed"));
+            // The server closes the menu on the click that completes (11-25: the same tick, a Speed click too): a close within a
+            // round trip of the last click is done, whichever button it was.
+            ModChat.send("Auto Tune", ModChat.text(ticks - lastClick <= rtt + 3 ? "done" : "stopped, the menu closed"));
         }
         reset();
     }
@@ -109,16 +118,6 @@ final class BeaconAutoTuner {
 
     private static String sig(ItemStack s) {
         return s.getItem() + String.valueOf(s.get(DataComponents.LORE));
-    }
-
-    /** Where a pane is along its row, in slots: its slot plus the part of its period already counted. */
-    private static double pos(Beat b, int period, long now) {
-        return b.slot + Math.min(Math.max(now - b.moved, 0), period - 1) / (double) period;
-    }
-
-    /** {@code x} wrapped onto the 7-slot row, 0 to under 7. */
-    private static double wrap7(double x) {
-        return ((x % 7) + 7) % 7;
     }
 
     /** Presses still needed on every dial whose target is known. */
@@ -153,7 +152,11 @@ final class BeaconAutoTuner {
             ModChat.send("Auto Tune", ModChat.text("started"));
         }
         if (pendingSlot >= 0) {
-            if (!sig(slots.get(pendingSlot).getItem()).equals(pendingSig)) {
+            // Answered only when the button shows a new value: the click's own pickup empties the slot at once and the old
+            // button can come back before the answer (11-25 4:54 PM: a Speed click answered 4 ticks later was clicked again
+            // on the stale value and overshot).
+            ItemStack shown = slots.get(pendingSlot).getItem();
+            if (!shown.isEmpty() && !sig(shown).equals(pendingSig)) {
                 pendingSlot = -1;
                 rtt = (int) Math.max(1, Math.min(10, ticks - lastClick));
             } else if (ticks - lastClick > NO_ANSWER_TICKS) {
@@ -185,11 +188,19 @@ final class BeaconAutoTuner {
             tgt[g] = raw[pair[g]];
             beat[g] = rawBeat[pair[g]];
         }
+        // Your two panes share a color and which is whose is still a guess: Color first, whose click tells them apart.
+        for (int g = 0; g < n && !BeaconTuner.known; g++) {
+            int p = BeaconTuneSolver.presses(cur[g][0], tgt[g][0], BeaconTuneSpec.WRAP[0]);
+            if (p != 0) {
+                click(mc, screen, ctl[g][0], p < 0);
+                return;
+            }
+        }
         // Speed first (or 5 while catching up): lining up needs the periods.
         for (int g = 0; g < n; g++) {
             int p = BeaconTuneSolver.presses(cur[g][1], boost[g] ? 5 : tgt[g][1], 5);
             if (p != 0) {
-                click(mc, screen, ctl[g][1], p < 0, false);
+                click(mc, screen, ctl[g][1], p < 0);
                 return;
             }
         }
@@ -201,36 +212,68 @@ final class BeaconAutoTuner {
                 inLine = false;
                 continue;
             }
-            int pb = BeaconTuneSolver.period(tgt[g][1]);
-            double here = pos(b, pb, now);
-            double ahead = wrap7(pos(m, BeaconTuneSolver.period(cur[g][1]), now) - here);
-            if (boost[g]) {
-                inLine = false;
-                boost[g] = wrap7(pos(m, pb, now) - here) >= 1; // passed it: back to its speed
-                continue;
-            }
-            double aheadT = ahead * pb;
-            double behindT = (7 - ahead) * pb;
             boolean paused = BeaconTuneSolver.paused(slots.get(ctl[g][3]).getItem());
-            if (paused) {
+            if (m.steps == 0) {
+                // Your pane's step timer is unknown until it steps once (11-25: a guess sent a pane 10 ticks behind a slow
+                // beacon to Speed 5 and straight back); a pane paused before it ever stepped is let go so it can.
                 inLine = false;
-                if (aheadT <= rtt || behindT <= BEHIND) {
-                    click(mc, screen, ctl[g][3], false, left(cur) == 0 && othersInStep(g));
+                if (paused) {
+                    click(mc, screen, ctl[g][3], false);
                     return;
                 }
-            } else if (aheadT > AHEAD && behindT > BEHIND) {
+                continue;
+            }
+            int pb = BeaconTuneSolver.period(tgt[g][1]);
+            double ahead = BeaconTuneSolver.wrap7(BeaconTuneSolver.pos(m, BeaconTuneSolver.period(cur[g][1]), now) - BeaconTuneSolver.pos(b, pb, now));
+            int step = Math.max(BeaconTuner.CFG.num("tuneDelay"), rtt);
+            if (boost[g]) {
                 inLine = false;
-                double catchUp = pb > 15 ? (7 - ahead) / (1.0 / 15 - 1.0 / pb) + 2 * BeaconTuner.CFG.num("tuneDelay") : Double.MAX_VALUE;
-                if (catchUp < aheadT) {
+                // Back down on the tick whose clicks land it in step, or ahead by a pause it can make (at least a click apart).
+                int d = BeaconTuneSolver.landing(m.slot, (int) (now - m.moved), b.slot, (int) (now - b.moved), tgt[g][1], rtt, step);
+                if (d >= 0 && (d <= PHASE || d >= step)) {
+                    boost[g] = false;
+                    click(mc, screen, ctl[g][1], BeaconTuneSolver.presses(5, tgt[g][1], 5) < 0);
+                    return;
+                }
+                continue;
+            }
+            // Whole ticks: as a fraction of slots a pane 1 tick ahead read 1.0000001 now and then, and an in-step pane was paused for a lap.
+            long aheadT = Math.round(ahead * pb);
+            long behindT = 7L * pb - aheadT;
+            if (paused) {
+                inLine = false;
+                if (tap == g && (m.slot != b.slot || pb - (now - b.moved) <= rtt)) {
+                    tap = -1; // the beacon pane left first (a lag): line up the normal way
+                }
+                if (tap == g || aheadT <= rtt || behindT <= PHASE) {
+                    tap = -1;
+                    click(mc, screen, ctl[g][3], false);
+                    return;
+                }
+            } else if (aheadT > PHASE && behindT > PHASE) {
+                inLine = false;
+                if (BeaconTuneSolver.boostQuicker(ahead, tgt[g][1], BeaconTuneSolver.speedClicks(tgt[g][1], 5) + BeaconTuneSolver.speedClicks(5, tgt[g][1]), step)) {
                     boost[g] = true;
+                    return;
+                }
+                // Freeze it mid-step: the unpause must land while the beacon pane is on this slot, and a count frozen next to
+                // a step leaves no room for a tick of error in the round trip (11-25 phase lag 3: it landed a slot early and
+                // took a second lap). The click lands between 2 ticks short of a round trip and a full one after it was sent
+                // (11-25 testkit: frozen at 0 and 1 when a round trip said 2), so every count in that range must clear the
+                // margin. Waiting costs at most the same few ticks later at the end.
+                int pm = BeaconTuneSolver.period(cur[g][1]);
+                long x = Math.floorMod(now - m.moved + Math.max(0, rtt - 2), pm);
+                if (x < FREEZE_MARGIN || x + 2 >= pm - FREEZE_MARGIN) {
                     return;
                 }
                 if (++aligns > MAX_ALIGNS) {
                     halt("the panes would not line up");
                     return;
                 }
-                click(mc, screen, ctl[g][3], false, false);
+                click(mc, screen, ctl[g][3], false);
                 return;
+            } else if (!stepsSeen(g)) {
+                inLine = false; // lined up on paper, but its step tick is not seen yet
             }
         }
         boolean waiting = false;
@@ -242,7 +285,7 @@ final class BeaconAutoTuner {
                 }
                 int p = BeaconTuneSolver.presses(cur[g][k], tgt[g][k], BeaconTuneSpec.WRAP[k]);
                 if (p != 0) {
-                    click(mc, screen, ctl[g][k], p < 0, inLine && left(cur) == 1);
+                    click(mc, screen, ctl[g][k], p < 0);
                     return;
                 }
             }
@@ -250,40 +293,41 @@ final class BeaconAutoTuner {
         if (!inLine || waiting || ticks - lastClick < NO_DONE) {
             return;
         }
+        // The tap below pauses beat 0 and unpauses it after the pause's answer: every beacon pane must stay in its slot till then.
+        int lead = Math.max(BeaconTuner.CFG.num("tuneDelay"), rtt) + rtt + 2;
         for (int g = 0; g < n; g++) {
-            int p = BeaconTuneSolver.period(tgt[g][1]);
-            if (Math.min(p - (now - beat[g].moved), p - (now - mine[g].moved)) < MARGIN) {
+            if (BeaconTuneSolver.period(tgt[g][1]) - (now - beat[g].moved) < lead) {
                 return;
             }
         }
-        // Everything matches and is in step, yet the menu is open: the last checked click missed, or the guessed pitches are swapped.
-        if (++attempts > 3) {
+        // Everything matches and steps with the beacon, yet the menu is open: turn Pitch away and back (a click checks, and an
+        // in-step pane stays in step, 11-23), then flip the guessed pitches, then finish on an unpause on the slot (needs only
+        // the slot; every tune of 11-25 completed on one).
+        // Two pitches heard together are told apart only by reads that can miss (your own pane's sound in the same tick), so
+        // the other way round is tried even when the reads were not a tie, and back again.
+        if (++attempts > 5) {
             halt("everything matches but the menu did not finish");
-        } else if (BeaconTuner.guessing) {
+        } else if (attempts == 1) {
+            click(mc, screen, ctl[0][2], false);
+        } else if (BeaconTuner.joint() && attempts <= 3) {
             BeaconTuner.swap = !BeaconTuner.swap;
-        } else {
-            click(mc, screen, ctl[0][2], false, false);
+        } else if (click(mc, screen, ctl[0][3], false)) {
+            tap = 0;
         }
     }
 
-    /** Every other beat is unpaused and in step with its beacon pane, so a click now completes the tune. */
-    private static boolean othersInStep(int self) {
-        for (int g = 0; g < BeaconTuner.mine.length; g++) {
-            if (g != self && (boost[g] || BeaconTuner.paused[g] || BeaconTuner.mine[g].slot != beat[g].slot)) {
-                return false;
-            }
-        }
-        return true;
+    /** Beat {@code g}'s pane and its beacon pane have both been seen stepping, so their step ticks can be compared. */
+    private static boolean stepsSeen(int g) {
+        return BeaconTuner.mine[g].steps > 0 && beat[g].steps > 1;
     }
 
-    private static boolean click(Minecraft mc, AbstractContainerScreen<?> screen, int slot, boolean right, boolean completes) {
+    private static boolean click(Minecraft mc, AbstractContainerScreen<?> screen, int slot, boolean right) {
         if (!ActionGate.tryAct(ActionGate.Actor.BEACON_TUNE, screen)) {
             return false;
         }
         pendingSig = sig(screen.getMenu().slots.get(slot).getItem());
         pendingSlot = slot;
         lastClick = ticks;
-        fin = completes;
         mc.gameMode.handleContainerInput(screen.getMenu().containerId, slot, right ? 1 : 0, ContainerInput.PICKUP, mc.player);
         ModChat.log("Auto Tune", ModChat.text((right ? "right" : "left") + " click on slot " + slot));
         return true;
