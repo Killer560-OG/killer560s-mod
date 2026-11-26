@@ -20,11 +20,13 @@ import java.util.UUID;
  * <p>Only Tic Tac Toe's wording is from a real log ("PUZZLE SOLVED! 9878981 tied Tic Tac Toe! Good job!", Mod Only Test
  * 22:28:37); every other puzzle's middle part here is a stand-in ("completed Ice Path"). The mod matches the shape alone -
  * anchored prefix, the player as a real name, "! Good job!" - so a stand-in reads the same as Hypixel's own words.
+ * Blaze (Higher and Lower) gets no line: Hypixel sends none (155 of his real logs, checked 2026-11-26); Three Weirdos' real
+ * wording is "wasn't fooled by <NPC>" (not matched here, the stand-in only keeps the shape).
  */
 public final class SimPuzzleSolvedLine {
 
     private static final List<String> ROOMS = List.of("Tic Tac Toe", "Ice Path", "Ice Fill", "Creeper Beams",
-            "Three Weirdos", "Quiz", "Water Board", "Teleport Maze", "Boulder", "Higher Blaze", "Lower Blaze");
+            "Three Weirdos", "Quiz", "Water Board", "Teleport Maze", "Boulder");
 
     private static final Set<String> said = new HashSet<>();
     private static Object level;
@@ -43,9 +45,7 @@ public final class SimPuzzleSolvedLine {
         var server = client.getSingleplayerServer();
         if (server == null) return;
         for (String room : ROOMS) {
-            // The blaze rooms share one puzzle class: isComplete(name) says which arena is solved.
-            boolean done = room.endsWith("Blaze") ? SimPuzzles.isComplete(room) : SimPuzzles.isRoomComplete(room);
-            if (!done) {
+            if (!SimPuzzles.isRoomComplete(room)) {
                 said.remove(room); // reset (a fail, an Architect's First Draft): say it again when solved again
                 continue;
             }

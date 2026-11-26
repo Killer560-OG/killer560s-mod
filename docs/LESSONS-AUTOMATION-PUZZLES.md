@@ -60,12 +60,11 @@ The puzzle autos at run time (camera, timing, leaving, each puzzle). Part of the
   the rerun, 64 s on one floor of acplan-1020, cause of the extra length not found). On Hypixel PUZZLE_WAIT (and Autopilot's
   `puzzleFinished`) also read the map or the tab list, a refresh behind; Hypixel's `PUZZLE SOLVED! <name> ... ! Good job!`
   line, anchored with a real name group, counts the tick it arrives (`AutoPuzzleActivity.solvedByHim`), and the sim sends it
-  (`roomsim/SimPuzzleSolvedLine`; only Tic Tac Toe's wording, "tied Tic Tac Toe", is from a real log) and Oruo's
+  (`roomsim/SimPuzzleSolvedLine`; only Tic Tac Toe's wording, "tied Tic Tac Toe", is from a real log, Three Weirdos' is "wasn't fooled by <NPC>"; Blaze has NO line on Hypixel, so the sim sends none) and Oruo's
   final-answer line.
 - **Leave a puzzle on its auto's `AutoPuzzleActivity.ended()`, not the map's check.** Hypixel's check for Higher Blaze came
-  7 s after the auto ended. The sim sends its "PUZZLE SOLVED!" line with the solve, a tick before the auto ends, so testkit
-  93-solve-higherblaze-leave leaves at 0 ticks on main too: it proves the fix leaves on the auto's own signal, not that main
-  was slow. Holding the sim's check back from the test thread races the packet.
+  7 s after the auto ended. (Until 2026-11-26 the sim sent a Blaze "PUZZLE SOLVED!" line a tick before the auto ended, so
+  93-solve-higherblaze-leave left at 0 ticks on main too; Hypixel sends none, so the sim no longer does.) Holding the sim's check back from the test thread races the packet.
 - `AutoPuzzleActivity`'s name was the LAST mark of a tick, and one tick of a chest step marks three ("Ice Path", "Ice Path
   chest", "Puzzles"), so every "say it once per change" reader said it every tick (Autopilot's "Waiting for ..." twenty
   times a second). The name holds for the working spell; Auto Secret says each reason once per room (102-sim-autosecret).
