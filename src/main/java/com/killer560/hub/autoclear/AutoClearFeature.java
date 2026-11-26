@@ -3368,6 +3368,8 @@ public final class AutoClearFeature {
                     killStep = null;
                     ks = null;
                 }
+            } else if (ks.kind() == KillPlanner.IN_PLACE && preTurnNextCast(client, player, feet)) {
+                return;
             } else if (ks.kind() == KillPlanner.ETHER && !noLandStands.contains(ks.stand())
                     && !noExitStands.contains(ks.stand())) {
                 killStand = ks.stand();
@@ -3445,12 +3447,21 @@ public final class AutoClearFeature {
             return;
         }
         releaseUse(client);
-        if (!player.onGround()) {
+        // Coming down a short way onto a block (the half block onto a slab or carpet after a 1.05 etherwarp landing or a
+        // Wither Impact in place) a trip goes now: ClearExecutor.doInteract aims its first warp again from where the
+        // server has him. Waiting to stand cost 3-4 ticks on 25 of 1020-sim-ac-speed's kill-to-warp gaps (acoptimal-1126).
+        // A hop or chain cast is aimed from where it is chosen and turns a tick first, so those still wait to stand.
+        boolean settling = !player.onGround();
+        if (settling && !settlingOnto(player)) {
             action = "landing";
             return;
         }
         // A hop's own landing blast is the kill; a trip still needs the weapon back and the cast after it.
         int etherKill = etherTicks + HYPERION_KILL_TICKS;
+        if (killStand == null && canHop && hypeTicks <= etherKill && settling) {
+            action = "landing";
+            return;
+        }
         if (killStand == null && canHop && hypeTicks <= etherKill) {
             WeaponReach.Aim hop = WeaponReach.hyperionHop(client.level, player, feet, box);
             // A hop is a reposition too: where the plan's block for this mob reaches others as well, the hop must reach
@@ -3482,6 +3493,10 @@ public final class AutoClearFeature {
             int link = (int) Math.round(1 + linkMean) + one.fall();
             // A tie goes to the chain: the trip's price leaves out its own swap ticks, and in the same layout a tied trip
             // (1 warp ~3 + 2 vs link 5) cleared 2 ticks later (last death 9 vs 7, 26.2 Quad Lava / 26.3 Museum).
+            if (link <= etherKill && settling) {
+                action = "landing";
+                return;
+            }
             if (link <= etherKill) {
                 action = "Wither Impact chain -> " + targetName + " (" + one.mobs() + " mobs, ~" + link + " ticks vs etherwarp ~" + etherKill + ")";
                 castHop(client, player, feet, one.aim(), false);
@@ -3586,6 +3601,9 @@ public final class AutoClearFeature {
             // Said (and counted) once the trip has really started: a body still turned back first (Phase.RELEASE) comes
             // through here again next tick, and used to log the same etherwarp twice.
             repositions++;
+            if (settling) {
+                settlingTrips++;
+            }
             if (killStand != null) {
                 killPlanMoves++;
                 planAt++;
@@ -3595,8 +3613,8 @@ public final class AutoClearFeature {
             }
             LOGGER.info("[AutoClear] etherwarp toward {} at {}: stand {} (~{} ticks; hops {}){}", targetName,
                     target.blockPosition().toShortString(), goal.toShortString(), etherTicks, cachedHops,
-                    planned != null ? " - the plan's block reaching " + coverCountFor(target) + " mob(s)"
-                            : " - nearest block to it");
+                    (planned != null ? " - the plan's block reaching " + coverCountFor(target) + " mob(s)"
+                            : " - nearest block to it") + (settling ? " (leaving while he settles onto the block below)" : ""));
             double toGoal = feet.distanceTo(new Vec3(goal.getX() + 0.5, goal.getY() + 1.0, goal.getZ() + 0.5));
             int goalWarps = warpsTo(feet, goal);
             String whyNoBat;
@@ -5029,6 +5047,56 @@ public final class AutoClearFeature {
      * across, hop or walk the death leads to still sends its first input unsneaked, as before; until acoptimal-next4-1125 it
      * was not asked while such a mob stood within a cast across (59 of 67 one-tick-late warps on the 6 floors).
      */
+    /** Turns made toward the plan's next cast while a cast in place's deaths came back, ever - for the testkit. */
+    private static int preTurns = 0;
+
+    public static int preTurns() {
+        return preTurns;
+    }
+
+    /**
+     * The tick after the plan's cast in place went out, while its deaths come back (2 ticks after the use on 338 of 382
+     * casts of 1020-sim-ac-speed's 6 floors), the body turns to the plan's cast across that follows from the same spot, so
+     * that cast goes the tick the deaths are seen instead of turning then and going the tick after (acoptimal-1126: 24-27
+     * casts a run). Only that one tick, which carries no use (fast repeat), and without the warp's sneak prime (the cast
+     * after goes standing, as before). Deaths that come later find the in-place step still current: it turns back and goes
+     * again, one tick later than without the turn.
+     */
+    private static boolean preTurnNextCast(Minecraft client, LocalPlayer player, Vec3 feet) {
+        KillPlanner.Plan p = activePlan;
+        if (p == null || planAt + 1 >= p.steps().size() || lastPressTick != ClearExecutor.clientTick() - 1
+                || castFrom == null || castFrom.distanceToSqr(feet) > 0.01 || hisUseClicksQueued(client) > 0) {
+            return false;
+        }
+        KillPlanner.Step next = p.steps().get(planAt + 1);
+        if (next.kind() != KillPlanner.CAST || next.from().distanceToSqr(feet) >= 2.25) {
+            return false;
+        }
+        releaseUse(client);
+        BODY.turn(player, player.getYRot() + Mth.wrapDegrees(next.yaw() - player.getYRot()), Mth.clamp(next.pitch(), -90f, 90f));
+        action = "Wither Impact in place (room plan), turned for the cast after it";
+        phase = Phase.IDLE;
+        tickKind = "firing";
+        preTurns++;
+        LOGGER.info("[AutoClear] turned for the room plan's {} while the cast in place's deaths come back", next.describe());
+        return true;
+    }
+
+    /** Below his feet, this far down, a block he comes down onto counts as a short fall a trip need not wait for. */
+    static final double SETTLE_FALL = 1.25;
+    /** Trips started while he was still coming down onto a block, ever - for the testkit. */
+    private static int settlingTrips = 0;
+
+    public static int settlingTrips() {
+        return settlingTrips;
+    }
+
+    /** Off the ground, not rising, with a block to land on within {@link #SETTLE_FALL} below his feet. */
+    private static boolean settlingOnto(LocalPlayer player) {
+        return player.getDeltaMovement().y <= 0.0
+                && !player.level().noCollision(player, player.getBoundingBox().move(0.0, -SETTLE_FALL, 0.0));
+    }
+
     private static void primeWarpAfterCast(Vec3 feet) {
         for (Entity e : roomMobs) {
             if (e.isAlive() && !WeaponReach.hyperionHits(feet, e.getBoundingBox())) {

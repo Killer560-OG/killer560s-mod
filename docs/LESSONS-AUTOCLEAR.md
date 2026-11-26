@@ -692,6 +692,7 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   no answer and use 3 was judged from the start; once a stray use with the server's old look went out the tick Secret
   Aura opened a chest. The logger's `req by=` named only the `@Invoker` frame; it now names the mod caller (logger
   c11678c), so the next such clear shows who sent it.
+
 - A door's stand is never across the door (entrance-noroute-1126): Door Only's trip to Blood's door 41 on a sim F7 had
   its approach (-57,253,-139) in a chunk the client lacked while Blood's side was loaded, so nearestEtherwarpable took
   -57,253,-128 INSIDE Blood; the planner found no room route there ("No ROOM route from room 16 to room 17", every
@@ -699,3 +700,17 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   and both nearestEtherwarpable searches keep only the approach's side of the lock block (TeleportUtils.sameSide); the
   approach chunk missing on the client then falls to the planner's view, which finds the approach. Testkit
   1126-sim-ac-entrance-exit (4 floors; floor 2 is the one).
+
+## Settling onto a slab, and the turn before the deaths (acoptimal-1126, 2026-11-26)
+- Every kill-to-warp gap of 3-4 ticks on 1020-sim-ac-speed's 6 floors (25 of ~270) was a FALL: an etherwarp lands 1.05 above
+  its block, so onto a slab or carpet he still drops 0.5-1 block (3-4 ticks), and a Wither Impact in place there leaves him
+  in the air too. AutoClearFeature.attack waited for `onGround` before any move. A TRIP now goes while he is coming down onto
+  a block within `SETTLE_FALL` (1.25) below and not rising (`settlingOnto`): ClearExecutor.doInteract already aims a queue's
+  first warp again from `RightClick.heardFeet`, and Hypixel casts airborne etherwarps. A hop or chain cast is aimed where it
+  is chosen and turns a tick first, so those still wait to stand. Counter `settlingTrips`; testkit 1126-sim-ac-settletrip.
+- A room plan's cast across after its cast in place turned on the deaths' tick and cast the tick after (24-27 a run): the
+  deaths come back 2 ticks after the use (338 of 382 casts) and the use repeats only every FAST_REPEAT_TICKS (2), so the tick
+  between carries nothing. `preTurnNextCast` turns there to the next CAST step from the same spot (no sneak prime that tick),
+  and the cast goes on the deaths' own tick. Counter `preTurns`; testkit 1126-sim-ac-preturn.
+- Diagnose kill-to-use gaps with C:/kmtest/jars/acoptimal-1126/k1.py (gap by kind: AOTV, planned cast, hop) and show.py (the
+  lines between a death and the use, each with its tick offset; one `[digflush]` line is one tick).
