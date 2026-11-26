@@ -15,7 +15,8 @@
      "Etherwarp tab: new Auto Charge switch under Multi Warps (off by default): while it is on, Blink Charge banks by itself in a dungeon so Tick Split and the Multi Warps chains can send their warps in one tick; your Charge key still takes over",
      "Auto Terminals Stream Safe: the hand now paces itself like a person, taking a moment to find each next pane before it moves and never clicking twice within 100 ms, its first click no longer lands the same time after every open, and it picks panes in a looser spotted order; it also never adds a click in a tick that already sent one",
      "Auto Clear and Dungeons Autopilot: the entrance gate counts as shut while it shows as barriers (its last moments), so the first trip and the key room walk wait and go the tick it opens instead of failing into it; an Entrance whose roof hangs over its doorway no longer leaves the Autopilot with nothing to reach at the start; a Hyperion cast that drops you to the floor is no longer counted as a server correction",
-     "Auto Routes: a path pair whose two nodes are on one block no longer stops the route when you stand off it (it warps you onto it from where you stand); Interactive Map and Auto Secret now say why no etherwarp path was found, and an Auto Secret trip to a start node with no path counts as failed instead of waiting for the node to arm"
+     "Auto Routes: a path pair whose two nodes are on one block no longer stops the route when you stand off it (it warps you onto it from where you stand); Interactive Map and Auto Secret now say why no etherwarp path was found, and an Auto Secret trip to a start node with no path counts as failed instead of waiting for the node to arm",
+     "Craft Cost now shows in the real recipe menu: Hypixel titles it by the item (for example Terminator), so the panel is recognized by the menu layout instead of a title ending in Recipe."
     ]
    }
   ]

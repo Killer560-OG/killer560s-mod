@@ -62,14 +62,36 @@ public final class CraftCost {
         return (lines.isEmpty() ? SAMPLE : lines).size() * LINE + PAD * 2;
     }
 
-    /** The result slot of a recipe menu by its title, or -1 for any other menu. */
-    static int resultSlot(String title) {
-        return title.equals("Craft Item") ? 23 : title.endsWith("Recipe") ? 25 : -1;
+    /** Slots whose stacks decide the layout: the filler around the arrow (14-16, 22-24) and the result (25). */
+    private static final int[] FRAME = {14, 15, 16, 22, 23, 24, 25};
+
+    /**
+     * The result slot when the 6-row menu has a recipe view's layout, else -1. Hypixel titles the view by the item ("Terminator",
+     * "Enchanted Diamond Recipe"), so the layout decides: a Skyblock item in 25, a marker item (no Skyblock id) in 23 and
+     * filler (no Skyblock id) at 14-16 and 22 and 24, which no chest, backpack or "x" Recipes list full of items has. The Craft Item
+     * menu keeps its title and its result in 23.
+     */
+    static int resultSlot(AbstractContainerMenu menu, String title) {
+        if (menu.slots.size() != 90) {
+            return -1;
+        }
+        if (title.equals("Craft Item")) {
+            return 23;
+        }
+        if (id(menu.slots.get(25).getItem()) == null || menu.slots.get(23).getItem().isEmpty()) {
+            return -1;
+        }
+        for (int i : FRAME) {
+            if (i != 25 && id(menu.slots.get(i).getItem()) != null) {
+                return -1;
+            }
+        }
+        return 25;
     }
 
     private static void onScreenInit(Minecraft client, Screen screen, int width, int height) {
         if (!(screen instanceof AbstractContainerScreen<?> container) || !(container.getMenu() instanceof ChestMenu)
-                || resultSlot(screen.getTitle().getString()) < 0) {
+                || container.getMenu().slots.size() != 90) {
             return;
         }
         builtKey = "";
@@ -96,25 +118,24 @@ public final class CraftCost {
             PriceData.touchFromOtherFeature();
         }
         AbstractContainerMenu menu = screen.getMenu();
-        int result = resultSlot(screen.getTitle().getString());
-        if (menu.slots.size() < 36 + 31) {
-            return;
-        }
         long sig = 7;
         for (int i : GRID) {
             ItemStack s = menu.slots.get(i).getItem();
             sig = sig * 31 + System.identityHashCode(s) * 3L + s.getCount();
         }
-        ItemStack out = menu.slots.get(result).getItem();
-        String key = sig + "/" + System.identityHashCode(out) + out.getCount() + "/" + CraftCostConfig.version() + "/"
+        for (int i : FRAME) {
+            sig = sig * 31 + System.identityHashCode(menu.slots.get(i).getItem());
+        }
+        String key = sig + "/" + menu.slots.get(25).getItem().getCount() + "/" + CraftCostConfig.version() + "/"
                 + PriceData.generation() + "/" + System.identityHashCode(menu);
         if (!key.equals(builtKey)) {
             builtKey = key;
+            int result = resultSlot(menu, screen.getTitle().getString());
             List<ItemStack> grid = new ArrayList<>(9);
             for (int i : GRID) {
                 grid.add(menu.slots.get(i).getItem());
             }
-            lines = build(grid, out, client.font);
+            lines = result < 0 ? List.of() : build(grid, menu.slots.get(result).getItem(), client.font);
             int w = 0;
             for (String l : lines) {
                 w = Math.max(w, client.font.width(l));
