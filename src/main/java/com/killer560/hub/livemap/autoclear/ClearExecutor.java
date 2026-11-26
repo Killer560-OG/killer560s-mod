@@ -2593,15 +2593,20 @@ public final class ClearExecutor {
         float pitch1 = reaim != null ? reaim[1] : pitch0;
         // A warp sent while the sneak is still fresh may be cast from his standing eye (1.62, not 1.27): aim where both eyes
         // land on the planned block, no tick spent; with no such look the hop waits one tick for the sneak to age. Not a wait
-        // by default: routes never wait, so the look moves rather than the tick (zpew-standeye-senders).
-        if (pendingBlock != null && com.killer560.hub.zpew.ZeroPingEtherwarp.sneakFresh()) {
-            float[] both = com.killer560.hub.util.RightClick.aimForBothEyes(client, player, serverFeet, aimFeet, pendingBlock,
-                    hopRange(), yaw1, pitch1);
-            if (both == null) {
-                waitReason = "the sneak reaching the server (no look lands on the block from both the standing and the crouched eye)";
-                pendingHeldTicks++;
-                return;
-            }
+        // by default: routes never wait, so the look moves rather than the tick (zpew-standeye-senders). The look also moves
+        // two ticks after the sneak (the hop is a tick-start packet, and a server that stalled still cast such hops standing:
+        // his 11-25 log, 15:32:40 warp 2 landed exactly one standing-eye block past its aim), but with no look for both eyes
+        // that hop goes as planned: waiting there too made Auto Clear's trips after a kill a tick late (1124-sim-ac-presneak
+        // 409 -> 437 room ticks) to save a miss about 1 in 100 such hops shows.
+        float[] both = pendingBlock == null || !com.killer560.hub.zpew.ZeroPingEtherwarp.sneakFresh(2) ? null
+                : com.killer560.hub.util.RightClick.aimForBothEyes(client, player, serverFeet, aimFeet, pendingBlock,
+                        hopRange(), yaw1, pitch1);
+        if (both == null && pendingBlock != null && com.killer560.hub.zpew.ZeroPingEtherwarp.sneakFresh()) {
+            waitReason = "the sneak reaching the server (no look lands on the block from both the standing and the crouched eye)";
+            pendingHeldTicks++;
+            return;
+        }
+        if (both != null) {
             if (both[0] != yaw1 || both[1] != pitch1) {
                 LOGGER.info("[Path] Warp: sneak still fresh - re-aimed {} / {} -> {} / {} so the standing eye lands on {} too",
                         String.format(java.util.Locale.ROOT, "%.2f", Mth.wrapDegrees(yaw1)), String.format(java.util.Locale.ROOT, "%.2f", pitch1),

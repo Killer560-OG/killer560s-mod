@@ -1090,6 +1090,13 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   less (`sneakFresh(2)`: a 1-tick window still cast standing in 1 of 4 hx runs) the
   look is `aimForBothEyes` or the warp waits one tick (not in legit mode, which turns the camera). It failed on the 8-block
   start-node warp before (landed 2 blocks past), testkit 62-argrim-1123-standeye*.
+  `ClearExecutor.doInteract` (Interactive Map, Autopilot, Auto Clear) re-aims for both eyes on `sneakFresh(2)` too since
+  autopilot-warp-offaim-1125, but waits only on `sneakFresh()`: a wait two ticks after the sneak cost Auto Clear 28 room
+  ticks a floor (1124-sim-ac-presneak 409 -> 437) for a miss about 1 in 100 such hops shows. With 1 tick only, his 11-25 15:32:40 warp 2 (sent 2 ticks after the sneak, crouched-only aim)
+  landed exactly one standing-eye block past its aim, and 15:31:09 warp 2 (server stalled ~120 ms, so sneak and both uses
+  reached it together) never landed, so warp 3 went from warp 1's spot and put him 26.6 blocks off the plan. The trip
+  replans from the corrected spot each time and arrives. Read such misses on the wire with loggerq (`out input [ sneak]`,
+  `use_item`, `in pos`, counting `ClientTickEnd` between them). Testkit 1125-hx-standeye-twotick* (hx standingEye `ticks`).
 - A shot replays banked ticks inside one real tick, so a feature that steers him per tick must run inside it: a 20-tick AP3
   release on the keys chosen at the END before ran him 18.75 blocks straight off S2's platform (Mod Only Test log
   2026-10-27 00:15:34). `BlinkCharge.addShotTickEndHook` runs after each shot tick's movement and tick-end, and
