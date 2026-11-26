@@ -84,6 +84,8 @@ public class AutoClearTab extends BaseTab {
         toggle(w, contentX, y[0], half, "Quiz First", cfg::isQuizFirst, cfg::setQuizFirst, save);
         toggle(w, colB, y[0], right, "Skip Unnecessary Secrets", cfg::isSkipUnneededSecrets, cfg::setSkipUnneededSecrets, save);
         y[0] += ROW;
+        toggle(w, contentX, y[0], contentWidth, "Face Door on Arrival", cfg::isFaceDoorOnArrival, cfg::setFaceDoorOnArrival, save);
+        y[0] += ROW;
         w.add(SettingsButtonWidget.cycleEnum(() -> value("Room Before Blood", cfg.getRoomBeforeBlood().label()),
                 cfg::getRoomBeforeBlood, cfg::setRoomBeforeBlood, save).bounds(contentX, y[0], contentWidth, 20).build());
         y[0] += ROW;

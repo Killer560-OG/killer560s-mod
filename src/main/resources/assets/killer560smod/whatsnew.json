@@ -1,5 +1,18 @@
 [
  {
+  "date": "2026-11-26",
+  "summary": "Dungeons Autopilot has a new Face Door on Arrival switch (of",
+  "sections": [
+   {
+    "title": "More",
+    "blurb": "Changes in this update.",
+    "items": [
+     "Dungeons Autopilot has a new Face Door on Arrival switch (off by default) that turns you to look at the wither or blood door when it gets there."
+    ]
+   }
+  ]
+ },
+ {
   "date": "2026-11-25",
   "summary": "Highlight Optimal Blocks: every box is now a log you can act",
   "sections": [

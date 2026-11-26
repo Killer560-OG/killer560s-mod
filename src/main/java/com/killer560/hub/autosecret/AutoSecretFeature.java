@@ -3369,10 +3369,18 @@ public final class AutoSecretFeature {
         doorOpeningTick = -1;
     }
 
+    /** Face Door on Arrival: the Interactive Map's own turn to the wither or blood door, before this tick's click aims. */
+    static void faceDoorOnArrival(int cell) {
+        if (cell >= 0 && AutoSecretConfig.getInstance().isFaceDoorOnArrival()) {
+            AutoClearUtils.faceDoor(cell);
+        }
+    }
+
     private static void beginDoor() {
         LOGGER.info("[AutoSecret] at the {} door at cell {}", doorBlood ? "blood" : "wither", doorCell);
         setPhase(Phase.DOOR);
         doorLastClickTick = -1000;
+        faceDoorOnArrival(doorCell);
         tickDoor(); // the click is asked for in the arrival tick, not the next (acwaits-1121)
     }
 
