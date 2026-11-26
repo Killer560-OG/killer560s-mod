@@ -34,6 +34,13 @@ The puzzle autos at run time (camera, timing, leaving, each puzzle). Part of the
   The exact eye-to-center ray met the lantern, the turned body's float yaw/pitch met the next block, and the auto turned
   every tick and never hit. `AutoBeams.visiblePoint` samples face points and keeps one only if looks 0.35 degrees either way
   meet the block too. Half the room's lanterns are set in walls, so center-only sight hid most spots.
+- **An auto's own aim and the click gate's must pass the same test, or they turn the body back and forth forever**
+  (Auto Creeper Beams Melee, beams-hold-loop-1126, his 11-26 4:06 PM run: 155 ticks on one lantern). `visiblePoint` took a
+  seen point whose look met the lantern up to 5.5 away; `AutoPuzzleUtil.gateWorldClick` -> `TurnFirst.readyBlock` wants the
+  cube entered within 4.5 and turned the body to its own aim (the center ray's entry, 4.36 but behind another block); the
+  next tick the auto's first-block test failed and it turned back. Every look the auto keeps must land within 4.45
+  (`HIT_MAX`), and a counter that resets on any passing tick never ends an alternation: `hitNow` counts held ticks per
+  lantern and standing block (6, then that spot is failed and the next is warped to). Testkit 1126-beams-melee-hold.
 
 ## Timing and leaving
 

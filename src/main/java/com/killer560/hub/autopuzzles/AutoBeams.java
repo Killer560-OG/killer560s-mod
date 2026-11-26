@@ -753,6 +753,23 @@ public final class AutoBeams {
     /** The hit itself, from where he is (standing, or in the air after a teleport). */
     private static void hitNow(Minecraft client, LocalPlayer player, LanternPair pair, BlockPos lantern, BlockPos standing,
                                Vec3 eye, long now) {
+        if (!lantern.equals(heldLantern) || !java.util.Objects.equals(standing, heldFrom)) {
+            heldLantern = lantern;
+            heldFrom = standing;
+            heldTicks = 0;
+        }
+        if (++heldTicks > MELEE_MAX_HELD) {
+            // A turn and a hit take two ticks; this many without a hit means the spot does not work after all (his
+            // 2026-11-26 run turned and held 155 ticks on one): never wait on it, the next tick warps somewhere else.
+            LOGGER.info("[AutoPuzzles] Beams (melee): the hit on {} was held {} ticks from {} - trying another spot (tick {})",
+                    AutoPuzzleUtil.fmt(lantern), MELEE_MAX_HELD, standing == null ? "the air" : AutoPuzzleUtil.fmt(standing),
+                    com.killer560.hub.util.SessionRecorderSink.tick());
+            if (standing != null) {
+                MELEE_FAILED.computeIfAbsent(lantern, k -> new java.util.HashSet<>()).add(standing);
+            }
+            heldTicks = 0;
+            return;
+        }
         CAMERA.engage(player); // before any turn, so the held view is where he was looking
         if (aimAtVisible(client, player, lantern, eye)) {
             say("melee: turning onto " + AutoPuzzleUtil.fmt(lantern) + " - the hit goes next tick");
@@ -762,6 +779,7 @@ public final class AutoBeams {
             say("melee: the hit on " + AutoPuzzleUtil.fmt(lantern) + " was held this tick (gate or turn)");
             return; // gate held, or the body was turned onto it this tick: the hit goes next tick
         }
+        heldLantern = null;
         meleeClickTick = now;
         meleePair = pair;
         meleeStage = pair.stage;
@@ -1418,7 +1436,16 @@ public final class AutoBeams {
 
     private static final float LOOK_MARGIN = 0.35f;
 
-    /** Whether a look at {@code yaw}/{@code pitch} from {@code eye} meets {@code lantern} before any other block, in reach. */
+    /** How far inside the 4.5 reach a look's hit must land: the click gate (util/TurnFirst.readyBlock, GrimAC RotationPlace)
+     *  wants the look to enter the lantern's cube within 4.5, so a point past that is no point to turn onto. */
+    private static final double HIT_MAX = com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH - 0.05;
+
+    /**
+     * Whether a look at {@code yaw}/{@code pitch} from {@code eye} meets {@code lantern} before any other block, within
+     * {@link #HIT_MAX}. Until beams-hold-loop-1126 the hit could lie anywhere up to 5.5: his 2026-11-26 4:06 PM run stood on
+     * a hop 4.23 from the lantern whose only seen points were past 4.5, the click gate turned the body back to its own
+     * (hidden) aim point every other tick, and the hit was held for 155 ticks.
+     */
     private static boolean looksMeet(Minecraft client, Vec3 eye, float yaw, float pitch, BlockPos lantern) {
         float y = yaw * net.minecraft.util.Mth.DEG_TO_RAD;
         float x = net.minecraft.util.Mth.clamp(pitch, -90f, 90f) * net.minecraft.util.Mth.DEG_TO_RAD;
@@ -1428,7 +1455,8 @@ public final class AutoBeams {
         net.minecraft.world.phys.BlockHitResult hit = client.level.clip(new net.minecraft.world.level.ClipContext(eye, end,
                 net.minecraft.world.level.ClipContext.Block.OUTLINE, net.minecraft.world.level.ClipContext.Fluid.NONE,
                 client.player));
-        return hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK && lantern.equals(hit.getBlockPos());
+        return hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK && lantern.equals(hit.getBlockPos())
+                && hit.getLocation().distanceToSqr(eye) <= HIT_MAX * HIT_MAX;
     }
 
     /** What the reported look meets first within reach, from his eye: the lantern's hit (face included) or null. */
@@ -1438,7 +1466,8 @@ public final class AutoBeams {
                 com.killer560.hub.cheatutils.CheatUtilsConfig.MEASURED_MAX_REACH + 1.0));
         net.minecraft.world.phys.BlockHitResult hit = client.level.clip(new net.minecraft.world.level.ClipContext(eye, end,
                 net.minecraft.world.level.ClipContext.Block.OUTLINE, net.minecraft.world.level.ClipContext.Fluid.NONE, player));
-        return hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK && lantern.equals(hit.getBlockPos()) ? hit : null;
+        return hit.getType() == net.minecraft.world.phys.HitResult.Type.BLOCK && lantern.equals(hit.getBlockPos())
+                && hit.getLocation().distanceToSqr(eye) <= HIT_MAX * HIT_MAX ? hit : null;
     }
 
     /**
@@ -1475,6 +1504,13 @@ public final class AutoBeams {
     }
 
     private static int turnRepeats = 0;
+
+    /** Ticks a hit on {@link #heldLantern} from {@link #heldFrom} has waited (hitNow); past {@link #MELEE_MAX_HELD} the
+     *  spot is given up. */
+    private static BlockPos heldLantern;
+    private static BlockPos heldFrom;
+    private static int heldTicks;
+    private static final int MELEE_MAX_HELD = 6;
 
     private static boolean containsPair(List<BlockPos[]> pairs, LanternPair pair) {
         for (BlockPos[] p : pairs) {
@@ -1572,6 +1608,7 @@ public final class AutoBeams {
         meleeFrom = null;
         meleeTries = 0;
         MELEE_FAILED.clear();
+        heldLantern = null;
         MELEE_SKIP.clear();
         MELEE_SPOTS.clear();
         MELEE_DONE.clear();
