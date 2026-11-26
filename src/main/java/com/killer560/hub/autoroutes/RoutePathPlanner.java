@@ -171,6 +171,9 @@ public final class RoutePathPlanner {
      * Plans {@code src}'s pair now (async) and saves the warps on it. {@code done} runs on the client thread with null
      * on success or the reason it failed (also said in chat).
      */
+    /** {@link #plan}'s answer for a pair whose two nodes share one block (no warps to save). */
+    public static final String SAME_BLOCK = "the two path nodes are on the same block";
+
     public static void plan(Route route, RouteCoords.Frame frame, RouteNode src, Consumer<String> done) {
         Minecraft client = Minecraft.getInstance();
         RouteNode dest = route == null ? null : route.pathDestination(src);
@@ -267,7 +270,10 @@ public final class RoutePathPlanner {
                                     : ModChat.bad(" (best found in " + took + " ms, not proved fewest)"));
                 } else {
                     LOGGER.info("[AutoRoutes] Path #{} -> #{} not planned: {}", a, b, why);
-                    AutoRoutesFeature.chatBad("Path #" + a + " -> #" + b + ": " + why + ".");
+                    if (!SAME_BLOCK.equals(why)) {
+                        // A one-block pair is no failure: a running route flies it from where he stands (RouteExecutor).
+                        AutoRoutesFeature.chatBad("Path #" + a + " -> #" + b + ": " + why + ".");
+                    }
                 }
                 done.accept(why);
             });
@@ -504,7 +510,7 @@ public final class RoutePathPlanner {
             return "the planner found no etherwarp path";
         }
         if (path.isEmpty()) {
-            return "the two path nodes are on the same block";
+            return SAME_BLOCK;
         }
         if (path.size() > RouteStore.MAX_PATH_HOPS) {
             return "the path needs " + path.size() + " warps, more than " + RouteStore.MAX_PATH_HOPS;

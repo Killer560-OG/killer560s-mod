@@ -670,6 +670,7 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   tick the client answered its own Wither Impact's teleport (accept_tp, then a sprint start to a new yaw); the later accept_tps
   were Grim's setbacks. ShortWalk now holds a walk's first keys for the tick a server teleport is answered (hook in
   LiveMapPacketListenerMixin, counter teleportHolds). Origin flagged 2 of 2 (def, exp); fixed clean 4 of 4 with 3-5 holds.
+- **A refused plan says why, once** (la-warpmiss-1126, his 2026-11-25 15:34-15:40: five bare "Failed after Nms"): `EtherwarpPathfinder.lastRefusal` is set at each refusal (nothing to stand on, no warp chain from here, every door locked, block unreachable) and `ClearExecutor` puts it in the chat line and `lastFailReason()`; while Auto Secret runs the line is only logged and Auto Secret's own "Couldn't get to" carries the reason. A start-node or walk-node go-to with no path is a FAILED trip (recovery warp, retry count), never "arrived" because he is in the node's room: it used to wait 40 ticks and say "did not arm". Testkit 1126-im-failreason.
 
 ## The entrance gate's barrier window, overhung doorways and the Hyperion's own drop (autopilot-clears-1126, his 11-26 clears)
 

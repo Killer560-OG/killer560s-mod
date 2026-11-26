@@ -628,7 +628,8 @@ public final class AutoRoutesFeature {
         LOGGER.info("[AutoRoutes] Go To #{} ended without arrival: lastPathFailed={} tick={}", number,
                 ClearExecutor.lastPathFailed(), AwaitEvents.now());
         chatBad((ClearExecutor.lastPathFailed() ? "No etherwarp path to node " : "Go To canceled before reaching node ")
-                + (number > 0 ? "#" + number : "") + " - edit mode not turned on.");
+                + (number > 0 ? "#" + number : "") + (ClearExecutor.lastPathFailed() && ClearExecutor.lastFailReason() != null
+                ? " (" + ClearExecutor.lastFailReason() + ")" : "") + " - edit mode not turned on.");
     }
 
     /** After an edit he may be standing in a node that is new, renumbered or back again: like AP3's

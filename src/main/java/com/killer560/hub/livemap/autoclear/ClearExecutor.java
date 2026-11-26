@@ -266,6 +266,13 @@ public final class ClearExecutor {
         return arrivalPos;
     }
 
+    /** Why the last failed plan found nothing (the planner's words), or null. */
+    private static volatile String lastFailReason;
+
+    public static String lastFailReason() {
+        return lastFailReason;
+    }
+
     public static boolean lastPathFailed() {
         return lastPathFailed;
     }
@@ -563,6 +570,7 @@ public final class ClearExecutor {
             long start = System.currentTimeMillis();
             long queuedNanos = System.nanoTime() - pressAt;
             List<EtherwarpPathfinder.Node> path = null;
+            EtherwarpPathfinder.lastRefusal = null;
             try {
                 // Landings are planned at block top + 1.05, the figure for Hypixel - and the sim's server now
                 // lands an etherwarp there too (SimAbilities.ETHERWARP_LANDING_OFFSET), so there is one value.
@@ -582,6 +590,7 @@ public final class ClearExecutor {
             long took = System.currentTimeMillis() - start;
             tripQueued = false;   // searched: work that gave way to it may go on while the client thread takes the plan
             List<EtherwarpPathfinder.Node> result = path;
+            String refused = EtherwarpPathfinder.lastRefusal;
             back.set(() -> {
                 if (gen == pendingGen) {
                     pathPending = false; // only the search that set it clears it
@@ -635,10 +644,19 @@ public final class ClearExecutor {
                     return;
                 }
                 if (result == null) {
+                    // Says why (la-warpmiss-1126: four bare "Failed after 1ms" on a Pressure Plates ledge, 2026-11-25).
+                    // Auto Secret says its own failure once, so here it is only logged while it runs.
                     lastPathFailed = true;
+                    lastFailReason = refused;
                     goalTo = null;
                     goalComplete = null;
-                    ModChat.send(CHAT, ModChat.bad("Failed"), ModChat.dim(" after "), ModChat.value(took + "ms"));
+                    net.minecraft.network.chat.Component[] line = {ModChat.bad("Failed"), ModChat.dim(" after "),
+                            ModChat.value(took + "ms"), ModChat.dim(refused == null ? "" : ": " + refused)};
+                    if (com.killer560.hub.autosecret.AutoSecretFeature.isRunning()) {
+                        ModChat.log(CHAT, line);
+                    } else {
+                        ModChat.send(CHAT, line);
+                    }
                     return;
                 }
                 List<ClearNode> list = new ArrayList<>();

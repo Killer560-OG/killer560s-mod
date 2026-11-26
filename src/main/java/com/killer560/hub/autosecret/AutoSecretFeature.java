@@ -3607,6 +3607,13 @@ public final class AutoSecretFeature {
             return; // the search is handed to the planner thread; give it a few ticks to show up as busy
         }
         boolean arrived = ClearExecutor.arrivalSeq() != arrivalSeqAtStart;
+        if (!arrived && (trip == Trip.START_NODE || trip == Trip.WALK_NODE) && ClearExecutor.lastPathFailed()) {
+            // In the node's room is not on the node: a go-to with no warp chain onto it is a failed trip, not an arrival
+            // that then waits 40 ticks for a start node he is not on (la-warpmiss-1126, his Pressure Plates ledge,
+            // 2026-11-25 15:34:22: "did not arm - skipped" after four bare "Failed").
+            tripFailed(NO_PATH);
+            return;
+        }
         if (!arrived) {
             DungeonLayout layout = DungeonLayout.capture();
             int here = layout.currentRoom();
@@ -3755,7 +3762,10 @@ public final class AutoSecretFeature {
         boolean giveUp = n > MAX_TRIP_FAILURES;
         LOGGER.info("[AutoSecret] trip to {} failed ({}){}", target, why, giveUp ? " - leaving it out" : " - trying again");
         if (giveUp) { // a retry is logged above, not said (killer560, 2026-10-16: start/stop lines only)
-            say(ModChat.bad("Couldn't get to "), ModChat.value(String.valueOf(target)), ModChat.dim(" (" + why + ") - skipped"));
+            String because = NO_PATH.equals(why) && ClearExecutor.lastFailReason() != null
+                    ? why + ": " + ClearExecutor.lastFailReason() : why;
+            say(ModChat.bad("Couldn't get to "), ModChat.value(String.valueOf(target)),
+                    ModChat.dim(" (" + because + ") - skipped"));
         }
         if (trip == Trip.QUIZ) {
             QuizPlan.tripFailed(giveUp);   // the Quiz is a puzzle: given up on, it is left to the endgame, not the secret list

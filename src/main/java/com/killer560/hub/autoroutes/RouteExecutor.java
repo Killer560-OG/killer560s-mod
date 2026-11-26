@@ -3410,6 +3410,9 @@ public final class RouteExecutor {
                 }
                 LOGGER.info("[AutoRoutes] Node #{} PATH: planner answered \"{}\" after {} tick(s), saved warps valid {}",
                         route.indexOf(node) + 1, outcome, stepTicks, RoutePathPlanner.valid(route, node));
+                if (RoutePathPlanner.SAME_BLOCK.equals(outcome) && sameBlockPair(player, node, dest)) {
+                    return;
+                }
                 if (!"ok".equals(outcome) || !RoutePathPlanner.valid(route, node)) {
                     stop("no etherwarp path from #" + (route.indexOf(node) + 1) + " to #" + (route.indexOf(dest) + 1)
                             + " (" + outcome + ")");
@@ -3646,6 +3649,54 @@ public final class RouteExecutor {
             LOGGER.info("[AutoRoutes] Etherwarp (path hop {}): flying {} new warp(s) from here instead (not saved)", at + 1,
                     found.size());
             loadHop(node, at);
+        });
+        return true;
+    }
+
+    /**
+     * A pair whose two nodes share one block has no saved warps. Standing there, it is done; moved off it (his own warp
+     * during the BOOM stacked before it, 8 blocks off: Pressure Plates #26 -> #28, 2026-11-25 15:36:52, where the route
+     * stopped "on the same block") the pair is planned from where he stands and flown, not saved (la-warpmiss-1126).
+     *
+     * @return true while handled here; false = no way from here, stop as before
+     */
+    private static boolean sameBlockPair(LocalPlayer player, RouteNode node, RouteNode dest) {
+        if (player.position().distanceTo(RouteCoords.toReal(frame, dest.relativePos())) <= LANDING_TOLERANCE) {
+            logActed(node, " (pair on one block, already on it)");
+            finishAction();
+            return true;
+        }
+        if (replanPending == 1) {
+            logHold("replan:" + traceIndex(node), "node {} PATH: planning its one-block pair from where you stand",
+                    nodeTag(node));
+            return true;
+        }
+        if (replanPending == 2 || replansThisPair >= MAX_REPLANS) {
+            stop("no etherwarp from where you stand onto path #" + (route.indexOf(dest) + 1) + " (it shares #"
+                    + (route.indexOf(node) + 1) + "'s block)");
+            return true;
+        }
+        replansThisPair++;
+        replanPending = 1;
+        int stamp = ++replanStamp;
+        Vec3 from = feet(player);
+        LOGGER.info("[AutoRoutes] Node #{} PATH: its pair ends on its own block and you stand {} off it at {} - planning "
+                + "from here", route.indexOf(node) + 1, String.format(java.util.Locale.ROOT, "%.1f",
+                player.position().distanceTo(RouteCoords.toReal(frame, dest.relativePos()))), fmt(from));
+        RoutePathPlanner.planFrom(route, frame, node, from, true, found -> {
+            if (stamp != replanStamp || !running || activeNode != node || hopIndex >= 0) {
+                return;
+            }
+            replanPending = found == null ? 2 : 0;
+            if (found == null) {
+                LOGGER.info("[AutoRoutes] Node #{} PATH: no warp from here onto its one-block pair", route.indexOf(node) + 1);
+                return;
+            }
+            liveHops = found;
+            hopReplans++;
+            LOGGER.info("[AutoRoutes] Node #{} PATH: flying {} new warp(s) from here (not saved)", route.indexOf(node) + 1,
+                    found.size());
+            loadHop(node, 0);
         });
         return true;
     }

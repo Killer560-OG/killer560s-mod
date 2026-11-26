@@ -460,6 +460,7 @@ public final class EtherwarpPathfinder {
                         info == null ? 0 : info.fewerThan(), info == null ? 0 : info.graphMs(),
                         info == null ? 0 : info.ms(), "the block cannot be reached by etherwarp");
                 unreachable = true;
+                lastRefusal = "the block itself cannot be reached by etherwarp";
                 return null;
             }
         }
@@ -472,11 +473,15 @@ public final class EtherwarpPathfinder {
      */
     public static volatile boolean unreachable;
 
+    /** Why the last search on the planner thread found no plan, in a few words for chat (null = no reason known). */
+    public static volatile String lastRefusal;
+
     private static List<Node> planFloorAny(Vec3 from, BlockPos to, int tileIdx, PathConfig cfg, double dist,
                                            DungeonLayout layout, boolean exactWanted, long exactNanos, boolean onBlock,
                                            java.util.Set<Long> air) {
         lastExact = null;
         unreachable = false;
+        lastRefusal = null;
         lastProver = null;
         Level level = Minecraft.getInstance().level;
         if (level == null) {
@@ -491,6 +496,7 @@ public final class EtherwarpPathfinder {
         if (tileIdx < 0 && !new EtherSearch(view).etherwarpable(to.getX(), to.getY(), to.getZ())) {
             LOGGER.info("[Path] {} is not etherwarpable - it is not solid, or there is no standing room over"
                     + " it. Nothing searched.", to);
+            lastRefusal = "nothing to stand on at that block";
             return null;
         }
         FloorGraphs graphs = graphFor(level, dist);
@@ -608,6 +614,7 @@ public final class EtherwarpPathfinder {
             // room-by-room planner would only spend its 670 ms failing too.
             LOGGER.info("[Path] no way to {} {} from here on the floor graph ({} ms) - not trying room by room", kind,
                     to, ms(end - t0));
+            lastRefusal = "no chain of warps from where you stand reaches it";
             return null;
         }
         if (path == null) {
@@ -1296,6 +1303,7 @@ public final class EtherwarpPathfinder {
         if (!search.etherwarpable(to.getX(), to.getY(), to.getZ())) {
             LOGGER.info("[Path] {} is not etherwarpable - it is not solid, or there is no standing room over"
                     + " it. Nothing searched.", to);
+            lastRefusal = "nothing to stand on at that block";
             return null;
         }
         int startRoom = layout.roomAtWorld(from.x, from.z);
@@ -1316,6 +1324,7 @@ public final class EtherwarpPathfinder {
                 LOGGER.info("[Path] No single-room path from {} to {} (startRoom {}, goalRoom {}) - the"
                         + " warp search found nothing within {} blocks a hop.", BlockPos.containing(from), to,
                         startRoom, goalRoom, dist);
+                lastRefusal = "no chain of warps from where you stand reaches it";
             }
             return direct;
         }
@@ -1327,6 +1336,7 @@ public final class EtherwarpPathfinder {
             LOGGER.info("[Path] No ROOM route from room {} to room {}: every door between them reads as"
                     + " locked or missing. {} door(s) on the grid are currently locked.",
                     startRoom, goalRoom, lockedDoorCount(layout));
+            lastRefusal = "every door on the way reads as locked";
             return null;
         }
         long deadline = searchStart + cfg.timeout() * 1_000_000L;
