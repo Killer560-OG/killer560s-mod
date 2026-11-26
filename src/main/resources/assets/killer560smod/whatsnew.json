@@ -18,7 +18,8 @@
      "Dungeons Autopilot: once it has done everything it can reach it no longer goes back to a trap room for more secrets (a trap only does the one secret that clears it) or to a room whose route stopped for an item you do not carry, so it heads for the wither door instead; the green room walk to the Entrance door now plans again from where you stand when it gets knocked off its path, instead of stopping short",
      "Auto Clear clears faster (about 3% on a full floor): it leaves a room at its last kill once every part of the room has been in sight during the visit, turns toward the next Wither Impact hop while the last cast's kills come back so the hop goes the tick they die, and counts hops from where it will stand when it is still coming down onto a block.",
      "Dungeon sim: it no longer sends a \"PUZZLE SOLVED\" chat line for Higher Blaze or Lower Blaze, which Hypixel never sends.",
-     "Auto Melody: on a board that opens with the moving pane already on its target, clicks now count how long the pane has really stood there since the board opened, so a lookahead or next-row click that would land after its first step is let go instead of being sent wrong, and a missed click no longer leaves the board untouched"
+     "Auto Melody: on a board that opens with the moving pane already on its target, clicks now count how long the pane has really stood there since the board opened, so a lookahead or next-row click that would land after its first step is let go instead of being sent wrong, and a missed click no longer leaves the board untouched",
+     "Craft Cost: while you hover the recipe menu's Supercraft item, the panel also shows the amounts for its N crafts in parentheses next to each quantity and cost, the total and Instant Buy."
     ]
    }
   ]

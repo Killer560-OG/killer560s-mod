@@ -7,6 +7,7 @@ import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.hud.ContainerOverlayElement;
 import com.killer560.hub.pricetooltip.ItemKeys;
 import com.killer560.hub.pricetooltip.PriceData;
+import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.ItemNbt;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.ServerCommands;
@@ -18,16 +19,21 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ChestMenu;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.ItemLore;
 import org.slf4j.Logger;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Craft Cost (killer560, 2026-11-26: "if i am in the recipe menu then it shows the buy order cost of all the items in the
@@ -35,12 +41,16 @@ import java.util.Map;
  * menu a HUD panel lists the 3x3 ingredients merged by item, one aligned row each (quantity, full name, Bazaar buy order cost
  * = top buy order + 0.1 coins, "BIN" marker), then the total and the Instant Buy total in the same cost column. An ingredient
  * off the Bazaar falls back to its lowest BIN, else reads "not on Bazaar" and the total gets a "+". A left click on a priced
- * row sends "/bz name" (Bazaar) or "/ahs name" (BIN). Built only when a slot, the prices or the setting changed, never per frame.
+ * row sends "/bz name" (Bazaar) or "/ahs name" (BIN). While the recipe menu's Supercraft item is hovered, quantities, costs, the
+ * total and Instant Buy also read the N-craft amount in parentheses, N and the per-ingredient totals read from that item's own
+ * lore ("(8x crafts)", "0/256 Name"; killer560, 11-26). Built only when a slot, the prices or the setting changed, never per frame.
  */
 public final class CraftCost {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-craftcost");
     private static final int[] GRID = {10, 11, 12, 19, 20, 21, 28, 29, 30};
+    private static final Pattern CRAFTS = Pattern.compile("\\((\\d+)x crafts?\\)");
+    private static final Pattern NEED = Pattern.compile("^\\d+/(\\d+) (.+)$");
     private static final int PAD = 4, LINE = 11, GAP = 4, COL = 8;
     private static final List<String> SAMPLE = List.of("§lCraft Cost: §r§6120.5k", "§764x §fEnchanted Diamond  §6118k",
             "§71x §fHyperion  §62.5k", "§7Instant Buy: §6125k");
@@ -52,6 +62,10 @@ public final class CraftCost {
     /** The built panel: rows plus the size, fixed until the recipe or the prices change. */
     record Layout(List<Row> rows, int width, int height, int binX) {
         static final Layout EMPTY = new Layout(List.of(), 0, 0, 0);
+    }
+
+    /** The hovered Supercraft item's lore: N crafts and each ingredient's total need by plain name. */
+    record Multi(int n, Map<String, Long> need) {
     }
 
     private static ContainerOverlayElement element;
@@ -144,7 +158,10 @@ public final class CraftCost {
         for (int i : FRAME) {
             sig = sig * 31 + System.identityHashCode(menu.slots.get(i).getItem());
         }
-        String key = sig + "/" + menu.slots.get(25).getItem().getCount() + "/" + CraftCostConfig.version() + "/"
+        Slot hov = ((com.killer560.hub.slotbinds.mixin.AbstractContainerScreenAccessor) screen).killer560smod$getHoveredSlot();
+        ItemStack sup = hov != null && hov.hasItem() && isSupercraft(hov.getItem()) ? hov.getItem() : null;
+        ItemLore supLore = sup == null ? null : sup.get(DataComponents.LORE);
+        String key = sig + "/" + System.identityHashCode(sup) + "/" + System.identityHashCode(supLore) + "/" + menu.slots.get(25).getItem().getCount() + "/" + CraftCostConfig.version() + "/"
                 + PriceData.generation() + "/" + System.identityHashCode(menu);
         if (!key.equals(builtKey)) {
             builtKey = key;
@@ -153,7 +170,7 @@ public final class CraftCost {
             for (int i : GRID) {
                 grid.add(menu.slots.get(i).getItem());
             }
-            layout = result < 0 ? Layout.EMPTY : build(grid, client.font);
+            layout = result < 0 ? Layout.EMPTY : build(grid, client.font, sup == null ? null : parse(sup));
         }
         if (layout.rows().isEmpty()) {
             return;
@@ -201,8 +218,34 @@ public final class CraftCost {
         return tag == null ? null : ItemKeys.id(tag);
     }
 
+    private static boolean isSupercraft(ItemStack s) {
+        return s.getHoverName().getString().startsWith("Supercraft");
+    }
+
+    /** N and the totals from a Supercraft item's name and lore (codes and commas tolerated), null when either is missing. */
+    static Multi parse(ItemStack s) {
+        int n = 0;
+        Map<String, Long> need = new LinkedHashMap<>();
+        ItemLore lore = s.get(DataComponents.LORE);
+        List<String> lines = new ArrayList<>();
+        lines.add(s.getHoverName().getString());
+        if (lore != null) {
+            lore.lines().forEach(l -> lines.add(l.getString()));
+        }
+        for (String raw : lines) {
+            String line = ChatObserver.stripCodes(raw).replace(",", "").trim();
+            Matcher m = CRAFTS.matcher(line);
+            if (n == 0 && m.find()) {
+                n = Integer.parseInt(m.group(1));
+            } else if ((m = NEED.matcher(line)).matches()) {
+                need.put(m.group(2).trim(), Long.parseLong(m.group(1)));
+            }
+        }
+        return n > 0 && !need.isEmpty() ? new Multi(n, need) : null;
+    }
+
     /** The grid's ingredients merged by item id with their buy order and instant buy costs; empty when the grid has none. */
-    static Layout build(List<ItemStack> grid, Font font) {
+    static Layout build(List<ItemStack> grid, Font font, Multi multi) {
         computes++;
         record Acc(String name, int[] count) {
         }
@@ -216,7 +259,7 @@ public final class CraftCost {
         if (merged.isEmpty()) {
             return Layout.EMPTY;
         }
-        double order = 0, instant = 0;
+        double order = 0, instant = 0, order2 = 0, instant2 = 0;
         boolean incomplete = false, anyBazaar = false, anyBin = false;
         // {qty, name, cost, bin, command} per line; the title and the totals use the same columns.
         List<String[]> rows = new ArrayList<>();
@@ -226,17 +269,25 @@ public final class CraftCost {
             Double buy = PriceData.bazaarBuy(e.getKey());
             double unit = sell != null && sell > 0 ? sell + 0.1 : buy != null && buy > 0 ? buy : 0;
             String cost, bin = "", cmd = null;
+            long tot = multi == null ? 0 : multi.need().getOrDefault(a.name, (long) a.count[0] * multi.n());
+            String qty2 = multi == null ? "" : " §8(" + tot + "x)", cost2 = "";
             if (unit > 0) {
                 order += unit * a.count[0];
                 instant += (buy != null && buy > 0 ? buy : unit) * a.count[0];
                 anyBazaar = true;
                 cost = "§6" + coins(unit * a.count[0]);
+                order2 += unit * tot;
+                instant2 += (buy != null && buy > 0 ? buy : unit) * tot;
+                cost2 = multi == null ? "" : " §8(" + coins(unit * tot) + ")";
                 cmd = "bz " + a.name;
             } else {
                 Double lowest = PriceData.lowestBin(e.getKey());
                 if (lowest != null && lowest > 0) {
                     order += lowest * a.count[0];
                     instant += lowest * a.count[0];
+                    order2 += lowest * tot;
+                    instant2 += lowest * tot;
+                    cost2 = multi == null ? "" : " §8(" + coins(lowest * tot) + ")";
                     cost = "§6" + coins(lowest * a.count[0]);
                     bin = "§8BIN";
                     anyBin = true;
@@ -246,14 +297,14 @@ public final class CraftCost {
                     cost = "§8not on Bazaar";
                 }
             }
-            rows.add(new String[]{"§7" + a.count[0] + "x", "§f" + a.name, cost, bin, cmd});
+            rows.add(new String[]{"§7" + a.count[0] + "x" + qty2, "§f" + a.name, cost + cost2, bin, cmd});
         }
         String plus = incomplete ? "+" : "";
         List<String[]> all = new ArrayList<>();
-        all.add(new String[]{"", "§lCraft Cost", "§6" + coins(order) + plus, "", null});
+        all.add(new String[]{"", "§lCraft Cost", "§6" + coins(order) + (multi == null ? "" : " §8(" + coins(order2) + ")") + plus, "", null});
         all.addAll(rows);
         if (anyBazaar) {
-            all.add(new String[]{"", "§7Instant Buy", "§6" + coins(instant) + plus, "", null});
+            all.add(new String[]{"", "§7Instant Buy", "§6" + coins(instant) + (multi == null ? "" : " §8(" + coins(instant2) + ")") + plus, "", null});
         }
         int qtyW = 0, nameW = 0, costW = 0;
         for (String[] r : all) {
