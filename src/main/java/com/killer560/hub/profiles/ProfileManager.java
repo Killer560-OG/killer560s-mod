@@ -587,6 +587,7 @@ public final class ProfileManager {
                 com.killer560.hub.compactorpreview.CompactorPreviewConfig::load,
                 com.killer560.hub.accadvisor.AccessoryAdvisorConfig::load,
                 com.killer560.hub.chestvalue.ChestValueConfig::load,
+                com.killer560.hub.craftcost.CraftCostConfig::load,
                 com.killer560.hub.leapmenu.LeapMenuConfig::load,
                 com.killer560.hub.leapmessage.LeapMessageConfig::load,
                 com.killer560.hub.livemap.LiveMapConfig::load,

@@ -52,6 +52,8 @@ public final class SearchAliases {
             Map.entry("container value", "chest value"),
             Map.entry("storage value", "chest value"),
             Map.entry("chest worth", "chest value"),
+            Map.entry("recipe cost", "craft cost"),
+            Map.entry("crafting cost", "craft cost"),
             // killer560 (2026-11-10): "the get sent to lobby thing" should come up for lobby / lobbied.
             Map.entry("lobby", "kick rejoin timer"),
             Map.entry("lobbied", "kick rejoin timer"),

@@ -74,6 +74,7 @@ final class CardBlurbsData {
         d.put("CompactorPreviewTab", "Shows Deletor contents.");
         d.put("AccessoryAdvisorTab", "Next accessory to buy.");
         d.put("ChestValueTab", "Coins in an open chest.");
+        d.put("CraftCostTab", "Bazaar cost of a recipe.");
         d.put("LightsDeviceTab", "F7 lights aura and trigger.");
         d.put("DiscordRpcTab", "Shows the mod on Discord.");
         d.put("AutoUpdateTab", "Installs new mod versions.");
