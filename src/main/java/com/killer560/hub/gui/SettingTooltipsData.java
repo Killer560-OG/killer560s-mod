@@ -1582,6 +1582,7 @@ final class SettingTooltipsData {
         d.put("score calculator/bonus kills", "Shows whether the Mimic, a Prince and a Murkbat bonus bat have been killed (Bat counts each player's, up to 5).");
         d.put("score text shadow", "Draws the score HUD text with a shadow.");
         d.put("paul (ezpz)", "Sets whether Paul's EZPZ +10 bonus score counts: Auto, Force On or Force Off.");
+        d.put("count blaze and tic tac toe from chat", "Counts Tic Tac Toe or Higher Or Lower (Blaze) as done for the score before the tab list shows it: Tic Tac Toe when Hypixel sends its solved line or its solver sees the game end in a win or a draw, Blaze when the Blaze Solver sees the last blaze of the room die with no fail line; either one also when a party member says in party chat that it is solved or done (a party message can be wrong). The tab list takes over once it shows the puzzle, and a fail line, a failed tab entry or an Architect's First Draft reset takes it back.");
         d.put("assume spirit pet", "Counts the first team death as -1 score, as if a player had a Spirit pet.");
         d.put("270 title", "Shows a title when your estimated score first reaches 270.");
         d.put("preview 270 title", "Shows the 270 title now so you can check how it looks.");

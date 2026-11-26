@@ -135,8 +135,10 @@ public final class BlazeSolverFeature {
         for (Object[] h : hits) {
             found.add((Entity) h[0]);
         }
+        boolean cleared = found.isEmpty() && !orderedBlazes.isEmpty();
         orderedBlazes = found;
         logScan(found);
+        if (cleared) com.killer560.hub.scorecalc.ScoreCalculatorFeature.onBlazeCleared();
     }
 
     /** Logging only: one line when the kill order (entity ids in order) changes - a kill, a new blaze loaded. */

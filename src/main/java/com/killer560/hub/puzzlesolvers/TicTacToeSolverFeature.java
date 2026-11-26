@@ -177,6 +177,9 @@ public final class TicTacToeSolverFeature {
                         score > 0 ? "player (O) has three in a row" : score < 0 ? "computer (X) has three in a row"
                                 : validFrames == 9 ? "board full, draw" : "one button left, done");
             }
+            if (!gameOver && (getScore(board) > 0 || validFrames == 9)) {
+                com.killer560.hub.scorecalc.ScoreCalculatorFeature.onTicTacToeEnded(); // a win or a draw, never a loss
+            }
             gameOver = true;
             reset();
             return;

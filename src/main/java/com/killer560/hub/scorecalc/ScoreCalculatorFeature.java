@@ -159,6 +159,12 @@ public final class ScoreCalculatorFeature {
             "^PUZZLE SOLVED! (?:\\[[^\\]]{1,20}\\] )?[A-Za-z0-9_]{1,16} ([^!]{1,80})! Good job!$");
     /** Tab-list names (lower case) of the puzzles a solved line already counted this run, until the tab list says so too. */
     private static final java.util.Set<String> chatDone = new java.util.HashSet<>();
+    private static final String TTT_KEY = "tic tac toe";
+    private static final String BLAZE_KEY = "higher or lower";
+    private static final Pattern TTT_WORD = Pattern.compile("\\bttt\\b");
+    private static final Pattern BLAZE_DONE_WORD = Pattern.compile("solved|done|complete|finished");
+    /** A PUZZLE FAIL line named Blaze this run: no later kill or party message counts it, until Architect resets it. */
+    private static boolean blazeFailed;
 
     // ---- Paul (shared across runs) ----
     private static volatile Boolean fetchedPaul = null;
@@ -264,6 +270,7 @@ public final class ScoreCalculatorFeature {
         lastInputs = null;
         puzzleStates = Map.of();
         chatDone.clear();
+        blazeFailed = false;
         LOGGER.info("[ScoreCalc] New dungeon run tracked (floor={})", DungeonState.getFloor());
     }
 
@@ -498,20 +505,29 @@ public final class ScoreCalculatorFeature {
             }
             return;
         }
-        if (cfg.isChatPuzzleDone() && plain.startsWith("PUZZLE SOLVED! ")) {
-            Matcher solved = PUZZLE_SOLVED.matcher(plain);
-            if (solved.matches()) {
-                // Only the two puzzles that finish as the party enters the boss room, and only by their own name.
-                String what = solved.group(1).toLowerCase(Locale.ROOT);
-                String key = what.contains("tic tac toe") ? "tic tac toe"
-                        : what.contains("higher or lower") || what.contains("blaze") ? "higher or lower" : null;
-                Minecraft mc = Minecraft.getInstance();
-                if (key != null && chatDone.add(key) && tabDataSeen && mc.level != null && mc.player != null) {
-                    readTabList(mc);
-                    recalculate(cfg);
+        if (cfg.isChatPuzzleDone()) {
+            if (plain.startsWith("PUZZLE SOLVED! ")) {
+                // Hypixel sends this line for Tic Tac Toe (real logs) and never for Blaze.
+                Matcher solved = PUZZLE_SOLVED.matcher(plain);
+                if (solved.matches() && solved.group(1).toLowerCase(Locale.ROOT).contains("tic tac toe")) {
+                    markChatDone(TTT_KEY);
                 }
+                return;
             }
-            return;
+            if (plain.startsWith("PUZZLE FAIL! ")) {
+                if (plain.contains("Tic Tac Toe")) {
+                    chatDone.remove(TTT_KEY);
+                } else if (plain.contains("Blaze")) {
+                    chatDone.remove(BLAZE_KEY);
+                    blazeFailed = true;
+                }
+                return;
+            }
+            if (plain.contains("to reset Higher Or Lower")) {
+                chatDone.remove(BLAZE_KEY);
+                blazeFailed = false;
+                return;
+            }
         }
         if (RUN_START.matcher(plain).find()) {
             ScoreWarnings.onRunStart();
@@ -537,6 +553,14 @@ public final class ScoreCalculatorFeature {
         Matcher party = PARTY_MESSAGE.matcher(plain);
         if (party.matches()) {
             String body = party.group(1).trim().toLowerCase(Locale.ROOT);
+            if (cfg.isChatPuzzleDone() && !body.contains("fail") && BLAZE_DONE_WORD.matcher(body).find()) {
+                if (body.contains("blaze") && !blazeFailed) {
+                    markChatDone(BLAZE_KEY);
+                }
+                if (body.contains("tic tac toe") || TTT_WORD.matcher(body).find()) {
+                    markChatDone(TTT_KEY);
+                }
+            }
             if (MIMIC_PARTY.contains(body) && ScoreCalculator.floorNumber(DungeonState.getFloor()) >= 6) {
                 mimicKilled = true;
             } else if (PRINCE_PARTY.contains(body)) {
@@ -547,6 +571,29 @@ public final class ScoreCalculatorFeature {
                 Matcher who = PARTY_SENDER.matcher(plain);
                 batKillers.add(who.matches() ? who.group(1).toLowerCase(Locale.ROOT) : "\u0000party");
             }
+        }
+    }
+
+    /** The Blaze Solver saw the room's last blaze die (right order: no PUZZLE FAIL since): the puzzle is solved. */
+    public static void onBlazeCleared() {
+        if (ScoreCalculatorConfig.getInstance().isChatPuzzleDone() && DungeonState.isInDungeon() && !blazeFailed) {
+            markChatDone(BLAZE_KEY);
+        }
+    }
+
+    /** The Tic Tac Toe Solver saw the game end in a win or a draw (never a loss): the puzzle is solved. */
+    public static void onTicTacToeEnded() {
+        if (ScoreCalculatorConfig.getInstance().isChatPuzzleDone() && DungeonState.isInDungeon()) {
+            markChatDone(TTT_KEY);
+        }
+    }
+
+    /** Counts a puzzle as done for the score at once; the tab list wins once it names the puzzle. */
+    private static void markChatDone(String key) {
+        Minecraft mc = Minecraft.getInstance();
+        if (chatDone.add(key) && tabDataSeen && mc.level != null && mc.player != null) {
+            readTabList(mc);
+            recalculate(ScoreCalculatorConfig.getInstance());
         }
     }
 

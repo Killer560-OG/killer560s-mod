@@ -13,7 +13,8 @@
      "Craft Cost panel: quantity, full item name and cost now sit in aligned columns (names never cut, the Makes line is gone), and left-clicking an ingredient row opens its Bazaar or Auction House page",
      "Auto Tune finishes Upgrade Signal Strength much faster (well under 10 s on the recorded upgrades, which took up to 28 s): it unpauses the last beat on its beacon pane's slot, the click every upgrade completes on, times each unpause from when its Pause click went out so the panes land on the same tick, never misses a due unpause behind another click, leaves a lined-up pane alone instead of re-running it at Speed 5 just before the finish, and no longer sends Speed clicks that undo each other.",
      "Score Calculator: new switch Count Blaze And Tic Tac Toe From Chat (off by default) counts Higher Or Lower or Tic Tac Toe as done for your score the moment Hypixel announces it solved, instead of waiting a few seconds for the tab list.",
-     "Interactive Map and Auto Clear warp plans on long trips are shorter: the planned stops are re-aimed with exact aims, saving 1-3 warps on a long trip for under a millisecond. Fairy Soul routes now take the shortest order (exact up to 12 souls, up to 18% shorter on the Hub, the Farming Islands and the Deep Caverns)."
+     "Interactive Map and Auto Clear warp plans on long trips are shorter: the planned stops are re-aimed with exact aims, saving 1-3 warps on a long trip for under a millisecond. Fairy Soul routes now take the shortest order (exact up to 12 souls, up to 18% shorter on the Hub, the Farming Islands and the Deep Caverns).",
+     "Score Calculator: the Count Blaze And Tic Tac Toe From Chat switch (off by default) now counts Tic Tac Toe and Higher Or Lower as done for your score before the tab list shows it, from Hypixel solved line, a party member saying it is solved, or the solvers seeing the last blaze die or the game end."
     ]
    }
   ]
