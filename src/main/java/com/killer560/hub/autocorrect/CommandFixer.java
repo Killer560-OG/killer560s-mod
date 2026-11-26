@@ -12,7 +12,7 @@ import java.util.TreeSet;
  * never touched, and a typo equally close to two valid ones is left alone rather than guessed.
  * <p>
  * Limit (Damerau-Levenshtein, a swap of two adjacent letters counts 1): typed length 2-3 fixes only an adjacent swap
- * ("zb" -> "bz") or a doubled letter ("bzz" -> "bz"), because one general edit of a 2-3 letter word is too close to too
+ * ("zb" -> "bz"), a doubled letter ("bzz" -> "bz") or a dropped first letter ("ax" -> "sax"), because one general edit of a 2-3 letter word is too close to too
  * many real commands; length 4-7 fixes one edit (swap, extra, missing or wrong letter, doubled letter); length 8 or more
  * fixes up to two. The closest valid name must be unique. Also fixed: all-caps, leading slashes ("//bz"), and a missing
  * space after "warp" ("warpbase").
@@ -28,7 +28,7 @@ public final class CommandFixer {
             "lobby", "l", "msg", "w", "r", "tell", "reply", "ac", "gc", "oc", "cc", "g", "guild", "f",
             "friend", "fl", "boop", "locraw", "whereami", "calendar", "equipment", "accessories",
             "potionbag", "quiver", "fishingbag", "joininstance", "rejoin", "chat", "pv", "gfs", "bp", "backpack", "et",
-            "coop", "coopadd", "skyblock", "sb", "auction", "auctions", "stash", "pickupstash", "viewstash", "wiki");
+            "coop", "coopadd", "skyblock", "sb", "auction", "auctions", "stash", "pickupstash", "viewstash", "wiki", "sax");
 
     /** Destinations after "/warp". */
     private static final Set<String> WARP_DESTINATIONS = Set.of(
@@ -90,6 +90,14 @@ public final class CommandFixer {
                 String s = lower.substring(0, i) + lower.substring(i + 1);
                 if (valid.contains(s)) {
                     found.add(s);
+                }
+            }
+        }
+        if (found.isEmpty() && (len == 2 || len == 3)) {
+            // first letter dropped ("ax" -> "sax"): one valid name that ends with the typed letters and is one longer
+            for (String c : valid) {
+                if (c.length() == len + 1 && c.endsWith(lower)) {
+                    found.add(c);
                 }
             }
         }

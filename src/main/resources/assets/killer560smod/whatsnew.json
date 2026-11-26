@@ -34,7 +34,8 @@
      "Testing only: the Auto Routes warp-after-click test now expects the warp three ticks after firing, which the sneak-age rule requires.",
      "Auto Routes: a warp that cannot go from where you stand no longer freezes you - a movement key takes over and stops the route, and a left click really sends the warp instead of hitting a block",
      "Chest Value now also works in a minion's menu: it totals the items in the minion's storage, the coins its hopper holds and the fuel, hopper, upgrades and skin in its slots, shows how much the minion has generated, and lists the minion's Craft Cost from tier I up to its tier apart from the total (new Minions switch in the Chest Value tab, on by default).",
-     "Auto Sell no longer clicks in the Bazaar: the price, confirm-offer and order screens were treated as a sell menu, and each click opened an item's product page and threw you off the price screen."
+     "Auto Sell no longer clicks in the Bazaar: the price, confirm-offer and order screens were treated as a sell menu, and each click opened an item's product page and threw you off the price screen.",
+     "Command Auto Correct: /sax is a known command, and a command typed without its first letter (/ax) is sent as the one command that ends with those letters"
     ]
    }
   ]
