@@ -1501,7 +1501,10 @@ public final class BlinkCharge {
             }
         } else if (cfg.getChargeMode() == BlinkConfig.Mode.TOGGLE) {
             if (pressed) {
-                if (!active) {
+                if (autoOn) {
+                    autoOn = false; // his key takes Auto Charge's charge over as his own "charge on", bank kept
+                    BlinkLog.event("Charge key pressed (Toggle): Auto Charge's charge is now his, bank kept (%d)", banked);
+                } else if (!active) {
                     BlinkLog.event("Charge key pressed (Toggle): charge on");
                     turnOn(listener.getConnection());
                 } else if (banked > 0 && !armed) {
@@ -1510,11 +1513,15 @@ public final class BlinkCharge {
                 } else {
                     BlinkLog.event("Charge key pressed (Toggle): charge off (%s)", armed ? "a shot of " + banked
                             + " tick(s) was armed - not fired" : "nothing banked");
+                    autoRefused = true; // he switched it off: Auto Charge waits until he leaves the dungeon
                     reset("key");
                 }
             }
         } else {
-            if (down && !active && !latched) {
+            if (down && autoOn && !latched) {
+                autoOn = false; // his hold takes Auto Charge's charge over, bank kept; letting go fires it as ever
+                BlinkLog.event("Charge key down (Hold): Auto Charge's charge is now his, bank kept (%d)", banked);
+            } else if (down && !active && !latched) {
                 BlinkLog.event("Charge key down (Hold): charge on");
                 turnOn(listener.getConnection());
             } else if (letGo && active) {
@@ -1527,6 +1534,7 @@ public final class BlinkCharge {
                 }
             }
         }
+        autoCharge(listener);
         if (!active) {
             return;
         }
@@ -1650,6 +1658,40 @@ public final class BlinkCharge {
             offAfterShot = false;
             reset("fired");
         }
+    }
+
+    /** This charge was started by Auto Charge and his Charge key has not taken it over. */
+    private static boolean autoOn;
+    /** He switched a charge off with his key: Auto Charge starts none until he is out of a dungeon. */
+    private static boolean autoRefused;
+
+    /**
+     * Multi Warps' Auto Charge (mwautocharge-1126, killer560 2026-11-26): Tick Split and the warp chains spend only Blink
+     * Charge's covered bank, and he never had Charge on, so they went one warp a tick. While {@code wantsAutoCharge} holds,
+     * Charge is switched on exactly as his key does ({@link #turnOn}): the same banking of still ticks, answer delay, stall
+     * and release paths, nothing of its own on the wire. It never starts under a feature that drives Charge or a Blink
+     * hold, and once not wanted it ends only when no shot of its bank is armed, waiting or running. Render thread, tick start.
+     */
+    private static void autoCharge(ClientPacketListener listener) {
+        if (!com.killer560.hub.zpew.ZeroPingEtherwarpConfig.getInstance().wantsAutoCharge()) {
+            if (!com.killer560.hub.secrets.DungeonState.isInDungeon()) {
+                autoRefused = false;
+            }
+            if (autoOn && owner == null && !armed && shotLeft == 0 && deferredWhy == null && !inShotLoop) {
+                reset("Auto Charge: not wanted here");
+            }
+            return;
+        }
+        if (!active && !autoRefused && owner == null && !BlinkFeature.isHolding() && listener.getConnection().isConnected()) {
+            turnOn(listener.getConnection());
+            autoOn = true;
+            BlinkLog.event("charge started by Multi Warps' Auto Charge (bank up to %d tick(s))", cap());
+        }
+    }
+
+    /** Auto Charge's charge is on (testkit). */
+    public static boolean autoCharging() {
+        return active && autoOn;
     }
 
     /** The release: now if a movement key is down, else as soon as one is. */
@@ -2216,6 +2258,7 @@ public final class BlinkCharge {
     static void reset(String why) {
         boolean was;
         int left;
+        autoOn = false;
         synchronized (LOCK) {
             was = active;
             left = banked;

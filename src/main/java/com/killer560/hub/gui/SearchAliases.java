@@ -95,6 +95,7 @@ public final class SearchAliases {
             // killer560 (2026-11-01, to-do Doc "ZPEW"): "make the setting show up if you search zpew". The Zero Ping
             // Etherwarp switch row of the Etherwarp tab answers it.
             Map.entry("zpew", "zero ping etherwarp"),
+            Map.entry("autocharge", "auto charge"),
             // drillfuel-1104: the Drill Fuel Bar and Drill Fuel Text rows in Health and Mana Bars.
             Map.entry("fuel bar", "drill fuel"),
             // hideskillxp-1110: the Skill XP Text row in Health and Mana Bars.

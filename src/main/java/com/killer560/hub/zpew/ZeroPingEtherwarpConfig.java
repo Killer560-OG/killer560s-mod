@@ -42,6 +42,10 @@ public final class ZeroPingEtherwarpConfig {
     /** Multi Warp Mode (mwtick-1111): false = Burst (the warps in one tick), true = Tick Split (each warp in a banked tick of its
      *  own while Blink Charge has a bank, then Burst; never a tick past the bank). Burst by default. */
     private boolean tickSplit = false;
+    /** Auto Charge (mwautocharge-1126, killer560 2026-11-26 "tick split for multiwarp isnt working either"): Blink Charge
+     *  charges by itself in a dungeon while Multi Warps has a use for its bank, no Charge key needed. Off by default
+     *  (killer560 2026-11-26: "do not default on ... unless i specifically tell you to"). */
+    private boolean autoCharge = false;
     /** Dungeons Only (killer560, 2026-11-01): ZPEW predicts only inside a dungeon (the sim counts). Off by default. */
     private boolean dungeonsOnly = false;
     /** Works For: which sources' etherwarps Zero Ping Etherwarp predicts. All on by default. */
@@ -80,6 +84,7 @@ public final class ZeroPingEtherwarpConfig {
             cfg.aimedWarps = ConfigJson.getBool(obj, "aimedWarps", cfg.aimedWarps);
             cfg.multiWarps = ConfigJson.getBool(obj, "multiWarps", cfg.warpsPerTick > 1 || cfg.aimedWarps);
             cfg.tickSplit = ConfigJson.getBool(obj, "multiWarpTickSplit", false);
+            cfg.autoCharge = ConfigJson.getBool(obj, "multiWarpAutoCharge", false);
             cfg.dungeonsOnly = ConfigJson.getBool(obj, "dungeonsOnly", cfg.dungeonsOnly);
             readGroups(ConfigJson.getObject(obj, "worksFor"), cfg.worksFor);
             JsonObject mw = ConfigJson.getObject(obj, "multiWarpsFor");
@@ -152,6 +157,7 @@ public final class ZeroPingEtherwarpConfig {
         obj.addProperty("aimedWarps", aimedWarps);
         obj.addProperty("multiWarps", multiWarps);
         obj.addProperty("multiWarpTickSplit", tickSplit);
+        obj.addProperty("multiWarpAutoCharge", autoCharge);
         obj.addProperty("dungeonsOnly", dungeonsOnly);
         obj.add("worksFor", write(worksFor));
         obj.add("multiWarpsFor", write(multiWarpsFor));
@@ -199,6 +205,21 @@ public final class ZeroPingEtherwarpConfig {
     public boolean isTickSplit() { return tickSplit; }
 
     public void setTickSplit(boolean tickSplit) { this.tickSplit = tickSplit; }
+
+    public boolean isAutoCharge() { return autoCharge; }
+
+    public void setAutoCharge(boolean autoCharge) { this.autoCharge = autoCharge; }
+
+    /**
+     * Whether Auto Charge wants Blink Charge on here: cheat build, Multi Warps and Auto Charge on, in a dungeon (the sim
+     * counts), and something that spends the bank switched on (Tick Split for his own warps, or a chain under Multi Warps For).
+     */
+    public boolean wantsAutoCharge() {
+        return com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED && multiWarps && autoCharge
+                && (tickSplit && multiWarpsFor.get(ZpewSource.Group.MANUAL) || multiWarpsFor.get(ZpewSource.Group.AUTO_ROUTES)
+                || multiWarpsFor.get(ZpewSource.Group.INTERACTIVE_MAP))
+                && com.killer560.hub.secrets.DungeonState.isInDungeon();
+    }
 
     /** Multi Warp Mode as it applies: Tick Split only in a cheat build (a legit build folds it to Burst). */
     public boolean effectiveTickSplit() {

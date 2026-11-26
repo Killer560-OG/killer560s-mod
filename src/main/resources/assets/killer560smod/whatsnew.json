@@ -11,7 +11,8 @@
      "Etherwarp tab: the Multi Warps and Warps Per Tick hovers now say plainly that warp chains (Auto Routes, Interactive Map, Dungeons Autopilot and Auto Clear trips) and Tick Split go several to a tick only while Blink Charge is charging; without a Blink bank a chain goes one warp per tick",
      "Auto Routes no longer freezes on an etherwarp after a chest or item click: the Dungeon Breaker use that clears the click goes once and the warp follows the next tick, instead of swapping to the breaker and back every tick until you moved",
      "New Craft Cost HUD (Items, off by default): while a SkyBlock recipe menu is open it lists each ingredient with its Bazaar buy order cost, the total, the Instant Buy total and what the recipe makes; an ingredient off the Bazaar shows its lowest BIN or \"not on Bazaar\" and the total gets a +.",
-     "Zoom: new Smooth Glide switch (off by default): while you hold the zoom key the view keeps gliding after you stop moving the mouse and slowly slows to a stop, good for lining up an exact angle; letting go of zoom ends it at once"
+     "Zoom: new Smooth Glide switch (off by default): while you hold the zoom key the view keeps gliding after you stop moving the mouse and slowly slows to a stop, good for lining up an exact angle; letting go of zoom ends it at once",
+     "Etherwarp tab: new Auto Charge switch under Multi Warps (off by default): while it is on, Blink Charge banks by itself in a dungeon so Tick Split and the Multi Warps chains can send their warps in one tick; your Charge key still takes over"
     ]
    }
   ]

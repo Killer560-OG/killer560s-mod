@@ -114,6 +114,9 @@ public class ZeroPingEtherwarpTab extends BaseTab {
                         btn.setMessage(multiWarpModeText(cfg));
                     }).bounds(contentX, y, contentWidth, ROW).build());
             y += ROW + 4;
+            w.add(onOffButton("Auto Charge", cfg::isAutoCharge, cfg::setAutoCharge, cfg::save, null,
+                    contentX, y, contentWidth, ROW));
+            y += ROW + 4;
             w.add(onOffButton("Aimed Warps", cfg::isAimedWarps, cfg::setAimedWarps, cfg::save, null,
                     contentX, y, contentWidth, ROW));
             y += ROW + 6;
