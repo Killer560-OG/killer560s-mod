@@ -35,16 +35,8 @@ public final class ExactBench {
 
     static final double RANGE = 60.0;
 
-    public static void main(String[] args) throws Exception {
-        Path dir = Path.of(args.length > 0 ? args[0] : "src/main/resources/assets/killer560smod/rooms");
-        int floors = Integer.getInteger("floors", 3);
-        int perFloor = Integer.getInteger("clicks", 60);
-        int bruteN = Integer.getInteger("brute", 0);
-        int bruteDepth = Integer.getInteger("brutedepth", 3);
-        long seed = Long.getLong("seed", 560L);
-        double same = Double.parseDouble(System.getProperty("same", "0.5"));
-        long budget = Long.getLong("budget", 20000L) * 1_000_000L;
-        FloorBench.RANGE = RANGE;
+    /** The shipped room captures and their types and shapes, as the sim's floor generator needs them. */
+    static Map<String, RoomLibrary.Room> loadRooms(Path dir) throws java.io.IOException {
         Map<String, RoomLibrary.Room> rooms = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         try (var files = Files.list(dir)) {
             for (Path p : files.filter(q -> q.toString().endsWith(".json")).sorted().toList()) {
@@ -69,6 +61,20 @@ public final class ExactBench {
                 SimFloorGen.SHAPE.put(nm, o.get("shape").getAsString());
             }
         }
+        return rooms;
+    }
+
+    public static void main(String[] args) throws Exception {
+        Path dir = Path.of(args.length > 0 ? args[0] : "src/main/resources/assets/killer560smod/rooms");
+        int floors = Integer.getInteger("floors", 3);
+        int perFloor = Integer.getInteger("clicks", 60);
+        int bruteN = Integer.getInteger("brute", 0);
+        int bruteDepth = Integer.getInteger("brutedepth", 3);
+        long seed = Long.getLong("seed", 560L);
+        double same = Double.parseDouble(System.getProperty("same", "0.5"));
+        long budget = Long.getLong("budget", 20000L) * 1_000_000L;
+        FloorBench.RANGE = RANGE;
+        Map<String, RoomLibrary.Room> rooms = loadRooms(dir);
         System.out.printf(Locale.ROOT, "%d captures; %d floor(s) x %d clicks, %d brute-force click(s) a floor (depth %d),"
                 + " %d thread(s), range %.0f%n", rooms.size(), floors, perFloor, bruteN, bruteDepth, FloorBench.THREADS, RANGE);
 

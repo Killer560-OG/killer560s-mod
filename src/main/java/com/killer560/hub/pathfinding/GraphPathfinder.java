@@ -18,6 +18,11 @@ import java.util.PriorityQueue;
  * which is wrong on a directed graph (reversing a segment reverses every edge inside it); this version re-costs the
  * reversed interior too.</li>
  * </ul>
+ * Route order since pathfind-bench-1126 (tools/bench/IslandBench on the 19 real island graphs): the greedy tour plus
+ * 2-opt and single-stop moves was 1.6% over the exact best at the median of 60 seeded 13-soul sets, 10.7% at p90 and
+ * 34.9% at worst, and 18% over the best found on the Hub's 80 souls. Now: up to {@link #EXACT_STOPS} stops the exact
+ * best (Held-Karp); above, 2-opt plus moves of runs of up to three stops, from the greedy tour and from
+ * {@link #RESTARTS} seeded random orders, the cheapest kept (same input, same order).
  */
 public final class GraphPathfinder {
 
@@ -131,8 +136,7 @@ public final class GraphPathfinder {
                 cost[i][j] = i == j ? 0.0 : Math.min(UNREACHABLE, legCost.cost(stops[i], stops[j], tree.dist[stops[j].index]));
             }
         }
-        int[] route = greedy(cost);
-        improve(route, cost);
+        int[] route = n <= EXACT_STOPS ? heldKarp(cost) : bestOfRestarts(cost);
         int[] out = new int[n];
         for (int i = 1; i <= n; i++) {
             out[i - 1] = route[i] - 1;
@@ -198,41 +202,126 @@ public final class GraphPathfinder {
         }
     }
 
-    /** 2-opt, then single-stop relocation (Or-opt), repeated until neither helps (bounded). */
+    /** Up to this many stops the route order is the exact best (Held-Karp: 2^n * n^2 steps, ~0.6 M at 12). */
+    static final int EXACT_STOPS = 12;
+    /** Random starting orders tried above {@link #EXACT_STOPS}, besides the greedy tour. */
+    static final int RESTARTS = 24;
+
+    /** The exact cheapest open tour from stop 0 through every other stop (end free). */
+    static int[] heldKarp(double[][] cost) {
+        int k = cost.length - 1;
+        int full = 1 << k;
+        double[] dp = new double[full * k];
+        byte[] from = new byte[full * k];
+        Arrays.fill(dp, Double.MAX_VALUE);
+        for (int j = 0; j < k; j++) {
+            dp[(1 << j) * k + j] = cost[0][j + 1];
+            from[(1 << j) * k + j] = -1;
+        }
+        for (int m = 1; m < full; m++) {
+            for (int j = 0; j < k; j++) {
+                double v = dp[m * k + j];
+                if (v == Double.MAX_VALUE) continue;
+                for (int t = 0; t < k; t++) {
+                    if ((m & (1 << t)) != 0) continue;
+                    int at = (m | (1 << t)) * k + t;
+                    double nv = v + cost[j + 1][t + 1];
+                    if (nv < dp[at]) {
+                        dp[at] = nv;
+                        from[at] = (byte) j;
+                    }
+                }
+            }
+        }
+        int last = 0;
+        for (int j = 1; j < k; j++) {
+            if (dp[(full - 1) * k + j] < dp[(full - 1) * k + last]) last = j;
+        }
+        int[] route = new int[k + 1];
+        int m = full - 1;
+        for (int pos = k; pos >= 1; pos--) {
+            route[pos] = last + 1;
+            int prev = from[m * k + last];
+            m &= ~(1 << last);
+            last = prev;
+        }
+        return route;
+    }
+
+    /** The greedy tour and {@link #RESTARTS} seeded random orders, each improved; the cheapest. */
+    static int[] bestOfRestarts(double[][] cost) {
+        int[] best = greedy(cost);
+        improve(best, cost);
+        double bestCost = routeCost(best, cost);
+        java.util.Random rng = new java.util.Random(cost.length * 1_000_003L);
+        for (int r = 0; r < RESTARTS; r++) {
+            int[] route = new int[cost.length];
+            for (int i = 1; i < route.length; i++) {
+                int j = 1 + rng.nextInt(i);
+                route[i] = route[j];
+                route[j] = i;
+            }
+            improve(route, cost);
+            double c = routeCost(route, cost);
+            if (c + 1e-6 < bestCost) {
+                best = route;
+                bestCost = c;
+            }
+        }
+        return best;
+    }
+
+    /** 2-opt, then moving runs of one to three stops (Or-opt), repeated until neither helps (bounded). */
     static void improve(int[] route, double[][] cost) {
-        for (int round = 0; round < 20; round++) {
+        for (int round = 0; round < 200; round++) {
             twoOpt(route, cost, 400);
-            if (!relocateOnce(route, cost)) return;
+            if (!orOptOnce(route, cost)) return;
         }
     }
 
-    /** Moves one stop to a better position if that shortens the route. @return whether a move was made. */
-    static boolean relocateOnce(int[] route, double[][] cost) {
+    /**
+     * Moves one run of up to three consecutive stops (kept in order) to the place that shortens the route most, priced
+     * in O(1) a move. @return whether a move was made.
+     */
+    static boolean orOptOnce(int[] route, double[][] cost) {
         int m = route.length;
-        if (m < 3) return false;
-        double base = routeCost(route, cost);
-        int[] tmp = new int[m];
-        int[] without = new int[m - 1];
-        for (int from = 1; from < m; from++) {
-            int stop = route[from];
-            for (int k = 0, w = 0; k < m; k++) {
-                if (k != from) {
-                    without[w++] = route[k];
-                }
-            }
-            for (int to = 1; to < m; to++) {
-                if (to == from) continue;
-                // insert "stop" before without[to] (to == m-1 appends)
-                System.arraycopy(without, 0, tmp, 0, to);
-                tmp[to] = stop;
-                System.arraycopy(without, to, tmp, to + 1, m - 1 - to);
-                if (routeCost(tmp, cost) + 1e-6 < base) {
-                    System.arraycopy(tmp, 0, route, 0, m);
-                    return true;
+        int bestI = -1;
+        int bestLen = 0;
+        int bestT = -1;
+        double bestGain = 1e-6;
+        for (int len = 1; len <= 3; len++) {
+            for (int i = 1; i + len - 1 < m; i++) {
+                int s0 = route[i];
+                int sL = route[i + len - 1];
+                int prev = route[i - 1];
+                boolean hasNext = i + len < m;
+                double removed = cost[prev][s0] + (hasNext ? cost[sL][route[i + len]] - cost[prev][route[i + len]] : 0.0);
+                for (int t = 0; t < m; t++) {
+                    if (t >= i - 1 && t <= i + len - 1) continue;
+                    int a = route[t];
+                    boolean hasB = t + 1 < m;
+                    double added = cost[a][s0] + (hasB ? cost[sL][route[t + 1]] - cost[a][route[t + 1]] : 0.0);
+                    if (removed - added > bestGain) {
+                        bestGain = removed - added;
+                        bestI = i;
+                        bestLen = len;
+                        bestT = t;
+                    }
                 }
             }
         }
-        return false;
+        if (bestI < 0) return false;
+        int[] out = new int[m];
+        int w = 0;
+        for (int t = 0; t < m; t++) {
+            if (t >= bestI && t < bestI + bestLen) continue;
+            out[w++] = route[t];
+            if (t == bestT) {
+                for (int q = 0; q < bestLen; q++) out[w++] = route[bestI + q];
+            }
+        }
+        System.arraycopy(out, 0, route, 0, m);
+        return true;
     }
 
     public static double routeCost(int[] route, double[][] cost) {

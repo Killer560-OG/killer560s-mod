@@ -1082,6 +1082,65 @@ public final class EtherSearch {
         return null;
     }
 
+    /** Whether a warp from stop {@code from} straight onto stop {@code to} of a plan may be taken (bans, refusals). */
+    public interface StopFilter {
+        boolean ok(int from, int to);
+    }
+
+    /**
+     * The fewest warps over a plan's OWN stops: stop i (i < k) stands where {@code hops[i]} stands, stop k is the
+     * plan's last landing ({@code lx, ly, lz}), and any stop may warp straight onto any later one that
+     * {@link #aimExact} reaches. A dynamic program from the last stop back, at most k(k-1)/2 exact aims, nearest-to-
+     * goal stops first so the furthest reachable wins a tie. Every landing is one the plan already had, so the plan's
+     * landing rules still hold. Returns {@code hops} itself when nothing is shorter or the deadline passes.
+     * pathfind-bench-1126: the floor graph's 18-point aims leave 15-45% more warps than the exact search on whole-floor
+     * trips, and a third of that comes back here in about a millisecond.
+     */
+    public List<Hop> shortcut(List<Hop> hops, int lx, int ly, int lz, double range, long deadlineNanos,
+                              StopFilter filter) {
+        int k = hops.size();
+        if (k < 2) {
+            return hops;
+        }
+        int[] best = new int[k + 1];
+        int[] next = new int[k + 1];
+        float[] yaw = new float[k];
+        float[] pitch = new float[k];
+        for (int i = k - 1; i >= 0; i--) {
+            if (System.nanoTime() > deadlineNanos) {
+                return hops;
+            }
+            Hop h = hops.get(i);
+            best[i] = best[i + 1] + 1;
+            next[i] = i + 1;
+            yaw[i] = h.yaw;
+            pitch[i] = h.pitch;
+            for (int j = k; j > i + 1; j--) {
+                if (best[j] + 1 >= best[i] || !filter.ok(i, j)) {
+                    continue;
+                }
+                int bx = j < k ? hops.get(j).bx : lx;
+                int by = j < k ? hops.get(j).by : ly;
+                int bz = j < k ? hops.get(j).bz : lz;
+                if (aimExact(h.x, h.y + SNEAK_EYE, h.z, bx, by, bz, range)) {
+                    best[i] = best[j] + 1;
+                    next[i] = j;
+                    yaw[i] = aimYaw;
+                    pitch[i] = aimPitch;
+                }
+            }
+        }
+        if (best[0] >= k) {
+            return hops;
+        }
+        List<Hop> out = new ArrayList<>(best[0]);
+        for (int i = 0; i < k; i = next[i]) {
+            Hop h = hops.get(i);
+            out.add(new Hop(h.x, h.y, h.z, h.bx, h.by, h.bz, yaw[i], pitch[i]));
+        }
+        return out;
+    }
+
     /**
      * The {@code smoothPath}: from each stop, jump to the furthest later stop one warp can reach, aimed with
      * {@link #aim}. Where no later stop is aimable the search's own ray to the next one is kept - it reached that

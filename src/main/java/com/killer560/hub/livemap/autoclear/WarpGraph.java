@@ -1760,6 +1760,57 @@ public final class WarpGraph {
      */
     public List<EtherSearch.Hop> plan(EtherSearch.Grid grid, EtherSearch.Hop start, Goal goal, long deadlineNanos,
                                       int maxWarps) {
+        List<EtherSearch.Hop> path = planFirm(grid, start, goal, deadlineNanos, maxWarps);
+        shortcutSaved = 0;
+        shortcutNanos = 0;
+        if (!shortcut || path == null || path.size() < 2) {
+            return path;
+        }
+        // The graph's warps are an upper bound: its 18-point aims miss the far, half-hidden landings an exact aim
+        // reaches, so the same stops often take fewer warps (EtherSearch.shortcut).
+        long c0 = System.nanoTime();
+        EtherSearch es = new EtherSearch(grid);
+        EtherSearch.Hop last = path.get(path.size() - 1);
+        double[] look = new double[3];
+        EtherSearch.look(last.yaw, last.pitch, look);
+        double ey = last.y + EtherSearch.SNEAK_EYE;
+        if (es.cast(last.x, ey, last.z, last.x + look[0] * range, ey + look[1] * range, last.z + look[2] * range)
+                != EtherSearch.LANDS) {
+            return path;
+        }
+        int lx = es.hitX;
+        int ly = es.hitY;
+        int lz = es.hitZ;
+        List<EtherSearch.Hop> hops = path;
+        List<EtherSearch.Hop> cut = es.shortcut(path, lx, ly, lz, range, System.nanoTime() + SHORTCUT_NANOS,
+                // An exact aim holds by construction, so firmUp's bans (no 18-point aim held) do not apply; a hop
+                // that really missed in play (SETTLED_MISSES) and a landing refused for the first warp still do.
+                (i, j) -> {
+                    int bx = j < hops.size() ? hops.get(j).bx : lx;
+                    int by = j < hops.size() ? hops.get(j).by : ly;
+                    int bz = j < hops.size() ? hops.get(j).bz : lz;
+                    if (i == 0 && goal.refusedFirst(bx, by, bz)) {
+                        return false;
+                    }
+                    EtherSearch.Hop h = hops.get(i);
+                    return !settledMiss(EtherSearch.pack(h.bx, h.by, h.bz), EtherSearch.pack(bx, by, bz));
+                });
+        shortcutSaved = path.size() - cut.size();
+        shortcutNanos = System.nanoTime() - c0;
+        return cut;
+    }
+
+    /** Whether {@link #plan} shortcuts its plan with exact aims (on; the bench turns it off to compare). */
+    public boolean shortcut = true;
+    /** Warps the last plan's shortcut saved. */
+    public int shortcutSaved;
+    /** How long the last plan's shortcut took. */
+    public long shortcutNanos;
+    /** The shortcut's own budget: about a millisecond on a whole-floor trip (pathfind-bench-1126). */
+    private static final long SHORTCUT_NANOS = 6_000_000L;
+
+    private List<EtherSearch.Hop> planFirm(EtherSearch.Grid grid, EtherSearch.Hop start, Goal goal, long deadlineNanos,
+                                           int maxWarps) {
         for (long[] m : SETTLED_MISSES) {
             int u = find(m[0]);
             int v = find(m[1]);
@@ -1818,6 +1869,15 @@ public final class WarpGraph {
      * Leaves it cleared by 0.05 and he landed on them, and every plan from there took the same hop, 300 times over.
      */
     private static final java.util.Set<long[]> SETTLED_MISSES = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
+    private static boolean settledMiss(long stand, long landing) {
+        for (long[] m : SETTLED_MISSES) {
+            if (m[0] == stand && m[1] == landing) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /** Client thread: the hop from {@code stand}'s node onto {@code landing} missed from where he settled (ClearExecutor). */
     static void banSettledMiss(net.minecraft.core.BlockPos stand, net.minecraft.core.BlockPos landing) {

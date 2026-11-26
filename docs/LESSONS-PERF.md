@@ -129,3 +129,19 @@ How to measure the mod's frame and tick cost, and the per-call waste that measur
 - Auto Clear's way-out guard (acpocket-perf-1124): the dead-pocket chain search (25 ms cap, ~40 ms with overrun) ran inside one frame the first time a block was judged. `EtherSearch.resumeLeg` now keeps its heap on a deadline stop, `EtherwarpPathfinder.ChainProbe.step(2 ms)` carries it on, and `AutoClearFeature.exitProbeTick` runs one slice a tick (same 25 ms total, then "unknown = a way out"); until a block's verdict is in, `noExit` answers false like an unknown landing, and the verdict lands in `noExitStands` (cleared with the room and on a world change). Testkit 1123-sim-ac-pocket reads the "N slice(s), longest X ms" log line and `exitMaxSliceMs()`.
 - HUD Text Shadow / Background lookups (perf-origin-1124): `HudTextStyle.shadow/background` were `synchronized` and read from every HUD element's draw every frame (drawBackground in `HudElementRegistry.drawAt` for ALL elements, shadow() in nine HUD renders), which 95-perf-gate showed as puzzlehud 0 to 6-8 us. A per-frame lookup reads a volatile snapshot (replaced whole on a change) and a no-HUD-has-one case returns before any map access. 95-perf-gate rows with no baseline entry are judged against 0 plus the 5 us floor: add the row by hand to the testkit's perf/perf-baseline.properties from clean runs (-PperfGateWrite rewrites every row).
 - 95-perf-gate red on a busy PC (perf-origin-1124, 11-24): runs made while other builds and lanes used 7+ cores read hud 38-49 us, allon.total 549-709 and a spread of other rows over their limits on origin AND on the fixed jar; the same jar on a quiet PC read hud 16.8-17.6, allon.total 344-372, defaults.total 189-218, everything green. A red gate is believed only when the same row is red in two runs with no heavy java/Gradle process beside it (watch with a per-20-s CPU sampler); the hud row is the HudInGameRenderer loop over ~100 elements (OFF alone costs ~15 us), so it swings most with load. 95-perf-features -PperfOnly=hud lists each HUD element's own us/frame (live_map 41, hoppity_eggs 29, advanced_position 21, split_timers 18: their own rows, not hud).
+
+## Pathfinding on long trips (pathfind-bench-1126)
+
+- Measure with `tools/bench/long.sh` (24 seeded sim-floor trips 10-14 doors apart, floor graph against ExactWarpSearch's
+  proved best or proved lower bound, `-Dexact=false` skips the 60 s proofs) and `tools/bench/island.sh <graph dir>` (the 19
+  island graphs: Dijkstra against Bellman-Ford, Fairy Soul order against Held-Karp). Compare origin and now inside ONE
+  plan (`WarpGraph.shortcutSaved`): firmUp's edge bans persist, so two plans of one trip on one graph can differ.
+- The floor graph picks the right doors but its 18-point aims miss far, half-hidden landings (a bucket-1 graph and extra
+  aim points gave the same warps). Re-aiming the plan's own stops with exact aims (`EtherSearch.shortcut`, DP, 6 ms cap)
+  took 430 -> 418 warps (median gap to best 13.8% -> 7.4%) for under 1 ms median. It must not use firmUp's `bannedEdges`
+  (those ban fragile 18-point aims; an exact aim holds by construction), only SETTLED_MISSES and refusedFirst.
+- The exact proof takes 8-60 s on a long trip, so the map's 1.5 s improver never lands there; a corridor exact search
+  (landings within 5 blocks of the plan's line) reached the best on 5 of 6 floor-0 trips in 0.2-2.9 s (not built yet).
+- Island Dijkstra is exact and under 1.1 ms. The old Fairy Soul order (greedy + 2-opt) was exact on only 21 of 60 13-soul
+  sets and 16-18% long on Hub, Farming and Deep Caverns; Held-Karp up to 12 stops plus Or-opt and 24 seeded restarts
+  made it exact on 60 of 60 and Hub 8200 (was 9690), at most 60 ms on ROUTE_POOL.
