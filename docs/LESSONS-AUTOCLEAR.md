@@ -750,6 +750,24 @@ his hotbar slot back (never behind a use in one server tick), or his next right 
   lines between a death and the use, each with its tick offset; one `[digflush]` line is one tick).
 - Trip retry limit (ac-retry-limit-1126, 2026-11-26): Door Only has no room, so giveUpRoom after MAX_PATH_FAILURES (4) did nothing and a trip that could not route was asked again every tick ("failed (90 of 4)", one "No ROOM route" line each, ~7 a second). Now giveUpTrip: with no room it records blockedDoor and the room he stands in, says why once and leaves that door until he is in another room or its lock changes (nothing else of Auto Clear stops); "No ROOM route" logs once per (rooms, locked doors). Testkit 1126-sim-ac-trip-retry-limit walls him in with stone (no warp can start) and counts 4 failed tries, one give-up line, still running.
 
+## Tiles seen during the visit, the hop before the deaths, and hop counts from the landing (acoptimal-1126b, 2026-11-26)
+- The "looking" ticks after a room's last death (88 a run on 1020-sim-ac-speed's 6 floors, main PC) were nearly all one rule:
+  `moveOnAtLastDeath` left only when EVERY tile center of the room was within LAST_DEATH_SIGHT (48) of him at the death, so in
+  2x2 and long rooms (Mossy, Wizard, Waterfall, Crypt, Flags) he stood until the map's checkmark. A mob in a tile that came
+  within sight at any tick of the visit was loaded then and is remembered (`seenMobs`, "lost" while out of view), so the room
+  now ends when every tile has been in sight during the visit (`roomSightMask`, counter `sightSeenLeaves`). Each refusal to
+  leave after a death now logs "not left at a death yet - <why>" once per reason, so the looking ticks name their cause.
+  Testkit 1126-sim-ac-sightleave (after-last-death on its floor 7 -> 1 tick, no room gone back into).
+- An old-choice Hyperion hop after a cast in place turned on the deaths' tick and went the tick after (13 a run).
+  `preTurnForHop` turns, the tick between the cast and its deaths, to the one-hop hop toward the mob `pickTarget` takes once the
+  blast's mobs are gone; `preTurnedHop` keeps that look on the deaths' tick while it still lands the mob in the blast. A cast
+  on an etherwarp landing goes 0.05 above the block (not on the ground yet): the hop is worked out from the block top
+  (`settledFeet`), or the turn never happened (first try: 0 turns). Counters `preHopTurns`/`preHopUses`; testkit 1126-sim-ac-prehop.
+- Coming down onto a slab after a kill, `cachedHops` was counted from the AIR: the dash from there lands elsewhere, so a hop
+  was chosen, the hop waited 3 ticks to stand, and on landing the count from the block was another and the trip went then
+  (the 3-tick AOTV gaps, 5 a run). The count now comes from `settledFeet`; counter `settledHopCounts`; testkit 1126-sim-ac-settlehop.
+- Speed runs on the main PC when the second PC is unreachable: baseline and after on the SAME PC, interleaved (base, fix,
+  base, fix). A testkit class that throws on its first case skips the rest, so each origin-must-fail case runs alone.
 ## Going back for missed secrets, and the green room walk off its path (acrun-1126-noon, his F7 11-26)
 - At "nothing left it can reach" `finishPilot` asks `goBackForMissed` BEFORE the wither door. On his run it sent him back to
   New Trap (its Just Cleared route had run; 2 secrets "missed", 9.5 s) and then to Ritual, whose route had stopped for a

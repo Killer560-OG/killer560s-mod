@@ -534,6 +534,7 @@ public final class AutoClearFeature {
         aimKey = Long.MIN_VALUE;
         pendingClears.clear();
         deathsInRoom = 0;
+        roomSightMask = 0;
         emptySince = -1;
         oneTapLogged.clear();
         oneTapFailed.clear();
@@ -974,6 +975,8 @@ public final class AutoClearFeature {
             emptySince = -1;
             killsInRoom = 0;
             deathsInRoom = 0;
+            roomSightMask = 0;
+            lastDeathHeldWhy = null;
             pathFailures = 0;
             targetId = -1;
             resetRoam();
@@ -1003,6 +1006,7 @@ public final class AutoClearFeature {
         if (!mobs.isEmpty() || layout.currentRoom() == room) {
             RoomClock.start(roomName);
         }
+        roomSightMask |= tilesInSight(player.position(), layout.tiles(room));
         if (mobs.isEmpty()) {
             targetId = -1;
             targetName = "";
@@ -1276,13 +1280,38 @@ public final class AutoClearFeature {
 
     /** Every tile center of the room within {@link #LAST_DEATH_SIGHT} of {@code at}. */
     static boolean roomInSight(Vec3 at, int[] tiles) {
-        for (int idx : tiles) {
-            BlockPos c = DungeonLayout.cellCenter(idx);
-            if (Math.hypot(c.getX() - at.x, c.getZ() - at.z) > LAST_DEATH_SIGHT) {
-                return false;
+        return tilesInSight(at, tiles) == allTiles(tiles);
+    }
+
+    /** Bit i set: tile {@code tiles[i]}'s center is within {@link #LAST_DEATH_SIGHT} of {@code at}. */
+    static int tilesInSight(Vec3 at, int[] tiles) {
+        int mask = 0;
+        for (int i = 0; i < tiles.length && i < 31; i++) {
+            BlockPos c = DungeonLayout.cellCenter(tiles[i]);
+            if (Math.hypot(c.getX() - at.x, c.getZ() - at.z) <= LAST_DEATH_SIGHT) {
+                mask |= 1 << i;
             }
         }
-        return true;
+        return mask;
+    }
+
+    private static int allTiles(int[] tiles) {
+        return (1 << Math.min(tiles.length, 31)) - 1;
+    }
+
+    /**
+     * The room's tiles that have been within {@link #LAST_DEATH_SIGHT} of him at some tick since it was picked
+     * (acoptimal-1126b): a mob there was loaded on his client then, and is remembered ({@link #seenMobs}, "lost" while out
+     * of view) until it dies. Only "every tile in sight right now" counted before, so in a 2x2 or long room he stood on at
+     * the last death through the map's checkmark (5-10 ticks a room on 1020-sim-ac-speed, 72 a run).
+     */
+    private static int roomSightMask = 0;
+    /** Last-death leaves that only the tiles seen earlier in the visit allowed, ever - for the testkit. */
+    private static int sightSeenLeaves = 0;
+    private static String lastDeathHeldWhy = null;
+
+    public static int sightSeenLeaves() {
+        return sightSeenLeaves;
     }
 
     /**
@@ -1299,8 +1328,14 @@ public final class AutoClearFeature {
                 || singleRoom != null && KeyRooms.guardOf(layout, room) != null) {
             return false;
         }
-        if (client.player == null || !roomInSight(client.player.position(), layout.tiles(room))) {
-            return false;   // a mob at the far end of a long room may not be loaded on his client yet: only the map says it is done
+        if (client.player == null) {
+            return false;
+        }
+        int[] tiles = layout.tiles(room);
+        boolean inSightNow = roomInSight(client.player.position(), tiles);
+        if (!inSightNow && (roomSightMask & allTiles(tiles)) != allTiles(tiles)) {
+            // a mob at the far end of a long room never in sight this visit may not be loaded on his client: only the map says it is done
+            return heldAtLastDeath("a tile of the room never came within " + (int) LAST_DEATH_SIGHT + " blocks");
         }
         int leftToBats = 0;
         for (var e : seenMobs.entrySet()) {
@@ -1317,11 +1352,17 @@ public final class AutoClearFeature {
                 leftToBats++;   // a trusted bat is on its way: its kill is seen from wherever he is by then
                 continue;
             }
-            return false;   // one alive somewhere (in view without its tag, or lost from view)
+            // one alive somewhere (in view without its tag, or lost from view)
+            return heldAtLastDeath(e.getValue().name() + " seen here is still alive" + (e.getValue().lost() ? " (out of view)" : ""));
         }
-        if (deathsInRoom == 0 && leftToBats == 0 || !knownMobs(client, layout, room).isEmpty()
-                || singleRoom != null && (leftToBats > 0 || deathsInRoom == 0)) {
+        if (deathsInRoom == 0 && leftToBats == 0 || singleRoom != null && (leftToBats > 0 || deathsInRoom == 0)) {
             return false;
+        }
+        if (!knownMobs(client, layout, room).isEmpty()) {
+            return heldAtLastDeath("a mob of the room is still known");
+        }
+        if (!inSightNow) {
+            sightSeenLeaves++;
         }
         if (singleRoom != null) {
             handedBack.put(roomName, new long[]{ClearExecutor.clientTick(), com.killer560.hub.util.ServerLag.mark()});
@@ -1342,6 +1383,15 @@ public final class AutoClearFeature {
         roomName = null;
         targetId = -1;
         return true;
+    }
+
+    /** Why the room was not left at a death, once a visit (after a death here): the "looking" ticks' cause in the log. */
+    private static boolean heldAtLastDeath(String why) {
+        if (deathsInRoom > 0 && !why.equals(lastDeathHeldWhy)) {
+            lastDeathHeldWhy = why;
+            LOGGER.info("[AutoClear] {}: not left at a death yet - {}", roomName, why);
+        }
+        return false;
     }
 
     /** Pending rooms the map now shows cleared are counted; those it still does not after the wait are dropped (picked
@@ -3445,6 +3495,10 @@ public final class AutoClearFeature {
                     com.killer560.hub.autoclear.BatLog.expectTarget(targetId);
                 }
                 action = aim.what() + " -> " + targetName;
+                if (weapon == AutoClearConfig.Weapon.HYPERION && ks == null && cfg.isHyperionHops()
+                        && preTurnForHop(client, player, feet)) {
+                    return;
+                }
                 if (aimAndHold(client, player, weapon.itemId(), weapon.label(), aim, Phase.ATTACK)
                         && weapon == AutoClearConfig.Weapon.HYPERION) {
                     primeWarpAfterCast(feet);
@@ -3456,7 +3510,13 @@ public final class AutoClearFeature {
         boolean canHop = cfg.isHyperionHops() && hopsOffFor != targetId
                 && ItemIdentity.findHotbarSlot(player, AutoClearConfig.Weapon.HYPERION.itemId()) >= 0;
         if (cachedHops == -2) {
-            cachedHops = canHop ? WeaponReach.hyperionHopsNeeded(client.level, player, feet, box, MAX_HOPS) : -1;
+            // Coming down onto a block, counted from where he will stand: from the air the dash lands elsewhere, so a hop
+            // was chosen, waited 3 ticks to land, and the trip went then anyway (4 a run on 1020-sim-ac-speed).
+            Vec3 from = canHop ? settledFeet(player, feet) : feet;
+            cachedHops = canHop ? WeaponReach.hyperionHopsNeeded(client.level, player, from, box, MAX_HOPS) : -1;
+            if (from != feet && cachedHops != WeaponReach.hyperionHopsNeeded(client.level, player, feet, box, MAX_HOPS)) {
+                settledHopCounts++;   // the count from the air would have been another
+            }
         }
         // The trip's real price: its warps from here (one only when a line from here lands on the block), each warp count
         // priced by what this run's trips of that many warps really took (tripTicks).
@@ -3495,7 +3555,12 @@ public final class AutoClearFeature {
             return;
         }
         if (killStand == null && canHop && hypeTicks <= etherKill) {
-            WeaponReach.Aim hop = WeaponReach.hyperionHop(client.level, player, feet, box);
+            // (A hop that goes this tick after such a turn needed no turn of its own: the pre-turn acted.)
+            boolean preTurned = preHopTarget == targetId && ClearExecutor.clientTick() - preHopTick <= PRE_HOP_TICKS;
+            WeaponReach.Aim hop = preTurnedHop(client, player, feet, box);
+            if (hop == null) {
+                hop = WeaponReach.hyperionHop(client.level, player, feet, box);
+            }
             // A hop is a reposition too: where the plan's block for this mob reaches others as well, the hop must reach
             // every one of them from where it lands, or it would cost a reposition the plan does not (killer560,
             // 2026-10-15: "the least amount of total repositions in the room").
@@ -3506,6 +3571,14 @@ public final class AutoClearFeature {
                 action = hop.what() + " (" + cachedHops + " hop(s) ~" + hypeTicks + " ticks vs etherwarp ~" + etherTicks + ")";
                 castHop(client, player, feet, hop, false);
                 if (phase == Phase.HOP) {
+                    if (preTurned) {
+                        preHopUses++;
+                        preHopTarget = -1;
+                    } else if (preHopTarget != -1) {
+                        LOGGER.info("[AutoClear] hop toward {} went {} tick(s) after a pre-turn toward mob id {}", targetName,
+                                ClearExecutor.clientTick() - preHopTick, preHopTarget);
+                        preHopTarget = -1;
+                    }
                     askAfterCast(client, player, cfg, hop.expectFeet());
                     LOGGER.info("[AutoClear] hop toward {} at {}: {} hop(s) ~{} ticks vs etherwarp ~{} ticks", targetName,
                             target.blockPosition().toShortString(), cachedHops, hypeTicks, etherTicks);
@@ -5114,6 +5187,94 @@ public final class AutoClearFeature {
         return true;
     }
 
+    /** Turns made toward the old choice's next hop while a cast in place's deaths came back, ever - for the testkit. */
+    private static int preHopTurns = 0;
+    /** Hops that went along such a turn on the deaths' tick, ever - for the testkit. */
+    private static int preHopUses = 0;
+    private static long preHopTick = Long.MIN_VALUE / 2;
+    private static int preHopTarget = -1;
+    /** A pre-turned look is still used (and counted) this many ticks after the turn: the deaths may show a tick late. */
+    private static final int PRE_HOP_TICKS = 3;
+    private static Vec3 preHopFrom = null;
+    private static float preHopYaw;
+    private static float preHopPitch;
+
+    public static int preHopTurns() {
+        return preHopTurns;
+    }
+
+    public static int preHopUses() {
+        return preHopUses;
+    }
+
+    /**
+     * The old choice's twin of {@link #preTurnNextCast} (acoptimal-1126b): the tick after a cast in place went out, while
+     * its deaths come back, the mob the pick would take once the blast's mobs are dead ({@link #pickTarget} over the rest)
+     * is one Hyperion hop away from this spot, so the body turns to that hop now and the hop goes on the deaths' own tick
+     * instead of turning then and going the tick after (12 hops a run on 1020-sim-ac-speed). A one-hop mob is always the
+     * hop (2 ticks against an etherwarp's 2 + the kill), so the guess only misses when the deaths come later or a kill plan
+     * takes over at the deaths: the hop or trip then aims as before, and a later death costs the turn back (one tick).
+     * No sneak prime that tick: the hop goes standing.
+     */
+    private static boolean preTurnForHop(Minecraft client, LocalPlayer player, Vec3 feet) {
+        if (activePlan != null || lastPressTick != ClearExecutor.clientTick() - 1 || castFrom == null
+                || castFrom.distanceToSqr(feet) > 0.01 || !player.onGround() && !settlingOnto(player)
+                || hisUseClicksQueued(client) > 0) {
+            return false;
+        }
+        // A cast in place right on an etherwarp's landing goes 0.05 above the block: the hop goes from the block top.
+        feet = settledFeet(player, feet);
+        List<Entity> rest = new java.util.ArrayList<>();
+        for (Entity e : roomMobs) {
+            if (e.isAlive() && !WeaponReach.hyperionHits(feet, e.getBoundingBox())) {
+                rest.add(e);
+            }
+        }
+        if (rest.isEmpty() || rest.size() == roomMobs.size()) {
+            return false;   // nothing after it, or the cast kills nothing: no death tick to be ready for
+        }
+        Entity next = pickTarget(player, rest, AutoClearConfig.Weapon.HYPERION);
+        AABB box = next.getBoundingBox();
+        if (hopsOffFor == next.getId()
+                || WeaponReach.hyperionHopsNeeded(client.level, player, feet, box, MAX_HOPS) != 1) {
+            return false;
+        }
+        WeaponReach.Aim hop = WeaponReach.hyperionHop(client.level, player, feet, box);
+        if (hop == null || !landingKeepsPlan(client, hop.expectFeet(), next) || castTraps(client, player, hop)) {
+            return false;
+        }
+        releaseUse(client);
+        float yaw = player.getYRot() + Mth.wrapDegrees(hop.yaw() - player.getYRot());
+        float pitch = Mth.clamp(hop.pitch(), -90f, 90f);
+        BODY.turn(player, yaw, pitch);
+        preHopTick = ClearExecutor.clientTick();
+        preHopTarget = next.getId();
+        preHopFrom = feet;
+        preHopYaw = yaw;
+        preHopPitch = pitch;
+        action = "Wither Impact in place, turned for the hop after it";
+        phase = Phase.IDLE;
+        tickKind = "firing";
+        preHopTurns++;
+        LOGGER.info("[AutoClear] turned for the hop toward {} while the cast in place's deaths come back",
+                next.getName().getString());
+        return true;
+    }
+
+    /** The look {@link #preTurnForHop} turned to, while it still lands {@code box} in the blast from here; else null. */
+    private static WeaponReach.Aim preTurnedHop(Minecraft client, LocalPlayer player, Vec3 feet, AABB box) {
+        if (preHopTarget != targetId || preHopFrom == null || ClearExecutor.clientTick() - preHopTick > PRE_HOP_TICKS
+                || preHopFrom.distanceToSqr(feet) > 0.01) {
+            return null;
+        }
+        Vec3 land = com.killer560.hub.roomsim.SimAbilities.dashTarget(client.level, player, feet,
+                TeleportUtils.getLook(preHopYaw, preHopPitch), WeaponReach.HYPERION_TELEPORT);
+        if (land == null || !WeaponReach.hyperionHits(land, box)) {
+            return null;
+        }
+        return new WeaponReach.Aim(preHopYaw, preHopPitch, land, "Wither Impact hop onto the mob");
+    }
+
     /** Below his feet, this far down, a block he comes down onto counts as a short fall a trip need not wait for. */
     static final double SETTLE_FALL = 1.25;
     /** Trips started while he was still coming down onto a block, ever - for the testkit. */
@@ -5121,6 +5282,23 @@ public final class AutoClearFeature {
 
     public static int settlingTrips() {
         return settlingTrips;
+    }
+
+    /** Hop counts from where he lands that differ from the count from the air, ever - for the testkit. */
+    private static int settledHopCounts = 0;
+
+    public static int settledHopCounts() {
+        return settledHopCounts;
+    }
+
+    /** Where he will stand once he has come down ({@link #settlingOnto}): the block top under his feet; else {@code feet}. */
+    private static Vec3 settledFeet(LocalPlayer player, Vec3 feet) {
+        if (player.onGround() || !settlingOnto(player)) {
+            return feet;
+        }
+        HitResult hit = player.level().clip(new ClipContext(feet.add(0, 0.01, 0), feet.add(0, -SETTLE_FALL - 0.01, 0),
+                ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, player));
+        return hit.getType() == HitResult.Type.BLOCK ? hit.getLocation() : feet;
     }
 
     /** Off the ground, not rising, with a block to land on within {@link #SETTLE_FALL} below his feet. */
