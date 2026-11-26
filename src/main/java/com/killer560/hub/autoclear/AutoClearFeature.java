@@ -4605,6 +4605,12 @@ public final class AutoClearFeature {
     static final int KEY_STAND_BACK = 4;
     static final int KEY_GOAL_IN = 5;
     private static int keyWalkIns = 0;
+    private static int gateWaitTicks = 0;
+
+    /** For the testkit: ticks a key room walk waited for the entrance gate instead of counting a failed try, ever. */
+    public static int keyWalkGateWaits() {
+        return gateWaitTicks;
+    }
     private static int keyApproachTrips = 0;
 
     /** For the testkit: walks into a key room started, ever. */
@@ -4673,6 +4679,13 @@ public final class AutoClearFeature {
             final int keyRoom = room;
             java.util.function.Predicate<Vec3> in = feet -> KeyRooms.inside(layout, keyRoom, feet.x, feet.z);
             ShortWalk.Plan plan = ShortWalk.plan(client.level, player, goal.above(), in);
+            if (plan == null && com.killer560.hub.livemap.autoclear.ClearExecutor.entranceGateShut()) {
+                // The gate (its barriers for ~15 ticks after the start) still shuts the doorway: not a failed try. All
+                // four went in the ticks the barriers stood, and the key room was given up 0.2 s in (acclears-1126).
+                action = "waiting for the entrance gate to open (walking into " + name + ")";
+                gateWaitTicks++;
+                return true;
+            }
             if (plan == null) {
                 int n = keyWalkFails.merge(name, 1, Integer::sum);
                 LOGGER.info("[AutoClear] key room: no way on foot from {} into {} ({} of {})", fmt(player.position()), name,
@@ -5075,6 +5088,24 @@ public final class AutoClearFeature {
         }
         KeyMapping.click(key);
         lastPressTick = now;
+        LocalPlayer p = client.player;
+        if (p != null) {
+            castFrom = p.position();
+            castLook = TeleportUtils.getLook(p.getYRot(), p.getXRot());
+        }
+    }
+
+    /** Where Auto Clear's last use press went from, and its look: a Wither Impact moves him along it (to the floor when
+     *  cast in place in the air), and the server's packet for that is the cast's own, not a correction. */
+    private static Vec3 castFrom = null;
+    private static Vec3 castLook = null;
+    /** A position packet this many ticks after the last press, on its look, is that cast's own teleport. */
+    static final int CAST_TELEPORT_TICKS = 6;
+    private static int castTeleports = 0;
+
+    /** For the testkit: position packets taken as a Wither Impact's own teleport (not a correction), ever. */
+    public static int castTeleports() {
+        return castTeleports;
     }
 
     private static void releaseUse(Minecraft client) {
@@ -5193,6 +5224,17 @@ public final class AutoClearFeature {
             hopLanded = true;
             return;
         }
+        // acclears-1126 (his 11-26 Wizard clear, 01:01:42 and :44): an etherwarp onto a carpet lands him 1.05 above its
+        // block, and a Hyperion cast in place (pitch 90) while he still falls is taken down to the floor by the Wither
+        // Impact itself: (-120.50, 69.82) -> 69.00, two "corrections" a clear that replanned for nothing.
+        if (phase == Phase.ATTACK && AutoClearConfig.getInstance().getWeapon() == AutoClearConfig.Weapon.HYPERION
+                && castOwnTeleport(castFrom, castLook, at, ClearExecutor.clientTick() - lastPressTick)) {
+            castTeleports++;
+            LOGGER.info("[AutoClear] position packet {} -> {} {} tick(s) after the cast: the Wither Impact's own teleport"
+                    + " along its look, not a correction", before == null ? "?" : fmt(before), fmt(at),
+                    ClearExecutor.clientTick() - lastPressTick);
+            return;
+        }
         corrections++;
         say(ModChat.bad("Server correction"), ModChat.dim(String.format(Locale.US,
                 " (moved %.1f blocks) - carrying on from here", before == null ? 0.0 : at.distanceTo(before))));
@@ -5203,6 +5245,12 @@ public final class AutoClearFeature {
         abandonWalk("server correction - planning again from where it put him");
         phase = Phase.IDLE;
         planKey = Long.MIN_VALUE;
+    }
+
+    /** A position packet {@code ticksSince} ticks after a cast from {@code from} along {@code look} that put him at
+     *  {@code at} is that Wither Impact's own teleport. */
+    static boolean castOwnTeleport(Vec3 from, Vec3 look, Vec3 at, long ticksSince) {
+        return from != null && look != null && ticksSince >= 0 && ticksSince <= CAST_TELEPORT_TICKS && onRay(from, look, at);
     }
 
     /** Within 1.6 blocks of the dash line from {@code start} (two dashes long, for a second held use before landing). */

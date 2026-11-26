@@ -772,22 +772,33 @@ public final class ClearExecutor {
      * Found from the layout's entrance door cell, never by searching the floor.
      */
     static java.util.List<BlockPos> closedEntranceGate(Minecraft client, DungeonLayout layout) {
-        if (client.level == null || com.killer560.hub.livemap.HeldMap.available()) {
+        if (client.level == null) {
             return null;
         }
+        boolean map = com.killer560.hub.livemap.HeldMap.available();
         java.util.List<BlockPos> out = new ArrayList<>();
         BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos();
         for (int idx = 0; idx < DungeonLayout.GRID * DungeonLayout.GRID; idx++) {
-            if (layout.doorType(idx) != DungeonLayout.DOOR_ENTRANCE) {
+            if (!entranceDoor(layout, idx)) {
                 continue;
             }
             BlockPos c = DungeonLayout.doorBlock(idx);
+            // acclears-1126 (his 11-26 runs, logger): 1 tick after Mort's line Hypixel turns the gate's bricks into
+            // BARRIERS, and only about 15 ticks later into air. In between the map is in hand, and a trip planned then
+            // met the barriers (no warp chain, "no way on foot" four ticks running): the barriers are the gate too, but
+            // only while one stands in the doorway itself (a doorway is never shut for good).
+            boolean barrierGate = client.level.getBlockState(c).is(net.minecraft.world.level.block.Blocks.BARRIER)
+                    || client.level.getBlockState(c.above()).is(net.minecraft.world.level.block.Blocks.BARRIER);
+            if (map && !barrierGate) {
+                continue;
+            }
             for (int dx = -3; dx <= 3; dx++) {
                 for (int dz = -3; dz <= 3; dz++) {
                     for (int dy = -2; dy <= 5; dy++) {
                         m.set(c.getX() + dx, c.getY() + dy, c.getZ() + dz);
-                        if (client.level.getBlockState(m).is(
-                                net.minecraft.world.level.block.Blocks.INFESTED_CHISELED_STONE_BRICKS)) {
+                        net.minecraft.world.level.block.state.BlockState st = client.level.getBlockState(m);
+                        if (!map && st.is(net.minecraft.world.level.block.Blocks.INFESTED_CHISELED_STONE_BRICKS)
+                                || barrierGate && st.is(net.minecraft.world.level.block.Blocks.BARRIER)) {
                             out.add(m.immutable());
                         }
                     }
@@ -795,6 +806,33 @@ public final class ClearExecutor {
             }
         }
         return out.isEmpty() ? null : out;
+    }
+
+    /** The green room's gate (its bricks before the start, its barriers just after) still shuts the Entrance. */
+    public static boolean entranceGateShut() {
+        Minecraft client = Minecraft.getInstance();
+        return closedEntranceGate(client, DungeonLayout.current()) != null;
+    }
+
+    /** Is the Entrance's door: so typed, or a door with the Entrance room on a side (the map types it a normal door, and
+     *  before the map an Entrance whose roof overhangs its doorway once left it no door at all, acclears-1126). */
+    public static boolean entranceDoor(DungeonLayout layout, int idx) {
+        if (layout.doorType(idx) == DungeonLayout.DOOR_ENTRANCE) {
+            return true;
+        }
+        if (!layout.isDoor(idx)) {
+            return false;
+        }
+        int gx = idx % DungeonLayout.GRID;
+        int[] sides = gx % 2 == 1 ? new int[]{idx - 1, idx + 1} : new int[]{idx - DungeonLayout.GRID, idx + DungeonLayout.GRID};
+        for (int cell : sides) {
+            int room = cell < 0 || cell >= DungeonLayout.GRID * DungeonLayout.GRID ? -1 : layout.roomOfCell(cell);
+            com.killer560.hub.roomdatabase.RoomEntry e = room < 0 ? null : layout.entry(room);
+            if (e != null && "ENTRANCE".equals(e.type)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static java.util.Set<Long> packed(java.util.List<BlockPos> blocks) {

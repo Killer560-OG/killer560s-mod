@@ -533,7 +533,10 @@ public final class LiveMapFeature {
                 if (rowEven && colEven) {
                     grid[idx] = Tile.ROOM;
                     identifyTile(client, idx, wx, wz);
-                } else if (roofHeight == 73 || roofHeight == 74 || roofHeight == 81 || roofHeight == 82) {
+                } else if (doorGap(roofHeight, entranceGate(client, wx, wz))) {
+                    // acclears-1126: some Entrances' roof overhangs their doorway (roof 98 at 01:08 and 01:18 on 11-26),
+                    // and the gap read as a connector, so before the map the Entrance had no door and Dungeons Autopilot
+                    // decided "nothing left it can reach" at the start. The gate's own blocks say it is the door.
                     grid[idx] = classifyDoor(client, wx, wz);
                 } else {
                     // Connector between two tiles of one larger room (or a 2x2 room's center) - the filled
@@ -1047,6 +1050,16 @@ public final class LiveMapFeature {
             }
         }
         return 0;
+    }
+
+    /** A gap cell is a door by its roof (a doorway's frame), or by the green room's gate standing in it. */
+    static boolean doorGap(int roofHeight, boolean gateBricks) {
+        return roofHeight == 73 || roofHeight == 74 || roofHeight == 81 || roofHeight == 82 || gateBricks;
+    }
+
+    /** The green room's gate (its infested bricks, before the start) stands in this gap. */
+    private static boolean entranceGate(Minecraft client, int x, int z) {
+        return client.level.getBlockState(new BlockPos(x, 69, z)).is(Blocks.INFESTED_CHISELED_STONE_BRICKS);
     }
 
     private static Tile classifyDoor(Minecraft client, int x, int z) {

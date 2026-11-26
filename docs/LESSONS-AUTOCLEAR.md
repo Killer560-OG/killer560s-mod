@@ -670,3 +670,24 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   tick the client answered its own Wither Impact's teleport (accept_tp, then a sprint start to a new yaw); the later accept_tps
   were Grim's setbacks. ShortWalk now holds a walk's first keys for the tick a server teleport is answered (hook in
   LiveMapPacketListenerMixin, counter teleportHolds). Origin flagged 2 of 2 (def, exp); fixed clean 4 of 4 with 3-5 holds.
+
+## The entrance gate's barrier window, overhung doorways and the Hyperion's own drop (autopilot-clears-1126, his 11-26 clears)
+
+- Hypixel's gate does not go straight from bricks to air: the infested bricks turn to BARRIER one tick after Mort's
+  line and to air 15-16 ticks later (every run of logger session 20261125-232944-36672). With the map in hand
+  `ClearExecutor.closedEntranceGate` saw no bricks and called the gate open, so trips planned in that window met the
+  barriers ("Room hop 2 of 5 failed") and the first warp went 20-90 ticks late, and the key room walk failed its 4
+  tries in 4 ticks and gave the room up. Barriers in the doorway now count as the gate (`entranceGateShut()`), and the
+  key room walk waits on a shut gate instead of spending a try. Testkit 1126-sim-ac-gatebarrier.
+- An Entrance whose roof overhangs its doorway (roof 98 over the gap, 01:08 and 01:18) read as a connector in the world
+  scan, so before the map the Entrance had no door and Dungeons Autopilot saw nothing to reach. The gate's bricks at
+  y 69 make the gap a door whatever the roof (`LiveMapFeature.doorGap`); a door next to the ENTRANCE room counts as
+  the entrance door even when the map types it as normal. Testkit 1126-logic-acclears-doorgap.
+- An etherwarp onto a carpet lands 1.05 above its block; a Hyperion cast in place (pitch 90) while falling is moved to
+  the floor by Wither Impact itself, 2 ticks after the use. A position packet within 6 ticks of Auto Clear's own use
+  press and on its look is the cast's teleport, not a correction (`castOwnTeleport`). Testkit
+  1126-logic-acclears-castteleport.
+- Not pinned: a first warp judged 5-8 blocks off (01:01:29, 01:07:15). Once, uses 1 and 2 of a one-per-tick chain got
+  no answer and use 3 was judged from the start; once a stray use with the server's old look went out the tick Secret
+  Aura opened a chest. The logger's `req by=` named only the `@Invoker` frame; it now names the mod caller (logger
+  c11678c), so the next such clear shows who sent it.
