@@ -221,8 +221,12 @@ public final class RightClick {
         } else {
             LOGGER.debug(line); // a use with no block click near it: nothing to pair, not worth a line in his log
         }
-        if (ray != null && serverRay(player, sentFeet(player), sentYaw, sentPitch, true) != null) {
-            unpaired = false; // only when every look the server may trace meets a block: else the click may still wait
+        // Only when every look the server may trace meets a block: else the click may still wait. A spend is the one
+        // exception: it was offered as the click's second half on purpose, and spending again is the same packet - at a
+        // block corner one eye's ray met and the other's missed, so Auto Routes sent a breaker use every tick for up to
+        // 154 ticks and the warp never went (autoroutes-stuck-1126, his Banners #5, Mines #6, Cathedral #3).
+        if (spent || ray != null && serverRay(player, sentFeet(player), sentYaw, sentPitch, true) != null) {
+            unpaired = false;
         }
     }
 
@@ -534,9 +538,13 @@ public final class RightClick {
      * with a pickaxe: nothing either - unlike sending the warp itself to be eaten, which costs a round trip to find out
      * and, were the judgment wrong, a second warp from the landing (killer560's Bridges, 2026-10-17).
      *
+     * The packet carries {@code useYaw}/{@code usePitch}, the look the caller turns to next tick: GrimAC's BadPacketsJ
+     * compares a use's look with the NEXT tick packet's, and the heard look may sit up to 0.05 degrees off the warp's (his
+     * attack turned the body; 62-argrim-1126-spendsame-attack). Hypixel's 1.8 server traces the heard look either way.
+     *
      * @return true when the use was sent
      */
-    public static boolean spendStoredClick(Minecraft client, LocalPlayer player, String who) {
+    public static boolean spendStoredClick(Minecraft client, LocalPlayer player, String who, float useYaw, float usePitch) {
         if (!unpaired || !sentKnown || player == null || client.level == null
                 || !(client.gameMode instanceof com.killer560.hub.dungeonextras.mixin.MultiPlayerGameModeInvoker invoker)) {
             return false;
@@ -547,8 +555,8 @@ public final class RightClick {
         if (srv == null || clientPick(client, player, sentYaw, sentPitch) != null) {
             return false; // nothing to pair it with, or a vanilla right click here would click a block first
         }
-        float yaw = sentYaw;
-        float pitch = sentPitch;
+        float yaw = useYaw;
+        float pitch = usePitch;
         String clickWas = clickPos == null ? "?" : clickPos.toShortString();
         String with = clickItem;
         invoker.killer560smod$invokeEnsureHasSentCarriedItem();

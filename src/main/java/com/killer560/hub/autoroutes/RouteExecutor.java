@@ -4937,7 +4937,7 @@ public final class RouteExecutor {
         }
         int ether = player.getInventory().getSelectedSlot();
         select(client, player, breaker);
-        if (!com.killer560.hub.util.RightClick.spendStoredClick(client, player, "[AutoRoutes] Etherwarp")) {
+        if (!com.killer560.hub.util.RightClick.spendStoredClick(client, player, "[AutoRoutes] Etherwarp", yaw, pitch)) {
             LOGGER.info("[AutoRoutes] secret click unpaired: the Dungeon Breaker use to pair it was not sent - etherwarp "
                     + "item back (slot {}), the warp goes as it is", ether + 1);
             select(client, player, ether);

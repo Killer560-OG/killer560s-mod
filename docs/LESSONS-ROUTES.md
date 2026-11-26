@@ -183,6 +183,15 @@ and Auto Clear are in [LESSONS-AUTOCLEAR.md](LESSONS-AUTOCLEAR.md). Problem, the
   (`RightClick.spendStoredClick`: only when `unpairable` holds, i.e. the client's look reaches no block, so one bare use is
   what a vanilla right click sends) and the warp goes the next tick. Testkit 96-ar-1017-bridges (his route, exact),
   62-argrim-1017-breakerwarp.
+- **A spend clears the click, whatever the eyes say** (autoroutes-stuck-1126, killer560 2026-11-26: "my auto routes keep
+  getting stuck"): aa0f8f5ee (11-25) made `RightClick.onUse` clear `unpaired` only when EVERY server eye's ray meets a block.
+  At a block corner the 1.54 ray met it and the 1.27 one missed, so after `spendStoredClick`'s breaker use the click still
+  read unpaired, the next tick spent again, and so on: one breaker use and two hotbar swaps every tick, the warp never sent
+  (his Banners #5 154 ticks, Mines #6 120, Cathedral #3 63, Purple Flags #12 84; 7 stalls in 40 minutes, ~1,100 loop ticks
+  on 11-25). A spend now clears it: sending the same packet again cannot pair anything more, and a warp still eaten falls
+  to the refused-warp retry. The spend's packet carries the WARP's look, not the heard one: `heard()` allows 0.05 degrees,
+  and when his attack had left the heard look 0.01 off, the warp's turn the next tick made the spend's use BadPacketsJ
+  (GrimAC compares a use's look with the next tick packet's). Testkit 1126-arstuck-spendloop, 62-argrim-1126-spendsame-*.
 - **A warp the server refused is sent once more, not waited out** (fullclear-1016 run 019, his Doors #13 hop 3: the
   server's ray stopped at a jungle log - the shut way described under "His routes count a secret bat's APPEARANCE"; the
   retry is a guard, not Doors' fix). With no landing a round trip on and him not moved, `RouteExecutor.retryAim` aims at

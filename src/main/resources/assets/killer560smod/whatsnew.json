@@ -8,7 +8,8 @@
     "blurb": "Changes in this update.",
     "items": [
      "Dungeons Autopilot has a new Face Door on Arrival switch (off by default) that turns you to look at the wither or blood door when it gets there.",
-     "Etherwarp tab: the Multi Warps and Warps Per Tick hovers now say plainly that warp chains (Auto Routes, Interactive Map, Dungeons Autopilot and Auto Clear trips) and Tick Split go several to a tick only while Blink Charge is charging; without a Blink bank a chain goes one warp per tick"
+     "Etherwarp tab: the Multi Warps and Warps Per Tick hovers now say plainly that warp chains (Auto Routes, Interactive Map, Dungeons Autopilot and Auto Clear trips) and Tick Split go several to a tick only while Blink Charge is charging; without a Blink bank a chain goes one warp per tick",
+     "Auto Routes no longer freezes on an etherwarp after a chest or item click: the Dungeon Breaker use that clears the click goes once and the warp follows the next tick, instead of swapping to the breaker and back every tick until you moved"
     ]
    }
   ]
