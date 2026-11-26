@@ -577,6 +577,13 @@ public final class TeleportUtils {
 
     /** The reference {@code BlockPos.nearbyBlocks(25f) { it.etherwarpable }.firstOrNull}: closest etherwarpable block. */
     public static BlockPos nearestEtherwarpable(BlockPos center) {
+        return nearestEtherwarpable(center, (BlockPos) null);
+    }
+
+    /** {@link #nearestEtherwarpable(BlockPos)} on {@code center}'s own side of a door ({@code door} its lock block, null =
+     *  anywhere): entrance-noroute-1126, Blood's approach on a sim F7 had no stand on its side within reach and the
+     *  nearest was 11 blocks INTO Blood, so Door Only planned a trip behind the shut door ~90 times and never left. */
+    public static BlockPos nearestEtherwarpable(BlockPos center, BlockPos door) {
         long[] table = sphere;
         if (table == null) {
             table = buildSphere();
@@ -585,7 +592,7 @@ public final class TeleportUtils {
         BlockPos.MutableBlockPos mut = new BlockPos.MutableBlockPos();
         for (long packed : table) {
             mut.set(center.getX() + BlockPos.getX(packed), center.getY() + BlockPos.getY(packed), center.getZ() + BlockPos.getZ(packed));
-            if (landable(mut) && underCover(mut)) {
+            if (sameSide(center, door, mut.getX(), mut.getZ()) && landable(mut) && underCover(mut)) {
                 return mut.immutable();
             }
         }
@@ -594,15 +601,31 @@ public final class TeleportUtils {
 
     /** {@link #nearestEtherwarpable(BlockPos)} read through the planner's view of the level (see the overload below). */
     public static BlockPos nearestEtherwarpablePlanned(BlockPos center) {
+        return nearestEtherwarpablePlanned(center, null);
+    }
+
+    /** {@link #nearestEtherwarpablePlanned(BlockPos)} on {@code center}'s side of {@code door} (null = anywhere). */
+    public static BlockPos nearestEtherwarpablePlanned(BlockPos center, BlockPos door) {
         Level level = level();
-        return level == null ? null : nearestEtherwarpable(center, new EtherSearch(new LevelEtherGrid(level)));
+        return level == null ? null : nearestEtherwarpable(center, new EtherSearch(new LevelEtherGrid(level)), door);
+    }
+
+    /** Whether column x, z lies on {@code center}'s side of {@code door} along the door's axis (always with no door, or a
+     *  center in the doorway itself). */
+    private static boolean sameSide(BlockPos center, BlockPos door, int x, int z) {
+        if (door == null) {
+            return true;
+        }
+        int ax = center.getX() - door.getX();
+        int az = center.getZ() - door.getZ();
+        return Math.abs(ax) >= Math.abs(az) ? ax == 0 || ax * (x - door.getX()) > 0 : az * (z - door.getZ()) > 0;
     }
 
     /**
      * {@link #nearestEtherwarpable(BlockPos)} read through the planner's own view of the world ({@code search}'s grid)
      * instead of the client's chunks - for a spot in a chunk the client does not have, which the client reads as air.
      */
-    public static BlockPos nearestEtherwarpable(BlockPos center, EtherSearch search) {
+    public static BlockPos nearestEtherwarpable(BlockPos center, EtherSearch search, BlockPos door) {
         long[] table = sphere;
         if (table == null) {
             table = buildSphere();
@@ -612,7 +635,7 @@ public final class TeleportUtils {
             int x = center.getX() + BlockPos.getX(packed);
             int y = center.getY() + BlockPos.getY(packed);
             int z = center.getZ() + BlockPos.getZ(packed);
-            if (search.etherwarpable(x, y, z)) {
+            if (sameSide(center, door, x, z) && search.etherwarpable(x, y, z)) {
                 return new BlockPos(x, y, z);
             }
         }

@@ -692,3 +692,10 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   no answer and use 3 was judged from the start; once a stray use with the server's old look went out the tick Secret
   Aura opened a chest. The logger's `req by=` named only the `@Invoker` frame; it now names the mod caller (logger
   c11678c), so the next such clear shows who sent it.
+- A door's stand is never across the door (entrance-noroute-1126): Door Only's trip to Blood's door 41 on a sim F7 had
+  its approach (-57,253,-139) in a chunk the client lacked while Blood's side was loaded, so nearestEtherwarpable took
+  -57,253,-128 INSIDE Blood; the planner found no room route there ("No ROOM route from room 16 to room 17", every
+  tick) and he never left the Entrance. Not the entrance gate change of c6d2fd790 (doorStand predates it). Fix: doorStand
+  and both nearestEtherwarpable searches keep only the approach's side of the lock block (TeleportUtils.sameSide); the
+  approach chunk missing on the client then falls to the planner's view, which finds the approach. Testkit
+  1126-sim-ac-entrance-exit (4 floors; floor 2 is the one).

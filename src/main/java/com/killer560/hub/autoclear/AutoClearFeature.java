@@ -2054,13 +2054,15 @@ public final class AutoClearFeature {
 
     /** A block to stand on at a door's approach; in a chunk the client lacks, read through the planner's view (the sim's
      *  server mirror; on Hypixel an unsent chunk is air to both), as AutoClearUtils does for a room's spot. */
-    private static BlockPos doorStand(Minecraft client, BlockPos approach) {
+    private static BlockPos doorStand(Minecraft client, BlockPos approach, int door) {
         if (TeleportUtils.landable(approach)) {
             return approach;
         }
-        BlockPos near = TeleportUtils.nearestEtherwarpable(approach);
+        // Never across the door: a stand behind a shut door has no room route (entrance-noroute-1126).
+        BlockPos lock = DungeonLayout.doorBlock(door);
+        BlockPos near = TeleportUtils.nearestEtherwarpable(approach, lock);
         if (near == null && !com.killer560.hub.util.ClientChunks.isLoadedAt(client.level, approach.getX(), approach.getZ())) {
-            near = TeleportUtils.nearestEtherwarpablePlanned(approach);
+            near = TeleportUtils.nearestEtherwarpablePlanned(approach, lock);
         }
         return near;
     }
@@ -2168,7 +2170,7 @@ public final class AutoClearFeature {
                 action = "waiting to land before the trip to the wither door";
                 return;
             }
-            BlockPos goal = doorStand(client, approach);
+            BlockPos goal = doorStand(client, approach, door);
             if (goal == null) {
                 // He does not have the door's chunks yet (rooms away): into the farthest room on the map's way there whose
                 // chunk he has, and the door is planned again on landing. It used to wait here for chunks that come only
