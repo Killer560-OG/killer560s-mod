@@ -436,6 +436,21 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   BadPacketsJ x2 on both Grim configs (r34a same-use). `snapToWalk` now keeps a look within 0.1 degree of the walk while
   `PlaceRotationGuard.useSinceMove()`; the jump moves under 0.001 blocks differently. Every "held walk: the body was turned
   from X to X+-0.01" line is such a pre-use nudge (input install runs after handleKeybinds, before sendPosition).
+- (ee3-r34f-sim-1125) GrimAC predicts no tick that sends no position: a tick whose keys cancel a real velocity down to a
+  move `Entity.move` drops (length^2 <= 1e-7, 0.000316 blocks) leaves him in place, vanilla sends rotation only, and Grim
+  carries the old velocity into the next tick: Simulation by its whole size. Fast Align #76's steered tick-exact plan on
+  r34f cancelled 0.764 to 0.00013 on its last tick and drew Simulation .764371 on every run (Grim consoledebug: P = the
+  residual, A = 0). `Ap3TickAlign.holds` now refuses any plan tick that starts moving and does not move; the plain
+  variant's last move (0.0053) was always sent. Any mover that stops "dead" from speed must keep a sent last move.
+  Testkit: `KM_GRIM_DEBUG=1` on 1109-boss-ee3route-* puts Grim's P/A/O per movement into the server log.
+  Cost: some aligns stop 2 ticks after entering instead of 1 (1110-align12 sprint/walk trials); the plan log then says
+  "a 1-tick stop was refused" and the case accepts 2. The align12 cases teleport after each trial, so Grim never saw the
+  dropped stop there.
+- (ee3-r34f-sim-1125) Fast Align's approach steer search models a flat floor everywhere. With the dropped-stop plan refused,
+  r34f's #76 found another steer (+31 then -69 degrees at 0.72 a tick); the ledge guard refused its first press, and the
+  brake it pressed instead walked him off the corner into the lava (Simulation .074 decaying x0.91 = the fall). The steer
+  now fires only if `ledgeSafe` passes its first press (floor line = his feet) and every planned tick
+  (`Ap3TickAlign.prePath`) has a floor within half a block; otherwise his own keys go.
 
 ## Right clicks on Hypixel's 1.8 server (`util/RightClick`)
 

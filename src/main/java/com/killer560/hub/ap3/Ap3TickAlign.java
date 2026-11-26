@@ -291,15 +291,66 @@ final class Ap3TickAlign {
 
     private static final S CHK = new S();
 
-    /** Runs plan ticks [from, n) from s with the real yaw chain starting at {@code yaw}: on the point and stopped? */
+    /**
+     * Runs plan ticks [from, n) from s with the real yaw chain starting at {@code yaw}: on the point and stopped?
+     * <p>
+     * No tick may cancel a real velocity down to a move Entity.move drops (ee3-r34f-sim-1125): he then stays put, the
+     * client sends no position that tick, and GrimAC, which predicts no tick without one, carries the old velocity into the
+     * next and flags Simulation by its whole size (r34f's steered EE3 align: 0.764 cancelled to 0.0001, Simulation .764 on
+     * every run). A tick that moves sends its position, and one that starts at rest may stay put.
+     */
     static boolean holds(S s, Plan p, int from, float yaw, double tx, double tz, double tol) {
         S q = CHK.set(s);
+        dropped = false;
         for (int i = from; i < p.n; i++) {
             int c = p.c[i];
             yaw = turnTo(yaw, yawFor(p.phi[i], FW[c], ST[c], q.shiftPrev));
+            boolean moving = q.vx * q.vx + q.vz * q.vz >= 9.0E-6;
+            double x0 = q.x, z0 = q.z;
             step(q, FW[c], ST[c], SH[c], SK[c], yaw);
+            if (moving && q.x == x0 && q.z == z0) {
+                return !(dropped = true);
+            }
         }
         return q.vx * q.vx + q.vz * q.vz < 9.0E-6 && Math.abs(q.x - tx) < tol && Math.abs(q.z - tz) < tol;
+    }
+
+    /** The last {@link #holds} refused a dropped stop tick; a 1-tick stop was refused so since the search began (log only). */
+    private static boolean dropped;
+    static boolean refusedOneTick;
+
+    private static final S PATH = new S();
+    private static final double[] PATH_XZ = new double[14];
+
+    /**
+     * Where each tick of a found approach steer leaves him (x, z pairs in the returned array): his keys at the steered yaw
+     * on the approach tick(s), then the plan. AP3 checks each against the floor before it fires: the search models a flat
+     * floor everywhere, and on r34f's EE3 a steer through a corner walked him off the ledge into the lava.
+     */
+    static double[] prePath(PreSearch pr) {
+        S q = PATH.set(pr.s);
+        float yaw = turnTo(pr.yaw, pr.best);
+        step(q, pr.fw, pr.st, pr.shift, pr.sprintKey, yaw);
+        int n = 0;
+        PATH_XZ[n++] = q.x;
+        PATH_XZ[n++] = q.z;
+        if (!Float.isNaN(pr.best2)) {
+            yaw = turnTo(yaw, pr.best2);
+            step(q, pr.fw, pr.st, pr.shift, pr.sprintKey, yaw);
+            PATH_XZ[n++] = q.x;
+            PATH_XZ[n++] = q.z;
+        }
+        for (int i = 0; i < pr.plan.n && n < PATH_XZ.length; i++) {
+            int c = pr.plan.c[i];
+            yaw = turnTo(yaw, yawFor(pr.plan.phi[i], FW[c], ST[c], q.shiftPrev));
+            step(q, FW[c], ST[c], SH[c], SK[c], yaw);
+            PATH_XZ[n++] = q.x;
+            PATH_XZ[n++] = q.z;
+        }
+        for (int i = n; i < PATH_XZ.length; i++) {
+            PATH_XZ[i] = Double.NaN;
+        }
+        return PATH_XZ;
     }
 
     // ---- the solver -------------------------------------------------------------------------------------------------
@@ -376,6 +427,7 @@ final class Ap3TickAlign {
             l = 0;
             pairs = -1;
             best2 = Float.NaN;
+            refusedOneTick = false;
             found = false;
             done = false;
             plan.n = 0;
@@ -588,6 +640,7 @@ final class Ap3TickAlign {
                         out.copyFrom(TRY);
                         return true;
                     }
+                    refusedOneTick |= dropped;
                 }
             }
         }

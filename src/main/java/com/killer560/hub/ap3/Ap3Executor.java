@@ -2905,8 +2905,11 @@ public final class Ap3Executor {
      * low half and was refused; he stood 0.78 from the point for 50 ticks). Crossing a low half that he lands on is fine.
      */
     private static boolean ledgeSafe(LocalPlayer player, int fw, int st, boolean sneak, float yaw) {
+        return ledgeSafe(player, fw, st, sneak, yaw, ledgeStartY); // a floor no lower than start - 0.5
+    }
+
+    private static boolean ledgeSafe(LocalPlayer player, int fw, int st, boolean sneak, float yaw, double floorLine) {
         Vec3 pos = player.position();
-        double floorLine = ledgeStartY; // a floor no lower than start - 0.5
         for (double[] d : ledgePredict(player, fw, st, sneak, yaw, LEDGE_LOOKAHEAD)) {
             double x = pos.x + d[0];
             double z = pos.z + d[1];
@@ -3302,10 +3305,10 @@ public final class Ap3Executor {
             float y = Ap3TickAlign.turnTo(yaw, first ? tickPreYaw1 : tickPreYaw2);
             if (first) {
                 tickPlanned = true;
-                LOGGER.info("[AP3] Fast Align #{}: tick-exact plan, approach tick steered {} deg{}, on its point {} tick(s) after entering",
+                LOGGER.info("[AP3] Fast Align #{}: tick-exact plan, approach tick steered {} deg{}, on its point {} tick(s) after entering{}",
                         number(node), String.format(Locale.US, "%+.2f", y - yaw), tickPrePending == 2
                                 ? String.format(Locale.US, " and the next %+.2f (enters a tick later)", Mth.wrapDegrees(tickPreYaw2 - tickPreYaw1))
-                                : "", tickPlan.counted());
+                                : "", tickPlan.counted(), refusedNote());
             }
             tickPrePending--;
             tickAt = 0;
@@ -3331,14 +3334,38 @@ public final class Ap3Executor {
     private static boolean tickSolve(float yaw, Ap3Node node, double tol, int lag) {
         Ap3TickAlign.Box box = tickBoxFor(node);
         Ap3TickAlign.phiOff = (tickMisses & 1) * 0.5;
+        Ap3TickAlign.refusedOneTick = false;
         if (!Ap3TickAlign.solve(tickState, yaw, node.x, node.z, !box.in(tickState.x, tickState.z) ? box : null, tol,
                 System.nanoTime() + TICK_BUDGET_NS, tickPlan)) {
             return false;
         }
         tickAt = 0;
         tickPlanned = true;
-        LOGGER.info("[AP3] Fast Align #{}: tick-exact plan, on its point {} tick(s) after entering", number(node),
-                tickCounter + lag + tickPlan.n - tickEntryEnd);
+        LOGGER.info("[AP3] Fast Align #{}: tick-exact plan, on its point {} tick(s) after entering{}", number(node),
+                tickCounter + lag + tickPlan.n - tickEntryEnd, refusedNote());
+        return true;
+    }
+
+    /** Testkit 1110-align12 reads it: a 1-tick stop it refused lets the align take 2 (Ap3TickAlign.holds). */
+    private static String refusedNote() {
+        return Ap3TickAlign.refusedOneTick ? "; a 1-tick stop was refused (its last move too small to send)" : "";
+    }
+
+    /**
+     * Every tick of the found approach steer has a floor under him within half a block (the search assumes one), and the
+     * ledge guard would let its first press go: r34f's EE3 align #76 steered +31 degrees at 0.72 a tick, the guard refused
+     * that press on the approach tick, and its brake walked him off the corner into the lava.
+     */
+    private static boolean preOnFloor(LocalPlayer p) {
+        if (!ledgeSafe(p, pre.fw, pre.st, pre.shift, Ap3TickAlign.turnTo(p.getYRot(), pre.best), p.getY())) {
+            return false;
+        }
+        double[] xz = Ap3TickAlign.prePath(pre);
+        for (int i = 0; i + 1 < xz.length && !Double.isNaN(xz[i]); i += 2) {
+            if (!supportedAt(p, xz[i], p.getY(), xz[i + 1])) {
+                return false;
+            }
+        }
         return true;
     }
 
@@ -3431,8 +3458,12 @@ public final class Ap3Executor {
         if (!droveLastTick && !(k.equals(lastKeys) && yaw == lastYaw && p.getXRot() == lastPitch)) {
             return false;
         }
-        preFired = node;
         preNode = null;
+        if (!preOnFloor(p)) {
+            LOGGER.info("[AP3] Fast Align #{}: approach steer not used - its path leaves the floor", number(node));
+            return false;
+        }
+        preFired = node;
         return true;
     }
 
