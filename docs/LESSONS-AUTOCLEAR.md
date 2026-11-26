@@ -557,6 +557,13 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   sideways, 3 below) takes the nearest mob no other tag has claimed (`nearestFreeMob`). The real tag/body ids were not logged that day
   (the logger's TG lines came later), so the sim case 1123-sim-ac-taglag swaps a zombie's tag for a later-id stand 1.8 blocks aside; it
   gives up on origin and kills the zombie on the fix.
+- That wider search also stole neighbors (highlight-random-mobs-1125, killer560 11-25: the highlight marks "random mobs"): a tag
+  whose mapped mob was gone was matched AGAIN, so a plain mob within 2 blocks of a starred one that died under a lingering tag became
+  starred, highlighted and kept in KNOWN_STARRED (and Auto Clear's list) until it died. Now a tag keeps its first mob for good (gone
+  = no mob), and the search skips a mob whose id + 1 stand is a plain heart tag: his logger census (11-24/25, about 1,300 starred
+  tags) put every starred tag at its mob's id + 1 (Withermancer + 3), so that stand is the mob's own unstarred Hypixel tag. Testkit
+  1125-esp-starred-death-neighbor and -plain-tag-neighbor fail on origin. Whether a real Hypixel tag outlives its mob is not yet
+  seen: the logger's `hl orphantag` line records it.
 - Tombstone 13:02 (give-up with m=0 and the room not green) is NOT this: its starred mobs were dead and three unstarred "[Lv173] Undead
   Skeleton 360k" stands were in the room; whether those keep the room open is unproven (needs the TG/GS logger lines of a real visit).
 - A "wrong Quiz answer" at 13:00:06 was his own click: Hypixel changed "How many Fairy Souls are there in Hub?" (options 83/81/85, ours

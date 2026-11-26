@@ -619,9 +619,11 @@ public final class MobEspFeature {
     static Entity resolveMob(Minecraft client, ArmorStand stand, String name) {
         Integer cached = standToMob.get(stand.getId());
         if (cached != null) {
+            // A tag stays its first mob's for good (highlight-random-mobs-1125): one left behind by a mob that died or went
+            // out of range used to be matched again, to the nearest plain mob within two blocks, which was then starred,
+            // highlighted and remembered until it died.
             Entity mob = client.level.getEntity(cached);
-            if (mob != null && !mob.isRemoved()) return mob;
-            standToMob.remove(stand.getId());
+            return mob != null && !mob.isRemoved() ? mob : null;
         }
 
         int offset = name.toUpperCase(Locale.ROOT).contains("WITHERMANCER") ? 3 : 1;
@@ -647,18 +649,30 @@ public final class MobEspFeature {
     /** How far a name tag may trail its mob sideways and still be matched to it. */
     private static final double TAG_LAG = 2.0;
 
-    /** The closest real mob inside {@code box} that no other tag has claimed, or null. */
+    /** The closest living real mob inside {@code box} that no other tag has claimed and that has no plain tag of its own,
+     *  or null. */
     private static Entity nearestFreeMob(Minecraft client, ArmorStand stand, AABB box) {
         Entity best = null;
         double bestDist = Double.MAX_VALUE;
         for (Entity e : client.level.getEntities(stand, box, x -> !(x instanceof ArmorStand) && !(x instanceof ExperienceOrb))) {
             double d = e.distanceToSqr(stand);
-            if (d < bestDist && isValidMob(client, e) && !standToMob.containsValue(e.getId())) {
+            if (d < bestDist && e.isAlive() && isValidMob(client, e) && !standToMob.containsValue(e.getId())
+                    && !hasPlainTag(client, e)) {
                 best = e;
                 bestDist = d;
             }
         }
         return best;
+    }
+
+    /**
+     * Whether the stand one id above {@code mob} is a mob tag without a star ("[Lv173] Undead Skeleton 360k❤"): Hypixel
+     * spawns every dungeon mob's tag right after it (his 11-24/25 logger census: every starred tag whose mob it saw sat at
+     * the mob's id + 1, Withermancers' at + 3), so that mob is a plain one and never the body of a starred tag beside it.
+     */
+    private static boolean hasPlainTag(Minecraft client, Entity mob) {
+        return client.level.getEntity(mob.getId() + 1) instanceof ArmorStand s && starredName(s) == null
+                && s.getCustomName() != null && s.getCustomName().getString().contains(HEART);
     }
 
     /** Only real living, non-bat, non-wither entities (never a dropped item, projectile or you) count as a star mob. */
