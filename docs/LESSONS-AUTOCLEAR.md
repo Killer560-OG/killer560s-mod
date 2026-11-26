@@ -129,6 +129,13 @@ there); Auto Routes is in [LESSONS-ROUTES.md](LESSONS-ROUTES.md); the sim's side
   6-tick wait is gone. That 6-tick wait had hidden that secret chests spawn in only after he has been near them a moment
   (like bats), so at a route's end the aura's scan can see air where the chest will be; `takingHere` also counts a database
   chest in the aura's reach that is not there yet (up to `ITEM_APPEAR_TICKS`, as an item).
+- The last-node wait must hold EVERY next step, not only a map trip (acleave-early-1125, killer560 11-25: "it keeps going
+  out of rooms before it can finish the route grabbing all the secrets"). Autopilot's clear of the room he is in or one
+  next door goes straight to `handToAutoClear`, and a running Auto Clear makes `AutoClearFeature.holdsSecretClicks()` true:
+  Secret Aura stops clicking AND `takingHere` reads nothing close, so the wait ended "none close any more" a tick later
+  and the clear walked him out (his Carpets, Slime, Slabs, Small Waterfall). Now the clear waits in `clearAfterWait` and
+  starts from `tickLeaveWait` the tick the wait lets go. A new step that starts something which gates Secret Aura must
+  check `leaveWaitRoom` the same way. Testkit 1125-sim-acleave-clearwait.
 - A start node on a block no etherwarp lands on exactly is skipped ("landed, but its start node did not arm"): the
   start-node warp asks for the block itself, the planner logs "the block itself cannot be reached" and flies its NEAR
   landing (up to ~5 blocks off), and the node arms only inside its ring. Seen in testkit 147 when its stand was under a sim

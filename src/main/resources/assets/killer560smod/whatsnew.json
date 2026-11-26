@@ -45,7 +45,8 @@
      "Beacon Tuner: Auto Tune now lines your pane up so it steps on the same tick as the beacon's, not just in the same slot (a pane stepping a few ticks behind is paused for the rest of the lap), and on a slow beacon it runs your pane at Speed 5 to catch up whenever that is quicker than waiting for the loop to come around; it tells your two panes apart when they share a color, never clicks a button again before the server has answered the last click, and says done whichever button finished the tune.",
      "Interactive Map, Autopilot and Auto Clear: a warp sent two ticks after the sneak is now aimed so it lands on its planned block from the standing eye too when such a look exists, so it no longer lands a block past its aim and sends the warps behind it from the wrong spot.",
      "Secret Aura now clicks a room's last chest as soon as it is in reach while Auto Secret holds its warp out, instead of about 10 ticks later on the last tick of the wait.",
-     "Fast Align no longer draws an anticheat flag when its last step would be too small for the game to send, and an approach steer is no longer used where its path has no floor under it, so the align no longer walks off a ledge."
+     "Fast Align no longer draws an anticheat flag when its last step would be too small for the game to send, and an approach steer is no longer used where its path has no floor under it, so the align no longer walks off a ledge.",
+     "Dungeon Autopilot no longer leaves a room with a secret still in reach when its next step is clearing that room or the one next door: Auto Clear now starts once the finished route's last secrets have registered."
     ]
    }
   ]

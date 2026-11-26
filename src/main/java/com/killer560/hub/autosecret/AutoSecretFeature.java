@@ -179,6 +179,8 @@ public final class AutoSecretFeature {
     /** The room whose last secrets the next trip's first warp is held for, and the ticks held so far. */
     private static String leaveWaitRoom;
     private static int leaveWaitTicks;
+    /** A clear handed to Auto Clear during that wait, started the tick the wait lets go ({@link #handToAutoClear}). */
+    private static String clearAfterWait;
     private static int tourWaitTicks;
 
     /** Movement keys held when it started stay ignored until released: only a fresh press is him taking over. */
@@ -367,6 +369,7 @@ public final class AutoSecretFeature {
         java.util.Arrays.fill(QUIZ_IDLE_BY_QUESTION, 0);
         lastWaiting = null;
         leaveWaitRoom = null;
+        clearAfterWait = null;
         tourWaitTicks = 0;
         ClearExecutor.setHold(false);
         RoomTour.reset();
@@ -420,6 +423,7 @@ public final class AutoSecretFeature {
         com.killer560.hub.autoroutes.RunPlan.clear(com.killer560.hub.autoroutes.RunPlan.Source.AUTO_SECRET);
         com.killer560.hub.autoroutes.RunPlan.clear(com.killer560.hub.autoroutes.RunPlan.Source.AUTOPILOT);
         keyTarget = null;
+        clearAfterWait = null;
         if (leaveWaitRoom != null) {
             leaveWaitRoom = null;
             ClearExecutor.setHold(false);
@@ -614,6 +618,11 @@ public final class AutoSecretFeature {
         leaveWaitRoom = null;
         leaveTakingSaid = null;
         ClearExecutor.setHold(false);
+        String clear = clearAfterWait;
+        clearAfterWait = null;
+        if (clear != null && phase == Phase.AUTO_CLEAR && clear.equals(target)) {
+            startClear(clear);
+        }
     }
 
     /**
@@ -3967,7 +3976,6 @@ public final class AutoSecretFeature {
     }
 
     private static void handToAutoClear() {
-        int id = runId;
         String room = target;
         status = "Auto Clear: " + room;
         // Auto Clear waits while any route runs, and a route stopped for stalling re-arms on the node he stands in a tick
@@ -3975,6 +3983,20 @@ public final class AutoSecretFeature {
         // a running route and let only a START node arm until he has been through one.
         AutoRoutesFeature.cancelForInteractiveMap("Auto Secret");
         setPhase(Phase.AUTO_CLEAR);
+        if (leaveWaitRoom != null) {
+            // The last-node wait holds this clear as it holds a map trip's first warp: a running Auto Clear stops Secret
+            // Aura's clicks, so the wait saw nothing being taken a tick later and the clear walked him out with the
+            // secret in reach (killer560 11-25: Slabs, Carpets, Slime, Small Waterfall each left one behind).
+            clearAfterWait = room;
+            status = "Waiting for the last secrets of " + leaveWaitRoom + ", then clearing " + room;
+            LOGGER.info("[AutoSecret] {} goes to Auto Clear once the last secrets of {} register", room, leaveWaitRoom);
+            return;
+        }
+        startClear(room);
+    }
+
+    private static void startClear(String room) {
+        int id = runId;
         LOGGER.info("[AutoSecret] handing {} to Auto Clear", room);
         AutoClearFeature.clearRoom(room, () -> Minecraft.getInstance().execute(() -> {
             if (id == runId && phase == Phase.AUTO_CLEAR) {
