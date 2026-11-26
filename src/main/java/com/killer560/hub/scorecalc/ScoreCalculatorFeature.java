@@ -154,6 +154,11 @@ public final class ScoreCalculatorFeature {
     private static ScoreCalculator.Inputs lastInputs = null;
     /** Each named puzzle row of the tab list ("Ice Fill: [✔]"), lower-case name -> ✔ ✖ or ✦. Replaced whole each poll. */
     private static volatile Map<String, Character> puzzleStates = Map.of();
+    /** Hypixel's "PUZZLE SOLVED!" line, any solver: the puzzle's own words after the name (chat-done switch). */
+    private static final Pattern PUZZLE_SOLVED = Pattern.compile(
+            "^PUZZLE SOLVED! (?:\\[[^\\]]{1,20}\\] )?[A-Za-z0-9_]{1,16} ([^!]{1,80})! Good job!$");
+    /** Tab-list names (lower case) of the puzzles a solved line already counted this run, until the tab list says so too. */
+    private static final java.util.Set<String> chatDone = new java.util.HashSet<>();
 
     // ---- Paul (shared across runs) ----
     private static volatile Boolean fetchedPaul = null;
@@ -258,6 +263,7 @@ public final class ScoreCalculatorFeature {
         lastResult = null;
         lastInputs = null;
         puzzleStates = Map.of();
+        chatDone.clear();
         LOGGER.info("[ScoreCalc] New dungeon run tracked (floor={})", DungeonState.getFloor());
     }
 
@@ -380,6 +386,21 @@ public final class ScoreCalculatorFeature {
                 }
             }
         }
+        if (!ScoreCalculatorConfig.getInstance().isChatPuzzleDone()) {
+            chatDone.clear();
+        } else if (!chatDone.isEmpty()) {
+            // The solved line came first: count it until the tab list names the puzzle, and the tab list wins once it does.
+            for (java.util.Iterator<String> it = chatDone.iterator(); it.hasNext(); ) {
+                String key = it.next();
+                Character seen = states.get(key);
+                if (seen == null || seen == '✦') {
+                    states.put(key, '✔');
+                    completedPuzzles++;
+                } else {
+                    it.remove();
+                }
+            }
+        }
         if (sawPuzzleHeader || completedPuzzles > 0 || failedPuzzles > 0) {
             puzzlesCompleted = completedPuzzles;
             puzzlesFailed = failedPuzzles;
@@ -473,6 +494,21 @@ public final class ScoreCalculatorFeature {
                 // Never held back because a mate already announced A bat: that was the mate's bonus, this is his.
                 if (cfg.isBatAlertEnabled()) {
                     TranslateFeature.sendGenerated(cfg.getBatAlertMessage(), "pc");
+                }
+            }
+            return;
+        }
+        if (cfg.isChatPuzzleDone() && plain.startsWith("PUZZLE SOLVED! ")) {
+            Matcher solved = PUZZLE_SOLVED.matcher(plain);
+            if (solved.matches()) {
+                // Only the two puzzles that finish as the party enters the boss room, and only by their own name.
+                String what = solved.group(1).toLowerCase(Locale.ROOT);
+                String key = what.contains("tic tac toe") ? "tic tac toe"
+                        : what.contains("higher or lower") || what.contains("blaze") ? "higher or lower" : null;
+                Minecraft mc = Minecraft.getInstance();
+                if (key != null && chatDone.add(key) && tabDataSeen && mc.level != null && mc.player != null) {
+                    readTabList(mc);
+                    recalculate(cfg);
                 }
             }
             return;

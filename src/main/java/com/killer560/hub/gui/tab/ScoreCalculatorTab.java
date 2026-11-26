@@ -100,6 +100,8 @@ public class ScoreCalculatorTab extends BaseTab {
                     btn.setMessage(paulLabel(cfg));
                 }).bounds(contentX, y, colW, 18).build());
         widgets.add(toggle("Assume Spirit Pet", cfg.isAssumeSpiritPet(), v -> cfg.setAssumeSpiritPet(v), cfg, col2X, y, colW));
+        y += 22;
+        widgets.add(toggle("Count Blaze And Tic Tac Toe From Chat", cfg.isChatPuzzleDone(), v -> cfg.setChatPuzzleDone(v), cfg, contentX, y, contentWidth));
         y += 28;
 
         // ---- Bonus Kill Alerts (moved from DungeonInfoTab 2026-09-21 - see class doc) ----

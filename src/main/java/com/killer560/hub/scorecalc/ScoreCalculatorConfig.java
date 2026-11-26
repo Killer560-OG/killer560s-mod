@@ -61,6 +61,7 @@ public final class ScoreCalculatorConfig {
     // Formula options
     private PaulMode paulMode = PaulMode.AUTO;
     private boolean assumeSpiritPet = true;
+    private boolean chatPuzzleDone = false;
     // 270 alerts
     private boolean title270 = false;
     private String title270Text = "270 Score!";
@@ -139,6 +140,7 @@ public final class ScoreCalculatorConfig {
             cfg.textShadow = ConfigJson.getBool(obj, "textShadow", cfg.textShadow);
             cfg.paulMode = ConfigJson.getEnum(obj, "paulMode", PaulMode.class, cfg.paulMode);
             cfg.assumeSpiritPet = ConfigJson.getBool(obj, "assumeSpiritPet", cfg.assumeSpiritPet);
+            cfg.chatPuzzleDone = ConfigJson.getBool(obj, "chatPuzzleDone", false);
             cfg.title270 = ConfigJson.getBool(obj, "title270", cfg.title270);
             cfg.title270Text = ConfigJson.getString(obj, "title270Text", cfg.title270Text);
             cfg.party270 = ConfigJson.getBool(obj, "party270", cfg.party270);
@@ -251,6 +253,7 @@ public final class ScoreCalculatorConfig {
         obj.addProperty("textShadow", textShadow);
         obj.addProperty("paulMode", paulMode.name());
         obj.addProperty("assumeSpiritPet", assumeSpiritPet);
+        obj.addProperty("chatPuzzleDone", chatPuzzleDone);
         obj.addProperty("title270", title270);
         obj.addProperty("title270Text", title270Text);
         obj.addProperty("party270", party270);
@@ -323,6 +326,10 @@ public final class ScoreCalculatorConfig {
     public boolean isAssumeSpiritPet() { return assumeSpiritPet; }
 
     public void setAssumeSpiritPet(boolean v) { assumeSpiritPet = v; }
+
+    public boolean isChatPuzzleDone() { return chatPuzzleDone; }
+
+    public void setChatPuzzleDone(boolean v) { chatPuzzleDone = v; }
 
     // ---- alerts (action toggles are gated like the master) ----
 
