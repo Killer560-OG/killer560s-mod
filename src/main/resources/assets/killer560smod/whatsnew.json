@@ -17,7 +17,8 @@
      "Auto Clear and Dungeons Autopilot: the entrance gate counts as shut while it shows as barriers (its last moments), so the first trip and the key room walk wait and go the tick it opens instead of failing into it; an Entrance whose roof hangs over its doorway no longer leaves the Autopilot with nothing to reach at the start; a Hyperion cast that drops you to the floor is no longer counted as a server correction",
      "Auto Routes: a path pair whose two nodes are on one block no longer stops the route when you stand off it (it warps you onto it from where you stand); Interactive Map and Auto Secret now say why no etherwarp path was found, and an Auto Secret trip to a start node with no path counts as failed instead of waiting for the node to arm",
      "Craft Cost now shows in the real recipe menu: Hypixel titles it by the item (for example Terminator), so the panel is recognized by the menu layout instead of a title ending in Recipe.",
-     "Game logs are much quieter: the mod no longer writes a line for every action bar, every screen you open, every zero-lag stall, every container-screen flip of Auto GFS, or each manual and foreign dig, map log, lever scan and rejected crypt crown"
+     "Game logs are much quieter: the mod no longer writes a line for every action bar, every screen you open, every zero-lag stall, every container-screen flip of Auto GFS, or each manual and foreign dig, map log, lever scan and rejected crypt crown",
+     "Chronomatron no longer mistakes a note's second slot or the previous note's leftover glint for a new note; the RNG Meter category menu no longer logs a false unreadable warning; /kc no longer logs a command ambiguity at launch"
     ]
    }
   ]

@@ -637,16 +637,19 @@ final class ExperimentSolver {
         if (!control.itemId().equals("minecraft:clock")) return;
         List<Cell> foils = cells.stream().filter(c -> c.slot() >= 10 && c.slot() <= 43 && c.foil()).toList();
         if (!chronomatronRevealLatched && !foils.isEmpty()) {
-            // Diagnostic (2026-09-07), per killer560's report that the highlight only ever lands on the
-            // "top" of two vertically-stacked slots he can apparently click either of: if Hypixel is
-            // genuinely leaving more than one item foiled at once (e.g. a stale glint from the previous
-            // round not yet cleared), .get(0) below always silently picks whichever comes first in slot
-            // order (lowest slot number = topmost row), which may or may not be the actually-new note.
-            // Not fixed yet - need real evidence of whether foils.size() > 1 actually happens before
-            // guessing at which one is correct.
+            // A note is a two-slot tile (rows 1+2 and 3+4 of the grid: slot N and N + 9), and Hypixel foils both halves, so
+            // a pair is ONE note (every tie in killer560's 11-24 logs was such a pair; the top half is kept as before). A
+            // leftover foil of the previous round's note is dropped when another tile is lit. Only a tie that survives
+            // both is logged.
+            List<Cell> lit = foils;
+            foils = lit.stream().filter(f -> f.slot() / 9 % 2 != 0 || lit.stream().noneMatch(o -> o.slot() == f.slot() - 9)).toList();
+            if (foils.size() > 1 && !chronomatron.isEmpty()) {
+                int prev = chronomatron.get(chronomatron.size() - 1);
+                List<Cell> fresh = foils.stream().filter(f -> f.slot() != prev && f.slot() != prev + 9 && f.slot() != prev - 9).toList();
+                if (!fresh.isEmpty()) foils = fresh;
+            }
             if (foils.size() > 1) {
-                LOGGER.warn("Chronomatron: {} slots foiled simultaneously on reveal ({}) - picking slot {} "
-                        + "(lowest slot number). If this is wrong, note which slot was actually correct.",
+                LOGGER.warn("Chronomatron: {} different tiles foiled on reveal ({}) - picking slot {}",
                         foils.size(), foils.stream().map(Cell::slot).toList(), foils.get(0).slot());
             }
             chronomatron.add(foils.get(0).slot());

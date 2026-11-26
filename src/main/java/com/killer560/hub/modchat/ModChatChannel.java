@@ -76,7 +76,7 @@ public final class ModChatChannel {
                                                     }
                                                     return 1;
                                                 }))))
-                        .then(ClientCommands.argument("message", StringArgumentType.greedyString())
+                        .then(ClientCommands.argument("message", com.killer560.hub.util.ExceptWords.of(StringArgumentType.greedyString(), "msg"))
                                 .executes(context -> {
                                     sendLine(StringArgumentType.getString(context, "message"));
                                     return 1;

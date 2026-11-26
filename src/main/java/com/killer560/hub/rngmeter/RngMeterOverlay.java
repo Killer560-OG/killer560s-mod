@@ -497,7 +497,7 @@ public final class RngMeterOverlay {
                 // Only sample items with an actual name - most GUIs pad their layout with blank
                 // filler panes, which would otherwise dominate the samples and hide the one or two
                 // real (but unrecognized) reward items actually worth inspecting.
-                if (unparsedSamples.size() < 5 && !name.isBlank()) {
+                if (unparsedSamples.size() < 5 && !name.isBlank() && isRealReward(name)) {
                     unparsedSamples.add(name + " lore=" + lore);
                 }
                 // A named item with lore but no score line, on an RNG page: either a button, or a reward in a lore
