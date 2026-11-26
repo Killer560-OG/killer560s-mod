@@ -20,7 +20,8 @@
      "Game logs are much quieter: the mod no longer writes a line for every action bar, every screen you open, every zero-lag stall, every container-screen flip of Auto GFS, or each manual and foreign dig, map log, lever scan and rejected crypt crown",
      "Chronomatron no longer mistakes a note's second slot or the previous note's leftover glint for a new note; the RNG Meter category menu no longer logs a false unreadable warning; /kc no longer logs a command ambiguity at launch",
      "Breaker Aura and Auto Routes: with Burst Multi Break on, the log no longer fills with \"two digs in one server tick\" warnings for the burst you chose; the warning now only reports a real double dig.",
-     "Auto Clear and Dungeons Autopilot no longer get stuck in the Entrance when the spot in front of Blood's door cannot be stood on: the nearest stand is now picked on the near side of the door, never inside Blood behind the shut door."
+     "Auto Clear and Dungeons Autopilot no longer get stuck in the Entrance when the spot in front of Blood's door cannot be stood on: the nearest stand is now picked on the near side of the door, never inside Blood behind the shut door.",
+     "Auto Routes: in a trap room a path pair you have not walked yet is planned in the background as soon as you are in the room, and walking onto a node near its saved walk lines you up on the walk's start and plays it, so the route no longer stands on the node for seconds while it plans"
     ]
    }
   ]

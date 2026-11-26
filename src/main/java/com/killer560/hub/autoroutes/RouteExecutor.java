@@ -3366,7 +3366,7 @@ public final class RouteExecutor {
                 Ap3TrapWalk.SavedWalk saved = savedWalk(node, dest);
                 Ap3TrapWalk.begin(client, player, to, half, "Path #" + (route.indexOf(node) + 1) + " -> #"
                         + (route.indexOf(dest) + 1) + " in " + frame.roomName(), saved,
-                        saved != null ? null : w -> saveWalk(walkRoute, walkFrame, node, dest, w));
+                        saved != null ? null : w -> saveWalkIfNone(walkRoute, walkFrame, node, dest, w));
                 step = Step.DO;
                 stepTicks = 0;
                 tickTrapWalk(client, player, node);
@@ -3493,6 +3493,71 @@ public final class RouteExecutor {
 
     private static boolean nearSaved(double a, double b) {
         return Math.abs(a - b) < 0.002;
+    }
+
+    /** {@code src} holds a saved walk for the pair as it stands now (the test of {@link #savedWalk}, nothing built). */
+    private static boolean hasWalk(RouteNode src, RouteNode dest) {
+        return !src.walkSteps.isEmpty() && nearSaved(src.walkSrcX, src.x) && nearSaved(src.walkSrcY, src.y)
+                && nearSaved(src.walkSrcZ, src.z) && nearSaved(src.walkToX, dest.x) && nearSaved(src.walkToY, dest.y)
+                && nearSaved(src.walkToZ, dest.z);
+    }
+
+    private static void saveWalkIfNone(Route r, RouteCoords.Frame f, RouteNode src, RouteNode dest,
+                                       Ap3TrapWalk.SavedWalk w) {
+        if (!hasWalk(src, dest) && r.nodes().contains(src) && r.nodes().contains(dest)) {
+            saveWalk(r, f, src, dest, w);
+        }
+    }
+
+    /** The route and its PATH pairs already looked at by {@link #prePlanTrapWalks} (cleared when the route changes). */
+    private static Route prePlanRoute;
+    private static final Set<RouteNode> prePlanSeen = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+
+    /**
+     * Plans the trap walks of the room's route ahead (ar-trapplan-eaten-1126; killer560: a route never waits). In a trap
+     * room, each PATH pair with no saved walk gets AP3's full first search on a background thread, from its first node
+     * standing still, and the walk is saved on the node as a first plan would be - so the run that reaches the node
+     * replays it with no search (11-26 New Trap #7: 50-61 ticks standing on the node while it searched, and he moved).
+     * One pair a tick at most and one search at a time; each pair once a route (a stale or failed one again on the next
+     * entry). Called every Auto Routes tick; outside a trap room it returns at once.
+     */
+    static void prePlanTrapWalks(Minecraft client, LocalPlayer player, RouteCoords.Frame f) {
+        if (f == null || player == null || !com.killer560.hub.autotrap.AutoTrap.isTrapRoom(f.roomName())) {
+            if (prePlanRoute != null) {
+                prePlanRoute = null;
+                prePlanSeen.clear();
+            }
+            return;
+        }
+        if (Ap3TrapWalk.prePlanning()) {
+            return;
+        }
+        Route r = RouteStore.getInstance().forRoom(f.roomName());
+        if (r != prePlanRoute) {
+            prePlanRoute = r;
+            prePlanSeen.clear();
+        }
+        if (r == null) {
+            return;
+        }
+        for (RouteNode n : r.nodes()) {
+            if (n.type != RouteNode.Type.PATH || !prePlanSeen.add(n)) {
+                continue;
+            }
+            RouteNode dest = r.pathDestination(n);
+            if (dest == null || hasWalk(n, dest)) {
+                continue;
+            }
+            int rot = f.rotation();
+            double half = Math.min(dest.halfRealX(rot), dest.halfRealZ(rot)) * 0.8; // as tickPath's walk arrives
+            String what = "Path #" + (r.indexOf(n) + 1) + " -> #" + (r.indexOf(dest) + 1) + " in " + f.roomName();
+            if (Ap3TrapWalk.prePlan(client, player, RouteCoords.toReal(f, n.relativePos()),
+                    RouteCoords.toReal(f, dest.relativePos()), half, what,
+                    w -> saveWalkIfNone(r, f, n, dest, w))) {
+                LOGGER.info("[AutoRoutes] {}: no saved trap walk - planning it ahead", what);
+            }
+            return;
+        }
     }
 
     /**

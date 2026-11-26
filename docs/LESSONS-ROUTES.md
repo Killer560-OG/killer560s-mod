@@ -64,6 +64,18 @@ and Auto Clear are in [LESSONS-AUTOCLEAR.md](LESSONS-AUTOCLEAR.md). Problem, the
 - **A saved trap walk is never replaced by a fresh plan** (same run): the first fresh plan from 0.62 off the start overwrote
   the bundled walk (his own), and every later start from the real spot then missed the 0.5 reuse window and planned 4.1 s
   standing still. A fresh plan is saved only for a pair with no valid saved walk. Testkit 1122-sim-trapstart.
+- **A trap walk is planned AHEAD, never on the node** (ar-trapplan-eaten-1126, his New Trap 2026-11-26 01:02: #7 -> #8 had no
+  saved walk and AP3's full first search, scaled to 4-4.4 s by the 16-block span, stood him on #7 for 50-61 ticks; he moved
+  and the route stopped, three times). Two causes: his own New Trap route wins over the bundled one and its #7 -> #8 pair had
+  never been walked (the bundled route has WALK nodes there, and bundled Old Trap #4 -> #5 has no saved walk either), and a
+  saved walk that does not fit where he starts (0.88 off at speed 0.31) fell to the same full search although its answer is
+  never kept. Fix: `RouteExecutor.prePlanTrapWalks` (every Auto Routes tick, returns at once outside a trap room) runs
+  `Ap3TrapWalk.prePlan` for each PATH pair with no saved walk - the full search from the first node at rest, on one
+  low-priority thread, the world read on the client thread - and saves it as a first plan; a start within 4 blocks of a
+  saved at-rest walk's start that does not fit it aligns onto that start (camera-method align, ~10 ticks) and plays it. A
+  quick 300 ms search is no answer: it finds 1-2 ticks of a 20-block walk, and driving those left him stuck (0-tick
+  re-plans, "no progress"); waiting for it to complete stood him 5.7 s. Testkit
+  62-argrim-1126-trapplan(-same-use/-swap).
 - **A path hop held on a breaker block is bounded** (Spider run 7, 78 t until his click on a block its breaker skipped):
   after 10 t the rest of the pair is planned round the standing block (`RoutePathPlanner.planFrom` with `standingSolid`),
   and after 30 t the warp goes as his click would send it; a block that goes sooner still warps on that tick. Testkit 637.

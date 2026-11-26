@@ -29,7 +29,9 @@ import java.util.function.Consumer;
  * Saved like a path's warps (killer560, 2026-10-20): a first plan that completes is handed to the caller
  * ({@link SavedWalk}) to keep on the route's node, and a later run that starts where that plan started, at about the same
  * speed, plays it without searching (AP3's own rule for reusing a plan: within 0.5 blocks and 0.15 blocks/tick). Re-plans
- * mid-walk are never saved, as in AP3.
+ * mid-walk are never saved, as in AP3. A pair with no saved walk is planned AHEAD on room entry ({@link #prePlan}), and a
+ * start near a saved walk's start that does not fit it aligns onto that start first, then plays it
+ * (ar-trapplan-eaten-1126: a route never stands on its node while AP3 searches).
  * <p>
  * The finish is an AP3 ALIGN's (killer560, 2026-10-20: stop the way an align stops): once the plan has carried him into
  * the second node, the regular camera-method align ({@link Ap3DiscretePlanner#plan}, the yaw turned at most
@@ -108,6 +110,9 @@ public final class Ap3TrapWalk {
     private static int alignTicks;
     private static int settleTicks;
     private static boolean lastSneak;
+    /** A saved walk led into by an align onto its start ({@link #endLead}), and the pair's own gate meanwhile. */
+    private static SavedWalk lead;
+    private static Ap3RoutePlanner.Gate walkGate;
 
     public static Phase phase() {
         return phase;
@@ -133,17 +138,7 @@ public final class Ap3TrapWalk {
         cancel(null);
         label = what == null ? "" : what;
         onPlanned = planned;
-        Ap3RoutePlanner.Gate g = new Ap3RoutePlanner.Gate();
-        g.x = to.x;
-        g.y = to.y;
-        g.z = to.z;
-        g.halfW = Math.max(0.05, half);
-        g.halfL = Math.max(0.05, half);
-        g.exactTol = Ap3Config.getInstance().getRouteExactTolerance();
-        g.captureBlocks();
-        g.group = 1;
-        g.mustLand = true; // the walk ends standing on the second node, like an AP3 route's last gate
-        gate = g;
+        gate = gateAt(to, half, half);
         phase = Phase.PLANNING;
         refusal = null;
         firstPlanDone = false;
@@ -162,28 +157,22 @@ public final class Ap3TrapWalk {
             return;
         }
         if (saved != null && !saved.steps().isEmpty()) {
+            if (replay(player, saved)) {
+                return;
+            }
             double off = Math.hypot(from.x - saved.x(), from.z - saved.z());
-            double speedOff = Math.abs(Math.hypot(from.vx, from.vz) - Math.hypot(saved.vx(), saved.vz()));
-            if (off <= SAVED_MAX_OFF && Math.abs(from.y - saved.y()) < 0.6 && speedOff <= SAVED_MAX_SPEED_OFF) {
-                Ap3RoutePlanner.Plan p = new Ap3RoutePlanner.Plan();
-                p.steps = new Ap3RoutePlanner.Step[saved.steps().size()];
-                for (int i = 0; i < p.steps.length; i++) {
-                    SavedStep s = saved.steps().get(i);
-                    p.steps[i] = new Ap3RoutePlanner.Step(new Ap3DiscretePlanner.Action(s.fw(), s.st(), s.sneak()),
-                            s.yaw(), s.jump(), s.sprint());
-                }
-                p.ticks = p.steps.length;
-                p.complete = true;
-                plan = p;
-                stepIndex = 0;
-                lastPlanStep = 0;
-                planStart = from;
-                planModel = Ap3Executor.routeModel(player);
-                predicted = from.copy();
-                firstPlanDone = true;
-                phase = Phase.WALKING;
-                LOGGER.info("[TrapWalk] {}: using the saved {}-tick walk ({} from where it was planned, speed {} off) - "
-                        + "no search", label, p.ticks, f(off), f(speedOff));
+            if (off <= ALIGN_REACH && Math.abs(from.y - saved.y()) < 0.6
+                    && Math.hypot(saved.vx(), saved.vz()) <= SAVED_MAX_SPEED_OFF) { // a walk planned from rest
+                // ar-trapplan-eaten-1126: he stands near the saved walk's start, or is still moving (11-26 New Trap #1:
+                // 0.88 off at speed 0.31). A fresh full search stood him there 50+ ticks and a 300 ms one finds only a
+                // tick or two of a 20-block walk, so the walk aligns onto the saved start (AP3's camera-method align, at
+                // rest, about 10 ticks) and then plays the saved walk - no search at all.
+                lead = saved;
+                walkGate = gate;
+                gate = gateAt(new Vec3(saved.x(), saved.y(), saved.z()), SAVED_MAX_OFF / 2, SAVED_MAX_OFF / 2);
+                phase = Phase.ALIGNING;
+                LOGGER.info("[TrapWalk] {}: {} off the saved walk's start at speed {} - aligning onto it, then playing it",
+                        label, f(off), f(Math.hypot(from.vx, from.vz)));
                 return;
             }
             LOGGER.info("[TrapWalk] {}: the saved walk was planned from ({}, {}, {}) at speed {} - he is {} away at speed {}"
@@ -206,16 +195,7 @@ public final class Ap3TrapWalk {
         cancel(null);
         label = what == null ? "" : what;
         onPlanned = null;
-        Ap3RoutePlanner.Gate g = new Ap3RoutePlanner.Gate();
-        g.x = to.x;
-        g.y = to.y;
-        g.z = to.z;
-        g.halfW = Math.max(0.05, halfX);
-        g.halfL = Math.max(0.05, halfZ);
-        g.exactTol = Ap3Config.getInstance().getRouteExactTolerance();
-        g.captureBlocks();
-        g.group = 1;
-        g.mustLand = true;
+        Ap3RoutePlanner.Gate g = gateAt(to, halfX, halfZ);
         gate = g;
         refusal = null;
         firstPlanDone = true; // nothing to save: a re-plan after a correction is never kept
@@ -237,6 +217,61 @@ public final class Ap3TrapWalk {
         }
     }
 
+    /**
+     * Plays {@code saved} from where he stands when it fits (AP3's reuse rule: within {@link #SAVED_MAX_OFF} and
+     * {@link #SAVED_MAX_SPEED_OFF} of where it was planned). @return false when it does not fit.
+     */
+    private static boolean replay(LocalPlayer player, SavedWalk saved) {
+        Ap3RouteMath.RouteState from = Ap3RouteRunner.stateOf(player);
+        double off = Math.hypot(from.x - saved.x(), from.z - saved.z());
+        double speedOff = Math.abs(Math.hypot(from.vx, from.vz) - Math.hypot(saved.vx(), saved.vz()));
+        if (off > SAVED_MAX_OFF || Math.abs(from.y - saved.y()) >= 0.6 || speedOff > SAVED_MAX_SPEED_OFF) {
+            return false;
+        }
+        Ap3RoutePlanner.Plan p = new Ap3RoutePlanner.Plan();
+        p.steps = new Ap3RoutePlanner.Step[saved.steps().size()];
+        for (int i = 0; i < p.steps.length; i++) {
+            SavedStep s = saved.steps().get(i);
+            p.steps[i] = new Ap3RoutePlanner.Step(new Ap3DiscretePlanner.Action(s.fw(), s.st(), s.sneak()),
+                    s.yaw(), s.jump(), s.sprint());
+        }
+        p.ticks = p.steps.length;
+        p.complete = true;
+        plan = p;
+        stepIndex = 0;
+        lastPlanStep = 0;
+        planStart = from;
+        planModel = Ap3Executor.routeModel(player);
+        predicted = from.copy();
+        firstPlanDone = true;
+        phase = Phase.WALKING;
+        LOGGER.info("[TrapWalk] {}: using the saved {}-tick walk ({} from where it was planned, speed {} off) - "
+                + "no search", label, p.ticks, f(off), f(speedOff));
+        return true;
+    }
+
+    /**
+     * The lead-in align onto a saved walk's start is done (or ran out): back to the pair's own gate, then the saved walk
+     * when it fits from here, else the first plan's search from here.
+     */
+    private static void endLead(LocalPlayer player, String how) {
+        SavedWalk saved = lead;
+        lead = null;
+        gate = walkGate;
+        walkGate = null;
+        alignTicks = 0;
+        settleTicks = 0;
+        LOGGER.info("[TrapWalk] {}: on the saved walk's start after {} tick(s) ({})", label, ticks, how);
+        if (player != null && replay(player, saved)) {
+            return;
+        }
+        phase = Phase.PLANNING;
+        Ap3RouteMath.RouteState from = player == null ? null : Ap3RouteRunner.stateOf(player);
+        if (from != null && readWorld(Minecraft.getInstance(), player, from, false)) {
+            startPlanning(player, from, 0, true);
+        }
+    }
+
     /** Ends the walk ({@code why} logged when it was still going; null = a silent reset). */
     public static void cancel(String why) {
         if (active() && why != null) {
@@ -244,6 +279,8 @@ public final class Ap3TrapWalk {
                     plan == null ? 0 : plan.steps.length, phase, why);
         }
         phase = Phase.IDLE;
+        lead = null;
+        walkGate = null;
         plan = null;
         predicted = null;
         pending = null;
@@ -266,6 +303,11 @@ public final class Ap3TrapWalk {
     public static void onCorrection(Minecraft client, LocalPlayer player) {
         if (!active()) {
             return;
+        }
+        if (lead != null) {
+            lead = null;
+            gate = walkGate;
+            walkGate = null;
         }
         if (phase == Phase.ALIGNING
                 && Math.hypot(gate.x - player.getX(), gate.z - player.getZ()) <= ALIGN_REACH) {
@@ -493,14 +535,22 @@ public final class Ap3TrapWalk {
     }
 
     private static void arrive(String how) {
-        phase = Phase.ARRIVED;
         LocalPlayer p = Minecraft.getInstance().player;
+        if (lead != null) {
+            endLead(p, how);
+            return;
+        }
+        phase = Phase.ARRIVED;
         LOGGER.info("[TrapWalk] {}: walk ends at ({}, {}, {}) after {} tick(s) ({} ms) - {}", label,
                 f(p == null ? Double.NaN : p.getX()), f(p == null ? Double.NaN : p.getY()),
                 f(p == null ? Double.NaN : p.getZ()), ticks, System.currentTimeMillis() - startedMs, how);
     }
 
     private static void refuse(String why) {
+        if (lead != null) {
+            endLead(Minecraft.getInstance().player, "the lead-in align " + why);
+            return;
+        }
         refusal = why;
         LOGGER.info("[TrapWalk] {}: refused after {} tick(s) - {}", label, ticks, why);
         cancel(null);
@@ -542,37 +592,17 @@ public final class Ap3TrapWalk {
         }
         List<Ap3RoutePlanner.Gate> gates = new ArrayList<>(List.of(gate));
         Ap3DiscretePlanner.Model model = Ap3Executor.routeModel(player);
-        Ap3Config cfg = Ap3Config.getInstance();
-        Ap3RoutePlanner.Options options = new Ap3RoutePlanner.Options();
-        options.allowJump = cfg.isRouteAllowJumps();
-        options.scanPad = cfg.getRouteScanPad();
-        options.beam = first ? Math.min(4000, cfg.getRouteBeam() * 3) : cfg.getRouteBeam();
-        double span = Math.hypot(gate.x - start.x, gate.z - start.z);
-        double top = Math.max(0.2, Ap3RouteMath.topSpeed(model, options.allowJump));
-        options.maxTicks = (int) Math.max(160, Math.min(900, span / top * 3.0 + 60));
-        long scaled = (long) (BRUTE_FORCE_MS * Math.max(1.0, Math.min(8.0, span / 15.0)));
-        options.budgetMs = first ? Math.max(cfg.getRouteBudgetMs(), scaled) : Math.min(cfg.getRouteBudgetMs(), 300);
-        options.portfolio = first;
+        Ap3RoutePlanner.Options options = options(model, start, gate, first);
         planStart = start;
         planModel = model;
         pendingAt = at;
         planning = true;
-        final List<Ap3RoutePlanner.Blocked> blocked = List.of();
         final Ap3RouteMath.RouteState from = start.copy();
         final int seq = SEQ.incrementAndGet();
         worker = new Thread(() -> {
             try {
-                Ap3RoutePlanner.Plan p = Ap3RoutePlanner.plan(start, gates, blocked, snap, model, options);
-                if (first && !p.complete && p.note.contains("time budget") && !p.unreachable) {
-                    Ap3RoutePlanner.Options more = options.copy();
-                    more.budgetMs = options.budgetMs * 4;
-                    LOGGER.info("[TrapWalk] out of time at {} ms - trying once more with {} ms", options.budgetMs,
-                            more.budgetMs);
-                    Ap3RoutePlanner.Plan longer = Ap3RoutePlanner.plan(start, gates, blocked, snap, model, more);
-                    if (longer.complete || longer.gatesReached > p.gatesReached) {
-                        p = longer;
-                    }
-                }
+                Ap3RoutePlanner.Plan p = first ? fullPlan(start, gates, snap, model, options)
+                        : Ap3RoutePlanner.plan(start, gates, List.of(), snap, model, options);
                 synchronized (PUBLISH) {
                     if (seq >= pendingSeq) {
                         pendingFrom = from;
@@ -591,6 +621,121 @@ public final class Ap3TrapWalk {
         }, "killer560smod-trapwalk");
         worker.setDaemon(true);
         worker.start();
+    }
+
+    /** The search options: {@code full} is the first plan's big budget and portfolio, else a re-plan's quick one. */
+    private static Ap3RoutePlanner.Options options(Ap3DiscretePlanner.Model model, Ap3RouteMath.RouteState start,
+                                                   Ap3RoutePlanner.Gate to, boolean full) {
+        Ap3Config cfg = Ap3Config.getInstance();
+        Ap3RoutePlanner.Options options = new Ap3RoutePlanner.Options();
+        options.allowJump = cfg.isRouteAllowJumps();
+        options.scanPad = cfg.getRouteScanPad();
+        options.beam = full ? Math.min(4000, cfg.getRouteBeam() * 3) : cfg.getRouteBeam();
+        double span = Math.hypot(to.x - start.x, to.z - start.z);
+        double top = Math.max(0.2, Ap3RouteMath.topSpeed(model, options.allowJump));
+        options.maxTicks = (int) Math.max(160, Math.min(900, span / top * 3.0 + 60));
+        long scaled = (long) (BRUTE_FORCE_MS * Math.max(1.0, Math.min(8.0, span / 15.0)));
+        options.budgetMs = full ? Math.max(cfg.getRouteBudgetMs(), scaled) : Math.min(cfg.getRouteBudgetMs(), 300);
+        options.portfolio = full;
+        return options;
+    }
+
+    /** The full first search, with the 4x retry when it only ran out of clock (as AP3's first plan). */
+    private static Ap3RoutePlanner.Plan fullPlan(Ap3RouteMath.RouteState start, List<Ap3RoutePlanner.Gate> gates,
+                                                 Ap3RoutePlanner.Terrain snap, Ap3DiscretePlanner.Model model,
+                                                 Ap3RoutePlanner.Options options) {
+        Ap3RoutePlanner.Plan p = Ap3RoutePlanner.plan(start, gates, List.of(), snap, model, options);
+        if (!p.complete && p.note.contains("time budget") && !p.unreachable) {
+            Ap3RoutePlanner.Options more = options.copy();
+            more.budgetMs = options.budgetMs * 4;
+            LOGGER.info("[TrapWalk] out of time at {} ms - trying once more with {} ms", options.budgetMs, more.budgetMs);
+            Ap3RoutePlanner.Plan longer = Ap3RoutePlanner.plan(start, gates, List.of(), snap, model, more);
+            if (longer.complete || longer.gatesReached > p.gatesReached) {
+                p = longer;
+            }
+        }
+        return p;
+    }
+
+    private static volatile boolean prePlanning;
+
+    /** A pre-plan is running (one at a time). */
+    public static boolean prePlanning() {
+        return prePlanning;
+    }
+
+    /**
+     * Plans a trap walk AHEAD, off the client thread (ar-trapplan-eaten-1126): the full first search from the pair's
+     * first node {@code from} (feet, real coordinates), standing still on it, to {@code to}, so the run that reaches the
+     * node replays it at once instead of standing there while it searches. The world is read here, on the client
+     * thread; {@code done} gets the walk on the client thread, only when the search completed. Low priority, one at a
+     * time ({@link #prePlanning}); bounded by the first plan's budget. @return false when nothing was started (no
+     * world, or no ground to stand on at either node).
+     */
+    public static boolean prePlan(Minecraft client, LocalPlayer player, Vec3 from, Vec3 to, double half, String what,
+                                  Consumer<SavedWalk> done) {
+        if (prePlanning || client.level == null || player == null) {
+            return false;
+        }
+        Ap3RoutePlanner.Gate g = gateAt(to, half, half);
+        Ap3RouteMath.RouteState start = new Ap3RouteMath.RouteState();
+        start.x = from.x;
+        start.y = from.y;
+        start.z = from.z;
+        start.vy = -0.0784; // at rest on the ground, as a walk saved standing still records it
+        start.yaw = player.getYRot();
+        Ap3RouteRunner.Snap snap = Ap3RouteRunner.Snap.of(client.level, player, List.of(g), start);
+        double floor = snap.floorAt(from.x, from.z);
+        double dest = snap.floorAt(g.x, g.z);
+        if (Double.isNaN(floor) || Math.abs(floor - from.y) > 1.0 || Double.isNaN(dest) || Math.abs(dest - g.y) > 1.0) {
+            LOGGER.info("[TrapWalk] {}: no pre-plan - no ground to stand on at a node", what);
+            return false;
+        }
+        start.y = floor;
+        Ap3DiscretePlanner.Model model = Ap3Executor.routeModel(player);
+        Ap3RoutePlanner.Options options = options(model, start, g, true);
+        List<Ap3RoutePlanner.Gate> gates = List.of(g);
+        prePlanning = true;
+        long t0 = System.currentTimeMillis();
+        Thread t = new Thread(() -> {
+            try {
+                Ap3RoutePlanner.Plan p = fullPlan(start, gates, snap, model, options);
+                LOGGER.info("[TrapWalk] {}: planned ahead {} ticks{} in {} ms", what, p.ticks,
+                        p.complete ? "" : " INCOMPLETE - " + p.note, System.currentTimeMillis() - t0);
+                if (p.complete && p.steps.length > 0) {
+                    List<SavedStep> steps = new ArrayList<>(p.steps.length);
+                    for (Ap3RoutePlanner.Step s : p.steps) {
+                        steps.add(new SavedStep(s.keys().fw(), s.keys().st(), s.keys().sneak(), s.yaw(), s.jump(),
+                                s.sprint()));
+                    }
+                    SavedWalk w = new SavedWalk(start.x, start.y, start.z, 0, start.vy, 0, true, steps);
+                    client.execute(() -> done.accept(w));
+                }
+            } catch (Throwable e) {
+                LOGGER.warn("[TrapWalk] pre-plan failed", e);
+            } finally {
+                prePlanning = false;
+            }
+        }, "killer560smod-trapwalk-ahead");
+        t.setDaemon(true);
+        t.setPriority(Thread.MIN_PRIORITY);
+        t.start();
+        return true;
+    }
+
+    /** The gate a walk or an align ends on: {@code to} (feet), a W x L box of half sizes, landing on it. */
+    private static Ap3RoutePlanner.Gate gateAt(Vec3 to, double halfX, double halfZ) {
+        Ap3RoutePlanner.Gate g = new Ap3RoutePlanner.Gate();
+        g.x = to.x;
+        g.y = to.y;
+        g.z = to.z;
+        g.halfW = Math.max(0.05, halfX);
+        g.halfL = Math.max(0.05, halfZ);
+        g.exactTol = Ap3Config.getInstance().getRouteExactTolerance();
+        g.captureBlocks();
+        g.group = 1;
+        g.mustLand = true; // the walk ends standing on the second node, like an AP3 route's last gate
+        return g;
     }
 
     private static int jumps(Ap3RoutePlanner.Plan p) {

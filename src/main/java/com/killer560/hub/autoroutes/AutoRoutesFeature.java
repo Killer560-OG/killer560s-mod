@@ -1203,6 +1203,7 @@ public final class AutoRoutesFeature {
             gate("edit mode");
             return;
         }
+        RouteExecutor.prePlanTrapWalks(client, player, frame);
         // A finished breaker node keeps mining its blocks as they come into reach (falling through the hole it made)
         // until another node fires - RouteExecutor.tickBreakerLinger.
         RouteExecutor.tickBreakerLinger(client);
