@@ -72,6 +72,13 @@ public final class GreenRoomStart {
     private static boolean warpTried;
     /** The Entrance door cell {@link #doorFront} last found. */
     private static int doorIdx;
+    /**
+     * Walks planned again from where he stands after one went off its route or stuck (acrun-1126-noon, his F7 at 11:35:17:
+     * four blocks in, his body met a block the carrot's line crossed and the walk ended "off_route" in its 7th tick, short of
+     * the door). At most {@link #MAX_REPLANS}; his own keys still end it at once.
+     */
+    private static final int MAX_REPLANS = 3;
+    private static int replans;
     private static int retryIn;
     private static BlockPos goal;
     private static BlockPos testGoal;
@@ -89,6 +96,7 @@ public final class GreenRoomStart {
         done = false;
         warpTried = false;
         warpMisses = 0;
+        replans = 0;
         noPlanAt = null;
         retryIn = 0;
         goal = null;
@@ -151,7 +159,15 @@ public final class GreenRoomStart {
         BODY.tick(p, true);
         float pitch = Mth.clamp(p.getXRot(), -90f, 90f);
         ShortWalk.Status s = ShortWalk.tick(client.level, p, yaw -> BODY.turn(p, yaw, pitch));
-        if (s != ShortWalk.Status.WALKING) {
+        if ((s == ShortWalk.Status.OFF_ROUTE || s == ShortWalk.Status.STUCK) && replans < MAX_REPLANS) {
+            replans++;
+            String why = s.name().toLowerCase(java.util.Locale.ROOT);
+            LOGGER.info("[GreenRoomStart] the walk went {} at {} - planning it again from here ({} of {})", why,
+                    p.blockPosition().toShortString(), replans, MAX_REPLANS);
+            ShortWalk.stop(why + ", planned again");
+            walking = false;
+            retryIn = 0;
+        } else if (s != ShortWalk.Status.WALKING) {
             end(p, s == ShortWalk.Status.ARRIVED ? "arrived" : s.name().toLowerCase(java.util.Locale.ROOT));
         }
     }

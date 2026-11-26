@@ -749,3 +749,17 @@ his hotbar slot back (never behind a use in one server tick), or his next right 
 - Diagnose kill-to-use gaps with C:/kmtest/jars/acoptimal-1126/k1.py (gap by kind: AOTV, planned cast, hop) and show.py (the
   lines between a death and the use, each with its tick offset; one `[digflush]` line is one tick).
 - Trip retry limit (ac-retry-limit-1126, 2026-11-26): Door Only has no room, so giveUpRoom after MAX_PATH_FAILURES (4) did nothing and a trip that could not route was asked again every tick ("failed (90 of 4)", one "No ROOM route" line each, ~7 a second). Now giveUpTrip: with no room it records blockedDoor and the room he stands in, says why once and leaves that door until he is in another room or its lock changes (nothing else of Auto Clear stops); "No ROOM route" logs once per (rooms, locked doors). Testkit 1126-sim-ac-trip-retry-limit walls him in with stone (no warp can start) and counts 4 failed tries, one give-up line, still running.
+
+## Going back for missed secrets, and the green room walk off its path (acrun-1126-noon, his F7 11-26)
+- At "nothing left it can reach" `finishPilot` asks `goBackForMissed` BEFORE the wither door. On his run it sent him back to
+  New Trap (its Just Cleared route had run; 2 secrets "missed", 9.5 s) and then to Ritual, whose route had stopped for a
+  BAT_WAND he does not carry and stopped the same way again (3.5 s), before the door to 6 rooms. `worthGoingBack` now
+  refuses a TRAP room always and a room whose route stopped "X is not in the hotbar" while X is still not there
+  (`missingItem`, cleared at each start). Testkit 1126-sim-ap-noback-trap calls goBackForMissed with one room at a time.
+- Autopilot logged "done SECRET New Trap" at 11:35:27 after the key-room detour without ever visiting the trap: the pick
+  stays a candidate (it was visited at 11:36:31), only the log line misleads.
+- GreenRoomStart's walk met a block 4 blocks in (logger hcoll at z -181.30) and ShortWalk's off-line check (2.5 from the
+  current segment) ended it in its 7th tick; nothing planned again. OFF_ROUTE or STUCK now re-plans from where he stands,
+  up to 3 times (his keys still end it). Testkit 1126-sim-ac-greenstart-replan: the server puts him back on the spawn mid-walk.
+- Slow last mobs (Mural, Big Red Flag): with no remembered spot the first roam waits ROAM_AFTER_TICKS (40) + lag
+  ("looking 42/45" in room time); finding in acslow-1121-state.md, for the in-run timing owner.

@@ -345,6 +345,7 @@ public final class AutoSecretFeature {
         lastRoomName = null;
         secreted.clear();
         revisited.clear();
+        missingItem.clear();
         planSaid.clear();
         skippedSecrets.clear();
         pendingSecret = null;
@@ -3099,6 +3100,10 @@ public final class AutoSecretFeature {
 
     /** Rooms sent back to once each, for a secret their route ended without (see {@link #goBackForMissed}). */
     private static final Set<String> revisited = new HashSet<>();
+    /** RouteExecutor's stop reason for a USE_ITEM node whose item he does not carry. */
+    private static final String MISSING_ITEM = " is not in the hotbar";
+    /** Rooms whose route ended for an item not in his hotbar, with that item: no going back while it is still missing. */
+    private static final Map<String, String> missingItem = new HashMap<>();
 
     /**
      * killer560, 2026-10-19: "if it gets to the end of a run for the auto clearer, has done puzzles and everything and not
@@ -3123,7 +3128,7 @@ public final class AutoSecretFeature {
         for (RoomStatus.Room r : rooms) {
             if (!secreted.contains(r.name()) || revisited.contains(r.name()) || r.secrets() <= 0
                     || com.killer560.hub.autoroutes.RouteRunMemory.givenUpIn(r.name())
-                    || !dist.containsKey(r.room())) {
+                    || !dist.containsKey(r.room()) || !worthGoingBack(r)) {
                 continue;
             }
             int[] counted = roomCount(r.name());
@@ -3145,6 +3150,22 @@ public final class AutoSecretFeature {
                 best.name(), bestDist);
         note(ModChat.text("Going back for the missed secrets in "), ModChat.value(best.name()));
         return goSecret(layout, best, dist, best.name(), "none");
+    }
+
+    /**
+     * Whether a room whose route ran is worth a trip back for its missed secrets (acrun-1126-noon, his F7 at 11:37:00:
+     * New Trap's Just Cleared route had run, and the endgame took him back to it for its 2 other secrets, then to Ritual
+     * whose route had stopped for a Bat Wand he does not carry, 13 s before the wither door to 6 rooms). Never a trap room
+     * (killer560: "in trap, it will only ever do the one secret needed to clear the room"), never a room whose route
+     * stopped for an item that is still not in his hotbar.
+     */
+    static boolean worthGoingBack(RoomStatus.Room r) {
+        if (r.isType("TRAP")) {
+            return false;
+        }
+        String item = missingItem.get(r.name());
+        net.minecraft.client.player.LocalPlayer p = Minecraft.getInstance().player;
+        return item == null || p != null && com.killer560.hub.autoroutes.ItemIdentity.findHotbarSlot(p, item) >= 0;
     }
 
     /**
@@ -3891,6 +3912,9 @@ public final class AutoSecretFeature {
         routeCompletionsSeen = RouteExecutor.completions();
         secreted.add(target);
         String reason = RouteExecutor.stopReason();
+        if (reason != null && reason.endsWith(MISSING_ITEM)) {
+            missingItem.put(target, reason.substring(0, reason.length() - MISSING_ITEM.length()));
+        }
         if (reason == null) {
             LOGGER.info("[AutoSecret] route {} finished", target);
             note(ModChat.good("Route done"), ModChat.dim(" - " + target));
