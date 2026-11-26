@@ -74,8 +74,9 @@ public abstract class ClearNode {
             return false; // wait until the server has seen the sneak state
         }
         if (!ClearExecutor.holdingAny(items) && !ClearExecutor.swapById(items)) {
-            // A swap that would follow this tick's use waits a tick (GrimAC PacketOrderE); only a missing item cancels.
-            return com.killer560.hub.util.HotbarSelect.swapWouldFlag() ? false : cancel();
+            // A swap held a tick (his right click first, or one that would follow this tick's use: GrimAC PacketOrderE)
+            // waits; only a missing item cancels.
+            return ClearExecutor.swapHeldThisTick() || com.killer560.hub.util.HotbarSelect.swapWouldFlag() ? false : cancel();
         }
         Vec3 from = new Vec3(playerPos[0], playerPos[1] + TeleportUtils.eyeHeight(sneak), playerPos[2]);
         TeleportUtils.RaycastResult res = raycast.cast(from);

@@ -379,8 +379,20 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   11-22 runs, spawn -56.5,72,-188.5: warp 1 to -57.5,73.1,-183.5, warp 2 to -56.5,69.1,-172.5, warp 3 through). The
   Entrance has ONE door, so that spot is right for every first trip and is known from the world scan before the map.
   `autosecret/GreenRoomStart` walks there (ShortWalk) while Dungeons Autopilot or an armed Auto Clear / Auto Secret waits.
-  It walks, not warps: no log shows an etherwarp working before Mort's line. His movement, jump, attack or use key ends it
-  until the next arm; a screen pauses it; the run start ends it. Testkit 1122-sim-ac-greenstart(-keys), 1122-hx-greenstart-same-*.
+  His movement, jump, attack or use key ends it until the next arm; a screen pauses it; the run start ends it. Testkit
+  1122-sim-ac-greenstart(-keys) (switch off), 1122-hx-greenstart-same-*.
+- Hypixel DOES answer an etherwarp in the green room before the start (autopilot-greenroom-warp-1126, logger sessions 11-23
+  tick 68421 and 11-25 tick 207712: an AOTV sneak use there got its position packet 2 ticks later on the Entrance floor).
+  So with Warp to Door Before Start on (off by default) and an etherwarp item in the hotbar GreenRoomStart warps once
+  (ClearExecutor.etherDirectFast, no search) onto the first stand 1..4 blocks in from the door block that one sneaking look
+  lands on, nearest the gate first; walking is the fallback. Do not route this through ClearExecutor.etherPath: before the
+  start closedEntranceGate() makes EVERY plan a gate hold, so a trip inside the Entrance would wait for the gate.
+  A direct hop that is not answered is re-planned by offPath (three tries, 2.6 s in hx 1126-hx-greenwarp-same-attack),
+  and that re-plan is a planned path again: GreenRoomStart cancels the executor after 12 busy ticks and walks.
+  Testkit SameTick at every=1 (his attack or swap EVERY tick) let no hop land at all; the cases use every=2.
+  On Hypixel the gate (3 wide, 4 tall, one block in from the door block) turns into falling blocks 1 tick after Mort's line.
+  The time lost at the start is NOT the standing spot: the first warp after the gate went 22-106 ticks late in his 11-26
+  runs (decide + room-order search). Testkit 1126-sim-ac-greenwarp(-noether), 1126-hx-greenwarp-same-*.
 - The pre-start window on Hypixel is "X is now ready!" then "Starting in 4..1 seconds"; Mort's line, the map and the gate
   opening come together at the end. runStarted() once read true at entry from the previous run's calibrated map item
   (09:04:14, before "map scanner reset"), so the autopilot started 7 s early; ClearExecutor's gate hold covered it.
@@ -701,6 +713,28 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   approach chunk missing on the client then falls to the planner's view, which finds the approach. Testkit
   1126-sim-ac-entrance-exit (4 floors; floor 2 is the one).
 
+## A trip's item swap ahead of his own right click (greenroom-fix-1126, 2026-11-26)
+ClearExecutor swapped to the warp item at START (a trip started from a START handler, `sendFromThisTick` / `swapById`) while
+his right click sat queued for that tick's `handleKeybinds`; `doInteract` then held the hop for his click, but the slot
+was already the AOTV, so his stick click went out as a 12-block Instant Transmission (1126-hx-greenwarp-same-use, about half
+the runs). `swapById` now holds while `AutoClearFeature.hisUseClicksQueued` is above 0; `doInteract`'s own item check swaps
+the next tick. Test his click with `SameTick.Act.USE_CLICK` (queued, visible at START like every real click), not `Act.USE`
+(a bare use_item sent after every START handler, which no START actor can see and no player sends).
+That hold alone made it worse (greenroom-fix2-1126, read off the wire with the case's WIRE dump): `ClearNode.doTeleport`
+took swapById's `false` for "no item" and cancelled the trip, so every leg asked in a tick his click was queued ended with
+no swap, no use and no word (11 of 12 legs "warp missed", then a walk). A held swap now sets `swapHeldThisTick()` and the
+node waits; only a missing item cancels. And with the AOTV already in hand while a hop waits (sneak, turn), his click still
+rode it (wire: t194 carried 2, t195 HIS use_item with the diamond shovel, t196 the hop): `doInteract`'s his-click hold now
+gives his slot back first (`handBefore`, the slot before the queue's first trip-item swap; -1 when he held it himself), so
+vanilla sends slot then his use, and the hop's own swap goes with the hop next tick. 1126-hx-greenwarp-same-use 6/6 on
+default and experimental Grim after; it now also fails on any use with the AOTV in hand on his level look.
+
+## The green room spawn ledge hides the gate floor (greenroom-fix-1126, 2026-11-26)
+In the sim Entrance he spawns on a ledge 3 blocks up, behind a stone brick slab at his feet level, and that slab is the first block
+on every straight line from his eye to the floor by the gate, so a one-warp look onto any stand there does not exist. GreenRoomStart
+then plans warps (`ClearExecutor.etherPathArriveInRoom`). That trip stays in the green room, so it must not get the shut-gate hold
+every pre-start plan gets (`closedEntranceGate`); with the hold it waited for the start. Once the warp is out, GreenRoomStart gives
+his hotbar slot back (never behind a use in one server tick), or his next right clicks ride the AOTV as Instant Transmissions.
 ## Settling onto a slab, and the turn before the deaths (acoptimal-1126, 2026-11-26)
 - Every kill-to-warp gap of 3-4 ticks on 1020-sim-ac-speed's 6 floors (25 of ~270) was a FALL: an etherwarp lands 1.05 above
   its block, so onto a slab or carpet he still drops 0.5-1 block (3-4 ticks), and a Wither Impact in place there leaves him

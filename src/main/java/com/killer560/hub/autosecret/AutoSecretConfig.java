@@ -209,6 +209,9 @@ public final class AutoSecretConfig {
     private boolean bloodFirst = false;
     /** Turn to look at the wither or blood door on arriving at it (as the Interactive Map's Face Door on Arrival; killer560, 2026-11-26). */
     private boolean faceDoorOnArrival = false;
+    /** Armed in the green room: etherwarp to the stand by the gate instead of walking (GreenRoomStart; killer560, 2026-11-26).
+     *  Off by default: nothing new defaults on unless he asks (killer560, 2026-11-26). */
+    private boolean greenRoomWarp = false;
     /** Treat puzzles like rooms (only those whose Auto Puzzles auto is on). */
     private boolean doPuzzles = true;
     /** The one Status HUD every auto clear shares (AutoStatusHud, 2026-10-15) - Auto Clear, Auto Secret, Autopilot. */
@@ -249,6 +252,7 @@ public final class AutoSecretConfig {
             }
             cfg.bloodFirst = ConfigJson.getBool(o, "bloodFirst", cfg.bloodFirst);
             cfg.faceDoorOnArrival = ConfigJson.getBool(o, "faceDoorOnArrival", cfg.faceDoorOnArrival);
+            cfg.greenRoomWarp = ConfigJson.getBool(o, "greenRoomWarp", cfg.greenRoomWarp);
             String sbf = ConfigJson.getString(o, "secretBloodFirst", cfg.secretBloodFirst.name());
             for (SecretBloodFirst m : SecretBloodFirst.values()) {
                 if (m != SecretBloodFirst.OFF && m.name().equals(sbf)) {
@@ -335,6 +339,7 @@ public final class AutoSecretConfig {
         o.addProperty("runMode", getRunMode().name());
         o.addProperty("bloodFirst", bloodFirst);
         o.addProperty("faceDoorOnArrival", faceDoorOnArrival);
+        o.addProperty("greenRoomWarp", greenRoomWarp);
         o.addProperty("secretBloodFirst", secretBloodFirst.name());
         o.addProperty("secretBloodFirstOn", secretBloodFirstOn);
         o.addProperty("secretOrder", secretOrder.name());
@@ -402,6 +407,8 @@ public final class AutoSecretConfig {
     public void setBloodFirst(boolean v) { bloodFirst = v; }
     public boolean isFaceDoorOnArrival() { return faceDoorOnArrival; }
     public void setFaceDoorOnArrival(boolean v) { faceDoorOnArrival = v; }
+    public boolean isGreenRoomWarp() { return greenRoomWarp; }
+    public void setGreenRoomWarp(boolean v) { greenRoomWarp = v; }
 
     /** What the run uses: OFF while the switch is off. */
     /** OFF since apmenu-1121: the rush to the Blood door is the one feature's Blood Rush part, done before the mode starts. */

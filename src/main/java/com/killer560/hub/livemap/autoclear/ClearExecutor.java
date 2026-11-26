@@ -358,6 +358,26 @@ public final class ClearExecutor {
         etherPath(to, -1, complete);
     }
 
+    /** {@link #etherPathArrive} onto a block in the green room itself, before the start: no hold for the shut gate. */
+    public static void etherPathArriveInRoom(BlockPos to) {
+        nextInRoom = true;
+        etherPathArrive(to, null);
+        nextInRoom = false;
+    }
+
+    private static boolean nextInRoom;
+
+    /**
+     * The next trip leaves his item in hand until the tick its first hop goes (doInteract swaps then, after his queued
+     * right click has gone): GreenRoomStart, where he may right click with his own item while the sneak is heard. Swapped
+     * at the trip's start, every click of his in those ticks rode the AOTV (1126-hx-greenwarp-same-use).
+     */
+    public static void swapAtFirstHop(boolean on) {
+        swapAtHop = on;
+    }
+
+    private static boolean swapAtHop;
+
     /**
      * {@link #etherPath} (the planner's landing, near allowed) that ends on the confirmed last landing as
      * {@link #etherPathArrive} does, with no ~9-tick arrival settle - for a caller that asks {@link #finishArrivalEarly}
@@ -519,7 +539,9 @@ public final class ClearExecutor {
         }
         // Before the run starts the green room's gate is shut: no trip can leave yet, and a plan made in that world
         // fails ("it will obviously always fail"). Plan through the gate now and hold the first warp until it opens.
-        java.util.List<BlockPos> gate = closedEntranceGate(client, DungeonLayout.current());
+        // A trip that stays in the green room (GreenRoomStart's warps to the gate) plans in the world as it is.
+        java.util.List<BlockPos> gate = nextInRoom ? null : closedEntranceGate(client, DungeonLayout.current());
+        nextInRoom = false;
         if (gate == null && adoptPreplan(to, tileIdx, complete, player)) {
             return;
         }
@@ -1211,7 +1233,9 @@ public final class ClearExecutor {
         sendNow = true;
         compDelay = 0;
         // The item now, on the tick the queue starts: the first warp then waits only for the sneak.
-        if (list.get(0) instanceof ClearNode.EtherNode && !holdingAny(AOTV)) {
+        boolean late = swapAtHop;
+        swapAtHop = false;
+        if (list.get(0) instanceof ClearNode.EtherNode && !holdingAny(AOTV) && !late) {
             // Asked for from a START handler (a route that just ended, an Auto Clear trip), the swap goes now and the
             // first use may follow it this tick (onTickStart). Asked for from an END handler (Auto Secret's decide, his
             // toggle key) or a task between ticks (a search planned ahead coming in), the swap goes with the NEXT tick (util/HotbarSelect: after this tick's
@@ -1536,6 +1560,9 @@ public final class ClearExecutor {
     private static void startQueue(List<ClearNode> path, Runnable complete) {
         cachedRun = null;
         lastPressTick = clientTicks;
+        if (!holdingAny(AOTV)) {
+            handBefore = -1;   // a replan with the warp item in hand keeps his slot
+        }
         stopImproving();
         sendNow = false;
         if (syncDelay != 0) {
@@ -1693,6 +1720,8 @@ public final class ClearExecutor {
     }
 
     public static void cancel() {
+        swapAtHop = false;
+        handBefore = -1;
         gateHold = null;
         gateRetry = null;
         eatenHop = null;
@@ -2792,6 +2821,16 @@ public final class ClearExecutor {
             // His right click goes out in this tick's handleKeybinds, after us, on his crosshair: a block click of his after
             // the hop's bare use_item in one tick is GrimAC PacketOrderN (experimental, 62-argrim-1122-same-plan-use).
             waitReason = "letting his right click go first";
+            // With the warp item the trip swapped to still in hand, his click would ride it (a stick's click went out as
+            // an AOTV use, 1126-hx-greenwarp-same-use wire t195): his slot goes back first, in vanilla's order (slot, then
+            // his use), and the hop's own swap goes with the hop next tick.
+            int slot = handBefore;
+            if (slot >= 0 && slot != player.getInventory().getSelectedSlot() && pendingItems != null
+                    && holdingAny(pendingItems) && !hasSwappedThisTick && com.killer560.hub.util.HotbarSelect.inTick()
+                    && !com.killer560.hub.util.HotbarSelect.swapWouldFlag()) {
+                com.killer560.hub.util.HotbarSelect.select(client, player, slot);
+                hasSwappedThisTick = true;
+            }
             LOGGER.info("[Path] hop held a tick: his right click goes first");
             pendingHeldTicks++;
             return;
@@ -3000,6 +3039,20 @@ public final class ClearExecutor {
         return true;
     }
 
+    /** The client tick {@link #swapById} last held its swap for a tick (his click first, one swap a tick, PacketOrderE). */
+    private static long swapHeldOn = -1;
+    /** His slot before this queue's first swap to a trip item, or -1 (he held it himself). */
+    private static int handBefore = -1;
+
+    /**
+     * True when this tick's {@link #swapById} found the item but held the swap a tick: the hop waits. Until 11-26 a node
+     * read that as no item and cancelled its trip, so a trip asked for in a tick his right click was queued ended with no
+     * warp and no word (1126-hx-greenwarp-same-use: 11 of 12 legs "warp missed" with no use sent).
+     */
+    static boolean swapHeldThisTick() {
+        return swapHeldOn == clientTicks;
+    }
+
     /** The reference {@code SwapManager.swapById}: hotbar only, at most one swap per tick. */
     static boolean swapById(String[] ids) {
         Minecraft client = Minecraft.getInstance();
@@ -3019,7 +3072,18 @@ public final class ClearExecutor {
                     }
                     // Never a slot change behind a use / click this server tick (GrimAC PacketOrderE): it goes next tick.
                     if (hasSwappedThisTick || com.killer560.hub.util.HotbarSelect.swapWouldFlag()) {
+                        swapHeldOn = clientTicks;
                         return false;
+                    }
+                    // His right click queued for this tick's handleKeybinds goes with HIS item: swapped first, it rode the
+                    // warp item (a stick's click became a 12-block Instant Transmission, 1126-hx-greenwarp-same-use).
+                    if (com.killer560.hub.autoclear.AutoClearFeature.hisUseClicksQueued(client) > 0) {
+                        waitReason = "letting his right click go first (with his own item)";
+                        swapHeldOn = clientTicks;
+                        return false;
+                    }
+                    if (handBefore < 0) {
+                        handBefore = player.getInventory().getSelectedSlot();
                     }
                     // Through vanilla's own ensureHasSentCarriedItem, as Auto Routes' RouteExecutor.select does, so
                     // the game mode's carriedIndex agrees and its tick() does not send the same slot a second time

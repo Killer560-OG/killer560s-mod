@@ -1,6 +1,20 @@
 [
  {
   "date": "2026-11-26",
+  "summary": "Dungeons Autopilot: switched on in the green room before the",
+  "sections": [
+   {
+    "title": "More",
+    "blurb": "Changes in this update.",
+    "items": [
+     "Dungeons Autopilot: switched on in the green room before the run starts, it now etherwarps you onto the spot right by the Entrance gate instead of walking there (new Warp to Door Before Start switch, off by default; it still walks without an etherwarp item).",
+     "Dungeons Autopilot: switched on in the green room before the run starts, it can now etherwarp you onto the spot right by the Entrance gate instead of walking there (new Warp to Door Before Start switch, off by default; it still walks without an etherwarp item). Auto Clear and that warp: a right click of yours in a warp's tick now goes with your own item, never the warp item, and a warp asked for in that tick goes a tick later instead of not going at all."
+    ]
+   }
+  ]
+ },
+ {
+  "date": "2026-11-26",
   "summary": "Dungeons Autopilot has a new Face Door on Arrival switch (of",
   "sections": [
    {
