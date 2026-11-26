@@ -758,6 +758,9 @@ public final class ActionGate {
         return false;
     }
 
+    /** The last reason {@code actor} was held back (null if never). */
+    public static String lastDenial(Actor actor) { return LAST_LOG_REASON[actor.ordinal()]; }
+
     private static boolean deny(Actor actor, String reason) {
         int i = actor.ordinal();
         long now = System.currentTimeMillis();

@@ -16,6 +16,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ClientPacketListener.class)
 public abstract class TerminalBoardLoadMixin {
 
+    /** HEAD runs first on the netty thread, as the packet arrives (then again on the render thread): when the board came. */
+    @Inject(method = "handleOpenScreen", at = @At("HEAD"))
+    private void killer560smod$boardArrived(ClientboundOpenScreenPacket packet, CallbackInfo ci) {
+        TerminalSolverFeature.onBoardArrived();
+    }
+
     @Inject(method = "handleOpenScreen", at = @At("TAIL"))
     private void killer560smod$boardOpen(ClientboundOpenScreenPacket packet, CallbackInfo ci) {
         TerminalSolverFeature.onBoardOpen(packet.getContainerId());
