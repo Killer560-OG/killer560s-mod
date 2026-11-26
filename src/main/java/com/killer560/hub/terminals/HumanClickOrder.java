@@ -16,6 +16,10 @@ import java.util.concurrent.ThreadLocalRandom;
  * A person works a board in one of a few habits, and drifts between them: the nearest next slot (sometimes skipping to the
  * second nearest), a reading-order sweep whose direction flips row to row, or a column sweep. Which habit, how often it
  * skips and whether it starts top or bottom is rolled once per terminal, so two terminals never look the same.
+ * <p>
+ * SPOTTED (streamsafe-terms-human-1126): the order things are spotted in, near ones likelier but often a jump across the
+ * board. His own Select boards went 20, 41, 30, 5, 14, 34 and 31, 49, 40, 29, 22, 13: jumps of 1 to 3.6 cells, neither
+ * nearest-first nor reading order (only 5 boards of his own hand were recorded, all Select).
  */
 final class HumanClickOrder {
 
@@ -23,6 +27,7 @@ final class HumanClickOrder {
     private static final int NEAREST = 0;
     private static final int ROWS = 1;
     private static final int COLUMNS = 2;
+    private static final int SPOTTED = 3;
 
     private static int committed = -1;
     private static int lastSlot = -1;
@@ -42,7 +47,7 @@ final class HumanClickOrder {
     static void begin() {
         ThreadLocalRandom r = ThreadLocalRandom.current();
         float roll = r.nextFloat();
-        style = roll < 0.5f ? NEAREST : roll < 0.78f ? ROWS : COLUMNS;
+        style = roll < 0.35f ? NEAREST : roll < 0.55f ? ROWS : roll < 0.7f ? COLUMNS : SPOTTED;
         skipChance = 0.06f + 0.14f * r.nextFloat();
         reverse = r.nextFloat() < 0.35f;
         firstLeftToRight = r.nextFloat() < 0.6f;
@@ -89,7 +94,7 @@ final class HumanClickOrder {
         ThreadLocalRandom r = ThreadLocalRandom.current();
         if (r.nextFloat() < 0.08f) {
             // Habits drift mid-board.
-            style = r.nextInt(3);
+            style = r.nextInt(4);
         }
         int fromCol;
         int fromRow;
@@ -157,6 +162,11 @@ final class HumanClickOrder {
                 int c = reverse ? -col : col;
                 boolean down = (Math.floorMod(col, 2) == 0) == firstLeftToRight;
                 return c * 100f + (down ? row : -row);
+            }
+            case SPOTTED -> {
+                float dc = col - fromCol;
+                float dr = row - fromRow;
+                return (dc * dc + 1.15f * dr * dr + 0.5f) * (0.25f + 1.5f * ThreadLocalRandom.current().nextFloat());
             }
             default -> {
                 float dc = col - fromCol;

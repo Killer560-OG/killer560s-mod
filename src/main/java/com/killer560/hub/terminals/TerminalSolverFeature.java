@@ -302,25 +302,11 @@ public final class TerminalSolverFeature {
      *  A lookahead click's row counts as seen only from its first frame on that row, since a fresh row's pane may start
      *  anywhere. */
     private static int melodyRowsClicked;
-    /** Per clicked row: the pane's column last seen on that row since the click, or {@link #MELODY_UNSEEN} (a lookahead
-     *  click, whose row the pane has not reached yet). */
+    /** Per clicked row: the pane's column when the row was clicked (live or lookahead: both only on a row seen active). */
     private static final int[] melodyClickedColumn = new int[8];
-    private static final int MELODY_UNSEEN = -2;
-    /** Per row: when its LOOKAHEAD click was sent (client ms), 0 for a live click. A lookahead click counts only if it
-     *  reached the server while the server was on that row; see {@link #melodyLookaheadBeforeRow}. */
-    private static final long[] melodyLookaheadAtMs = new long[8];
-    /** Slack on top of the round trip when judging that rule: the server answers a click at its next tick and the
-     *  board change rides out at the end of that tick, so a click it did take can show its row up to a tick later. */
-    static final long MELODY_ROW_SLACK_MS = 100;
-    /** Lookahead clicks found to have reached the server before their row did, and freed at once (testkit reads it). */
-    static int melodyLookaheadStale;
     /** How long after a live click that finished a row the next row first showed (client ms; Hypixel adds ~400 ms to the
-     *  trip, the sim none), 0 until seen (the first board's lookahead is the one blind gamble); kept across boards like the
-     *  step time. No lookahead is queued while it exceeds the ping by {@link #MELODY_ROW_LATE_MS}: such a server ignores a
-     *  click 50-100 ms after the live one (owner's 2026-11-23 F7 log: 300-3470 ms before the row showed, 0 of 6 counted). */
+     *  trip, the sim none), 0 until seen; logged, and read by the testkit. */
     private static long melodyRowShowDelayMs;
-    /** Sim and prompt servers show the next row within ~150 ms of the trip; Hypixel's ~500 ms is far past this. */
-    private static final long MELODY_ROW_LATE_MS = 250;
     private static long melodyLiveClickAtMs;
     private static int melodyLiveClickRow = -1;
     /** The slot the moving pane was last seen in, and since when (client ms): how long it has stood there. */
@@ -340,6 +326,11 @@ public final class TerminalSolverFeature {
     /** A live click goes out only if the server will still have the pane on the target when it arrives: the pane's
      *  time on the target so far, plus a round trip, plus this (a server tick), must be under one step. */
     static final long MELODY_LATE_MARGIN_MS = 50;
+    /** A lookahead row goes only this soon after the burst's click before it (melody-edges-missed-1126b): the gamble is on
+     *  the SAME pass of the pane. Ship lane 1126-0122: a client stall of ~1 s sat between a live click and its lookahead,
+     *  the board this client then read was older than the server's catch-up steps, and the click landed 34-41 ms after the
+     *  pane had stepped (276/277: a wrong click). Later than this, live play takes the row. */
+    static final long MELODY_LOOKAHEAD_MAX_GAP_MS = 200;
     /** Live matches let go because the pane had stood there too long for the click to reach it (testkit reads it). */
     static int melodyLateSkips;
     /** Lookahead clicks dropped because they would have arrived after the pane stepped (testkit reads it). */
@@ -349,10 +340,10 @@ public final class TerminalSolverFeature {
     static int melodyLookaheadFired;
     private static long lastMelodyClickAtMs;
     // Lookahead clicks queued by #tickMelodyAutoClick (see TerminalSolverConfig#getMelodyLookaheadClicks)
-    // - each fires once real time reaches its slot, re-validated against the terminal still being open
-    // right before sending (a terminal closing/changing mid-burst must not fire a stray click into
-    // whatever screen replaced it).
-    private record ScheduledMelodyClick(long fireAtMs, int row) {
+    // - each fires on the first frame its row shows active with the pane on its target, re-validated against the
+    // terminal still being open (a terminal closing/changing mid-burst must not fire a stray click into whatever
+    // screen replaced it).
+    private record ScheduledMelodyClick(int row) {
     }
     private static final Deque<ScheduledMelodyClick> scheduledMelodyClicks = new ArrayDeque<>();
     /** The open Melody board's row buttons, top row first, re-read from the board every frame
@@ -791,7 +782,6 @@ public final class TerminalSolverFeature {
         melodyRowsClicked = 0;
         melodyLiveClickRow = -1;
         java.util.Arrays.fill(melodyClickedColumn, -1);
-        java.util.Arrays.fill(melodyLookaheadAtMs, 0);
         melodyPaneSlot = -1;
         melodyPaneSinceMs = 0;
         melodyLastScanMs = 0;
@@ -1203,7 +1193,7 @@ public final class TerminalSolverFeature {
         PendingClick waiting = pendingClicks.get(slot);
         if (waiting != null && now - waiting.sentAtMs() < retryTimeout) return;
         if (!FakeCursor.ready(slot) || clickLimited()) return;
-        if (!ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
+        if (clickedThisWireTick() || !ActionGate.tryAct(ActionGate.Actor.TERMINAL_SOLVER, screen)) return;
         ItemStack snapshot = slot < items.size() ? items.get(slot).copy() : ItemStack.EMPTY;
         pendingClicks.put(slot, waiting != null
                 ? new PendingClick(slot, waiting.firstSentAtMs(), now, waiting.snapshot(), waiting.attempt() + 1)
@@ -1421,7 +1411,6 @@ public final class TerminalSolverFeature {
         long scanAt = System.currentTimeMillis();
         long prevScan = melodyLastScanMs;
         melodyLastScanMs = scanAt;
-        fireDueMelodyLookaheadClicks(screen);
 
         Integer limeSlot = null;
         Integer targetSlot = null;
@@ -1473,6 +1462,7 @@ public final class TerminalSolverFeature {
                 }
                 melodyPaneSlot = limeSlot;
                 melodyPaneSinceMs = seenAt;
+                melodyLateSkippedSlot = -1; // a later pass over this slot is a new stay: logged and counted again
             }
         }
         if (melodyButtonRow == null || melodyCurrentColumn == null || melodyCorrectColumn == null) {
@@ -1496,32 +1486,15 @@ public final class TerminalSolverFeature {
             }
             melodyLiveClickRow = -1;
         }
-        if (limeSlot != null && buttonRow < melodyClickedColumn.length && (melodyRowsClicked & (1 << buttonRow)) != 0) {
-            int seen = melodyClickedColumn[buttonRow];
-            if (seen == MELODY_UNSEEN && melodyLookaheadBeforeRow(buttonRow, prevScan > 0 ? prevScan : scanAt)) {
-                // First frame on this row, and its lookahead click went out so long before that it reached the server
-                // while the server was still on an earlier row: Hypixel only takes the current row's button, so it was
-                // never counted. Free the row now, or a pane that arrives ON the target here waits a whole bounce
-                // (his 2026-11-11 log: row 2 seen on its target at 21:44:54 and 21:51:23, clicked 3 s later).
-                melodyLookaheadStale++;
-                LOGGER.info("[Melody] row {} lookahead click went out {} ms before the row showed (ping {} ms): it reached"
-                        + " the server before the row did - due now", buttonRow,
-                        scanAt - melodyLookaheadAtMs[buttonRow], com.killer560.hub.util.PingTracker.automationMs());
-                melodyRowsClicked &= ~(1 << buttonRow);
-                melodyLookaheadAtMs[buttonRow] = 0;
-            } else if (seen == MELODY_UNSEEN) {
-                melodyClickedColumn[buttonRow] = melodyCurrentColumn;
-            } else if (seen != melodyCurrentColumn) {
-                // The pane is still on this row and has moved since the click: the server never took it (a lookahead
-                // gamble lost - the row's target was not the one gambled on - or the click landed after the pane moved
-                // on). The row is due again.
-                LOGGER.info("[Melody] row {} {} click with the pane at column {} was missed (pane now at {}, target {})"
-                        + " - due again", buttonRow, melodyLookaheadAtMs[buttonRow] > 0 ? "lookahead" : "live", seen,
-                        melodyCurrentColumn, melodyCorrectColumn);
-                melodyRowsClicked &= ~(1 << buttonRow);
-                melodyLookaheadAtMs[buttonRow] = 0;
-            }
+        if (limeSlot != null && buttonRow < melodyClickedColumn.length && (melodyRowsClicked & (1 << buttonRow)) != 0
+                && melodyClickedColumn[buttonRow] != melodyCurrentColumn) {
+            // The pane is still on this row and has moved since the click: the server never took it (the click landed
+            // after the pane moved on, or was lost). The row is due again.
+            LOGGER.info("[Melody] row {} click with the pane at column {} was missed (pane now at {}, target {}) - due again",
+                    buttonRow, melodyClickedColumn[buttonRow], melodyCurrentColumn, melodyCorrectColumn);
+            melodyRowsClicked &= ~(1 << buttonRow);
         }
+        fireDueMelodyLookaheadClicks(screen, buttonRow);
         if (scheduledMelodyClicks.isEmpty()) {
             // Fake Cursor rests on the row being played, ready for its match: straight there, whether the row is due
             // or not (2026-11-01).
@@ -1573,7 +1546,6 @@ public final class TerminalSolverFeature {
         melodyRowsClicked |= 1 << buttonRow;
         if (buttonRow < melodyClickedColumn.length) {
             melodyClickedColumn[buttonRow] = melodyCurrentColumn;
-            melodyLookaheadAtMs[buttonRow] = 0;
         }
         LOGGER.info("[Melody] live click row {} at column {} (target {}), pane there {} ms of a {} ms step, ping {} ms",
                 buttonRow, melodyCurrentColumn, melodyCorrectColumn, age, step, rtt);
@@ -1611,11 +1583,8 @@ public final class TerminalSolverFeature {
     private static void queueMelodyLookaheadClicks(int matchedRow, int matchedColumn) {
         int extraRows = melodyLookaheadRows(matchedRow, matchedColumn, melodyButtons.length - 1);
         if (extraRows <= 0) return;
-        long now = System.currentTimeMillis();
-        // A server that shows the next row late takes no click for it before: the gamble would only be ignored.
-        if (melodyRowShowDelayMs - com.killer560.hub.util.PingTracker.automationMs() > MELODY_ROW_LATE_MS) return;
         for (int i = 1; i <= extraRows; i++) {
-            scheduledMelodyClicks.add(new ScheduledMelodyClick(now + i * 50L, matchedRow + i));
+            scheduledMelodyClicks.add(new ScheduledMelodyClick(matchedRow + i));
         }
     }
 
@@ -1631,17 +1600,6 @@ public final class TerminalSolverFeature {
     }
 
     private static int melodyLateSkippedSlot = -1;
-
-    /** Whether row {@code row}'s lookahead click, first seeing its row at {@code rowSeenAtMs}, must have reached the
-     *  server before the server was on that row. The server reached the row a one-way trip before this client saw it,
-     *  and the click got there a one-way trip after it was sent, so it was in time only if it was sent no more than a
-     *  round trip (plus {@link #MELODY_ROW_SLACK_MS}) before the row showed. Measured ping 0 (none yet) counts as 150. */
-    private static boolean melodyLookaheadBeforeRow(int row, long rowSeenAtMs) {
-        long sent = melodyLookaheadAtMs[row];
-        if (sent <= 0) return false;
-        int rtt = com.killer560.hub.util.PingTracker.automationMs();
-        return rowSeenAtMs - sent > (rtt > 0 ? rtt : 150) + MELODY_ROW_SLACK_MS;
-    }
 
     /** How long the server's pane has stood where it is: since the last step seen (a row change keeping the column is
      *  not a step, so the clock runs on across it - Hx keeps both), else since this client first saw it there. Not
@@ -1675,20 +1633,23 @@ public final class TerminalSolverFeature {
         return column == MELODY_FIRST_TRACK_COLUMN || column == MELODY_LAST_TRACK_COLUMN;
     }
 
-    private static void fireDueMelodyLookaheadClicks(ContainerScreen screen) {
-        if (scheduledMelodyClicks.isEmpty()) return;
+    /** Fires the next lookahead row once THIS frame's scan shows it active with the pane on its target, and only then
+     *  (melody-edges-missed-1126, his Hypixel logs 11-23..25): a click before its row is active is not taken (Hypixel
+     *  0 of 16; the boss sim freezes the pane for it), and this used to run before the frame's scan, so a row that had just
+     *  changed was judged by the old row's target and got a wrong click. {@code shownRow} is the row the board shows now. */
+    private static void fireDueMelodyLookaheadClicks(ContainerScreen screen, int shownRow) {
         long now = System.currentTimeMillis();
-        while (!scheduledMelodyClicks.isEmpty() && scheduledMelodyClicks.peekFirst().fireAtMs() <= now) {
+        while (!scheduledMelodyClicks.isEmpty()) {
             ScheduledMelodyClick due = scheduledMelodyClicks.peekFirst();
-            if (currentType != TerminalType.MELODY || due.row() < 0 || due.row() >= melodyButtons.length
+            if (currentType != TerminalType.MELODY || due.row() < shownRow || due.row() >= melodyButtons.length
                     || (melodyRowsClicked & (1 << due.row())) != 0) {
                 // Not an interaction, just housekeeping - drop it without asking the gate for a slot.
                 scheduledMelodyClicks.pollFirst();
                 continue;
             }
             FakeCursor.aimQuick(screen, melodyButtons[due.row()]);
-            if (!FakeCursor.ready(melodyButtons[due.row()])) break;
-            if (melodyTooLate(now) || melodyCurrentColumn == null || !melodyCurrentColumn.equals(melodyCorrectColumn)) {
+            if (due.row() > shownRow || !FakeCursor.ready(melodyButtons[due.row()])) break; // not active yet: wait for it
+            if (melodyTooLate(now) || now - lastMelodyClickAtMs > MELODY_LOOKAHEAD_MAX_GAP_MS || melodyCurrentColumn == null || !melodyCurrentColumn.equals(melodyCorrectColumn)) {
                 // The gamble only wins while the server's pane is still on the target column (and the column is the one
                 // the client sees now: a pane already seen stepping off it has lost the gamble, 2026-11-02 loop 3): a lookahead click that
                 // arrives after it stepped is a sure wrong click (testkit 292: the Stream Safe hand reached row 3's
@@ -1712,8 +1673,7 @@ public final class TerminalSolverFeature {
             lastMelodyClickAtMs = now;
             melodyRowsClicked |= 1 << due.row();
             if (due.row() < melodyClickedColumn.length) {
-                melodyClickedColumn[due.row()] = MELODY_UNSEEN;
-                melodyLookaheadAtMs[due.row()] = now;
+                melodyClickedColumn[due.row()] = melodyCurrentColumn;
             }
             melodyLookaheadFired++;
             LOGGER.info("[Melody] lookahead click row {} (target column {}), pane there {} ms of a {} ms step", due.row(),

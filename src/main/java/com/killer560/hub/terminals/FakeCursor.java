@@ -43,6 +43,8 @@ public final class FakeCursor {
     private static final float FITTS_A_MS = 50f;
     private static final float FITTS_B_MS = 90f;
     private static final float MIN_MOVE_MS = 55f;
+    /** No two presses on new slots closer than this (two server ticks); his own were never under 464 ms. */
+    private static final float MIN_GAP_MS = 100f;
 
     /** The classic Windows arrow, 12x19: B black edge, W white fill, . clear. */
     private static final String[] ARROW = {
@@ -109,6 +111,17 @@ public final class FakeCursor {
     private static long lastShownMs;
     /** The next click on the aimed slot is followed by another on it (a Rubix pane needing 2): keep the hand on it. */
     private static boolean repeatNext;
+    /** The aimed slot is Melody's row button (aimQuick): Melody keeps its own timing, the human pace below never holds it. */
+    private static boolean aimedQuick;
+    /** Human pace (streamsafe-terms-human-1126): no press on a new slot before this. 0 until the board may first be
+     *  clicked, when it is drawn as his first look at it (his first clicks: 642-1827 ms after the open); after a click,
+     *  about one reaction, never under {@link #MIN_GAP_MS}. Before it the hand's own plan ruled alone: first clicks all within 2 ms of the First Click
+     *  Delay, and gaps down to 48 ms (11-25 logs). */
+    private static long paceAtMs;
+    /** No new move before this after a click: the look for the next slot. A hand still gliding from the press glides on
+     *  meanwhile; one at rest sets off when it ends, with no second reaction. His own gaps bunch just above a floor
+     *  (464-773 ms, p50 533: the shortest was 0.87 of the typical), where the hand's moves alone ran 48-500 ms. */
+    private static long moveAtMs;
 
     private static float sessionSpeed = 1f;
     private static float sessionReaction = 1f;
@@ -127,6 +140,7 @@ public final class FakeCursor {
     static final float[] CLICK_TX = new float[256];
     static final float[] CLICK_TY = new float[256];
     static final float[] CLICK_HALF = new float[256];
+    static final long[] CLICK_MS = new long[256];
     static int clicksWaited;
     static int moves;
     static int misses;
@@ -197,6 +211,8 @@ public final class FakeCursor {
         inRepeat = false;
         repeatNext = false;
         clickAtMs = 0;
+        paceAtMs = 0;
+        moveAtMs = 0;
         ThreadLocalRandom r = ThreadLocalRandom.current();
         sessionSpeed = clamp(1f + 0.08f * (float) r.nextGaussian(), 0.85f, 1.18f);
         sessionReaction = clamp(1f + 0.12f * (float) r.nextGaussian(), 0.8f, 1.25f);
@@ -262,6 +278,7 @@ public final class FakeCursor {
 
     private static void aim(SlotLocator locator, int slot, boolean quick) {
         if (!showing || slot == aimedSlot) return;
+        if (!quick && clickCount > 0 && System.currentTimeMillis() < moveAtMs) return; // still looking for it
         if (!locator.locate(slot, SCRATCH)) return;
         ensurePlaced();
         long now = System.currentTimeMillis();
@@ -283,6 +300,7 @@ public final class FakeCursor {
         aimedX = (float) (SCRATCH[0] * gui);
         aimedY = (float) (SCRATCH[1] * gui);
         aimedHalf = (float) Math.max(2.0, SCRATCH[2] * gui / 2.0);
+        aimedQuick = quick;
         inRepeat = false;
         repeatNext = false;
         plan(now, vx, vy, quick);
@@ -311,7 +329,8 @@ public final class FakeCursor {
 
         // A reaction only from rest: a hand already moving toward the board re-aims on the way.
         if (!quick && !moving) {
-            float reaction = logNormal(r, cfg.getCursorReactionMs() * sessionReaction, 0.28f, 0.45f, 2.2f);
+            // After a click the look was taken before this move (moveAtMs); only a hesitation can add to it.
+            float reaction = clickCount > 0 ? 0f : logNormal(r, cfg.getCursorReactionMs() * sessionReaction, 0.28f, 0.45f, 2.2f);
             if (firstMove) {
                 // The first look at a fresh board: the terminal's opening settle already covers most of it.
                 reaction *= 0.6f;
@@ -320,7 +339,7 @@ public final class FakeCursor {
                 reaction += 150f + 230f * r.nextFloat();
                 hesitations++;
             }
-            hold(reaction);
+            if (reaction > 0f) hold(reaction);
         }
         firstMove = false;
 
@@ -424,7 +443,8 @@ public final class FakeCursor {
     /** Another click on the slot the cursor is already on: a double-click-like gap, the hand still on it. */
     private static void planRepeat(long now) {
         ThreadLocalRandom r = ThreadLocalRandom.current();
-        clickAtMs = now + (long) logNormal(r, 125f, 0.25f, 0.6f, 1.9f);
+        // (never under 100 ms: 75 ms read as two clicks in one press and can share a server tick)
+        clickAtMs = now + (long) logNormal(r, 125f, 0.25f, 0.8f, 1.9f);
         inRepeat = true;
         repeats++;
     }
@@ -508,6 +528,14 @@ public final class FakeCursor {
             position(now);
             arrived = insideAimed(curX, curY, 1f) || now >= planEndMs;
         }
+        if (arrived && !aimedQuick) {
+            if (paceAtMs == 0) {
+                // The first moment the board may be clicked: his first look at it before the first press (his own first
+                // clicks were spread 642-1827 ms after the open). Melody (aimQuick) never waits here.
+                paceAtMs = now + (long) logNormal(ThreadLocalRandom.current(), 0.8f * pace(), 0.5f, 0.25f, 3.5f);
+            }
+            arrived = now >= paceAtMs;
+        }
         if (!arrived) {
             clicksWaited++;
         }
@@ -537,6 +565,14 @@ public final class FakeCursor {
             firstClickAfterOpenMs = now - openedAtMs;
         }
         lastClickMs = now;
+        CLICK_MS[i] = now;
+        // The look for the next slot before the hand sets off (a short floor with a tail, scaled by Reaction Time), and no
+        // press on a new slot sooner than about one reaction (a near slot reached quickly read as a flick: 130 ms against a
+        // typical 270), never under 100 ms. A Rubix repeat keeps its own press gap.
+        ThreadLocalRandom r = ThreadLocalRandom.current();
+        float tail = clamp((float) Math.exp(0.9 * r.nextGaussian()), 0.2f, 5f);
+        paceAtMs = repeatNext ? now : now + (long) Math.max(MIN_GAP_MS, 1.1f * pace());
+        moveAtMs = repeatNext ? now : now + (long) (0.6f * pace() * (0.8f + 0.2f * tail));
         if (slot == aimedSlot) {
             if (repeatNext) {
                 planRepeat(now);
@@ -674,6 +710,11 @@ public final class FakeCursor {
             }
         }
         return cachedContentScale;
+    }
+
+    /** The hand's typical gap between two new slots, ms: Reaction Time with this terminal's own spread. */
+    private static float pace() {
+        return 0.95f * TerminalSolverConfig.getInstance().getCursorReactionMs() * sessionReaction;
     }
 
     private static float logNormal(ThreadLocalRandom r, float median, float sigma, float lo, float hi) {
