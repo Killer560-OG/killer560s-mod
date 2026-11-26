@@ -6150,8 +6150,11 @@ public final class Ap3Executor {
     private static final double[] FOOT = {-0.29, -0.145, 0, 0.145, 0.29};
     private static final int FOOT_ALL = FOOT.length * FOOT.length;
     private static boolean fallSteerLogged;
-    /** The walk-into-align aim held while that align's approach search runs (see fallSteer). */
+    /** The walk-into-align aim held while that align's approach search runs (see fallSteer), the align it was taken for
+     *  and the last tick it was used on: only an aim taken for this align on the tick before is held. */
     private static float toAlignAim = Float.NaN;
+    private static Ap3Node toAlignNode;
+    private static long toAlignTick = -2;
 
     /**
      * In the air on a held walk whose route drops to its next node: the move direction, within 30 degrees of the walk,
@@ -6192,10 +6195,17 @@ public final class Ap3Executor {
             // While the approach-tick search for that Fast Align runs (preSteerFires, a slice a tick on a state predicted
             // with this yaw), keep the aim it started with: re-aiming every tick changed the yaw, restarted the search
             // each tick, and AP3-driven approaches lost the steered tick (align12-remerge-1117: 0 of 10 steered, 2-4 ticks).
-            if (toAlign && next == preNode && preSliceTick >= tickCounter - 1 && !Float.isNaN(toAlignAim)) {
+            // Only an aim taken for THIS align on the tick before: the search starts on the first tick in reach, and holding
+            // whatever aim was left from an earlier walk there turned r35b's run 56 degrees off at plan t79 into the pit
+            // (ee3-r35b-earlydig-1125: a stale 100.05 where the align lay at 155.95).
+            if (toAlign && next == preNode && next == toAlignNode && toAlignTick >= tickCounter - 1
+                    && preSliceTick >= tickCounter - 1) {
+                toAlignTick = tickCounter;
                 return toAlignAim;
             }
             toAlignAim = (float) Math.toDegrees(Math.atan2(p.getX() - next.x, next.z - p.getZ()));
+            toAlignNode = next;
+            toAlignTick = tickCounter;
             return toAlignAim;
         }
         if (next == null || next.y > p.getY() - 1.0) {
