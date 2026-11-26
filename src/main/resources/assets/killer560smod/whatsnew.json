@@ -39,7 +39,8 @@
      "Dungeon Mob Highlight: a plain mob standing next to a starred one that just died is no longer highlighted (or targeted by Auto Clear) as starred, and a mob with its own plain name tag is never taken for a starred one",
      "Menu search: a result row's on/off switch now matches the feature's real state after a setting changes by keybind, command or profile, and pressing it flips the setting you see.",
      "Blood Camp: the Mobs Left HUD reads the right number on a real Watcher bar (it read one high on many steps, an F7 camp now starts at 15), with Never Miss a click that did no damage is clicked again at your weapon's pace, and a mob of the next run is no longer taken for a blood mob of the last one.",
-     "Regenerating Trees: the marks now also cover the leaves a chopped tree leaves behind, not only the logs."
+     "Regenerating Trees: the marks now also cover the leaves a chopped tree leaves behind, not only the logs.",
+     "Beacon Ready Alert: the beacon timer is no longer a draggable HUD element. The cooldown (now the Cooldown Timer setting, counting down every second) and the Beacon Ready line are text drawn over the beacon block itself, in the Color you picked, shown only where the beacon is loaded."
     ]
    }
   ]

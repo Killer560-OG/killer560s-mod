@@ -8,7 +8,10 @@ import com.killer560.hub.util.FeatureBits;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModChat;
 import com.killer560.hub.util.TabText;
-import com.killer560.hub.hud.HudElementRegistry;
+import com.killer560.hub.miningqol.BlockScan;
+import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.Blocks;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.PlayerInfo;
@@ -25,9 +28,10 @@ import java.util.regex.Pattern;
  * Beacon Ready Alert: the tab list's foraging beacon widget ("Moonglade Beacon: 3 Stacks") says "Cooldown: AVAILABLE"
  * when the beacon can be tuned again; that puts a "Beacon Ready" title and a sound on screen, at most once every Repeat
  * After minutes while it stays available. While it cools the widget says only whole minutes ("Cooldown: 7m", recorded
- * 2026-11-22..24, never an absolute time), so the Cooldown HUD shows "~7m" until the minute drops once, then counts
+ * 2026-11-22..24, never an absolute time), so the Cooldown Timer shows "~7m" until the minute drops once, then counts
  * seconds from that moment; nothing is remembered across a world change. Keep Showing Until Tuned swaps the fading
- * title for the HUD line. Reading only.
+ * title for a "Beacon Ready" line. The cooldown and that line are text drawn over the beacon block itself (found by
+ * scanning the loaded chunks near you for it), never a HUD element. Reading only.
  */
 public final class BeaconReadyAlert {
 
@@ -55,6 +59,16 @@ public final class BeaconReadyAlert {
     private static long deadline;
     private static long hudKey = Long.MIN_VALUE;
     private static String hudText;
+    /** The beacon block once found (null: not known or not loaded), when to look again, the level it was found in. */
+    private static BlockPos beacon;
+    private static int scanIn;
+    private static Object level;
+    /** The drawn text as a Component, rebuilt only when its string or color changes; the color refreshes once a second. */
+    private static Component shown;
+    private static String shownFor;
+    private static int shownColor;
+    private static int drawColor;
+    private static volatile String drawn;
 
     private BeaconReadyAlert() {
     }
@@ -62,7 +76,7 @@ public final class BeaconReadyAlert {
     public static void register() {
         int bit = FeatureBits.register("Beacon Ready Alert", CFG::isEnabledRaw);
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("BeaconReadyAlert.tick", bit, BeaconReadyAlert::tick));
-        HudElementRegistry.register(new BeaconReadyHud());
+        LevelRenderEvents.COLLECT_SUBMITS.register(BeaconReadyAlert::render);
     }
 
     /** The alert's color: the player's pick, or (Auto, the setting 0) the active menu theme's accent. */
@@ -145,7 +159,7 @@ public final class BeaconReadyAlert {
         deadline = 0;
     }
 
-    /** What the HUD says now, or null for nothing; rebuilt only when the shown second changes. */
+    /** What the beacon text says now, or null for nothing; rebuilt only when the shown second changes. */
     public static String hudText(long now) {
         boolean keep = CFG.on("keep");
         boolean cool = CFG.on("cooldownHud");
@@ -182,14 +196,63 @@ public final class BeaconReadyAlert {
         return out;
     }
 
+    /** Looks for the beacon block near you every 5 s while there is text to show, and checks a found one each second. */
+    public static void findBeacon(Minecraft mc) {
+        if (mc.level != level) {
+            level = mc.level;
+            beacon = null;
+            scanIn = 0;
+        }
+        if (state == NONE || !CFG.on("keep") && !CFG.on("cooldownHud")) {
+            beacon = null;
+        } else if (beacon != null && mc.level.getBlockState(beacon).is(Blocks.BEACON)) {
+            return;
+        } else {
+            beacon = null;
+            if (scanIn-- <= 0) {
+                scanIn = 4;
+                List<BlockPos> found = BlockScan.scan(mc.level, mc.player.blockPosition(), 96, 64, s -> s.is(Blocks.BEACON), (p, s) -> true, 1);
+                beacon = found.isEmpty() ? null : found.get(0);
+            }
+        }
+        drawColor = color();
+    }
+
+    /** The beacon block found near you, null when not known or loaded (testkit). */
+    public static BlockPos beaconPos() {
+        return beacon;
+    }
+
+    /** The text the last frame drew over the beacon, null when it drew nothing (testkit). */
+    public static String lastDrawn() {
+        return drawn;
+    }
+
+    private static void render(net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext context) {
+        BlockPos at = beacon;
+        String t = at == null ? null : hudText(System.currentTimeMillis());
+        drawn = null;
+        if (t != null && com.killer560.hub.util.SkyblockGate.allows()) {
+            drawn = t;
+            if (!t.equals(shownFor) || drawColor != shownColor) {
+                shownFor = t;
+                shownColor = drawColor;
+                shown = Component.literal(t).withStyle(Style.EMPTY.withColor(TextColor.fromRgb(drawColor & 0xFFFFFF)));
+            }
+            com.killer560.hub.dungeonalerts.DungeonAlertsFeature.renderWorldText(context, shown, at.getX() + 0.5, at.getY() + 1.7, at.getZ() + 0.5, 1.5f);
+        }
+    }
+
     private static void tick(Minecraft mc) {
         if (ticks++ % 20 != 0) {
             return;
         }
-        if (!CFG.isEnabled() || mc.player == null) {
+        if (!CFG.isEnabled() || mc.player == null || mc.level == null) {
+            beacon = null;
             clear();
             return;
         }
         onTab(tabLines(mc), System.currentTimeMillis());
+        findBeacon(mc);
     }
 }

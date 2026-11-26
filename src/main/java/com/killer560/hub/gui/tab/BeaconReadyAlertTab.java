@@ -11,7 +11,7 @@ public class BeaconReadyAlertTab extends IslandFeatureTab {
     protected void rows(Rows r) {
         r.toggle("Alert Sound", "sound");
         r.toggle("Keep Showing Until Tuned", "keep");
-        r.toggle("Cooldown HUD", "cooldownHud");
+        r.toggle("Cooldown Timer", "cooldownHud");
         r.slider("Repeat After", "repeat", " min");
         r.autoColor("Color", "color", com.killer560.hub.foraging.BeaconReadyAlert::color);
     }

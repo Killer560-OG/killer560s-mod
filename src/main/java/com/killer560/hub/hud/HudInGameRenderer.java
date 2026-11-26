@@ -55,9 +55,7 @@ public final class HudInGameRenderer {
             // Collection Tracker (colltrack-1104).
             "collection_tracker",
             // Current Room Name (featE-1108).
-            "room_name",
-            // Beacon Ready Alert (beacon-ready-hud-1125): missing at first, so it never drew (1125-hx-beacon-hud-draw caught it).
-            "beacon_ready");
+            "room_name");
 
     private HudInGameRenderer() {
     }

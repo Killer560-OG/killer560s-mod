@@ -201,7 +201,7 @@ public final class DungeonAlertsFeature {
         renderWorldText(context, Component.literal(text), x, y, z, scale);
     }
 
-    static void renderWorldText(LevelRenderContext context, Component text, double x, double y, double z, float scale) {
+    public static void renderWorldText(LevelRenderContext context, Component text, double x, double y, double z, float scale) {
         Minecraft client = Minecraft.getInstance();
         Font font = client.font;
         Vec3 cam = McRender.cameraPos(context);
