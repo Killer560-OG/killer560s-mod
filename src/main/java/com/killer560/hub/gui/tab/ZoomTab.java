@@ -113,6 +113,10 @@ public class ZoomTab extends BaseTab implements KeyCaptureTab {
         });
         y += 22;
 
+        widgets.add(onOffButton("Smooth Glide", cfg::isSmoothGlide, cfg::setSmoothGlide, cfg::save,
+                requestRebuild, contentX, y, contentWidth, 18));
+        y += 22;
+
         // Zoom Style is a cycling setting like the others: the arrows step it, and the value is in the menu's orange.
         widgets.add(SettingsButtonWidget.cycling(Component.literal("Zoom Style: §6" + (cfg.isSmooth() ? "Smooth" : "Instant")),
                 (btn, dir) -> {

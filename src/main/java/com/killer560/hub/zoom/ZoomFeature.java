@@ -96,6 +96,15 @@ public final class ZoomFeature {
         return (float) Math.toDegrees(2.0 * Math.atan(Math.tan(half) / current));
     }
 
+    /**
+     * True while the player's own mouse look should use vanilla's cinematic-camera smoother (Smooth Glide): the zoom key is
+     * held and nothing of the mod owns the camera. Read per frame, so it only compares cached flags.
+     */
+    public static boolean glideActive() {
+        return held && ZoomConfig.getInstance().isSmoothGlide()
+                && !com.killer560.hub.util.ViewFreeze.isHeld() && !com.killer560.hub.ap3.Ap3FreezeState.isFrozen();
+    }
+
     /** The mouse wheel, while zoom is held. @return true when the wheel was used for the zoom (so it does not change the hotbar). */
     public static boolean onScroll(double yOffset) {
         ZoomConfig cfg = ZoomConfig.getInstance();

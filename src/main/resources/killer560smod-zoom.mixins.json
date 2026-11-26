@@ -5,6 +5,7 @@
 	"package": "com.killer560.hub.zoom.mixin",
 	"client": [
 		"ZoomCameraMixin",
+		"ZoomGlideMixin",
 		"ZoomScrollMixin"
 	],
 	"injectors": {

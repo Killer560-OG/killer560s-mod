@@ -28,6 +28,8 @@ public final class ZoomConfig {
     private boolean scrollWhileZoomed = true;
     /** Smooth pans in and out over a fraction of a second; off snaps straight to the zoom level (killer560, 2026-10-19). */
     private boolean smooth = true;
+    /** Smooth Glide (AGreenMan via killer560, 2026-11-26): while zoom is held the view keeps gliding after the mouse stops. Off by default. */
+    private boolean smoothGlide = false;
     /** How much one wheel notch changes the zoom, as a fraction (0.10 = 10% closer or further). killer560, 2026-10-19. */
     public static final float MIN_SCROLL_STEP = 0.02f;
     public static final float MAX_SCROLL_STEP = 0.50f;
@@ -56,6 +58,7 @@ public final class ZoomConfig {
             cfg.setZoomLevel(ConfigJson.getFloat(obj, "zoomLevel", 4f));
             cfg.scrollWhileZoomed = ConfigJson.getBool(obj, "scrollWhileZoomed", true);
             cfg.smooth = ConfigJson.getBool(obj, "smooth", true);
+            cfg.smoothGlide = ConfigJson.getBool(obj, "smoothGlide", false);
             cfg.setScrollStep(ConfigJson.getFloat(obj, "scrollStep", 0.10f));
             instance = cfg;
         } catch (Exception e) {
@@ -70,6 +73,7 @@ public final class ZoomConfig {
         obj.addProperty("zoomLevel", zoomLevel);
         obj.addProperty("scrollWhileZoomed", scrollWhileZoomed);
         obj.addProperty("smooth", smooth);
+        obj.addProperty("smoothGlide", smoothGlide);
         obj.addProperty("scrollStep", scrollStep);
         ConfigJson.write(CONFIG_PATH, obj);
     }
@@ -93,6 +97,10 @@ public final class ZoomConfig {
     public boolean isSmooth() { return smooth; }
 
     public void setSmooth(boolean smooth) { this.smooth = smooth; }
+
+    public boolean isSmoothGlide() { return smoothGlide; }
+
+    public void setSmoothGlide(boolean smoothGlide) { this.smoothGlide = smoothGlide; }
 
     public float getScrollStep() { return scrollStep; }
 

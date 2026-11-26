@@ -3490,6 +3490,7 @@ final class SettingTooltipsData {
         d.put("zoom level", "How far the view zooms in while the zoom key is held. Drag the slider.");
         d.put("scroll while zoomed", "While zoomed, the mouse wheel changes the zoom level.");
         d.put("scroll step", "How much each mouse wheel step changes the zoom.");
+        d.put("smooth glide", "While the zoom key is held, the view keeps gliding after you stop moving the mouse and slowly slows to a stop, like the cinematic camera. Good for lining up an exact angle. Letting go of zoom ends it at once.");
         d.put("zoom style", "How the zoom eases in and out: Smooth or Instant. Left click goes to the next, right click back.");
         d.put("hide players", "Hides other players' models. Render only; nothing is sent to the server.");
         d.put("hide players/distance", "Only hides players within this many blocks of you. 0 means no limit.");
