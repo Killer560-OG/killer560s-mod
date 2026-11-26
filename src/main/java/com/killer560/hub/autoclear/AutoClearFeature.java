@@ -495,6 +495,7 @@ public final class AutoClearFeature {
         mobTicks = 0;
         noMobTicks = 0;
         pathFailures = 0;
+        blockedDoor = -1;
         hopsOffFor = -1;
         roomMobs = List.of();
         spotsKey = null;
@@ -915,7 +916,7 @@ public final class AutoClearFeature {
             pathFailures++;
             LOGGER.info("[AutoClear] trip {} failed ({} of {})", action, pathFailures, MAX_PATH_FAILURES);
             if (pathFailures >= MAX_PATH_FAILURES) {
-                giveUpRoom("no etherwarp path (" + pathFailures + " tries)");
+                giveUpTrip("no etherwarp path (" + pathFailures + " tries)");
                 travelStarted = false;
                 return false;
             }
@@ -2121,6 +2122,13 @@ public final class AutoClearFeature {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
         releaseUse(client);
+        if (door == blockedDoor) {
+            if (layout.currentRoom() == blockedRoom && layout.isLocked(door)) {
+                action = "no way to the wither door";
+                return;
+            }
+            blockedDoor = -1;
+        }
         if (door != doorTarget) {
             doorTarget = door;
             doorTripDone = -1;
@@ -3052,6 +3060,30 @@ public final class AutoClearFeature {
         skippedRooms.add(roomName);   // the map will never say so; do not come back to it
         roomName = null;
         targetId = -1;
+    }
+
+    /** The wither door whose trip failed MAX_PATH_FAILURES times with no room to skip, and the room he stood in then. */
+    private static int blockedDoor = -1;
+    private static int blockedRoom = -1;
+
+    /**
+     * A failed trip's give-up: a room is skipped, but a door trip (Door Only) has none, so giveUpRoom did nothing and the
+     * trip was asked again every tick ("failed (90 of 4)", 2026-11-26). The door is left until he stands in another room
+     * or its lock changes; nothing else of Auto Clear stops.
+     */
+    private static void giveUpTrip(String why) {
+        if (roomName != null || doorTarget < 0) {
+            giveUpRoom(why);
+            return;
+        }
+        DungeonLayout layout = DungeonLayout.capture();
+        blockedDoor = doorTarget;
+        blockedRoom = layout.currentRoom();
+        pathFailures = 0;
+        say(ModChat.bad("No way to the wither door"), ModChat.dim(" - " + why + ", leaving it until something changes"));
+        LOGGER.info("[AutoClear] gave up on wither door {}: {} - waiting for a new room or lock", doorTarget, why);
+        lastReason = "wither door " + doorTarget + ": " + why;
+        lastReasonMs = System.currentTimeMillis();
     }
 
     private static void giveUpRoom(String why) {
@@ -4933,7 +4965,7 @@ public final class AutoClearFeature {
         boolean started = trip.getAsBoolean();
         if (!started) {
             if (++pathFailures >= MAX_PATH_FAILURES) {
-                giveUpRoom("could not start a trip there");
+                giveUpTrip("could not start a trip there");
             }
             return;
         }

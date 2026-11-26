@@ -1333,9 +1333,13 @@ public final class EtherwarpPathfinder {
             // The usual cause is every door between here and there reading as LOCKED. DungeonLayout decides
             // that by testing whether the block at doorBlock(idx) is air, so a sim whose doorways are carved
             // at a different height than the one it checks locks the whole floor at once.
-            LOGGER.info("[Path] No ROOM route from room {} to room {}: every door between them reads as"
-                    + " locked or missing. {} door(s) on the grid are currently locked.",
-                    startRoom, goalRoom, lockedDoorCount(layout));
+            int locked = lockedDoorCount(layout);
+            long state = ((long) startRoom << 40) ^ ((long) goalRoom << 20) ^ locked;
+            if (state != lastNoRoomRoute) {   // once per (rooms, locked doors): a retried trip logged it 7 times a second
+                lastNoRoomRoute = state;
+                LOGGER.info("[Path] No ROOM route from room {} to room {}: every door between them reads as"
+                        + " locked or missing. {} door(s) on the grid are currently locked.", startRoom, goalRoom, locked);
+            }
             lastRefusal = "every door on the way reads as locked";
             return null;
         }
@@ -1573,6 +1577,8 @@ public final class EtherwarpPathfinder {
 
     /** How many of the grid's doors currently read as locked - the number that makes a "no room route"
      *  line mean something. */
+    private static long lastNoRoomRoute = -1L;
+
     private static int lockedDoorCount(DungeonLayout layout) {
         int locked = 0;
         for (int idx = 0; idx < DungeonLayout.GRID * DungeonLayout.GRID; idx++) {
