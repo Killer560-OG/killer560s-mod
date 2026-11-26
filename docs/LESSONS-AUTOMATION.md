@@ -1112,6 +1112,21 @@ The sim side (`SimKeyRoom`) is in [SIM-SECRETS.md](SIM-SECRETS.md).
   reached it together) never landed, so warp 3 went from warp 1's spot and put him 26.6 blocks off the plan. The trip
   replans from the corrected spot each time and arrives. Read such misses on the wire with loggerq (`out input [ sneak]`,
   `use_item`, `in pos`, counting `ClientTickEnd` between them). Testkit 1125-hx-standeye-twotick* (hx standingEye `ticks`).
+- A correction drops a queue whose later warps are already sent; their landings still come, in order, before any landing
+  of the next queue. `ClearExecutor` counts them (`strayWarps`, ~2 s plus any stall) and until autopilot-warp-stray-1125
+  honored them only while planning: his 11-25 15:39:11 replan started at once, the dropped queue's warp 3 landed before
+  the replan sent anything, and it was reported as a second correction (alarm, chat, Autopilot's line). Now, in a running
+  queue with none of its own landings matched yet, such a landing is the dropped queue's: no correction and no count; the
+  queue carries on from there when its first warp has not gone yet or went from that spot, else its goal is planned
+  again quietly. The first matched landing ends the strays. Testkit 1125-hx-stray-landing.
+- A queue's FIRST hop has no landing in flight, so the server casts it from `RightClick.heardFeet` (the last movement
+  packet), not from the spot it was planned from. His 11-25 15:40:19 press came while falling 1.3 blocks a tick: planned
+  from y 62.75, cast from 60.09 the tick after the sneak, and none of six warps landed (hops 2-6 then went from the ground
+  with looks planned from landings that never came). Hypixel does cast airborne etherwarps (287 of 379 that day landed),
+  so the fix is the aim's origin: `doInteract` aims the first hop again from the heard feet when they are over 0.01 off
+  (no tick spent); with no ray from there a block or more off, it plans the goal again quietly. But a server teleport
+  before the first use (an unjudged position packet, no stray due) is a correction: the use waits for that tick's
+  checkLandings, or the quiet re-aim swallows it (testkit 131 'correction' failed that way). Testkit 1125-hx-airborne-start*.
 - A shot replays banked ticks inside one real tick, so a feature that steers him per tick must run inside it: a 20-tick AP3
   release on the keys chosen at the END before ran him 18.75 blocks straight off S2's platform (Mod Only Test log
   2026-10-27 00:15:34). `BlinkCharge.addShotTickEndHook` runs after each shot tick's movement and tick-end, and

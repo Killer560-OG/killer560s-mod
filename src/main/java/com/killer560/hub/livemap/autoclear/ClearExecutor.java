@@ -1570,6 +1570,14 @@ public final class ClearExecutor {
         if (!issued.isEmpty()) {
             issued.remove(issued.size() - 1);   // the hop that never went out: its landing is not coming
         }
+        return planGoalAgain();
+    }
+
+    /** Drops the queue and plans its goal again from where he is: no alarm, no chat line, not counted. False = no goal. */
+    private static boolean planGoalAgain() {
+        if (goalTo == null) {
+            return false;
+        }
         BlockPos to = goalTo;
         int tile = goalTile;
         Runnable complete = goalComplete;
@@ -1676,10 +1684,15 @@ public final class ClearExecutor {
     private static void noteStrayWarps() {
         int unanswered = issued.size() - confirmed;
         if (unanswered > 0) {
-            strayWarps = unanswered;
+            strayWarps = (strayDue() ? strayWarps : 0) + unanswered;
             strayUntilMs = System.currentTimeMillis() + 2000L;
             strayLag = ServerLag.mark();
         }
+    }
+
+    /** A landing of a dropped queue may still arrive (its unanswered warps, for a couple of s and any server stall). */
+    private static boolean strayDue() {
+        return strayWarps > 0 && System.currentTimeMillis() <= strayUntilMs + ServerLag.msSince(strayLag);
     }
 
     /** Uses this class sent itself (its hops, a node's click), counted from {@link com.killer560.hub.util.RightClick#usesSent}. */
@@ -1694,6 +1707,19 @@ public final class ClearExecutor {
 
     public static int foreignLandings() {
         return foreignLandings;
+    }
+
+    /** Late landings of a dropped queue that arrived after the next queue started, and first hops aimed again from where
+     *  the server had him, ever - the testkit reads them. */
+    private static int strayLandings;
+    private static int firstHopReaims;
+
+    public static int strayLandings() {
+        return strayLandings;
+    }
+
+    public static int firstHopReaims() {
+        return firstHopReaims;
     }
 
     /** Counts the uses other features (Auto Ice Fill's hops, a puzzle's chest warp, Auto Routes) sent since the last look. */
@@ -1740,7 +1766,7 @@ public final class ClearExecutor {
         if (moved < CORRECTION_MIN_MOVE) {
             return false;
         }
-        if (strayWarps > 0 && System.currentTimeMillis() <= strayUntilMs + ServerLag.msSince(strayLag)) {
+        if (strayDue()) {
             int ours = Math.min(strayWarps, packets);
             strayWarps -= ours;
             LOGGER.info("[Path] {} landing(s) of the dropped path arrived while planning - not a correction", ours);
@@ -2223,7 +2249,11 @@ public final class ClearExecutor {
                 confirmed = match + 1;
                 lastGood = issued.get(match);
                 ticksSinceProgress = 0;
+                strayWarps = 0;   // the server answers in order: nothing of the dropped queue is still to come
             } else if (lastGood == null || !landedOn(at, lastGood, LAND_XZ, LAND_Y)) {
+                if (confirmed == 0 && strayDue()) {
+                    return strayLanding(at);
+                }
                 serverCorrections++;
                 Vec3 want = confirmed < issued.size() ? issued.get(confirmed) : null;
                 offPath(want == null ? "the server moved you off the path"
@@ -2254,6 +2284,39 @@ public final class ClearExecutor {
             return false;
         }
         return true;
+    }
+
+    /**
+     * A late landing of the queue a correction just dropped, after this one started (his 26.3 log 11-25 15:39:11: the
+     * dropped queue's warp 3 landed before the replan sent anything and was reported as a second correction). Not a
+     * correction. A queue whose first warp has not gone yet, or went from that very spot, carries on from it: that warp is
+     * aimed from where the server has him when it goes ({@link #doInteract}). Otherwise its goal is planned again quietly.
+     *
+     * @return false when the queue was dropped
+     */
+    private static boolean strayLanding(Vec3 at) {
+        strayWarps--;
+        strayLandings++;
+        List<ClearNode> left = nodes;
+        boolean fromHere = issued.isEmpty() ? left != null && !left.isEmpty() && left.get(0) instanceof ClearNode.EtherNode
+                : issued.size() == 1 && pendingBlock != null
+                        && (pendingInteract != null || pendingFrom != null && pendingFrom.distanceTo(at) < 0.01);
+        LOGGER.info("[Path] a landing of the dropped path arrived after this one started - not a correction; {} {}",
+                fromHere ? "its first warp goes from" : "planning again from", fmt(at));
+        if (fromHere) {
+            lastGood = at;
+            if (issued.isEmpty() && position == null) {
+                Vec3 p = left.get(0).pos;   // the first node runs as planned; its look is worked out again as it goes
+                position = new double[]{p.x, p.y, p.z};
+            }
+            return true;
+        }
+        if (!planGoalAgain()) {
+            dropQueue();
+            lastPathFailed = true;
+            externalOwner = false;
+        }
+        return false;
     }
 
     /**
@@ -2420,6 +2483,7 @@ public final class ClearExecutor {
         goalComplete = null;
         replanPending = false;
         pathPending = false;
+        strayWarps = 0;
         // A world change drops the queue and its completion callback, so no external feature owns it any more.
         // (Already false whenever nothing external is running, so this changes nothing for the Interactive Map.)
         externalOwner = false;
@@ -2533,6 +2597,35 @@ public final class ClearExecutor {
             if (!why.equals(waitReason)) { LOGGER.info("[Path] Warp: held until {}", why); }
             waitReason = why;
             return;
+        }
+        // A queue's first hop goes from wherever the server has him now: no landing of ours is in flight, and he may have
+        // moved since it was planned, falling a block or more a tick (his 26.3 log 11-25 15:40:19: planned from y 62.75 in
+        // mid-air, cast from 60.09 after the sneak's tick, and none of six warps landed). So it is aimed again from the spot
+        // the last movement packet reported, no tick spent; with no ray from there a block or more off, the goal is planned
+        // again from here (tickReplan plans once he stands).
+        if (pendingBlock != null && pendingFrom != null && issued.size() == 1 && confirmed == 0) {
+            if (positionPackets != positionPacketsSeen && !strayDue()) {
+                // A server teleport before the first use is a correction: the use waits for this tick's checkLandings,
+                // which reports it and plans again (re-aimed quietly it was never reported, testkit 131 'correction').
+                return;
+            }
+            Vec3 heard = com.killer560.hub.util.RightClick.heardFeet(player);
+            double off = heard.distanceTo(pendingFrom);
+            if (off > 0.01) {
+                TeleportUtils.Rotation rot = TeleportUtils.getEtherwarpDirection(
+                        new Vec3(heard.x, heard.y + TeleportUtils.eyeHeight(true), heard.z), pendingBlock, hopRange() + 1.0);
+                if (rot != null) {
+                    LOGGER.info("[Path] Warp: first hop aimed again from where the server has him {} ({} off the planned spot) at {}",
+                            fmt(heard), String.format(java.util.Locale.ROOT, "%.2f", off), pendingBlock.toShortString());
+                    interact = new float[]{rot.yaw(), rot.pitch()};
+                    pendingInteract = interact;
+                    pendingFrom = heard;
+                    firstHopReaims++;
+                } else if (off >= 1.0 && replanHeldHop(heard)) {
+                    pendingInteract = null;
+                    return;
+                }
+            }
         }
         // A hop that waited a tick is aimed again from where he stands when it goes: it is planned from a landing 1.05 up
         // and he rests 0.05 lower a few ticks later (Auto Routes' reaimIfMoved does the same).
