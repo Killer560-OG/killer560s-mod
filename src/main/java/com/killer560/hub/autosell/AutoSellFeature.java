@@ -140,7 +140,7 @@ public final class AutoSellFeature {
                     ? ChatFormatting.stripFormatting(sc.getTitle().getString()).trim() : "") + "\"";
             if (!shown.equals(lastSeenScreen)) {
                 lastSeenScreen = shown;
-                LOGGER.info("[AutoSell] screen open: {} (container={})", shown, open instanceof AbstractContainerScreen<?>);
+                LOGGER.debug("[AutoSell] screen open: {} (container={})", shown, open instanceof AbstractContainerScreen<?>);
             }
         }
         if (!(open instanceof AbstractContainerScreen<?> screen)) {
@@ -174,7 +174,7 @@ public final class AutoSellFeature {
             refusedPattern = cfg.getScreenTitlePattern();
             if (!title.equals(lastRefusedTitle)) {
                 lastRefusedTitle = title;
-                LOGGER.info("[AutoSell] screen title \"{}\" does not match the sell pattern '{}' - not selling in it",
+                LOGGER.debug("[AutoSell] screen title \"{}\" does not match the sell pattern '{}' - not selling in it",
                         title, cfg.getScreenTitlePattern());
             }
             return;

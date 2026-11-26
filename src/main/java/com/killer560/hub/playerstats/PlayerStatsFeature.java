@@ -109,14 +109,6 @@ public final class PlayerStatsFeature {
     /** Re-entry guard for the mixin, which re-sends a stripped line through setOverlayMessage. */
     private static boolean resending = false;
 
-    // Diagnostics (killer560, 2026-10-18: the health, mana and vitality bars do not draw). Nothing else in this
-    // feature logged, so it has its own logger, under the package's own name.
-    private static final Logger LOGGER = ModLog.get("killer560smod-playerstats");
-    /** A repeat of the same action-bar text is logged at most this often; a changed line is logged at once. */
-    private static final long LOG_EVERY_NANOS = 1_000_000_000L;
-    private static final int LOG_TEXT_MAX = 240;
-    private static long lastLogNanos;
-    private static String lastLogText = null;
 
     /** ALLOW_GAME phase that runs before every default listener, so no other feature's drop hides a line from Stat Bars. */
     private static final net.minecraft.resources.Identifier READ_PHASE =
@@ -474,42 +466,6 @@ public final class PlayerStatsFeature {
                 break;
             }
         }
-        logActionBar(raw);
-    }
-
-    /**
-     * One INFO line, "[StatBars] action bar: ...", for each action-bar line the feature reads while Stat Bars is on:
-     * the raw text, non-ASCII written as \\uXXXX so the private-use icons show. A line whose text differs from the last
-     * logged one is written at once; a repeat is written at most once every {@link #LOG_EVERY_NANOS}. Only reached from
-     * {@link #onActionBar} past its enabled check. Never throws: this runs on the packet path.
-     */
-    private static void logActionBar(String raw) {
-        try {
-            // A release jar drops INFO: skip building the escaped text for a line nobody will see.
-            if (!LOGGER.isInfoEnabled()) return;
-            long now = System.nanoTime();
-            boolean changed = !raw.equals(lastLogText);
-            if (!changed && now - lastLogNanos < LOG_EVERY_NANOS) return;
-            lastLogText = raw;
-            lastLogNanos = now;
-            LOGGER.info("[StatBars] action bar: {}", visible(raw));
-        } catch (RuntimeException e) {
-            // Diagnostics only: a failure here must never reach the chat listener.
-        }
-    }
-
-    /** {@code s} with anything outside printable ASCII written as a \\uXXXX escape, cut to {@link #LOG_TEXT_MAX}. */
-    static String visible(String s) {
-        StringBuilder b = new StringBuilder();
-        for (int i = 0; i < s.length() && b.length() < LOG_TEXT_MAX; i++) {
-            char c = s.charAt(i);
-            if (c >= 0x20 && c < 0x7F) {
-                b.append(c);
-            } else {
-                b.append(String.format("\\u%04X", (int) c));
-            }
-        }
-        return b.toString();
     }
 
     /** Parses "1,234" to 1234; -1 on anything unparsable. Never throws - this runs on the packet path, where

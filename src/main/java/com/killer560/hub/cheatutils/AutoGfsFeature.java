@@ -152,10 +152,12 @@ public final class AutoGfsFeature {
                 : !SackCommands.available(client) ? "no /gfs here (not Hypixel Skyblock, or it answered unknown command)"
                 : cfg.isGfsDungeonKuudraOnly() && !ScoreboardData.inIsland("Catacombs", "Kuudra") ? "not in a dungeon or Kuudra"
                 : containerOpen ? "a container screen is open" : null;
-        if (!java.util.Objects.equals(gate, lastGateLogged)) {
+        // A container screen opening and closing is routine (959 flips a session): logged as "running", not as a gate.
+        String logGate = containerOpen && gate != null && gate.startsWith("a container") ? null : gate;
+        if (!java.util.Objects.equals(logGate, lastGateLogged)) {
             LOGGER.info("[AutoGfs] gate: {} -> {} (pending={})", lastGateLogged == null ? "running" : lastGateLogged,
-                    gate == null ? "running" : gate, pending);
-            lastGateLogged = gate;
+                    logGate == null ? "running" : logGate, pending);
+            lastGateLogged = logGate;
         }
         if (gate != null) {
             // Real bug found (2026-09-20): this compared gate to the literal "screen open", which the gate

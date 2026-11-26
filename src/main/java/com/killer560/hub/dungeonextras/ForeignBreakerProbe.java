@@ -135,7 +135,7 @@ public final class ForeignBreakerProbe {
         }
         if (oursOnTick == tick) {
             ourSends++;
-            LOGGER.info("[ForeignBreaker] START_DESTROY_BLOCK sent by=ours (Breaker Aura) pos={} face={} seq={} probeTick={}"
+            LOGGER.debug("[ForeignBreaker] START_DESTROY_BLOCK sent by=ours (Breaker Aura) pos={} face={} seq={} probeTick={}"
                             + " tick={} boxDist={}", pos.toShortString(), face, sequence, tick,
                     com.killer560.hub.util.SessionRecorderSink.tick(),
                     fmt(Math.sqrt(boxDistSq(p.getEyePosition(), pos))));
@@ -143,7 +143,7 @@ public final class ForeignBreakerProbe {
         }
         if (mc.options != null && mc.options.keyAttack.isDown()) {
             handSends++;
-            LOGGER.info("[ForeignBreaker] START_DESTROY_BLOCK sent by=hand (attack key down) pos={} face={} seq={}"
+            LOGGER.debug("[ForeignBreaker] START_DESTROY_BLOCK sent by=hand (attack key down) pos={} face={} seq={}"
                             + " probeTick={} tick={} boxDist={}", pos.toShortString(), face, sequence, tick,
                     com.killer560.hub.util.SessionRecorderSink.tick(),
                     fmt(Math.sqrt(boxDistSq(p.getEyePosition(), pos))));

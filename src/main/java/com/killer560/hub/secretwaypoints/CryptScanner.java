@@ -104,6 +104,7 @@ public final class CryptScanner {
             SCAN_VERDICT.put(anchor, verdict);
         }
         if (verdict.equals(NOTED.put(slot + anchor.toShortString(), verdict))) return;
+        if (verdict.startsWith("prince crown rejected")) return; // 3,371 repeats in 13 sessions
         LOGGER.info("[CryptScan] {} at {}: {}", verdict, anchor.toShortString(), detail);
     }
 

@@ -100,6 +100,10 @@ public final class StallLag {
     /** Ends the pay-back window of the last stall with one line saying what stayed counted. */
     private static void closePending() {
         if (pendingMs == 0L) return;
+        if (pendingMs - pendingPaidMs <= 0L) {
+            pendingMs = 0L;
+            return;
+        }
         LOGGER.info("[StallLag] stall: +{} ms of lag (ping gap {} ms, {} ms paid back by the server ticks that came in a burst"
                 + " after it), {} ms this connection", pendingMs - pendingPaidMs, pendingGapMs, pendingPaidMs,
                 stallLagMs + slowLagMs);

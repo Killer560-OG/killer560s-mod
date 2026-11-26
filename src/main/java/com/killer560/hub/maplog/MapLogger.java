@@ -204,7 +204,7 @@ public final class MapLogger {
                 + (pos.getZ() - originZ) + ") world=(" + pos.getX() + "," + pos.getY() + "," + pos.getZ() + ")";
         String line = "[MapLog] room=" + room + " origin=(" + originX + "," + originZ + ")" + where + " "
                 + (pos == null ? "" : detail + " ") + what;
-        LOGGER.info(line);
+        LOGGER.debug(line);
         try {
             if (out == null) {
                 open();

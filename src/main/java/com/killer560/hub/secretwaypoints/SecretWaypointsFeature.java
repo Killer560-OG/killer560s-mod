@@ -519,7 +519,7 @@ public final class SecretWaypointsFeature {
                 + " crypt=" + byKind[Kind.CRYPT.ordinal()] + " prince=" + byKind[Kind.PRINCE.ordinal()]
                 + " collected=" + COLLECTED.size();
         if (changed("rebuild", counts)) {
-            LOGGER.info("[SecretWaypoints] waypoints changed: {}", counts);
+            LOGGER.debug("[SecretWaypoints] waypoints changed: {}", counts);
         }
     }
 
@@ -532,7 +532,7 @@ public final class SecretWaypointsFeature {
         // The exact room INSTANCE you stand in, not its name - a run can hold two rooms of the same template.
         int currentIdx = LiveMapFeature.currentRoomIndex();
         if (changed("currentRoom", String.valueOf(currentIdx))) {
-            LOGGER.info("[SecretWaypoints] current room index now {}{}", currentIdx,
+            LOGGER.debug("[SecretWaypoints] current room index now {}{}", currentIdx,
                     currentIdx < 0 ? " - not in a known room (boss, corridor or unmapped cell): no waypoints" : "");
         }
         if (currentIdx < 0) return;
@@ -971,7 +971,7 @@ public final class SecretWaypointsFeature {
                     // Not loaded: unknown, not empty. Show what it held when it was last read.
                     levers = LEVERS_BY_CHUNK.get(key);
                     if (changed("leverChunk:" + cx + "," + cz, "unloaded:" + (levers == null ? -1 : levers.size()))) {
-                        LOGGER.info("[SecretWaypoints] lever scan chunk {},{} not loaded: {}", cx, cz, levers == null
+                        LOGGER.debug("[SecretWaypoints] lever scan chunk {},{} not loaded: {}", cx, cz, levers == null
                                 ? "never read, no levers known" : "showing " + levers.size() + " remembered lever(s)");
                     }
                     if (levers == null) continue;
@@ -1009,7 +1009,7 @@ public final class SecretWaypointsFeature {
                         }
                     }
                     if (changed("leverChunk:" + cx + "," + cz, "read:" + leverSections + ":" + levers.size())) {
-                        LOGGER.info("[SecretWaypoints] lever scan chunk {},{}: sections in band={} with a lever in the palette={} levers={} band y={}..{}",
+                        LOGGER.debug("[SecretWaypoints] lever scan chunk {},{}: sections in band={} with a lever in the palette={} levers={} band y={}..{}",
                                 cx, cz, sectionCount, leverSections, levers.size(), leverMinY, leverMaxY);
                     }
                     if (levers.isEmpty()) {
