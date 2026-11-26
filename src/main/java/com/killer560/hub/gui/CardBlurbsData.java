@@ -246,7 +246,7 @@ final class CardBlurbsData {
         d.put("BeaconTunerTab", "Shows the beacon tuning presses.");
         d.put("AgathaContestOverlayTab", "Tracks your contest score.");
         d.put("BeeheemothHighlightTab", "Boxes the Beeheemoth.");
-        d.put("TreeRegenTab", "Marks logs left in a chopped tree.");
+        d.put("TreeRegenTab", "Marks leftover logs and leaves.");
         d.put("TreeGiftMessagesTab", "Hides tree fall chat.");
         d.put("AutoGfsTab", "Refills dungeon items from sacks.");
         d.put("AutoSellTab", "Sells your sell list on its own.");

@@ -11,12 +11,15 @@ import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.AABB;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
@@ -38,6 +41,10 @@ import java.util.Set;
  * so the whole tree stops being drawn the tick its last log is back (killer560, 11-24: "sticking around a long time after the
  * tree is fully regenerated"; it had waited out the {@link #MAX_AGE} of every chop in its chunk and the next ones), each log
  * dropping out when broken.
+ * Leaves are part of the tree (killer560, 11-25: "it also needs to factor in the leaves. not just the wood"): any block with the
+ * log or leaves tag that goes to air is tracked and drawn the same way, a tree counts as regenerating from its first returned
+ * block (log or leaf) and as whole only when every missing log AND leaf is back, and each leaf belongs to its nearest log's
+ * tree ({@link #label}) so neighboring trees stay separate.
  * Event-driven from block updates (the old state is read in {@code ClientLevel.setServerVerifiedBlockState} and
  * {@code setBlock}, so a log he breaks himself counts too; a return as chunk data is caught by the 10-tick recheck);
  * the draw arrays are rebuilt only on a change or every 10 ticks, and nothing is allocated per frame.
@@ -56,15 +63,15 @@ public final class TreeRegen {
 
     /** Ticks a chop that never returns is still remembered (the 95th percentile of the returns is under 1,000). */
     static final int MAX_AGE = 1400;
-    private static final int MAX_LOGS = 1500;
-    private static final int MAX_DRAWN = 400;
-    private static final int SEED_LOGS = 400;
+    private static final int MAX_LOGS = 4000;
+    private static final int MAX_DRAWN = 1200;
+    private static final int SEED_BLOCKS = 2500;
     private static final int SEED_RADIUS = 16;
     private static final double RANGE_SQ = 64.0 * 64.0;
 
-    /** Where a log left and when: only says which trees are regenerating. */
+    /** Where a log or leaf left and when (clock * 2, plus 1 for a log): only says which trees are regenerating. */
     private static final Map<Long, Integer> GONE = new LinkedHashMap<>();
-    /** The logs standing now in those trees: the only blocks drawn. */
+    /** The logs and leaves standing now in those trees: the only blocks drawn. */
     private static final Set<Long> PRESENT = new LinkedHashSet<>();
     private static final List<Long> SEEDS = new ArrayList<>();
     private static int clock;
@@ -95,8 +102,8 @@ public final class TreeRegen {
             return;
         }
         bind(lv);
-        boolean was = old.is(BlockTags.LOGS);
-        boolean is = now.is(BlockTags.LOGS);
+        boolean was = isTree(old);
+        boolean is = isTree(now);
         if (was == is) {
             return;
         }
@@ -113,14 +120,24 @@ public final class TreeRegen {
             if (GONE.size() >= MAX_LOGS) {
                 GONE.remove(GONE.keySet().iterator().next());
             }
-            GONE.put(key, clock);
+            GONE.put(key, clock * 2 + (old.is(BlockTags.LOGS) ? 1 : 0));
         }
     }
 
-    /** A chopped log is back: its tree has started regenerating, so it and the logs joined to it are drawn from the next tick. */
+    private static boolean isTree(BlockState s) {
+        return s.is(BlockTags.LOGS) || s.is(BlockTags.LEAVES);
+    }
+
+    /** A chopped log or leaf is back: its tree has started regenerating, so it and the logs joined to it are drawn from the next tick. */
     private static void regrown(long key) {
+        boolean started = false;
+        BlockPos p = BlockPos.of(key);
+        for (Direction d : Direction.values()) {
+            started |= PRESENT.contains(p.relative(d).asLong());
+        }
         add(key);
-        if (SEEDS.size() < 64) {
+        // Next to a block already drawn, the tree is regenerating and was seeded: no new search.
+        if (!started && SEEDS.size() < 64) {
             SEEDS.add(key);
         }
     }
@@ -161,11 +178,11 @@ public final class TreeRegen {
         // An expired chop is forgotten; a tracked log back as chunk data (no block update) joins the highlight.
         for (Iterator<Map.Entry<Long, Integer>> it = GONE.entrySet().iterator(); it.hasNext(); ) {
             Map.Entry<Long, Integer> e = it.next();
-            if (clock - e.getValue() > MAX_AGE) {
+            if (clock - (e.getValue() >> 1) > MAX_AGE) {
                 it.remove();
                 continue;
             }
-            if (mc.level.getBlockState(BlockPos.of(e.getKey())).is(BlockTags.LOGS)) {
+            if (isTree(mc.level.getBlockState(BlockPos.of(e.getKey())))) {
                 it.remove();
                 if (!PRESENT.contains(e.getKey())) {
                     regrown(e.getKey());
@@ -179,11 +196,20 @@ public final class TreeRegen {
         AABB[] b = new AABB[Math.min(PRESENT.size(), MAX_DRAWN)];
         double px = mc.player.getX(), py = mc.player.getY(), pz = mc.player.getZ();
         int n = 0;
-        // A standing log is drawn while it is a log and joined to a log still missing: a whole tree is not drawn.
-        Set<Long> joined = joinedToMissing();
+        // A standing block is drawn while its tree (logs and leaves) is still missing a block: a whole tree is not drawn.
+        Map<Long, Integer> label = label(mc, PRESENT, new HashSet<>(GONE.keySet()));
+        Set<Integer> missing = new HashSet<>();
+        for (long g : GONE.keySet()) {
+            Integer l = label.get(g);
+            if (l != null) {
+                missing.add(l);
+            }
+        }
         for (Iterator<Long> it = PRESENT.iterator(); it.hasNext(); ) {
-            BlockPos p = BlockPos.of(it.next());
-            if (!mc.level.getBlockState(p).is(BlockTags.LOGS) || !joined.contains(p.asLong())) {
+            long key = it.next();
+            BlockPos p = BlockPos.of(key);
+            Integer l = label.get(key);
+            if (!isTree(mc.level.getBlockState(p)) || l == null || !missing.contains(l)) {
                 it.remove();
                 continue;
             }
@@ -206,39 +232,68 @@ public final class TreeRegen {
         counted = n;
     }
 
-    /** The standing logs reachable, through standing logs, from a log still missing (a chopped log's spot touches its own tree). */
-    private static Set<Long> joinedToMissing() {
-        Set<Long> joined = new HashSet<>();
-        if (PRESENT.isEmpty()) {
-            return joined;
-        }
-        ArrayDeque<Long> todo = new ArrayDeque<>(GONE.keySet());
+    /**
+     * Which tree each block belongs to: logs join logs (26 neighbors, one tree per cluster); a leaf takes the tree of the
+     * NEAREST log, reached through leaves and missing leaf spots (6 neighbors), so two trees with touching canopies stay
+     * two trees and no leaf type is assumed (the block tag decides). A leaf no log reaches has no tree.
+     */
+    private static Map<Long, Integer> label(Minecraft mc, Collection<Long> standing, Set<Long> missing) {
+        Set<Long> cells = new HashSet<>(standing);
+        cells.addAll(missing);
+        Map<Long, Integer> label = new HashMap<>();
+        int trees = 0;
         BlockPos.MutableBlockPos q = new BlockPos.MutableBlockPos();
-        while (!todo.isEmpty()) {
-            BlockPos c = BlockPos.of(todo.poll());
-            for (int dx = -1; dx <= 1; dx++) {
-                for (int dy = -1; dy <= 1; dy++) {
-                    for (int dz = -1; dz <= 1; dz++) {
-                        q.set(c.getX() + dx, c.getY() + dy, c.getZ() + dz);
-                        long k = q.asLong();
-                        if (PRESENT.contains(k) && joined.add(k)) {
-                            todo.add(k);
+        for (long start : cells) {
+            if (label.containsKey(start) || !isLog(mc, start)) {
+                continue;
+            }
+            ArrayDeque<Long> logs = new ArrayDeque<>();
+            logs.add(start);
+            label.put(start, ++trees);
+            while (!logs.isEmpty()) {
+                BlockPos c = BlockPos.of(logs.poll());
+                for (int dx = -1; dx <= 1; dx++) {
+                    for (int dy = -1; dy <= 1; dy++) {
+                        for (int dz = -1; dz <= 1; dz++) {
+                            long k = q.set(c.getX() + dx, c.getY() + dy, c.getZ() + dz).asLong();
+                            if (cells.contains(k) && !label.containsKey(k) && isLog(mc, k)) {
+                                label.put(k, trees);
+                                logs.add(k);
+                            }
                         }
                     }
                 }
             }
         }
-        return joined;
+        ArrayDeque<Long> todo = new ArrayDeque<>(label.keySet());
+        while (!todo.isEmpty()) {
+            long ck = todo.poll();
+            BlockPos c = BlockPos.of(ck);
+            int tree = label.get(ck);
+            for (Direction d : Direction.values()) {
+                long k = q.set(c.getX() + d.getStepX(), c.getY() + d.getStepY(), c.getZ() + d.getStepZ()).asLong();
+                if (cells.contains(k) && !label.containsKey(k)) {
+                    label.put(k, tree);
+                    todo.add(k);
+                }
+            }
+        }
+        return label;
     }
 
-    /** The tree that lost {@code from} (now air): every log joined to it, up to {@link #SEED_LOGS}. */
+    private static boolean isLog(Minecraft mc, long key) {
+        Integer g = GONE.get(key);
+        return g != null ? (g & 1) == 1 : mc.level.getBlockState(BlockPos.of(key)).is(BlockTags.LOGS);
+    }
+
+    /** The tree that got {@code from} back: every standing block of its own tree, up to {@link #SEED_BLOCKS}. */
     private static void seed(Minecraft mc, BlockPos from) {
         ArrayDeque<BlockPos> todo = new ArrayDeque<>();
-        Set<Long> seen = new HashSet<>();
+        Set<Long> near = new HashSet<>();
         todo.add(from);
-        int found = 0;
+        near.add(from.asLong());
         BlockPos.MutableBlockPos q = new BlockPos.MutableBlockPos();
-        while (!todo.isEmpty() && found < SEED_LOGS) {
+        while (!todo.isEmpty() && near.size() < SEED_BLOCKS) {
             BlockPos c = todo.poll();
             for (int dx = -1; dx <= 1; dx++) {
                 for (int dy = -1; dy <= 1; dy++) {
@@ -246,15 +301,22 @@ public final class TreeRegen {
                         q.set(c.getX() + dx, c.getY() + dy, c.getZ() + dz);
                         if (Math.abs(q.getX() - from.getX()) > SEED_RADIUS || Math.abs(q.getZ() - from.getZ()) > SEED_RADIUS
                                 || Math.abs(q.getY() - from.getY()) > 2 * SEED_RADIUS
-                                || PRESENT.contains(q.asLong()) || !seen.add(q.asLong())
-                                || !mc.level.getBlockState(q).is(BlockTags.LOGS)) {
+                                || !isTree(mc.level.getBlockState(q)) || !near.add(q.asLong())) {
                             continue;
                         }
-                        add(q.asLong());
                         todo.add(q.immutable());
-                        found++;
                     }
                 }
+            }
+        }
+        Map<Long, Integer> label = label(mc, near, new HashSet<>(GONE.keySet()));
+        Integer mine = label.get(from.asLong());
+        if (mine == null) {
+            return;
+        }
+        for (long k : near) {
+            if (mine.equals(label.get(k)) && !PRESENT.contains(k)) {
+                add(k);
             }
         }
     }
@@ -322,7 +384,7 @@ public final class TreeRegen {
 
     /** Test only: age every tracked chop by this many ticks, so expiry can be checked without waiting. */
     public static void ageAll(int ticks) {
-        GONE.replaceAll((k, v) -> v - ticks);
+        GONE.replaceAll((k, v) -> v - ticks * 2);
         dirty = true;
     }
 }

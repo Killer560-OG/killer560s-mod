@@ -5,7 +5,7 @@ public class TreeRegenTab extends IslandFeatureTab {
 
     public TreeRegenTab() {
         super("Regenerating Trees", com.killer560.hub.foraging.TreeRegen.CFG, false,
-                "Marks logs left in a chopped tree.");
+                "Marks leftover logs and leaves.");
     }
 
     @Override
