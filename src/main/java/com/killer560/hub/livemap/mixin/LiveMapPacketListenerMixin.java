@@ -54,6 +54,8 @@ public abstract class LiveMapPacketListenerMixin {
             com.killer560.hub.autoroutes.RouteExecutor.onServerPositionPacket();
             // Auto Clear: tells its own hops' landings from a server correction (which it never stops on).
             com.killer560.hub.autoclear.AutoClearFeature.onServerPositionPacket();
+            // A walk does not start its keys in the tick that answers this teleport.
+            com.killer560.hub.pathfinding.ShortWalk.onServerPositionPacket(net.minecraft.client.Minecraft.getInstance().player);
             // Insta-clear recorder: the next room entry came by teleport (etherwarp, AOTV, leap), not on foot.
             com.killer560.hub.autosecret.InstaClearTracker.onServerPositionPacket();
         } catch (RuntimeException e) {

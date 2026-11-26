@@ -86,8 +86,12 @@ public final class ShortWalk {
     public static final int YIELD_KEYLESS = 1;
     public static final int YIELD_REPEAT = 2;
 
+    /** His tick count when the client last answered a server teleport, and whether this walk has pressed a key yet. */
+    private static int teleportTick = Integer.MIN_VALUE;
+    private static boolean pressed;
     /** Testkit counters. */
     private static int walksStarted;
+    private static int teleportHolds;
     private static int jumpsPressed;
 
     private ShortWalk() {
@@ -158,6 +162,7 @@ public final class ShortWalk {
         sinceProgress = 0;
         lagMark = ServerLag.mark();
         clearKeys();
+        pressed = false;
         walksStarted++;
         LOGGER.info("[ShortWalk] {}: walking to {} - {}", who, plan.goal().toShortString(), plan.describe());
     }
@@ -179,6 +184,13 @@ public final class ShortWalk {
 
     public static void onMixinApplied() { mixinApplied = true; }
 
+    /** A server teleport is being answered (handleMovePlayer, before the tick that moves from it). */
+    public static void onServerPositionPacket(LocalPlayer player) {
+        if (player != null) {
+            teleportTick = player.tickCount;
+        }
+    }
+
     /** Whether the input mixin has ever run (without it a walk would press nothing, so callers do not choose one). */
     public static boolean mixinApplied() { return mixinApplied; }
 
@@ -190,6 +202,13 @@ public final class ShortWalk {
         Plan plan = active;
         if (plan == null) return Status.ARRIVED;
         clearKeys();
+        if (!pressed && player.tickCount == teleportTick) {
+            // A walk's first keys and turn wait out the tick that answers a teleport (its own cast's dash landing, or a
+            // correction): starting to sprint off the new spot in that same tick drew GrimAC Simulation 0.089 (acnohype-1125).
+            teleportHolds++;
+            return Status.WALKING;
+        }
+        pressed = true;
         Vec3 pos = player.position();
         List<Vec3> pts = plan.points();
         while (next < pts.size() - 1 && Math.hypot(pts.get(next).x - pos.x, pts.get(next).z - pos.z) < PASSED) {
@@ -311,4 +330,5 @@ public final class ShortWalk {
     /** For the testkit. */
     public static int walksStarted() { return walksStarted; }
     public static int jumpsPressed() { return jumpsPressed; }
+    public static int teleportHolds() { return teleportHolds; }
 }

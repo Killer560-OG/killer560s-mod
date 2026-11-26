@@ -486,6 +486,7 @@ public final class AutoClearFeature {
     private static void begin(String what) {
         Minecraft client = Minecraft.getInstance();
         running = true;
+        weaponMissingSince = Long.MIN_VALUE;
         phase = Phase.IDLE;
         roomName = null;
         targetId = -1;
@@ -829,7 +830,11 @@ public final class AutoClearFeature {
     private static void aimForLanding(Minecraft client, LocalPlayer player) {
         if (targetId < 0 || keyTrip || quizTrip || roamTrip || doorTarget >= 0
                 || AutoClearConfig.getInstance().getWeapon() != AutoClearConfig.Weapon.HYPERION
-                || com.killer560.hub.util.HotbarSelect.swapWouldFlag() || !ClearExecutor.landingOnly(player)) {
+                || com.killer560.hub.util.HotbarSelect.swapWouldFlag() || hisUseClicksQueued(client) > 0
+                || !ClearExecutor.landingOnly(player)) {
+            // His right click goes out this tick with his own item and look: a turn now flew his click straight down
+            // unheard, and a swap in the same tick met GrimAC's resync of a refused block click while the landing was in
+            // flight, which wrote the item the server thread still held (the AOTV) into the Hyperion's slot (acnohype-1125).
             return;
         }
         int slot = ItemIdentity.findHotbarSlot(player, AutoClearConfig.Weapon.HYPERION.itemId());
@@ -4912,8 +4917,25 @@ public final class AutoClearFeature {
                                       WeaponReach.Aim aim, Phase next) {
         int slot = ItemIdentity.findHotbarSlot(player, itemId);
         if (slot < 0) {
+            // A server resync of the slot (GrimAC's refused-click resync, a held item rewritten) can show another item there
+            // for a few ticks: wait for it, and stop only once it stays gone (acnohype-1125).
+            long now = ClearExecutor.clientTick();
+            if (weaponMissingSince == Long.MIN_VALUE) {
+                weaponMissingSince = now;
+                LOGGER.info("[AutoClear] no {} in the hotbar - waiting up to {} ticks for it to come back", label, WEAPON_WAIT_TICKS);
+            }
+            if (now - weaponMissingSince < WEAPON_WAIT_TICKS) {
+                releaseUse(client);
+                phase = Phase.IDLE;
+                tickKind = "waiting";
+                return false;
+            }
             stop("no " + label + " in the hotbar");
             return false;
+        }
+        if (weaponMissingSince != Long.MIN_VALUE) {
+            LOGGER.info("[AutoClear] the {} is back in the hotbar after {} tick(s)", label, ClearExecutor.clientTick() - weaponMissingSince);
+            weaponMissingSince = Long.MIN_VALUE;
         }
         boolean swapped = false;
         if (player.getInventory().getSelectedSlot() != slot) {
@@ -4970,6 +4992,10 @@ public final class AutoClearFeature {
 
     /** The client tick {@link #aimAndHold} last put its turn off for a right click of his. */
     private static long turnHeldForHim = Long.MIN_VALUE / 2;
+    /** Ticks {@link #aimAndHold} waits for a weapon gone from the hotbar before it stops (a slot resync is 1-2 ticks). */
+    static final int WEAPON_WAIT_TICKS = 10;
+    /** The client tick the weapon was first missing, or MIN_VALUE. */
+    private static long weaponMissingSince = Long.MIN_VALUE;
 
     /** Ticks an in-place Wither Impact's wait held the sneak down for the etherwarp after it, ever - for the testkit. */
     private static int primedCastTicks = 0;

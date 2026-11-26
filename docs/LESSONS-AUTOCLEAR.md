@@ -651,4 +651,15 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   layout, its cast across logs "Wither Impact (room plan) ... 2 mob(s) in its blast" instead of "Wither Impact across"; the row
   counts both. No lane had run it since 11-19.
 - 62-argrim-1122-planprobe run AFTER the plan rows in one session draws one Simulation (.089) after a 2-warp path landing on the
-  merged base without this fix too (m0 exp-rows); alone it is clean (m0 and fix, def). Open: WORKQUEUE planprobe-order-1125.
+  merged base without this fix too (m0 exp-rows); alone it is clean (m0 and fix, def). Fixed in acnohype-1125, see below.
+- (acnohype-1125) A Hyperion that vanished from the hotbar mid-clear (same-plan-use, default Grim) was GrimAC 2.3.74's answer to
+  a block click it refused while a teleport was pending: CheckManagerListener resyncs the held slot from lastSlotSelected plus
+  the item in hand read off the server thread, so a swap-and-turn in the same tick as his queued right click, with an etherwarp
+  landing in flight, wrote the AOTV into the Hyperion's slot. Fix: aimForLanding does nothing while hisUseClicksQueued > 0, and
+  aimAndHold waits up to WEAPON_WAIT_TICKS (10) for a missing weapon before it stops. Testkit 62-argrim-1125-hype-resync puts a
+  stick (not an AOTV: the server still holds the Hyperion, so an AOTV picked for etherwarps casts Wither Impact server-side)
+  in the slot until the mod reaches for the Hyperion; an origin jar stops "no Hyperion in the hotbar".
+- (acnohype-1125) The planprobe Simulation 0.089 after walk-openclick was a walk whose first keys and turn went out in the very
+  tick the client answered its own Wither Impact's teleport (accept_tp, then a sprint start to a new yaw); the later accept_tps
+  were Grim's setbacks. ShortWalk now holds a walk's first keys for the tick a server teleport is answered (hook in
+  LiveMapPacketListenerMixin, counter teleportHolds). Origin flagged 2 of 2 (def, exp); fixed clean 4 of 4 with 3-5 holds.
