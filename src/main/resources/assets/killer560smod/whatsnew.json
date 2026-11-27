@@ -26,7 +26,8 @@
      "Auto Routes: as you fall through blocks a breaker node left standing, they are now broken nearest first, so the block you are about to land on goes first instead of last",
      "Dungeons Autopilot blood door check fixed in the test (no mod change).",
      "Screenshot Copy: click the screenshot or copied line in chat to open the new Screenshot Editor: crop, pen, line, arrow, box, marker, text, pixelate, undo and redo, then Copy, Save or Save As Copy at full size.",
-     "Auto Routes no longer shows the nodes of the last run's room in the Entrance for a second when a new dungeon run starts."
+     "Auto Routes no longer shows the nodes of the last run's room in the Entrance for a second when a new dungeon run starts.",
+     "Auto Trap routes in the Trap rooms no longer stall on a slow PC: a walk re-plan that ran out of time now gets more time on the next try."
     ]
    }
   ]

@@ -88,6 +88,8 @@ public final class Ap3TrapWalk {
     private static int stepIndex;
     private static int lastPlanStep;
     private static int retryIn;
+    /** Re-plans in a row that came back incomplete: each doubles the next one's clock, so a slow PC still gets there. */
+    private static int stalls;
     private static boolean firstPlanDone;
     private static Ap3RouteMath.RouteState planStart;
     private static Ap3RouteMath.RouteState predicted;
@@ -156,6 +158,7 @@ public final class Ap3TrapWalk {
         rewalks = 0;
         lastSneak = false;
         retryIn = RETRY_EVERY;
+        stalls = 0;
         acceptFrom = SEQ.get() + 1;
         Ap3RouteMath.RouteState from = Ap3RouteRunner.stateOf(player);
         LOGGER.info("[TrapWalk] {}: walk starts at ({}, {}, {}) to ({}, {}, {}), {} blocks, arriving within {} - AP3 path "
@@ -404,6 +407,11 @@ public final class Ap3TrapWalk {
             } else if (fresh.steps.length == 0 && !fresh.complete) {
                 LOGGER.info("[TrapWalk] {}: the re-plan got nowhere ({}) - keeping the current plan", label, fresh.note);
                 fresh = null;
+            }
+            if (!wasFirst && fresh != null) {
+                stalls = fresh.complete ? 0 : stalls + 1;
+            } else if (!wasFirst) {
+                stalls++;
             }
             if (fresh != null && (plan == null || stepIndex >= pendingAt)) {
                 int late = plan == null ? 0 : Math.max(0, stepIndex - pendingAt);
@@ -668,7 +676,7 @@ public final class Ap3TrapWalk {
         double top = Math.max(0.2, Ap3RouteMath.topSpeed(model, options.allowJump));
         options.maxTicks = (int) Math.max(160, Math.min(900, span / top * 3.0 + 60));
         long scaled = (long) (BRUTE_FORCE_MS * Math.max(1.0, Math.min(8.0, span / 15.0)));
-        options.budgetMs = full ? Math.max(cfg.getRouteBudgetMs(), scaled) : Math.min(cfg.getRouteBudgetMs(), 300);
+        options.budgetMs = full ? Math.max(cfg.getRouteBudgetMs(), scaled) : Math.min(cfg.getRouteBudgetMs(), 300L << Math.min(stalls, 3));
         options.portfolio = full;
         return options;
     }
