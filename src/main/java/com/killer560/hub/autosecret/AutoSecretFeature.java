@@ -1785,7 +1785,7 @@ public final class AutoSecretFeature {
             return false;
         }
         for (RoomStatus.Room r : rooms) {
-            if (r.cleared() || "Unknown".equals(r.name()) || instaTried.contains(r.name()) || !dist.containsKey(r.room())
+            if (r.cleared() || "Unknown".equals(r.name()) || instaTried.contains(r.name())
                     || r.isType("PUZZLE") || r.isType("TRAP") || r.isType("BLOOD") || r.isType("ENTRANCE")
                     || r.isType("FAIRY")) {
                 continue;
@@ -1803,29 +1803,27 @@ public final class AutoSecretFeature {
                 }
                 continue;
             }
-            instaTried.add(r.name());
-            List<RoomStatus.Room> froms = new ArrayList<>();
-            for (RoomStatus.Room f : rooms) {
-                if (f.room() == r.room() || "Unknown".equals(f.name()) || !dist.containsKey(f.room())) {
-                    continue;
-                }
-                List<DungeonMapPathfinder.RoomStep> p = DungeonMapPathfinder.findPath(layout, f.room(), r.room(), true);
-                if (p != null && p.size() - 1 >= 1 && p.size() - 1 <= 2) {
-                    froms.add(f);
-                }
-            }
-            // Each known key names its own landing (realLandingFor); the from-room is whichever near room gives the
-            // same key back, so the key compared is the tracker's own, built the tracker's way.
+            // The target needs no door path (the warp goes over the wall, so a room behind a closed door is the usual
+            // target, acplan-insta-warptile-fix-1126); only the room warped FROM must be reachable.
+            // Each known key names its own landing (realLandingFor) and the map tile he warped from; the from-room is
+            // whichever reachable room sits on that tile, so the key compared is the tracker's own, built its way. The
+            // warp goes over the wall, so no door path between the two rooms is needed, and a room the map has not
+            // named yet ("Unknown") is as good a place to warp from (acplan-1121: every known entry in his 11-21 runs
+            // read "none matched", because the old 1-2 door-step filter and the name lookup threw the right room out).
             for (String known : InstaClearTracker.knownEntries(r.name())) {
                 BlockPos landing = InstaClearTracker.realLandingFor(r.name(), known);
                 if (landing == null) {
                     continue; // a walk-in entry: needs a door, and Auto Secret only warps
                 }
-                for (RoomStatus.Room f : froms) {
-                    String key = InstaClearTracker.entryKeyFor(r.name(), landing, f.name());
+                for (RoomStatus.Room f : rooms) {
+                    if (f.room() == r.room() || !dist.containsKey(f.room())) {
+                        continue;
+                    }
+                    String key = InstaClearTracker.entryKeyFor(layout, r.name(), landing, f.room());
                     if (!known.equals(key) || !InstaClearTracker.knownToInstaClear(r.name(), key)) {
                         continue;
                     }
+                    instaTried.add(r.name());
                     LOGGER.info("[AutoSecret] insta clear {}: entry {} (land {} from {})", r.name(), key, landing, f.name());
                     note(ModChat.text("Insta clearing "), ModChat.value(r.name()), ModChat.dim(" from " + f.name()));
                     instaLanding = landing;
@@ -1835,8 +1833,10 @@ public final class AutoSecretFeature {
                     return f.room() == here ? etherPathTo(landing, Trip.INSTA_INTO) : pathToRoom(layout, f, Trip.INSTA_FROM);
                 }
             }
-            LOGGER.info("[AutoSecret] insta clear {}: {} known entr(ies), none matched a landing reachable from a near room",
-                    r.name(), InstaClearTracker.knownEntries(r.name()).size());
+            if (instaKeySaid.add("miss|" + r.name())) {
+                LOGGER.info("[AutoSecret] insta clear {}: {} known entr(ies), no reachable room on their warp tiles yet",
+                        r.name(), InstaClearTracker.knownEntries(r.name()).size());
+            }
         }
         return false;
     }

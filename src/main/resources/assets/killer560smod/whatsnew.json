@@ -26,7 +26,8 @@
      "Auto Routes: a crypt node whose crypts it already killed this run, and a bat node whose bat already died this run (Auto Clear's hit or your own), move on at once instead of holding 1.5 s; a bat node never waits for more bats than its room has; Dungeon Autopilot no longer runs a room's route again for a secret that is still being taken there",
      "Craft Cost: the N-craft amounts shown while you hover the Supercraft item are now gray and yellow so they can be read on the panel; an ingredient you click in a recipe menu carries its needed amount into its own recipe panel (header reads the crafts) with a Reset to This Recipe line, and an amount you set on the Supercraft item is the amount the panel counts.",
      "Share To Website now sends every finished F7 and M7 run to the website's leaderboards, not only a personal best, with the run's score, tick time, floor and party; Fastest P3 is now the Terminals split only (F7 and M7), and nothing from the sim or a test server is ever sent.",
-     "Auto Routes: a node on the block you are left standing on now fires whatever its number (one placed later in the list than the node that brought you there, with other nodes elsewhere between them, or an earlier one a landing out of order went past) instead of the route sitting idle"
+     "Auto Routes: a node on the block you are left standing on now fires whatever its number (one placed later in the list than the node that brought you there, with other nodes elsewhere between them, or an earlier one a landing out of order went past) instead of the route sitting idle",
+     "Auto Secret and Dungeons Autopilot Insta Clear: a room with a known insta clear entry is now actually taken, warping in from whatever reachable room sits on the entry's warp tile (not only a room one or two doors away), including a room behind a closed door"
     ]
    }
   ]

@@ -189,6 +189,13 @@ public final class InstaClearTracker {
      */
     public static String entryKeyFor(String roomName, BlockPos landing, String fromRoomName) {
         DungeonLayout layout = DungeonLayout.current();
+        return entryKeyFor(layout, roomName, landing,
+                fromRoomName == null || fromRoomName.equals(roomName) ? -1 : roomIdByName(layout, fromRoomName));
+    }
+
+    /** {@link #entryKeyFor(String, BlockPos, String)} with the from room by map id, so a room the map has not named yet
+     *  (several read "Unknown") still gives its tile; -1 for none. */
+    public static String entryKeyFor(DungeonLayout layout, String roomName, BlockPos landing, int from) {
         int room = roomIdByName(layout, roomName);
         if (room < 0) {
             return null;
@@ -204,9 +211,8 @@ public final class InstaClearTracker {
             BlockPos rel = RouteCoords.toRelativeBlock(frame, landing);
             land = rel.getX() + "," + rel.getY() + "," + rel.getZ();
         }
-        int from = fromRoomName == null || fromRoomName.equals(roomName) ? -1 : roomIdByName(layout, fromRoomName);
         String fromPart = "?";
-        if (from >= 0) {
+        if (from >= 0 && from != room) {
             int[] pair = nearestTiles(layout, from, room);
             if (pair != null) {
                 BlockPos centre = DungeonLayout.cellCenter(pair[0]);

@@ -789,3 +789,10 @@ his hotbar slot back (never behind a use in one server tick), or his next right 
   up to 3 times (his keys still end it). Testkit 1126-sim-ac-greenstart-replan: the server puts him back on the spawn mid-walk.
 - Slow last mobs (Mural, Big Red Flag): with no remembered spot the first roam waits ROAM_AFTER_TICKS (40) + lag
   ("looking 42/45" in room time); finding in acslow-1121-state.md, for the in-run timing owner.
+- Insta Clear First's from-room (acplan-insta-warptile-fix-1126): the warp goes over the wall, so decideInstaClear takes a
+  known entry from ANY reachable room on its warp tile (`entryKeyFor(layout, room, landing, fromRoomId)`, unnamed rooms count),
+  never only a room 1-2 door steps off, and the TARGET room needs no door path (it is usually behind a closed door;
+  `dist` had dropped it silently, no log line); a room is retried until an entry matches. Testkit 1121-sim-acplan-insta-warptile
+  (seeds a target 8 door steps from its warp room) failed on origin for days because this fix (674df3c46, acplan-1121) never
+  reached a ready line, and the case never turned Auto Routes on, which plain Auto Secret needs to start ("Turn Auto Routes on
+  first"). A "pre-existing" sim failure may be a case whose partner commit was dropped: check `git branch --contains` first.
