@@ -288,6 +288,26 @@ Key rooms, and Blink, Inventory Walk, Zero Ping Etherwarp and Zero Ping Chain (t
   until the server's update came back, so any movement packet in that gap claimed ground over air: GroundSpoof + 0.0784
   Simulation when the 20-tick position reminder landed there (about half the runs), NoFall every time when turning
   (testkit 60). The block he stands on is always predicted (`BreakerAuraFeature.standsOn`); 0 flags in 84 runs.
+- **An Auto Routes breaker block under his feet goes from his world with the dig** (newtrap-fall-1127, killer560
+  2026-11-27: "look at the flag in new trap every time it falls"). `RouteExecutor.sendBreak` sent START_DESTROY_BLOCK with
+  no client-side removal, so a dug block stayed solid until the server's update a round trip later. In New Trap #6 digs
+  the slab under him and he falls 11 blocks onto a 7-high column the linger digs as each block comes into 4.5 reach:
+  measured in his 11-27 log, each dig went 2 ticks / ~2.3 blocks before his feet at ~1.2 blocks a tick (eye 81.95 -> 80.81
+  -> 79.62, column top at 78), under any real round trip, so he landed on blocks Hypixel had already broken and every move
+  there claimed ground over the server's air: corrections at 78.00, 74.09, 71.23, three per fall in all four visits. Reach
+  caps the lead (the column is 13 blocks below the node), so digging earlier cannot fix it. Testkit HxGroundWatch
+  (`dungeon.groundWatch`) counts the server ticks with ground over the server's air; 62-argrim-1127-breakerfall-lag /
+  -stall (150 ms; 100 + 350 ms) reproduce it on origin (2 ticks each, GrimAC silent: it judges against what the client
+  acknowledged). TRIED AND NOT SHIPPED: predicting such a block air with the dig (`inFallPath`, vanilla's instant-break
+  way) made GrimAC set him back under the same 150 ms (Simulation .07-6.0 x16, GroundSpoof x5, 2 teleports): Grim
+  applies a non-vanilla-instant break only at the ping after the server's block update, so a client falling through it
+  sooner moves through Grim's solid block. With a dig lead under the round trip, a server that checks its own world and
+  GrimAC want opposite things, so the prediction was taken back out (it would only ever come back behind a default-OFF
+  "flags GrimAC under lag" switch, his call). Also found and fixed: the linger dug in-reach blocks in the node's list
+  order, so a column listed bottom-up dug the block he lands on LAST (69, 70, then 71 after he stood on it); it now sorts
+  them nearest first (`tickBreakerLinger`), asserted by the same cases at 0/50/100/150 ms and a stall. The measured
+  table (ping vs ground-over-server-air ticks vs GrimAC for origin, nearest-first, nearest-first + early air) is in
+  killer560s-mod-logs/newtrap-fall-flag-1127-state.md (FALLTABLE lines in the run logs).
 - **Hotbar swaps go through `util/HotbarSelect.select`, never `setSelectedSlot`.** A swap sent by hand
   (`ServerboundSetCarriedItemPacket` after `setSelectedSlot`) leaves the game mode's `carriedIndex` stale, and its `tick()`
   then sends the same slot again: GrimAC BadPacketsA. Swap through `MultiPlayerGameModeInvoker.invokeEnsureHasSentCarriedItem`

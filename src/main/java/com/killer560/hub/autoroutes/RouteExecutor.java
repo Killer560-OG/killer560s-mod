@@ -6795,6 +6795,12 @@ public final class RouteExecutor {
                     lingerBlocks.size(), lingerTicks);
             return;
         }
+        // Nearest first, whatever order the node lists them (newtrap-fall-1127): falling through a column listed bottom-up,
+        // the block he lands on came last, after he stood on it while the server had already broken it (ground over its
+        // air, which Hypixel corrects). The nearest is the one he reaches first and gets the most lead.
+        if (inReach.size() > 1) {
+            inReach.sort(java.util.Comparator.comparingDouble(p -> com.killer560.hub.util.BlockHits.boxDistanceSq(eye, p)));
+        }
         int slot = ItemIdentity.findHotbarSlotById(player, BREAKER_ID);
         int[] charges = slot < 0 ? null : breakerCharges(player.getInventory().getItem(slot));
         if (charges == null || charges[0] <= 0) {
