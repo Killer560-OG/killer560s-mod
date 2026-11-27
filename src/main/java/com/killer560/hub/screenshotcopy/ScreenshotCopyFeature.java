@@ -1,9 +1,18 @@
 package com.killer560.hub.screenshotcopy;
 
+import com.killer560.hub.compat.McCompat;
+import com.killer560.hub.gui.ThemeAccent;
 import com.killer560.hub.util.HiddenProcess;
 import com.killer560.hub.util.ModChat;
+import com.mojang.brigadier.arguments.StringArgumentType;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.Screenshot;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
+import net.minecraft.network.chat.contents.TranslatableContents;
 import net.minecraft.util.Util;
 import org.slf4j.Logger;
 import com.killer560.hub.util.ModLog;
@@ -36,6 +45,8 @@ public final class ScreenshotCopyFeature {
 
     private static final Logger LOGGER = ModLog.get("killer560smod-screenshotcopy");
 
+    private static final String COMMAND = "k560screenshot";
+
     private ScreenshotCopyFeature() {
     }
 
@@ -51,16 +62,33 @@ public final class ScreenshotCopyFeature {
     }
 
     private static void copyNewestScreenshotToClipboard() {
-        Path dir = Minecraft.getInstance().gameDirectory.toPath().resolve(Screenshot.SCREENSHOT_DIR);
+        Path dir = ScreenshotEdit.folder();
         Optional<Path> newest = findNewestPng(dir);
         if (newest.isEmpty()) {
             LOGGER.warn("Screenshot copy: no .png found in {}", dir);
             return;
         }
+        if (copyToClipboard(newest.get())) {
+            notifySuccess(newest.get().getFileName().toString());
+        }
+    }
 
+    /** Puts a PNG on the system clipboard as an image (blocking, a second or more: never on the render thread). The
+     *  Screenshot Editor's Copy goes through here too. With {@code killer560smod.test.clipboardfile} set (docs/TESTING-HOOKS.md)
+     *  the file is copied there instead and no clipboard is touched. */
+    public static boolean copyToClipboard(Path png) {
+        String fake = System.getProperty("killer560smod.test.clipboardfile");
+        if (fake != null) {
+            try {
+                Files.copy(png, Path.of(fake), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                return true;
+            } catch (IOException e) {
+                return false;
+            }
+        }
         if (Util.getPlatform() != Util.OS.WINDOWS) {
             LOGGER.warn("Screenshot copy: only implemented for Windows right now (detected {})", Util.getPlatform());
-            return;
+            return false;
         }
 
         Path log = null;
@@ -71,21 +99,21 @@ public final class ScreenshotCopyFeature {
                     "Add-Type -AssemblyName System.Windows.Forms; Add-Type -AssemblyName System.Drawing; "
                             + "$img = [System.Drawing.Image]::FromFile($env:KILLER560SMOD_SCREENSHOT_PATH); "
                             + "[System.Windows.Forms.Clipboard]::SetImage($img); $img.Dispose()"),
-                    Map.of("KILLER560SMOD_SCREENSHOT_PATH", newest.get().toAbsolutePath().toString()), log, 10_000L);
+                    Map.of("KILLER560SMOD_SCREENSHOT_PATH", png.toAbsolutePath().toString()), log, 10_000L);
             if (exit == -2) {
                 LOGGER.warn("Screenshot copy: PowerShell timed out");
-                return;
+                return false;
             }
             if (exit != 0) {
                 LOGGER.warn("Screenshot copy: PowerShell exited {} - {}", exit, Files.readString(log, StandardCharsets.UTF_8));
-                return;
+                return false;
             }
-            notifySuccess();
+            return true;
         } catch (IOException e) {
-            LOGGER.warn("Screenshot copy failed for {}", newest.get(), e);
+            LOGGER.warn("Screenshot copy failed for {}", png, e);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            LOGGER.warn("Screenshot copy interrupted for {}", newest.get(), e);
+            LOGGER.warn("Screenshot copy interrupted for {}", png, e);
         } finally {
             if (log != null) {
                 try {
@@ -95,17 +123,82 @@ public final class ScreenshotCopyFeature {
                 }
             }
         }
+        return false;
     }
 
-    private static void notifySuccess() {
+    private static void notifySuccess(String fileName) {
         // Per killer560's request (2026-09-09), the center-screen overlay message was removed - the
-        // chat message below is the only confirmation now.
+        // chat message below is the only confirmation now. Clicking it opens the Screenshot Editor.
         Minecraft.getInstance().execute(() -> {
             var player = Minecraft.getInstance().player;
             if (player != null) {
-                player.sendSystemMessage(ModChat.line("Killer560's Mod", ModChat.text("Screenshot copied to clipboard!")));
+                player.sendSystemMessage(editable(ModChat.line("Killer560's Mod", ModChat.text("Screenshot copied to clipboard!")), fileName));
             }
         });
+    }
+
+    /** The command a click on a screenshot line runs: the file name only, so nothing outside the screenshots folder opens. */
+    static String editCommand(String fileName) {
+        return "/" + COMMAND + " edit " + fileName;
+    }
+
+    /** {@code line} with a click that opens the editor on {@code fileName} and a hover that says so. */
+    static MutableComponent editable(MutableComponent line, String fileName) {
+        return line.withStyle(s -> s.withClickEvent(new ClickEvent.RunCommand(editCommand(fileName)))
+                .withHoverEvent(new HoverEvent.ShowText(Component.literal("Click to edit this screenshot"))));
+    }
+
+    /** Vanilla's "Saved screenshot as ..." line made clickable: the file name keeps vanilla's open-file click, the rest of
+     *  the line and an added [Edit] open the editor. Unchanged when the feature is off or no file is found in it. */
+    public static Component withEdit(Component saved) {
+        if (!ScreenshotCopyConfig.getInstance().isEnabled()) {
+            return saved;
+        }
+        String name = savedName(saved);
+        if (name == null) {
+            return saved;
+        }
+        MutableComponent edit = Component.literal(" [Edit]").withStyle(s -> s.withColor(ThemeAccent.onDark(ThemeAccent.light(0xFFAA00))));
+        return editable(saved.copy().append(edit), name);
+    }
+
+    /** The file name in vanilla's saved-screenshot line: the part carrying the open-file click. */
+    private static String savedName(Component c) {
+        if (c.getStyle().getClickEvent() instanceof ClickEvent.OpenFile open) {
+            return open.file().getName();
+        }
+        if (c.getContents() instanceof TranslatableContents t) {
+            for (Object arg : t.getArgs()) {
+                if (arg instanceof Component inner && savedName(inner) != null) {
+                    return savedName(inner);
+                }
+            }
+        }
+        return c.getSiblings().stream().map(ScreenshotCopyFeature::savedName).filter(n -> n != null).findFirst().orElse(null);
+    }
+
+    /** Client entrypoint: the {@code /k560screenshot edit <file name>} command the chat clicks run. */
+    public static void register() {
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
+                dispatcher.register(ClientCommands.literal(COMMAND)
+                        .requires(src -> ScreenshotCopyConfig.getInstance().isEnabled())
+                        .then(ClientCommands.literal("edit")
+                                .then(ClientCommands.argument("file", StringArgumentType.greedyString())
+                                        .executes(ctx -> {
+                                            openEditor(StringArgumentType.getString(ctx, "file"));
+                                            return 1;
+                                        })))));
+    }
+
+    private static void openEditor(String name) {
+        Path file = ScreenshotEdit.resolve(name);
+        Minecraft mc = Minecraft.getInstance();
+        if (file == null) {
+            ModChat.send("Screenshot", ModChat.bad("No screenshot called " + name + " in the screenshots folder."));
+            return;
+        }
+        // after the click that ran this has finished with the chat screen
+        mc.execute(() -> McCompat.setScreen(mc, new ScreenshotEditorScreen(file)));
     }
 
     private static Optional<Path> findNewestPng(Path dir) {

@@ -16,6 +16,11 @@ public final class SearchAliases {
     private static final Map<String, String> ALIASES = Map.ofEntries(
             Map.entry("picture", "gif player"),
             Map.entry("png", "gif player"),
+            Map.entry("screenshot editor", "screenshot copy"),
+            Map.entry("mark up", "screenshot copy"),
+            Map.entry("crop screenshot", "screenshot copy"),
+            Map.entry("edit screenshot", "screenshot copy"),
+            Map.entry("annotate", "screenshot copy"),
             Map.entry("still image", "gif player"),
             Map.entry("etable", "experiment"),
             Map.entry("auto harp", "auto melody's harp"),

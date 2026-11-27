@@ -245,6 +245,8 @@ COLLECT_SUBMITS (families: thru-fill, depth-fill, block-fill, waypoint-fill, thr
 depth-line, and waypoint-depth: Secret Waypoints' depth-tested fill); `setForced(null, null)` stops it. Testkit
 1103-esp-depth-<family> puts water behind, in front of and around it; 1104-zfight-* draws it on a white cube's own faces.
 
+System property `killer560smod.test.clipboardfile=<path>`: Screenshot Copy and the Screenshot Editor's Copy write the PNG to that file instead of the OS clipboard (no PowerShell, no clipboard touched). Testkit 1126-ui-screenshot-edit sets it at run time.
+
 ## Auto Clear first trip through the gate (`livemap/autoclear/ClearExecutor`)
 
 `ClearExecutor.testGate(List<BlockPos>)`: the next queue run without a search (a direct one-warp trip) is held as a first

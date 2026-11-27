@@ -419,29 +419,7 @@ public class ColorPickerScreen extends Screen {
         if (text == null || text.isBlank() || now - tooltipSinceMs < 350L) {
             return;
         }
-        List<net.minecraft.util.FormattedCharSequence> lines = this.font.split(Component.literal(text), 200);
-        int w = 0;
-        for (var line : lines) {
-            w = Math.max(w, this.font.width(line));
-        }
-        int h = lines.size() * 10 - 2;
-        int x = mouseX + 12;
-        int y = mouseY + 12;
-        if (x + w + 8 > this.width) {
-            x = Math.max(4, mouseX - w - 16);
-        }
-        if (y + h + 8 > this.height) {
-            y = Math.max(4, mouseY - h - 16);
-        }
-        GuiRects r = GuiRects.begin(graphics);
-        r.gradient(x - 4, y - 4, x + w + 4, y + h + 4, MenuStyle.TOOLTIP_TOP, MenuStyle.TOOLTIP_BOTTOM);
-        r.outline(x - 4, y - 4, w + 8, h + 8, MenuStyle.OR);
-        r.submit();
-        int ly = y;
-        for (var line : lines) {
-            MenuStyle.text(graphics, line, x, ly, MenuStyle.TXT);
-            ly += 10;
-        }
+        ScreenTip.draw(graphics, this.font, text, mouseX, mouseY, this.width, this.height);
     }
 
     @Override

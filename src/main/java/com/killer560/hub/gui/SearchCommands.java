@@ -107,6 +107,7 @@ public final class SearchCommands {
             Map.entry("scorecalc", "ScoreCalculatorTab"),
             Map.entry("storagesearch", "StorageSearchTab"),
             Map.entry("autoreclaim", "AutoReclaimTab"),
+            Map.entry("screenshotcopy", "ScreenshotCopyTab"),
             Map.entry("profileviewer", "ProfileViewerTab"));
 
     /** Commands with no card, and why (the testkit requires every other mod command to have one). */

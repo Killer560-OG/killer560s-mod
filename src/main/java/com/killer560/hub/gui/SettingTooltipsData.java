@@ -696,7 +696,7 @@ final class SettingTooltipsData {
         d.put("spotify lyrics/volume up key", "A key that turns Spotify up by the Volume Key Step. Backspace unbinds.");
         d.put("spotify lyrics/volume down key", "A key that turns Spotify down by the Volume Key Step. Backspace unbinds.");
         d.put("show others' songs", "Shows the song another mod user who is a supporter shares, as a line above their name, within 16 blocks, and the lyric line they share with the word they are on lit. Your Display Censor applies; slurs are always hidden. You see every mod user in your lobby, partied or not, and your party too; the hover says what is connected right now. On by default.");
-        d.put("copy screenshots to clipboard", "Copies each screenshot you take to the clipboard so you can paste it with Ctrl+V.");
+        d.put("copy screenshots to clipboard", "Copies each screenshot you take to the clipboard so you can paste it with Ctrl+V. Click the screenshot or copied line in chat to open the editor: crop, draw, add text, hide parts.");
         d.put("gifs", "Shows the GIFs toggled on below as looping HUD overlays.");
         d.put("audio", "Loops the audio files toggled on below.");
         d.put("speed", "Playback or movement speed, where 1 is normal.");
@@ -2437,7 +2437,7 @@ final class SettingTooltipsData {
         d.put("score calculator/hud", "Chooses what the Score Calculator HUD shows.");
         d.put("score calculator/formula", "Adds Paul's EZPZ perk and the Spirit pet to the score estimate.");
         d.put("score calculator/alert sound", "Plays a ding when the 270 or 300 score title appears.");
-        d.put("screenshot copy", "Copies each F2 screenshot to your clipboard (Windows only).");
+        d.put("screenshot copy", "Copies each F2 screenshot to your clipboard (Windows only). Click its chat line to crop and mark it up.");
         d.put("secret aura/delay", "Cheat build: how long (0-500 ms) you must aim at a secret before it is clicked.");
         d.put("secret aura/cooldown", "Cheat build: minimum time (0-2000 ms) between Secret Triggerbot clicks.");
         d.put("secret aura/swap to slot", "Cheat build: switches to the hotbar slot below before clicking a secret.");

@@ -23,6 +23,9 @@ public abstract class ScreenshotMixin {
     @ModifyVariable(method = "grab(Ljava/io/File;Lcom/mojang/blaze3d/pipeline/RenderTarget;Ljava/util/function/Consumer;)V",
             at = @At("HEAD"), argsOnly = true)
     private static Consumer<Component> killer560smod$wrapOnSave(Consumer<Component> onSave) {
-        return onSave.andThen(ignored -> ScreenshotCopyFeature.onVanillaScreenshotSaved());
+        return saved -> {
+            onSave.accept(ScreenshotCopyFeature.withEdit(saved));
+            ScreenshotCopyFeature.onVanillaScreenshotSaved();
+        };
     }
 }
