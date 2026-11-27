@@ -6091,10 +6091,32 @@ public final class RouteExecutor {
         return null;
     }
 
-    /** Was {@code pos} dug within {@link #DIG_SETTLE_TICKS} ticks? Then the dig is still on its way, not a block to send. */
+    /** Was {@code pos} dug within {@link #DIG_SETTLE_TICKS} ticks? Then the dig is still on its way, not a block to send.
+     *  A dig stamped LATER than now is from an earlier world whose clock ran further (each dungeon's clock starts near
+     *  0): it read as "just dug" until this world's clock passed it, and the breaker node sent nothing (Painting, 11-27). */
     private static boolean dugRecently(Minecraft client, BlockPos pos) {
         Long t = lastDugAt.get(pos);
-        return t != null && client.level.getGameTime() - t < DIG_SETTLE_TICKS;
+        long age = t == null ? -1 : client.level.getGameTime() - t;
+        return age >= 0 && age < DIG_SETTLE_TICKS;
+    }
+
+    /** His right click or left click goes out after us in this tick's handleKeybinds: a dig before his use_item or
+     *  attack in one server tick is experimental GrimAC PacketOrderI ({@code digging=true}), so the dig waits a tick, as
+     *  Breaker Aura's does (62-argrim-1126-spendsame-attack, 62-argrim-1127-staledig-same-use). */
+    private static boolean hisClickGoesThisTick(Minecraft client) {
+        return com.killer560.hub.util.ActionGate.hisUseGoesThisTick(client)
+                || com.killer560.hub.util.ActionGate.hisClickQueued(client.options.keyAttack);
+    }
+
+    /** A queued block whose dig is already on its way (the linger's, a tick or two ago): the node waits for it in CONFIRM
+     *  (re-dug there if the server never took it) instead of finishing with it standing under a stacked etherwarp. */
+    private static void awaitInFlight(RouteNode node, BlockPos pos) {
+        if (!nodeActed) {
+            logActed(node, " (dig already on its way)");
+        }
+        if (breakerSent.add(pos.immutable())) {
+            breakerSentAt.put(pos.immutable(), execTicks);
+        }
     }
 
     public static int boomSettleTicks() {
@@ -6253,6 +6275,11 @@ public final class RouteExecutor {
             if (stepTicks % delay != 0) {
                 return;
             }
+            if (hisClickGoesThisTick(client)) {
+                logHold("breakeruse:" + traceIndex(node), "node {} DUNGEON_BREAKER: his click goes this tick - the dig"
+                        + " goes next tick (GrimAC PacketOrderI)", nodeTag(node));
+                return;
+            }
             if (AutoRoutesConfig.getInstance().breakBurst()) {
                 burstBreak(client, player, node, legitMode);
                 return;
@@ -6302,7 +6329,8 @@ public final class RouteExecutor {
                 }
                 if (dugRecently(client, pos)) {
                     breakerQueue.remove(0);
-                    continue; // the linger (or this node a tick ago) has it already; the client still shows it
+                    awaitInFlight(node, pos); // the linger has it already; the client still shows it
+                    continue;
                 }
                 // Aimed as GrimAC's RotationBreak judges it (util/DigAim): with the look the server already has striking
                 // the block the dig goes now; otherwise the body turns now and the dig goes at the head of this tick's
@@ -6334,7 +6362,7 @@ public final class RouteExecutor {
                 com.killer560.hub.compat.McCompat.swingAttack(player);
                 breakerChargesLeft--;
                 sentNow++;
-                if (breakerSent.isEmpty()) {
+                if (!nodeActed) {
                     logActed(node, multi ? " (multi break)" : "");
                 }
                 breakerSent.add(pos);
@@ -6419,7 +6447,7 @@ public final class RouteExecutor {
                         breakerObsidian.size());
                 OBSIDIAN.start(client, player, pos, face, obsidianAim(player));
                 com.killer560.hub.compat.McCompat.swingAttack(player);
-                if (breakerSent.isEmpty()) {
+                if (!nodeActed) {
                     logActed(node, " (obsidian)");
                 }
                 breakerSent.add(pos);
@@ -6505,6 +6533,9 @@ public final class RouteExecutor {
      * @return true when a dig went this tick
      */
     private static boolean redigStanding(Minecraft client, LocalPlayer player, RouteNode node) {
+        if (hisClickGoesThisTick(client)) {
+            return false; // the re-dig waits a tick for his click
+        }
         long wait = com.killer560.hub.util.RightClick.eatenRetryTicks() + serverLagTicks();
         Vec3 eye = player.getEyePosition();
         List<BlockPos> again = new ArrayList<>();
@@ -6776,8 +6807,8 @@ public final class RouteExecutor {
         boolean legitMode = AutoRoutesConfig.getInstance().isLegitMode();
         boolean multi = AutoRoutesConfig.getInstance().breakMulti();
         int delay = legitMode && !multi ? Math.max(1, AutoRoutesConfig.getInstance().getInteractDelayTicks()) : 1;
-        if (lingerTicks % delay != 0) {
-            return;
+        if (lingerTicks % delay != 0 || hisClickGoesThisTick(client)) {
+            return; // his click goes first
         }
         Vec3 eye = player.getEyePosition();
         List<BlockPos> inReach = new ArrayList<>();
@@ -6917,9 +6948,13 @@ public final class RouteExecutor {
         while (it.hasNext()) {
             BlockPos pos = it.next();
             if (!client.level.isLoaded(pos) || client.level.getBlockState(pos).isAir()
-                    || com.killer560.hub.dungeonbreaker.BreakerGuard.protects(client.level, pos)
-                    || dugRecently(client, pos)) {
+                    || com.killer560.hub.dungeonbreaker.BreakerGuard.protects(client.level, pos)) {
                 it.remove();
+                continue;
+            }
+            if (dugRecently(client, pos)) {
+                it.remove();
+                awaitInFlight(node, pos);
                 continue;
             }
             if (breakerChargesLeft <= 0) {
@@ -6950,7 +6985,7 @@ public final class RouteExecutor {
             burst.add(pos);
             breakerChargesLeft--;
             sentNow++;
-            if (breakerSent.isEmpty()) {
+            if (!nodeActed) {
                 logActed(node, " (burst multi break)");
             }
             breakerSent.add(pos);
