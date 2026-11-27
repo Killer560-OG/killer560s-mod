@@ -736,6 +736,13 @@ rode it (wire: t194 carried 2, t195 HIS use_item with the diamond shovel, t196 t
 gives his slot back first (`handBefore`, the slot before the queue's first trip-item swap; -1 when he held it himself), so
 vanilla sends slot then his use, and the hop's own swap goes with the hop next tick. 1126-hx-greenwarp-same-use 6/6 on
 default and experimental Grim after; it now also fails on any use with the AOTV in hand on his level look.
+The gate hold had the same fault for its whole length (gatehold-aotv-click-1126): `tickGate` primed the held first warp as
+Auto Secret's hold does (`primeFirstWarp`: AOTV swapped in, body turned), so every right click of his while the gate was
+shut went as an AOTV use (1126-hx-firsttrip-gate-same-use, experimental Grim: 39 uses; origin's tickGate and primeFirstWarp
+are the same code, so it predates the prerun work). The gate hold now keeps only the sneak (`primeFirstWarp(.., inHand=false)`); the
+swap goes in the release tick's START from `ClearNode.doTeleport` (`swappedInTickOn`) and the turn and use follow it in the
+same START (`doInteract`), so no tick is added. Only when a block click is unpaired at release does the turn cost the one
+tick every hop pays then (`RightClick.mustTurnFirst`). Auto Secret's last-node hold (`tickHold`) still primes in hand.
 
 ## The green room spawn ledge hides the gate floor (greenroom-fix-1126, 2026-11-26)
 In the sim Entrance he spawns on a ledge 3 blocks up, behind a stone brick slab at his feet level, and that slab is the first block
@@ -802,6 +809,7 @@ his hotbar slot back (never behind a use in one server tick), or his next right 
   up to 3 times (his keys still end it). Testkit 1126-sim-ac-greenstart-replan: the server puts him back on the spawn mid-walk.
 - Slow last mobs (Mural, Big Red Flag): with no remembered spot the first roam waits ROAM_AFTER_TICKS (40) + lag
   ("looking 42/45" in room time); finding in acslow-1121-state.md, for the in-run timing owner.
+- Testkit 1122-sim-ac-greenstart counted warps from per-tick position samples (trainfix gatehold-aotv-click-1126, 26.2): the route's own first hop lands in the doorway and the next hop one tick later, and a sample falling between the two server teleports read the doorway hop as a start-spot warp "inside the Entrance" (failed 3 of 3 on the branch, passed on origin and once on the branch with a trace: same use_item packets, same landings). Warps are now the position packets after a teleport accept (wire), inside = landing short of the door plane, the doorway hop (0..1) allowed. Never judge a hop chain from per-tick samples.
 - Insta Clear First's from-room (acplan-insta-warptile-fix-1126): the warp goes over the wall, so decideInstaClear takes a
   known entry from ANY reachable room on its warp tile (`entryKeyFor(layout, room, landing, fromRoomId)`, unnamed rooms count),
   never only a room 1-2 door steps off, and the TARGET room needs no door path (it is usually behind a closed door;

@@ -955,8 +955,11 @@ public final class ClearExecutor {
         }
         ticksSinceProgress = 0;
         waitReason = "waiting for the run to start (the entrance gate is shut)";
-        // Ready to go the tick the gate opens: AOTV in hand, sneaking, turned to the first warp (as Auto Secret's hold).
-        primeFirstWarp(client, current);
+        // Ready to go the tick the gate opens with the sneak down only: his own item stays in hand and his look his, so his
+        // right clicks while it waits go with them (with the AOTV swapped in for the whole hold each was an AOTV use on his
+        // look, 1126-hx-firsttrip-gate-same-use). The swap and the turn go in the warp's own tick, ahead of its use, as
+        // any first hop's do (ClearNode.doTeleport, doInteract): no tick added.
+        primeFirstWarp(client, current, false);
         return true;
     }
 
@@ -1416,28 +1419,29 @@ public final class ClearExecutor {
         }
         ticksSinceProgress = 0;
         waitReason = "held for the room's last secrets";
-        primeFirstWarp(client, current);
+        primeFirstWarp(client, current, true);
         return true;
     }
 
     /**
      * A held first warp made ready to go the tick it is let go: the AOTV in hand, the sneak down and the body turned to
-     * its look, so the server has heard the look before the use. Used by both holds ({@link #tickHold}, {@link #tickGate}).
+     * its look, so the server has heard the look before the use. Used by both holds ({@link #tickHold}, {@link #tickGate});
+     * without {@code inHand} (the gate hold) the sneak only.
      */
-    private static void primeFirstWarp(Minecraft client, List<ClearNode> current) {
+    private static void primeFirstWarp(Minecraft client, List<ClearNode> current, boolean inHand) {
         boolean screen = com.killer560.hub.compat.McCompat.screen(client) != null;
         // Never under a container, and hands off while Kill Mimic fights the mimic of a chest just opened: the hold swapped
         // the AOTV back and turned the body to the first warp, so every sceptre use went out as an AOTV use at the warp's
         // pitch and the mimic never died (fullclear-1016 run 010, Cage).
         active = current.get(0) instanceof ClearNode.EtherNode && !screen && holdSneak
                 && !com.killer560.hub.autoroutes.MimicKiller.isBusy();
-        if (active && !holdingAny(AOTV) && !hasSwappedThisTick && swapById(AOTV)) {
+        if (active && inHand && !holdingAny(AOTV) && !hasSwappedThisTick && swapById(AOTV)) {
             swappedOnTick = clientTicks;
         }
         // A secret clicked while held (Secret Aura, AOTV in hand) leaves that click unpaired, and the first warp would
         // spend a tick turning so the server hears its look first (util/RightClick). Turned now, while it waits - only
         // with no click coming (holdSneak), as the aura's own turn and click must not be moved under it.
-        if (active && client.player != null) {
+        if (active && inHand && client.player != null) {
             reaimFirstHop(client);
             if (nodes != null && !nodes.isEmpty() && nodes.get(0) instanceof ClearNode.EtherNode first) {
                 LocalPlayer player = client.player;
