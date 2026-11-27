@@ -48,7 +48,7 @@ public final class PuzzleHudFeature {
     private static final char OPEN = '✦';
 
     private static final class Puzzle {
-        final String name;
+        String name;
         char state = OPEN;
         /** 0 until the tab list names the puzzle (someone opened it); a Funny Map puzzle waits at 0:00 meanwhile. */
         long start;
@@ -127,17 +127,25 @@ public final class PuzzleHudFeature {
     public static synchronized void seedFromMap(List<String> names, long now) {
         // A name the map no longer lists (its grid reset after this poll's world change) and the tab list never named is stale.
         boolean added = PUZZLES.values().removeIf(p -> p.start == 0L
-                && names.stream().noneMatch(n -> n.trim().equalsIgnoreCase(p.name)));
+                && names.stream().noneMatch(n -> key(n).equals(key(p.name))));
         for (String name : names) {
-            String key = name.trim().toLowerCase(Locale.ROOT);
-            if (!PUZZLES.containsKey(key) && PUZZLES.size() < MAX_PUZZLES) {
-                PUZZLES.put(key, new Puzzle(name.trim(), 0L));
+            Puzzle p = PUZZLES.get(key(name));
+            if (p == null && PUZZLES.size() < MAX_PUZZLES) {
+                PUZZLES.put(key(name), new Puzzle(name.trim(), 0L));
+                added = true;
+            } else if (p != null && !p.name.equals(name.trim())) {
+                p.name = name.trim(); // the tab list says "Higher Or Lower"; the map knows which blaze room it is
                 added = true;
             }
         }
         if (added) {
             rebuild(now);
         }
+    }
+
+    /** One puzzle's key whichever source names it: the tab list's name, so "Lower Blaze" and "Higher Or Lower" are one row. */
+    private static String key(String name) {
+        return ScoreCalculatorFeature.tabPuzzleName(name).trim().toLowerCase(Locale.ROOT);
     }
 
     private static synchronized void clear() {

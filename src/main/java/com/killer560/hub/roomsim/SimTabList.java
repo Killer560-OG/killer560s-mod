@@ -301,10 +301,8 @@ public final class SimTabList {
         return rows;
     }
 
-    /** The two blaze rooms are one puzzle on Hypixel's tab list; every other room is listed under its own name. */
     private static String displayName(String roomName) {
-        String lower = roomName.toLowerCase(Locale.ROOT);
-        return lower.equals("higher blaze") || lower.equals("lower blaze") ? "Higher Or Lower" : roomName;
+        return com.killer560.hub.scorecalc.ScoreCalculatorFeature.tabPuzzleName(roomName);
     }
 
     /** Up to two decimals, trailing zeros dropped: 45.2, 100, 33.33. */

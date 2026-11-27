@@ -784,6 +784,13 @@ public final class ScoreCalculatorFeature {
     /** The inputs behind {@link #currentResult()}, or null. */
     public static ScoreCalculator.Inputs currentInputs() { return DungeonState.isInDungeon() ? lastInputs : null; }
 
+    /** The tab list's name for a room database puzzle name: the two blaze rooms are one puzzle, "Higher Or Lower"; every other
+     *  puzzle room is listed under its own name (checked against the room database, 2026-11-27). The one alias table. */
+    public static String tabPuzzleName(String roomName) {
+        String lower = roomName.trim().toLowerCase(Locale.ROOT);
+        return lower.equals("higher blaze") || lower.equals("lower blaze") ? "Higher Or Lower" : roomName;
+    }
+
     /**
      * A puzzle room's state from the tab list - '✔' done, '✖' failed, '✦' open - or 0 when the tab list does not name
      * it (not visited yet, Score Calculator off, outside a dungeon). Takes the room database's name: both blaze rooms
@@ -791,11 +798,7 @@ public final class ScoreCalculatorFeature {
      */
     public static char puzzleState(String roomName) {
         if (roomName == null || !DungeonState.isInDungeon()) return 0;
-        String key = roomName.trim().toLowerCase(Locale.ROOT);
-        if (key.equals("higher blaze") || key.equals("lower blaze")) {
-            key = "higher or lower";
-        }
-        Character c = puzzleStates.get(key);
+        Character c = puzzleStates.get(tabPuzzleName(roomName).trim().toLowerCase(Locale.ROOT));
         return c == null ? 0 : c;
     }
 

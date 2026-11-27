@@ -9,7 +9,8 @@
     "items": [
      "Dungeons Autopilot: Allow Insta Clearing now values each room by what it really costs to clear, from where its mobs spawn, so costly rooms such as Slime and Crypt are kept off the map until they can be insta cleared; Quiz first, Ice Fill first and Blood First trips now insta clear a room on their way instead of walking through it; traps and puzzles are never counted as insta clears",
      "Auto Water Board now clicks the reward chest on the tick the last color layer on the walkway pulls back (the moment the chest unlocks) instead of on a timer, and clicks again only if the server says the chest is still locked",
-     "Dungeons Autopilot and Auto Clear: the first trip of a run is now planned as the run starts, through the entrance gate, and its first warp goes as the gate opens (it was planned too early to see the gate, failed and was searched again, about half a second late)"
+     "Dungeons Autopilot and Auto Clear: the first trip of a run is now planned as the run starts, through the entrance gate, and its first warp goes as the gate opens (it was planned too early to see the gate, failed and was searched again, about half a second late)",
+     "Puzzle HUD no longer lists the Higher Or Lower blaze puzzle twice (as Higher Or Lower and again as Lower Blaze or Higher Blaze): it is one row, named for the blaze room the map found"
     ]
    }
   ]
