@@ -55,6 +55,8 @@ public class AutoClearTab extends BaseTab {
         w.add(onOffButton("Dungeons Autopilot", DungeonsAutopilot::isOn, DungeonsAutopilot::setOn, () -> { },
                 requestRebuild, contentX, y[0], contentWidth, 20));
         y[0] += ROW;
+        toggle(w, contentX, y[0], contentWidth, "Auto Enable On Dungeon Entry", cfg::isAutoEnable, cfg::setAutoEnable, save);
+        y[0] += ROW;
         header(w, contentX, y, contentWidth, "Mode");
         w.add(SettingsButtonWidget.cycleEnum(() -> value("Mode", cfg.getMode().label()), cfg::getMode, cfg::setMode, save)
                 .bounds(contentX, y[0], contentWidth, 20).build());

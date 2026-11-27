@@ -119,6 +119,7 @@ public final class DungeonsAutopilot {
         on = false;
         phase = Phase.IDLE;
         next = null;
+        ArmedStart.cancel("Dungeon Autopilot");
         AutoClearConfig.getInstance().setRunOverride(null, null);
         if (AutoSecretFeature.isRunning()) {
             AutoSecretFeature.stop(why, true);
@@ -129,7 +130,34 @@ public final class DungeonsAutopilot {
         }
     }
 
+    /** Auto Enable On Dungeon Entry's edge: in a dungeon on the last tick, that tick's world, the world it last fired in. */
+    private static boolean wasInDungeon;
+    private static Object seenLevel;
+    private static Object enabledLevel;
+
+    /**
+     * Auto Enable On Dungeon Entry (killer560, 2026-11-26: "add a toggle to auto enable auto pilot on entering a dungeon"):
+     * switches it on once as he enters a dungeon, as if he pressed it (in the green room it arms and starts with the run).
+     * Once per entry: switched off during that run it stays off (no new entry, and never twice in one world outside the
+     * sim), and a rejoin of a run he left does not fire it. Two boolean reads a tick otherwise.
+     */
+    private static void autoEnable(Minecraft client) {
+        Object lvl = client.level;
+        boolean in = lvl != null && DungeonState.isInDungeon();
+        boolean entered = in && (!wasInDungeon || lvl != seenLevel);
+        wasInDungeon = in;
+        seenLevel = lvl;
+        if (!entered || on || !cfg().isAutoEnable() || !AutoSecretConfig.allowed() || LiveMapFeature.isInBoss()
+                || com.killer560.hub.secrets.DungeonRun.resumed() || lvl == enabledLevel && !DungeonState.isRoomSim()) {
+            return;
+        }
+        enabledLevel = lvl;
+        LOGGER.info("[DungeonsAutopilot] Auto Enable On Dungeon Entry: entered a dungeon - switching on");
+        setOn(true);
+    }
+
     private static void tick(Minecraft client) {
+        autoEnable(client);
         if (!on) {
             return;
         }
@@ -155,7 +183,7 @@ public final class DungeonsAutopilot {
                 }
             }
             case SECRETS -> {
-                if (!AutoSecretFeature.isRunning()) {
+                if (!AutoSecretFeature.isRunning() && ArmedStart.pending() == null) {
                     stop(AutoSecretFeature.lastStopReason());
                 }
             }
@@ -202,7 +230,8 @@ public final class DungeonsAutopilot {
     /** The planner runs every Mode (and Clear First, Clear Room Before Secreting) from here on. */
     private static void secrets() {
         phase = Phase.SECRETS;
-        if (!AutoSecretFeature.startAutopilot()) {
+        // the run's start signal can read true for a tick as a floor loads; then the secrets part arms in the green room
+        if (!AutoSecretFeature.startAutopilot() && ArmedStart.pending() == null) {
             stop("the secrets part could not start");
         }
     }

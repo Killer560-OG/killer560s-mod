@@ -219,6 +219,8 @@ public final class AutoSecretConfig {
     /** Armed in the green room: etherwarp to the stand by the gate instead of walking (GreenRoomStart; killer560, 2026-11-26).
      *  Off by default: nothing new defaults on unless he asks (killer560, 2026-11-26). */
     private boolean greenRoomWarp = false;
+    /** Switch Dungeons Autopilot on as a dungeon is entered (DungeonsAutopilot.autoEnable; killer560, 2026-11-26). Off by default. */
+    private boolean autoEnable = false;
     /** Treat puzzles like rooms (only those whose Auto Puzzles auto is on). */
     private boolean doPuzzles = true;
     /** The one Status HUD every auto clear shares (AutoStatusHud, 2026-10-15) - Auto Clear, Auto Secret, Autopilot. */
@@ -264,6 +266,7 @@ public final class AutoSecretConfig {
             cfg.bloodFirst = ConfigJson.getBool(o, "bloodFirst", cfg.bloodFirst);
             cfg.faceDoorOnArrival = ConfigJson.getBool(o, "faceDoorOnArrival", cfg.faceDoorOnArrival);
             cfg.greenRoomWarp = ConfigJson.getBool(o, "greenRoomWarp", cfg.greenRoomWarp);
+            cfg.autoEnable = ConfigJson.getBool(o, "autoEnable", cfg.autoEnable);
             String sbf = ConfigJson.getString(o, "secretBloodFirst", cfg.secretBloodFirst.name());
             for (SecretBloodFirst m : SecretBloodFirst.values()) {
                 if (m != SecretBloodFirst.OFF && m.name().equals(sbf)) {
@@ -348,6 +351,7 @@ public final class AutoSecretConfig {
         o.addProperty("bloodFirst", bloodFirst);
         o.addProperty("faceDoorOnArrival", faceDoorOnArrival);
         o.addProperty("greenRoomWarp", greenRoomWarp);
+        o.addProperty("autoEnable", autoEnable);
         o.addProperty("secretBloodFirst", secretBloodFirst.name());
         o.addProperty("secretBloodFirstOn", secretBloodFirstOn);
         o.addProperty("secretOrder", secretOrder.name());
@@ -415,6 +419,8 @@ public final class AutoSecretConfig {
     public void setFaceDoorOnArrival(boolean v) { faceDoorOnArrival = v; }
     public boolean isGreenRoomWarp() { return greenRoomWarp; }
     public void setGreenRoomWarp(boolean v) { greenRoomWarp = v; }
+    public boolean isAutoEnable() { return autoEnable; }
+    public void setAutoEnable(boolean v) { autoEnable = v; }
 
     /** What the run uses: OFF while the switch is off. */
     /** OFF since apmenu-1121: the rush to the Blood door is the one feature's Blood Rush part, done before the mode starts. */

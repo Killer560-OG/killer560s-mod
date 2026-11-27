@@ -90,6 +90,13 @@ public final class ArmedStart {
         go.run();
     }
 
+    /** Drops {@code name}'s arm, if it is the one armed (the Autopilot switched off before the run started). */
+    static void cancel(String name) {
+        if (name.equals(pending)) {
+            clear();
+        }
+    }
+
     private static void clear() {
         pending = null;
         start = null;
