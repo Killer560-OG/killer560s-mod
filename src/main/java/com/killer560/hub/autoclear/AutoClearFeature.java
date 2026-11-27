@@ -1032,6 +1032,9 @@ public final class AutoClearFeature {
                     noMobTicks = 0;
                     return;
                 }
+                if (adoptStrays(client, layout, room) > 0) {
+                    return;   // targeted from the next tick (starredIn)
+                }
                 action = "looking for starred mobs";
                 if (++noMobTicks == 1) {
                     noMobLag = com.killer560.hub.util.ServerLag.mark();
@@ -1066,7 +1069,7 @@ public final class AutoClearFeature {
                     } else {
                         giveUpRoom("no starred mob is visible but the room is not cleared"
                                 + (roamedAny ? " (looked from " + (roamSpotsTried + roamKnownTried) + " more spot(s))"
-                                : ""));
+                                : "") + " - a mob may have left the room");
                     }
                 }
                 return;
@@ -2639,6 +2642,10 @@ public final class AutoClearFeature {
     static final double ROAM_MIN_SEPARATION = 8.0;
     /** The offset of each quadrant's look point from its tile center (a tile is 31 across). */
     private static final int ROAM_QUADRANT = 8;
+    /** A door-side roam spot's look point: this far into the room from the door's center. */
+    private static final double ROAM_DOOR_INSET = 4.0;
+    /** Of {@link #roamSpots}, the door-side ones (tried on top of {@link #ROAM_MAX_SPOTS}). */
+    private static int roamDoorSpots = 0;
 
     private static int roamSpotsTried = 0;
     private static long roamStartMs = 0L;
@@ -2889,6 +2896,91 @@ public final class AutoClearFeature {
         return out;
     }
 
+    /**
+     * A starred mob that walked out through an open door counts for this room while it stands no further than this from
+     * that door in a neighbor that has no claim on it (wandered-mob-1126, killer560 2026-11-26: "a mob has wandered out
+     * of leaves into quiz but it cannot find the mob to clear the room" - a Leaves mob that chased him into the Quiz was
+     * first seen there, so it counted for the Quiz, and Leaves was roamed and given up with it in sight). Half a tile.
+     */
+    static final double STRAY_DOOR_RANGE = 16.0;
+    private static final int[][] DIRS = {{1, 0}, {-1, 0}, {0, 1}, {0, -1}};
+
+    /** The room's open doors into another room: {door center x, z, neighbor room}. */
+    private static List<double[]> openDoors(DungeonLayout layout, int room) {
+        List<double[]> out = new java.util.ArrayList<>();
+        int[] tiles = room < 0 ? null : layout.tiles(room);
+        int g = DungeonLayout.GRID;
+        for (int t : tiles == null ? new int[0] : tiles) {
+            for (int[] d : DIRS) {
+                int dx = t % g + d[0], dz = t / g + d[1], nx = dx + d[0], nz = dz + d[1];
+                if (nx < 0 || nz < 0 || nx >= g || nz >= g || !layout.isDoor(dz * g + dx) || layout.isLocked(dz * g + dx)) {
+                    continue;
+                }
+                BlockPos c = DungeonLayout.cellCenter(nx, nz);
+                int nb = layout.roomAtWorld(c.getX() + 0.5, c.getZ() + 0.5);
+                if (nb >= 0 && nb != room) {
+                    Vec3 dc = DungeonLayout.doorCentre(dz * g + dx);
+                    out.add(new double[]{dc.x, dc.z, nb});
+                }
+            }
+        }
+        return out;
+    }
+
+    /**
+     * With none of the room's mobs in sight: a starred mob seen standing in a neighbor through one of the room's open doors,
+     * within {@link #STRAY_DOOR_RANGE} of it, is made this room's (its home, {@link #mobRoom}) when nothing else can own
+     * it - the neighbor is cleared on the map or no mob room (a puzzle, the Quiz), it has no home in another uncleared
+     * room, and no other uncleared mob room's door into that neighbor is nearer it. An uncleared neighbor's mobs stay its
+     * own (never taken: the map would not credit this room for them). Reads only {@link #seenMobs}, no entity scan.
+     * @return how many were taken
+     */
+    private static int adoptStrays(Minecraft client, DungeonLayout layout, int room) {
+        List<double[]> doors = null;
+        int taken = 0;
+        for (var entry : seenMobs.entrySet()) {
+            Seen s = entry.getValue();
+            if (s.lost() || roomName.equals(s.room()) || doomed.containsKey(entry.getKey())
+                    || skippedMobs.contains(entry.getKey())) {
+                continue;
+            }
+            Entity e = client.level.getEntity(entry.getKey());
+            int under = e == null || !e.isAlive() ? -1 : layout.roomAtWorld(e.getX(), e.getZ());
+            String home = homeRooms.get(entry.getKey());
+            if (under < 0 || under == room || homeable(layout, under)
+                    || home != null && homeable(layout, AutoClearTargets.roomByName(layout, home))) {
+                continue;
+            }
+            doors = doors == null ? openDoors(layout, room) : doors;
+            double ours = Double.MAX_VALUE;
+            for (double[] d : doors) {
+                if ((int) d[2] == under) {
+                    ours = Math.min(ours, Math.hypot(d[0] - e.getX(), d[1] - e.getZ()));
+                }
+            }
+            if (ours > STRAY_DOOR_RANGE || nearerClaim(layout, room, under, e, ours)) {
+                continue;
+            }
+            homeRooms.put(entry.getKey(), roomName);
+            taken++;
+            LOGGER.info(String.format(Locale.US, "[AutoClear] %s at %s stands in %s, %.1f blocks from %s's door - nothing"
+                            + " else can own it there, so it counts as %s's mob (wandered out)", s.name(),
+                    e.blockPosition().toShortString(), layout.name(under), ours, roomName, roomName));
+        }
+        return taken;
+    }
+
+    /** Whether another uncleared mob room's open door into {@code under} is nearer {@code mob} than {@code ours}. */
+    private static boolean nearerClaim(DungeonLayout layout, int room, int under, Entity mob, double ours) {
+        for (double[] d : openDoors(layout, under)) {
+            int other = (int) d[2];
+            if (other != room && homeable(layout, other) && Math.hypot(d[0] - mob.getX(), d[1] - mob.getZ()) <= ours) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     /** {@link Known#lostId} of a spawn spot (not a mob). */
     private static final int SPAWN_SPOT = -2;
 
@@ -2919,7 +3011,7 @@ public final class AutoClearFeature {
                 return true;
             }
         }
-        if (roamSpotsTried >= ROAM_MAX_SPOTS) {
+        if (roamSpotsTried >= ROAM_MAX_SPOTS + roamDoorSpots) {
             LOGGER.info("[AutoClear] roam: {} spot(s) in {} showed no starred mob - giving up on the room", roamSpotsTried,
                     roomName);
             roamDone = true;
@@ -3095,6 +3187,27 @@ public final class AutoClearFeature {
                 }
             }
         }
+        // And one inside each open door (wandered-mob-1126): a mob that walked out through it is loaded from there.
+        int quadrantSpots = out.size();
+        for (double[] d : openDoors(layout, room)) {
+            BlockPos c = null;
+            double cd = Double.MAX_VALUE;
+            for (int tile : tiles) {   // the door's own tile: the one whose center is nearest it
+                BlockPos tc = DungeonLayout.cellCenter(tile);
+                double td = Math.hypot(tc.getX() - d[0], tc.getZ() - d[1]);
+                if (td < cd) {
+                    cd = td;
+                    c = tc;
+                }
+            }
+            double k = ROAM_DOOR_INSET / Math.max(1.0, cd);
+            BlockPos s = TeleportUtils.etherwarpableInTile(c, new Vec3(d[0] + (c.getX() - d[0]) * k, c.getY(),
+                    d[1] + (c.getZ() - d[1]) * k));
+            if (s != null && !out.contains(s) && layout.roomAtWorld(s.getX() + 0.5, s.getZ() + 0.5) == room) {
+                out.add(s);
+            }
+        }
+        roamDoorSpots = out.size() - quadrantSpots;
         return out;
     }
 

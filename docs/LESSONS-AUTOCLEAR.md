@@ -556,6 +556,14 @@ pick is now cut when only the trip back is left, see "Quiz return" below); it st
   otherwise the mob counts where it stands until it is seen in one, and a home that turns cleared is dropped. Testkit
   1123-sim-ac-chaser. Read the logger's acruns K lines (`m=` is the room's starred list) against the session recorder's
   `world entities` positions to find a mob next to him that the room did not list.
+- A mob that wandered out before the clear began (wandered-mob-1126, his 11-26 4:00 PM F7): Leaves' Speedy Zombie Knight walked
+  through the Quiz door while Auto Secret ran (no Auto Clear, so nothing homed it) and stood at -103,71,-182, two blocks past
+  Leaves' edge in the Quiz, from 15:59:05 to the give-up at 15:59:23 (logger `world entities`); the run first saw it in the Quiz, a
+  puzzle, so it counted there and Leaves' `m=` stayed empty. Now `adoptStrays`: with none of the room's mobs in sight, a seen mob
+  within 16 blocks of one of the room's open doors in a neighbor that is cleared on the map or no mob room, with no home in another
+  uncleared room and no other uncleared mob room's door into that neighbor nearer it, is homed to the room; an uncleared
+  neighbor's own mobs are never taken. Door-side roam spots (4 inside each open door) come on top of the 4 quadrant spots, and the
+  give-up line ends "a mob may have left the room". Testkit 1126-sim-ac-wandered (cleared / known / guard).
 - Back at the Quiz early (same runs, 5 of 12 countdowns with 68-111 ticks left, 2.4-4.1 s standing): every one was "none fits"
   - no secret route fitted there + route + back, and a cut-short mob clear needs `QUIZ_GAP_PART_MIN_LEFT` (100) ticks left. At
   13:21:21 (68 left) Small Stairs next door cost 22 there + 18 back + the 20-tick spare, 8 ticks of work; at 12:59:55 (90 left)
