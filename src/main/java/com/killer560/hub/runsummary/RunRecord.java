@@ -60,16 +60,33 @@ public record RunRecord(
         /** Who was in the party, keyed on UUID - see {@link PartyMember}. Empty when nothing was readable. */
         List<PartyMember> party,
         /** The dungeon map as it looked, or null when nothing ever scanned it (see {@link MapSnapshot}). */
-        MapSnapshot map) {
+        MapSnapshot map,
+        /** Tick time and party facts for the website's boards (sharesite); {@link Share#NONE} when not known. */
+        Share share) {
 
     public static final int UNKNOWN_INT = -1;
+    public static final long UNKNOWN_LONG = -1L;
     public static final long UNKNOWN_PROFIT = Long.MIN_VALUE;
 
     private static final DateTimeFormatter DATE =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm").withLocale(Locale.US);
 
     /** One split segment: the phase's plain name and how long it ran. */
-    public record Split(String name, long ms) {
+    public record Split(String name, long ms, long tickMs) {
+        public Split(String name, long ms) {
+            this(name, ms, UNKNOWN_LONG);
+        }
+    }
+
+    /** Tick time (server ticks / 20 = real time minus lag; -1 unknown) of the run, and the party size when the run started
+     *  and ended (-1 unknown) and whether it changed in between. */
+    public record Share(long totalTickMs, int partyStart, int partyEnd, boolean partyChanged) {
+        public static final Share NONE = new Share(UNKNOWN_LONG, UNKNOWN_INT, UNKNOWN_INT, false);
+
+        /** A party of one from the first read to the last (an unknown end counts as not contradicting it). */
+        public boolean soloThroughout() {
+            return !partyChanged && partyStart <= 1 && partyEnd <= 1;
+        }
     }
 
     /** One device/lever/terminal completion: who, which kind, the (n/m) count, and how far into the split
@@ -164,6 +181,18 @@ public record RunRecord(
         splits = splits == null ? List.of() : List.copyOf(splits);
         devices = devices == null ? List.of() : List.copyOf(devices);
         party = party == null ? List.of() : List.copyOf(party);
+        share = share == null ? Share.NONE : share;
+    }
+
+    /** A run as it was recorded before tick time and party facts existed. */
+    public RunRecord(long startedAtMs, long endedAtMs, String floor, boolean masterMode, long totalMs, String hypixelTime,
+            boolean hypixelNewRecord, List<Split> splits, List<Device> devices, int secretsFound, int totalSecrets, int crypts,
+            int deaths, int puzzlesFailed, int puzzleCount, int estimatedScore, String estimatedRank, int hypixelScore,
+            String hypixelRank, String dungeonClass, int partySize, long chestProfit, int chestCount, boolean bestTime,
+            boolean bestScore, List<PartyMember> party, MapSnapshot map) {
+        this(startedAtMs, endedAtMs, floor, masterMode, totalMs, hypixelTime, hypixelNewRecord, splits, devices, secretsFound,
+                totalSecrets, crypts, deaths, puzzlesFailed, puzzleCount, estimatedScore, estimatedRank, hypixelScore, hypixelRank,
+                dungeonClass, partySize, chestProfit, chestCount, bestTime, bestScore, party, map, Share.NONE);
     }
 
     /** "F7" / "M7 (Master)" style label for lists. */
@@ -225,6 +254,7 @@ public record RunRecord(
             JsonObject e = new JsonObject();
             e.addProperty("name", s.name());
             e.addProperty("ms", s.ms());
+            if (s.tickMs() >= 0L) e.addProperty("tickMs", s.tickMs());
             splitArray.add(e);
         }
         o.add("splits", splitArray);
@@ -310,6 +340,14 @@ public record RunRecord(
             m.add("rooms", roomArray);
             o.add("map", m);
         }
+        if (share != Share.NONE) {
+            JsonObject sh = new JsonObject();
+            sh.addProperty("totalTickMs", share.totalTickMs());
+            sh.addProperty("partyStart", share.partyStart());
+            sh.addProperty("partyEnd", share.partyEnd());
+            sh.addProperty("partyChanged", share.partyChanged());
+            o.add("share", sh);
+        }
         return o;
     }
 
@@ -384,7 +422,7 @@ public record RunRecord(
         for (JsonObject s : objects(o, "splits")) {
             String name = ConfigJson.getString(s, "name", null);
             if (name != null) {
-                splits.add(new Split(name, ConfigJson.getLong(s, "ms", 0L)));
+                splits.add(new Split(name, ConfigJson.getLong(s, "ms", 0L), ConfigJson.getLong(s, "tickMs", UNKNOWN_LONG)));
             }
         }
         List<Device> devices = new ArrayList<>();
@@ -456,6 +494,13 @@ public record RunRecord(
                 ConfigJson.getBool(o, "bestTime", false),
                 ConfigJson.getBool(o, "bestScore", false),
                 party,
-                map);
+                map,
+                shareFrom(ConfigJson.getObject(o, "share")));
+    }
+
+    private static Share shareFrom(JsonObject sh) {
+        return sh == null ? Share.NONE : new Share(ConfigJson.getLong(sh, "totalTickMs", UNKNOWN_LONG),
+                ConfigJson.getInt(sh, "partyStart", UNKNOWN_INT), ConfigJson.getInt(sh, "partyEnd", UNKNOWN_INT),
+                ConfigJson.getBool(sh, "partyChanged", false));
     }
 }

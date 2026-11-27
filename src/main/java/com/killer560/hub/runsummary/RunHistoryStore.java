@@ -131,7 +131,7 @@ public final class RunHistoryStore {
                         r.hypixelTime(), r.hypixelNewRecord(), r.splits(), r.devices(), r.secretsFound(),
                         r.totalSecrets(), r.crypts(), r.deaths(), r.puzzlesFailed(), r.puzzleCount(),
                         r.estimatedScore(), r.estimatedRank(), r.hypixelScore(), r.hypixelRank(), r.dungeonClass(),
-                        r.partySize(), r.chestProfit(), r.chestCount(), false, false, r.party(), r.map()));
+                        r.partySize(), r.chestProfit(), r.chestCount(), false, false, r.party(), r.map(), r.share()));
                 LOGGER.info("[RunSummary] Cleared a personal-best mark from an unfinished or sub-S run ({} {})",
                         r.floorLabel(), RunRecord.formatTime(r.totalMs()));
                 changed = true;
@@ -179,7 +179,7 @@ public final class RunHistoryStore {
                 record.deaths(), record.puzzlesFailed(), record.puzzleCount(), record.estimatedScore(),
                 record.estimatedRank(), record.hypixelScore(), record.hypixelRank(), record.dungeonClass(),
                 record.partySize(), record.chestProfit(), record.chestCount(), beatTime, beatScore,
-                record.party(), record.map());
+                record.party(), record.map(), record.share());
         RUNS.add(0, stored);
         trim();
         LOGGER.info("[RunSummary] Stored run: {} in {} score {} ({}){}", stored.floorLabel(),

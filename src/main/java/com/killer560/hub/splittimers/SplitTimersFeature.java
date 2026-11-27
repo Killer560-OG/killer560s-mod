@@ -510,6 +510,22 @@ public final class SplitTimersFeature {
         return current < 0 ? 0L : run.timeMs[current];
     }
 
+    /** For Run Summary's tick time (the lagless clock): the lag total at the running segment's start, the run's start, and
+     *  now; each -1 when there is none or no per-tick server clock was trusted. Tick time = real time minus lag. */
+    public static long getCurrentSegmentStartLagMs() {
+        int current = currentIndex();
+        return current < 0 || !SplitLagClock.isTrustworthy() ? -1L : run.lagMs[current];
+    }
+
+    public static long getRunStartLagMs() {
+        int first = firstRecorded();
+        return first < 0 || !SplitLagClock.isTrustworthy() ? -1L : run.lagMs[first];
+    }
+
+    public static long lagNowMs() {
+        return SplitLagClock.isTrustworthy() ? SplitLagClock.accumulatedLagMs() : -1L;
+    }
+
     /** For {@code autokick.AutoKickFeature}: the wall-clock moment this run's clock started, or 0. */
     public static long getRunStartedAtMs() {
         int first = firstRecorded();

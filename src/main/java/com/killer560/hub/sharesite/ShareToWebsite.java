@@ -15,7 +15,7 @@ import java.util.Set;
 /**
  * Share To Website (sharesite-1119, killer560 2026-11-19): while ON (the default) each finished dungeon run is sent to the
  * relay ({@code POST /site/stats}) for the website's Player Stats page: the floor, its time, whether the boss was beaten,
- * the player's own secrets (the end-of-run Stats block), and the player's own terminal solve times since the last upload. The relay keeps the totals;
+ * the player's own secrets (the end-of-run Stats block), the run's score, and the player's own terminal solve times since the last upload. The relay keeps the totals;
  * nothing is tallied or stored here. Turning it OFF sends {@code DELETE /site/stats}, retried at each world join until the
  * relay confirms. Design: killer560s-mod-logs/sharesite-1119-design.md.
  * <p>
@@ -51,7 +51,10 @@ public final class ShareToWebsite {
     }
 
     public static void register() {
-        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> flush());
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            flush();
+            BoardTimes.resyncP3();
+        });
     }
 
     /** On, and the player has seen the intro's notice (a player who finished the intro before this existed is shown it once). */
@@ -87,7 +90,7 @@ public final class ShareToWebsite {
     /** One of the player's own terminal solves (confirmed by his "completed a terminal" line); sent with the next run. */
     public static synchronized void onTerminalSolved(String type, double seconds) {
         long ms = Math.round(seconds * 1000.0);
-        if (!active() || !TERMINALS.contains(type) || ms < TERM_MIN_MS || ms > TERM_MAX_MS) return;
+        if (!active() || !BoardTimes.realRun() || !TERMINALS.contains(type) || ms < TERM_MIN_MS || ms > TERM_MAX_MS) return;
         if (TERMS.size() >= MAX_TERMS) TERMS.remove(0);
         JsonObject t = new JsonObject();
         t.addProperty("type", type);
@@ -98,7 +101,7 @@ public final class ShareToWebsite {
     /** A finished run from Run Summary's tracker and the player's own secret count from the end-of-run Stats block (-1
      *  unknown: the run is left out, the terminal solves still go): queued with the solves since the last one, then sent. */
     public static void onRun(RunRecord record, int ownSecrets) {
-        if (record == null || !active()) return;
+        if (record == null || !active() || !BoardTimes.realRun()) return;
         BoardTimes.onRun(record);
         String floor = record.floor();
         boolean usable = floor != null && FLOORS.contains(floor) && record.totalMs() >= RUN_MIN_MS
@@ -111,6 +114,7 @@ public final class ShareToWebsite {
                 run.addProperty("ms", record.totalMs());
                 run.addProperty("done", record.hypixelTime() != null && !record.hypixelTime().isBlank());
                 run.addProperty("secrets", ownSecrets);
+                if (record.effectiveScore() >= 0) run.addProperty("score", record.effectiveScore());
                 runs.add(run);
             }
             if (runs.isEmpty() && TERMS.isEmpty()) return;
@@ -200,6 +204,14 @@ public final class ShareToWebsite {
 
     public static void boardsAnyHostForTest(boolean on) {
         BoardTimes.anyHostForTest(on);
+    }
+
+    public static void boardsResyncForTest() {
+        BoardTimes.resyncP3();
+    }
+
+    public static String boardsPendingJsonForTest() {
+        return BoardTimes.pendingJsonForTest();
     }
 
     public static int boardsSentForTest() {

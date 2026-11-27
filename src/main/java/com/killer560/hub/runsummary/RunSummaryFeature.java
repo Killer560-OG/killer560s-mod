@@ -102,6 +102,13 @@ public final class RunSummaryFeature {
     private static final List<RunRecord.Device> DEVICES = new ArrayList<>();
     private static String currentSplitLabel = null;
     private static long currentSplitStartMs = 0L;
+    /** Split Timers' lag total at the running split's start and at the end-of-run line (-1 unknown): tick time = real - lag. */
+    private static long currentSplitStartLag = -1L;
+    private static long runEndLag = -1L;
+    /** First and latest party size read this run, and whether a read ever differed from the one before. */
+    private static int partyFirst = RunRecord.UNKNOWN_INT;
+    private static int partyLast = RunRecord.UNKNOWN_INT;
+    private static boolean partyChanged = false;
     private static ScoreCalculator.Result lastEstimate = null;
     private static int secretsFound = RunRecord.UNKNOWN_INT;
     /** The Stats block's "Secrets Found: N", the player's OWN count (secretsFound is the tab list's team total). */
@@ -160,7 +167,7 @@ public final class RunSummaryFeature {
             floor = liveFloor;
         }
         if (!full) {
-            // Sharing alone: the Terminals + Goldor splits (P3) and the party size (solo) the website's boards need.
+            // Sharing alone: the Terminals split (P3), tick times and the party size (solo) the website's boards need.
             pollSplits();
             if (++pollCounter >= 20) {
                 pollCounter = 0;
@@ -259,17 +266,26 @@ public final class RunSummaryFeature {
         long start = SplitTimersFeature.getCurrentSegmentStartedAtMs();
         if (label == null || start <= 0L) return;
         if (label.equals(currentSplitLabel) && start == currentSplitStartMs) return;
-        closeCurrentSplit(start);
+        long startLag = SplitTimersFeature.getCurrentSegmentStartLagMs();
+        closeCurrentSplit(start, startLag);
         currentSplitLabel = label;
         currentSplitStartMs = start;
+        currentSplitStartLag = startLag;
     }
 
-    private static void closeCurrentSplit(long endMs) {
+    /** Tick time of a span: real time minus the lag inside it, or -1 when either lag mark is unknown. */
+    private static long tickMs(long ms, long startLag, long endLag) {
+        return startLag < 0L || endLag < startLag ? RunRecord.UNKNOWN_LONG : Math.max(0L, ms - (endLag - startLag));
+    }
+
+    private static void closeCurrentSplit(long endMs, long endLag) {
         if (currentSplitLabel != null && currentSplitStartMs > 0L && endMs > currentSplitStartMs) {
-            SPLITS.add(new RunRecord.Split(currentSplitLabel, endMs - currentSplitStartMs));
+            long ms = endMs - currentSplitStartMs;
+            SPLITS.add(new RunRecord.Split(currentSplitLabel, ms, tickMs(ms, currentSplitStartLag, endLag)));
         }
         currentSplitLabel = null;
         currentSplitStartMs = 0L;
+        currentSplitStartLag = -1L;
     }
 
     private static void readTabList(Minecraft client) {
@@ -420,6 +436,9 @@ public final class RunSummaryFeature {
             dungeonClass = self.displayName();
         }
         int size = PartyTracker.teammates().size() + 1;
+        if (partyFirst < 0) partyFirst = size;
+        else if (size != partyLast) partyChanged = true;
+        partyLast = size;
         if (size > partySize) {
             // Someone dying/disconnecting shouldn't retroactively shrink the party the run was done with.
             partySize = size;
@@ -441,7 +460,8 @@ public final class RunSummaryFeature {
         Matcher defeated = DEFEATED.matcher(raw);
         if (defeated.matches()) {
             long now = System.currentTimeMillis();
-            closeCurrentSplit(now);
+            runEndLag = SplitTimersFeature.lagNowMs();
+            closeCurrentSplit(now, runEndLag);
             runEndMs = now;
             hypixelTime = defeated.group(2) == null ? null : defeated.group(2).trim();
             hypixelNewRecord = defeated.group(3) != null;
@@ -454,7 +474,8 @@ public final class RunSummaryFeature {
         if (EXTRA_STATS.matcher(raw).find()) {
             if (runEndMs <= 0L) {
                 long now = System.currentTimeMillis();
-                closeCurrentSplit(now);
+                runEndLag = SplitTimersFeature.lagNowMs();
+                closeCurrentSplit(now, runEndLag);
                 runEndMs = now;
             }
             if (finishDelayTicks < 0) {
@@ -513,6 +534,9 @@ public final class RunSummaryFeature {
         active = false;
         runStartMs = 0L;
         runEndMs = 0L;
+        runEndLag = -1L;
+        partyFirst = partyLast = RunRecord.UNKNOWN_INT;
+        partyChanged = false;
         floor = null;
         hypixelTime = null;
         hypixelNewRecord = false;
@@ -522,6 +546,7 @@ public final class RunSummaryFeature {
         DEVICES.clear();
         currentSplitLabel = null;
         currentSplitStartMs = 0L;
+        currentSplitStartLag = -1L;
         lastEstimate = null;
         secretsFound = RunRecord.UNKNOWN_INT;
         ownSecrets = RunRecord.UNKNOWN_INT;
@@ -545,7 +570,8 @@ public final class RunSummaryFeature {
             return;
         }
         long end = runEndMs > 0L ? runEndMs : System.currentTimeMillis();
-        closeCurrentSplit(end);
+        long endLag = runEndMs > 0L ? runEndLag : SplitTimersFeature.lagNowMs();
+        closeCurrentSplit(end, endLag);
         long splitStart = SplitTimersFeature.getRunStartedAtMs();
         if (splitStart > 0L && splitStart < end) runStartMs = splitStart; // one run start with Split Timers
         String resolvedFloor = floor;
@@ -582,7 +608,9 @@ public final class RunSummaryFeature {
                 false,
                 false,
                 buildPartyRows(Minecraft.getInstance()),
-                mapSnapshot);
+                mapSnapshot,
+                new RunRecord.Share(runStartMs > 0L ? tickMs(end - runStartMs, SplitTimersFeature.getRunStartLagMs(), endLag) : RunRecord.UNKNOWN_LONG,
+                        partyFirst, partyLast, partyChanged));
         // Run History, the carry tracker and the chat summary are Run Summary's own; sharing alone only uploads.
         if (RunSummaryConfig.getInstance().isEnabled()) {
             RunHistoryStore.BestFlags flags = RunHistoryStore.add(record);
