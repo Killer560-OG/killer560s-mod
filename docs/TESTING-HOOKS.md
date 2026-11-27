@@ -244,3 +244,9 @@ Testkit 95-perf-livemap runs it.
 COLLECT_SUBMITS (families: thru-fill, depth-fill, block-fill, waypoint-fill, thru-outline, depth-outline, thru-line,
 depth-line, and waypoint-depth: Secret Waypoints' depth-tested fill); `setForced(null, null)` stops it. Testkit
 1103-esp-depth-<family> puts water behind, in front of and around it; 1104-zfight-* draws it on a white cube's own faces.
+
+## Auto Clear first trip through the gate (`livemap/autoclear/ClearExecutor`)
+
+`ClearExecutor.testGate(List<BlockPos>)`: the next queue run without a search (a direct one-warp trip) is held as a first
+trip through the shut entrance gate is, primed each tick and let go the tick every block is air (testkit
+1126-hx-firsttrip-gate-same-*, where the Hx server has no gate).

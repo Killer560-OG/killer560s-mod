@@ -542,6 +542,16 @@ public final class ClearExecutor {
         // A trip that stays in the green room (GreenRoomStart's warps to the gate) plans in the world as it is.
         java.util.List<BlockPos> gate = nextInRoom ? null : closedEntranceGate(client, DungeonLayout.current());
         nextInRoom = false;
+        if (gate != null && gateBricksUnderMap) {
+            // The start's own tick (autopilot-prerun-1126): the map is in hand and the bricks still stand. Hypixel turns
+            // them into barriers next tick for ~15 more (then this plans through them and holds), the sim into air (then
+            // it plans in the open world). Either is a better plan than one through bricks about to go: press again then.
+            gateRetry = new GateRetry(to, tileIdx, complete, goalExact, gate, clientTicks + 1);
+            LOGGER.info("[Path] the run starts this tick with the entrance gate's bricks still up - planning {} next tick",
+                    to.toShortString());
+            return;
+        }
+        gateRetry = null;
         if (gate == null && adoptPreplan(to, tileIdx, complete, player)) {
             return;
         }
@@ -657,7 +667,7 @@ public final class ClearExecutor {
                 }
                 if (result == null && gate != null) {
                     // Nothing found through the shut gate in the time given: planned again the tick it opens.
-                    gateRetry = new GateRetry(to, tileIdx, complete, exact, gate);
+                    gateRetry = new GateRetry(to, tileIdx, complete, exact, gate, -1);
                     goalTo = null;
                     goalComplete = null;
                     LOGGER.info("[Path] no plan to {} through the shut entrance gate in {} ms - planning again when it opens",
@@ -790,7 +800,9 @@ public final class ClearExecutor {
     private static int gateHoldTicks;
 
     /** A trip that found no plan through the shut gate: planned again the tick the gate opens. */
-    private record GateRetry(BlockPos to, int tileIdx, Runnable complete, boolean exact, java.util.List<BlockPos> gate) {
+    /** {@code atTick}: also planned again on that client tick (-1: only when the gate opens). */
+    private record GateRetry(BlockPos to, int tileIdx, Runnable complete, boolean exact, java.util.List<BlockPos> gate,
+                             long atTick) {
     }
 
     private static GateRetry gateRetry;
@@ -811,11 +823,15 @@ public final class ClearExecutor {
      * infested chiseled stone bricks (what DoorScanner knows an entrance door by on Hypixel, and what the sim builds).
      * Found from the layout's entrance door cell, never by searching the floor.
      */
+    /** The last {@link #closedEntranceGate} found only bricks with the map in hand: the start's own tick. */
+    private static boolean gateBricksUnderMap;
+
     static java.util.List<BlockPos> closedEntranceGate(Minecraft client, DungeonLayout layout) {
         if (client.level == null) {
             return null;
         }
         boolean map = com.killer560.hub.livemap.HeldMap.available();
+        gateBricksUnderMap = false;
         java.util.List<BlockPos> out = new ArrayList<>();
         BlockPos.MutableBlockPos m = new BlockPos.MutableBlockPos();
         for (int idx = 0; idx < DungeonLayout.GRID * DungeonLayout.GRID; idx++) {
@@ -829,15 +845,21 @@ public final class ClearExecutor {
             // only while one stands in the doorway itself (a doorway is never shut for good).
             boolean barrierGate = client.level.getBlockState(c).is(net.minecraft.world.level.block.Blocks.BARRIER)
                     || client.level.getBlockState(c.above()).is(net.minecraft.world.level.block.Blocks.BARRIER);
-            if (map && !barrierGate) {
+            // autopilot-prerun-1126: on the start's own tick the map is in hand while the bricks still stand (the barriers
+            // come a tick later), and the first trip planned in that world found nothing and failed (11 ticks lost after
+            // the gate opened). Bricks in the doorway itself are the gate too.
+            boolean brickGate = map && (client.level.getBlockState(c).is(net.minecraft.world.level.block.Blocks.INFESTED_CHISELED_STONE_BRICKS)
+                    || client.level.getBlockState(c.above()).is(net.minecraft.world.level.block.Blocks.INFESTED_CHISELED_STONE_BRICKS));
+            if (map && !barrierGate && !brickGate) {
                 continue;
             }
+            gateBricksUnderMap |= map && !barrierGate;
             for (int dx = -3; dx <= 3; dx++) {
                 for (int dz = -3; dz <= 3; dz++) {
                     for (int dy = -2; dy <= 5; dy++) {
                         m.set(c.getX() + dx, c.getY() + dy, c.getZ() + dz);
                         net.minecraft.world.level.block.state.BlockState st = client.level.getBlockState(m);
-                        if (!map && st.is(net.minecraft.world.level.block.Blocks.INFESTED_CHISELED_STONE_BRICKS)
+                        if ((!map || brickGate) && st.is(net.minecraft.world.level.block.Blocks.INFESTED_CHISELED_STONE_BRICKS)
                                 || barrierGate && st.is(net.minecraft.world.level.block.Blocks.BARRIER)) {
                             out.add(m.immutable());
                         }
@@ -898,7 +920,8 @@ public final class ClearExecutor {
      */
     private static boolean tickGate(Minecraft client) {
         GateRetry retry = gateRetry;
-        if (retry != null && client.level != null && gateOpen(client, retry.gate())) {
+        if (retry != null && client.level != null && (gateOpen(client, retry.gate())
+                || retry.atTick() >= 0 && clientTicks >= retry.atTick())) {
             gateRetry = null;
             LOGGER.info("[Path] the entrance gate is open - planning the waiting trip to {}", retry.to().toShortString());
             goalExact = retry.exact();
@@ -1223,7 +1246,15 @@ public final class ClearExecutor {
         ModChat.log(CHAT, ModChat.text(source.startsWith("planned ahead") ? "Path planned ahead" : "Path precomputed"),
                 ModChat.dim(" (" + list.size() + " warps)"));
         startQueue(list, complete);
-        sendFromThisTick(list);
+        if (testGate != null) {
+            // testkit 1126-hx-firsttrip-gate-same-*: held as a first trip through the shut gate is (tickGate primes it and
+            // lets it go the tick the blocks are air).
+            gateHold = testGate;
+            gateHoldTicks = 0;
+            testGate = null;
+        } else {
+            sendFromThisTick(list);
+        }
         improveInBackground(list, to, tileIdx, DungeonLayout.capture());
         return true;
     }
@@ -1289,6 +1320,13 @@ public final class ClearExecutor {
         TripCache.hit(e);
         cachedRun = e;
         return true;
+    }
+
+    /** Test hook (docs/TESTING-HOOKS.md): the next queue run without a search waits for these blocks to be air. */
+    private static java.util.List<BlockPos> testGate;
+
+    public static void testGate(java.util.List<BlockPos> blocks) {
+        testGate = blocks;
     }
 
     private static final String[] AOTV = {"ASPECT_OF_THE_VOID"};

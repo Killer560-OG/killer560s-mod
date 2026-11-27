@@ -758,6 +758,19 @@ his hotbar slot back (never behind a use in one server tick), or his next right 
   lines between a death and the use, each with its tick offset; one `[digflush]` line is one tick).
 - Trip retry limit (ac-retry-limit-1126, 2026-11-26): Door Only has no room, so giveUpRoom after MAX_PATH_FAILURES (4) did nothing and a trip that could not route was asked again every tick ("failed (90 of 4)", one "No ROOM route" line each, ~7 a second). Now giveUpTrip: with no room it records blockedDoor and the room he stands in, says why once and leaves that door until he is in another room or its lock changes (nothing else of Auto Clear stops); "No ROOM route" logs once per (rooms, locked doors). Testkit 1126-sim-ac-trip-retry-limit walls him in with stone (no warp can start) and counts 4 failed tries, one give-up line, still running.
 
+## The first trip on the start's own tick (autopilot-prerun-1126, 2026-11-26)
+
+- On the tick the run starts the held map is in hand while the gate's infested bricks still stand (the barriers come a tick
+  later). closedEntranceGate ignored bricks once the map was in hand, so the first trip was planned in the shut world, found
+  nothing ("fewest-warps graph found nothing ... Room hop 2 of 3 failed") and was searched again: first warp 11 ticks after
+  the gate was air. Bricks in the doorway itself now count as the gate; the trip plans through it in 1-50 ms inside the
+  15-tick barrier window and goes 1 tick after the client sees air (the harness floor, testkit 1126-sim-ac-firsttrip-prerun).
+- Planning it before the start (TripCache entries through the gate) was built and dropped: the Autopilot's first goal is
+  Auto Clear's stand block, which TripCache does not plan, and the wants that failed through the gate were searched ~2,300
+  times in 100 ticks. Measure what the start's own plan costs before adding pre-start work.
+- 1126-sim-ac-gatebarrier flaked on 26.2 from three test races, not the mod: the map's current room trails a fast chain, a
+  slow search could run past the 15 barrier ticks, and a room's route start can be its doorway column (New Trap).
+
 ## Tiles seen during the visit, the hop before the deaths, and hop counts from the landing (acoptimal-1126b, 2026-11-26)
 - The "looking" ticks after a room's last death (88 a run on 1020-sim-ac-speed's 6 floors, main PC) were nearly all one rule:
   `moveOnAtLastDeath` left only when EVERY tile center of the room was within LAST_DEATH_SIGHT (48) of him at the death, so in
