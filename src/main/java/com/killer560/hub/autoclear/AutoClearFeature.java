@@ -160,8 +160,13 @@ public final class AutoClearFeature {
     private static final int EXIT_CHECK_MAX = 256;
     /** The one-room warp search's budget for a way out; running out of it counts as a way out (never a guess against). */
     private static final long EXIT_SEARCH_MS = 25;
-    /** One tick's share of that search (acpocket-perf-1124: the whole 25 ms at once was a frame hitch). */
-    private static final long EXIT_SLICE_MS = 2;
+    /** One tick's share of that search, in ns (acpocket-perf-1124: the whole 25 ms at once was a frame hitch). */
+    private static long exitSliceNs = 2_000_000L;
+
+    /** For the testkit: a shorter slice, so a search surely takes several ticks (the wait for its verdict is tested). */
+    public static void exitSliceNsForTest(long ns) {
+        exitSliceNs = ns;
+    }
 
     /** A way-out chain search spread over ticks; the block counts as having a way out until it finishes. */
     private static final class ExitProbe {
@@ -180,6 +185,9 @@ public final class AutoClearFeature {
     }
 
     private static final java.util.ArrayDeque<ExitProbe> exitProbes = new java.util.ArrayDeque<>();
+    private static final String WAITING_EXIT = "waiting for a way-out check";
+    /** The block a mob's trip last waited on for its way-out verdict (see {@link #exitPending}). */
+    private static BlockPos exitHeld = null;
 
     /** The longest single way-out search slice this room's checks ran, in ms (testkit: stays a few ms). */
     private static double exitMaxSliceMs = 0;
@@ -199,7 +207,7 @@ public final class AutoClearFeature {
     /** One slice of {@code p}; true once it has an answer (or ran out of its 25 ms, which counts as a way out). */
     private static boolean exitStep(ExitProbe p) {
         long t = System.nanoTime();
-        Boolean r = p.search.step(EXIT_SLICE_MS);
+        Boolean r = p.search.step(exitSliceNs);
         long d = System.nanoTime() - t;
         p.spentNs += d;
         p.slices++;
@@ -226,8 +234,25 @@ public final class AutoClearFeature {
     private static boolean castTraps(Minecraft client, LocalPlayer player, WeaponReach.Aim aim) {
         BlockPos under = aim.expectFeet() == null ? null : BlockPos.containing(aim.expectFeet()).below();
         // A block whose way-out search is still running is held (no hop onto it) until its verdict, a few ticks at most.
-        return under != null && TeleportUtils.etherwarpable(under)
-                && (noExit(client, player, under) || exitProbes.stream().anyMatch(p -> p.stand.equals(under)));
+        return under != null && TeleportUtils.etherwarpable(under) && (noExit(client, player, under) || exitPending(under));
+    }
+
+    /**
+     * Whether {@code stand}'s way-out search is still running; its search goes to the front so the verdict comes next.
+     * A trip onto such a block waits for it (acquiz-two-fails-1127: on a loaded PC the first 2 ms slice did not answer,
+     * the block counted as having a way out, and the trip landed him in the Dragon pocket 0.5 s into the clear).
+     */
+    private static boolean exitPending(BlockPos stand) {
+        for (ExitProbe p : exitProbes) {
+            if (p.stand.equals(stand)) {
+                if (p != exitProbes.peek()) {
+                    exitProbes.remove(p);
+                    exitProbes.addFirst(p);
+                }
+                return true;
+            }
+        }
+        return false;
     }
 
     /** For the testkit: stand blocks of this room found to have no way back out. */
@@ -270,8 +295,8 @@ public final class AutoClearFeature {
             LOGGER.info("[AutoClear] way out of {} back to {}: {}", stand.toShortString(), from.toShortString(), way);
             return false;
         }
-        // The warp chain search runs a slice a tick; until it answers the block counts as having a way out (like a search
-        // that runs out of time), and noExitStands/the later calls carry the verdict.
+        // The warp chain search runs a slice a tick; until it answers, a trip onto the block waits (exitPending), and
+        // noExitStands/the later calls carry the verdict (a search out of time counts as a way out).
         var chain = com.killer560.hub.livemap.autoclear.EtherwarpPathfinder.ChainProbe.start(land, from, ClearExecutor.pathConfig(),
                 ClearExecutor.hopRange());
         if (chain == null) {
@@ -2690,6 +2715,7 @@ public final class AutoClearFeature {
         noLandStands.clear();
         noExitStands.clear();
         exitProbes.clear();
+        exitHeld = null;
         exitAnchor = null;
         exitChecked.clear();
     }
@@ -3080,6 +3106,10 @@ public final class AutoClearFeature {
             roamSpots.remove(spot);   // no way back out of it: the next spot, next tick
             return true;
         }
+        if (exitPending(spot)) {
+            action = WAITING_EXIT;
+            return true;
+        }
         final double separation = bestD;
         action = "roaming " + roomName + " (" + (roamSpotsTried + 1) + "/" + ROAM_MAX_SPOTS + ")";
         if (!walkInsteadOfTrip(client, player, spot, null, "roam spot " + (roamSpotsTried + 1) + " in " + roomName)) {
@@ -3156,6 +3186,10 @@ public final class AutoClearFeature {
             }
             final BlockPos spot = stand;
             boolean noLand = noLandStands.contains(spot) || noExit(client, player, spot);
+            if (!noLand && exitPending(spot)) {
+                action = WAITING_EXIT;
+                return true;
+            }
             action = "roaming " + roomName + " to " + k.name() + " (" + k.why() + ")";
             if (!walkInsteadOfTrip(client, player, spot, null, k.name() + " (" + k.why() + ")", false, noLand)) {
                 if (noLand) {
@@ -3804,8 +3838,10 @@ public final class AutoClearFeature {
             targetId = -1;
             return;
         }
-        boolean knownTrap = noExitStands.contains(spot);
+        // A verdict that came in while the trip waited for it counts as found just now.
+        boolean knownTrap = noExitStands.contains(spot) && !spot.equals(exitHeld);
         if (knownTrap || noExit(client, player, spot)) {
+            exitHeld = null;
             if (!knownTrap) {
                 // Found just now: planned again without it (the next block that reaches the mob), next tick.
                 coverIds = null;
@@ -3818,6 +3854,15 @@ public final class AutoClearFeature {
             targetId = -1;
             return;
         }
+        if (exitPending(spot)) {
+            if (!spot.equals(exitHeld)) {
+                LOGGER.info("[AutoClear] trip onto {} waits for its way-out check", spot.toShortString());
+            }
+            exitHeld = spot;
+            action = WAITING_EXIT;
+            return;
+        }
+        exitHeld = null;
         if (tripsCannotReach(spot)) {
             noLandStands.add(spot.immutable());
             // The near trip and the exact one both ended off this block: a third would end where he stands again.

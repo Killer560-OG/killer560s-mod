@@ -249,9 +249,9 @@ public final class EtherwarpPathfinder {
             return new ChainProbe(search, leg, from);
         }
 
-        /** Searches up to {@code sliceMs} more: TRUE a chain exists, FALSE none (all reachable searched), null not yet. */
-        public Boolean step(long sliceMs) {
-            leg.deadlineNanos = System.nanoTime() + sliceMs * 1_000_000L;
+        /** Searches up to {@code sliceNs} more: TRUE a chain exists, FALSE none (all reachable searched), null not yet. */
+        public Boolean step(long sliceNs) {
+            leg.deadlineNanos = System.nanoTime() + sliceNs;
             boolean found = begun ? search.resumeLeg(leg) != null
                     : search.searchLeg(startHop(from), leg) != null;
             begun = true;
