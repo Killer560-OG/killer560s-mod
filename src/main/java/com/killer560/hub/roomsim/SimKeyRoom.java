@@ -70,6 +70,9 @@ public final class SimKeyRoom {
         final int seenAfter = java.util.concurrent.ThreadLocalRandom.current().nextInt(SEEN_TICKS, SEEN_TICKS_MAX + 1);
         volatile long revealTick = -1;
         volatile long clickTick = -1;
+        /** An insta room with no key (autopilot-menu-1126): {@link #before} holds every room next door, standing in one
+         *  for {@link #seenAfter} ticks shows it, and a first teleport in before that clears it with its mobs standing. */
+        boolean keyless;
 
         Armed(String name, boolean blood, List<int[]> boxes) {
             this.name = name;
@@ -160,6 +163,39 @@ public final class SimKeyRoom {
     public static void disarm() { ARMED.clear(); }
 
     /**
+     * For tests (autopilot-menu-1126): arms {@code roomName} as an insta room with no key, beside anything armed already: a
+     * first entry by teleport while no room next door has held him for the map delay clears it outright (Hypixel, by his
+     * insta-clear.json). Client thread. @return false when the sim cannot act or the room is not on the map
+     */
+    public static boolean armInstaForTest(Minecraft client, String roomName) {
+        if (!SimState.canAct(client) || roomName == null) return false;
+        DungeonLayout layout = DungeonLayout.capture();
+        List<int[]> out = boxes(layout, roomName);
+        if (out.isEmpty()) return false;
+        Armed armed = new Armed(roomName, false, out);
+        armed.keyless = true;
+        List<int[]> next = new ArrayList<>();
+        for (int r = 0; r < layout.roomCount(); r++) {
+            if (!roomName.equalsIgnoreCase(layout.name(r))) continue;
+            for (int[] n : com.killer560.hub.livemap.autoclear.DungeonMapPathfinder.neighbours(layout, r, true)) {
+                next.addAll(boxes(layout, layout.name(n[0])));
+            }
+        }
+        armed.before = List.copyOf(next);
+        ARMED.put(key(roomName), armed);
+        lastPos = null;
+        LOGGER.info("Sim insta room: {} ({} tile(s), {} tile(s) next door) - a first entry by teleport before the map shows it"
+                + " clears it", roomName, out.size(), next.size());
+        return true;
+    }
+
+    /** True while {@code roomName} is an armed keyless insta room the map has not shown and nobody has entered. */
+    public static boolean instaReady(String roomName) {
+        Armed a = roomName == null || ARMED.isEmpty() ? null : ARMED.get(key(roomName));
+        return a != null && a.keyless && !a.discovered && !a.entered && !a.lost;
+    }
+
+    /**
      * For tests (ap-witherkey-1122): arms {@code roomName} alone, with {@code beforeRoom} the room before it and
      * {@code doorIn} the door between. Client thread. @return false when the sim cannot act or a room is not on the map
      */
@@ -236,7 +272,7 @@ public final class SimKeyRoom {
     /** {@code SimMobs.markClearedRooms}: {@code name} just cleared because its last starred mob died, at {@code at}. */
     static void onClearedByKills(String name, double[] at) {
         Armed a = name == null ? null : ARMED.get(key(name));
-        if (a == null || a.lost || a.dropped || at == null) return;
+        if (a == null || a.keyless || a.lost || a.dropped || at == null) return;
         a.dropped = true;
         Vec3 pos = new Vec3(at[0], at[1], at[2]);
         var player = Minecraft.getInstance().player;
@@ -264,7 +300,7 @@ public final class SimKeyRoom {
     /** A key room with no starred mob to kill (placement found no spot): its key drops at {@code at} straight away. */
     static void dropWithoutMobs(String name, Vec3 at) {
         Armed a = name == null ? null : ARMED.get(key(name));
-        if (a == null || a.dropped || a.lost || at == null) return;
+        if (a == null || a.keyless || a.dropped || a.lost || at == null) return;
         a.dropped = true;
         LOGGER.warn("Sim key room: {} has no starred mob - its {} drops at {} at once", name,
                 a.blood ? "Blood Key" : "Wither Key", BlockPos.containing(at).toShortString());
@@ -303,6 +339,13 @@ public final class SimKeyRoom {
                     a.doorWasOpen = open;
                 }
                 if (a.lost) continue;
+                if (a.keyless && !a.discovered && !a.entered) {
+                    a.beforeTicks = a.insideBefore(pos.x, pos.z) ? a.beforeTicks + 1 : 0;
+                    if (a.beforeTicks >= a.seenAfter) {
+                        a.discovered = true;
+                        LOGGER.info("Sim insta room: {} shown on the map (he stood next door {} ticks)", a.name, a.seenAfter);
+                    }
+                }
                 if (!a.discovered && a.doorIn >= 0 && a.insideBefore(pos.x, pos.z)
                         && SimDoors.isOpenAtCell(server.overworld(), a.doorIn)) {
                     a.discovered = true;
@@ -316,6 +359,11 @@ public final class SimKeyRoom {
                 if (teleport && a.discovered) {
                     LOGGER.info(String.format(Locale.US, "Sim key room: %s entered by a teleport of %.1f blocks, but it was"
                             + " discovered - no insta clear; it clears when its starred mobs die", a.name, jump));
+                } else if (teleport && a.keyless) {
+                    a.lost = true;
+                    SimRoomState.markCleared(a.name);
+                    LOGGER.info(String.format(Locale.US, "Sim insta room: %s insta cleared - its first entry was a teleport"
+                            + " of %.1f blocks before the map showed it", a.name, jump));
                 } else if (teleport) {
                     a.lost = true;
                     SimRoomState.markCleared(a.name);

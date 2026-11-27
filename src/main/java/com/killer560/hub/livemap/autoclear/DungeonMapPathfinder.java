@@ -117,7 +117,8 @@ public final class DungeonMapPathfinder {
         return path == null ? Integer.MAX_VALUE : path.size();
     }
 
-    private static List<int[]> neighbours(DungeonLayout layout, int room, boolean ignoreLocked) {
+    /** The rooms {@code room} has a door to, each as {room, door cell}. */
+    public static List<int[]> neighbours(DungeonLayout layout, int room, boolean ignoreLocked) {
         List<int[]> out = new ArrayList<>();
         for (int z = 0; z <= 10; z += 2) {
             for (int x = 0; x <= 10; x += 2) {

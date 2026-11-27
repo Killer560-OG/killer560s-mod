@@ -1,5 +1,18 @@
 [
  {
+  "date": "2026-11-27",
+  "summary": "Dungeons Autopilot: Allow Insta Clearing now values each roo",
+  "sections": [
+   {
+    "title": "More",
+    "blurb": "Changes in this update.",
+    "items": [
+     "Dungeons Autopilot: Allow Insta Clearing now values each room by what it really costs to clear, from where its mobs spawn, so costly rooms such as Slime and Crypt are kept off the map until they can be insta cleared; Quiz first, Ice Fill first and Blood First trips now insta clear a room on their way instead of walking through it; traps and puzzles are never counted as insta clears"
+    ]
+   }
+  ]
+ },
+ {
   "date": "2026-11-26",
   "summary": "Dungeons Autopilot: switched on in the green room before the",
   "sections": [

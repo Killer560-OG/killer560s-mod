@@ -1196,13 +1196,42 @@ public final class AutoSecretFeature {
                 : bloodFirstMode != AutoSecretConfig.SecretBloodFirst.OFF && !bloodFirstDone;
     }
 
+    /**
+     * The room the Autopilot's next priority trip goes to by Auto Secret's own walk (not the planner's tour): the Quiz while
+     * Quiz First has not started it, else Ice Fill while Ice Fill First would go now; null when neither would (or Blood
+     * First holds the puzzles). The same conditions as {@link #decideQuiz} / {@link #decideIceFill}, without their state.
+     */
+    private static RoomStatus.Room priorityTrip(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist) {
+        if (bloodFirstHoldsPuzzles(layout)) {
+            return null;
+        }
+        boolean quizTrip = QuizPlan.wanted() && !QuizPlan.gaveUp() && !com.killer560.hub.puzzlesolvers.QuizState.done()
+                && !com.killer560.hub.puzzlesolvers.QuizState.started();
+        boolean iceTrip = !iceFillTried && AutoSecretConfig.getInstance().isIceFillFirst()
+                && AutoSecretConfig.getInstance().isDoPuzzles() && AutoPuzzlesConfig.getInstance().isAutoIceFillEnabled()
+                && !Autopilot.iceFillWaitsForQuiz(rooms, true);
+        RoomStatus.Room ice = null;
+        for (RoomStatus.Room r : rooms) {
+            if (r.cleared() || r.failed() || !dist.containsKey(r.room())) {
+                continue;
+            }
+            if (quizTrip && "Quiz".equals(r.name())) {
+                return r;
+            }
+            if (iceTrip && "Ice Fill".equals(r.name())) {
+                ice = r;
+            }
+        }
+        return quizTrip ? null : ice;
+    }
+
     private static boolean decideIceFill(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist) {
         if (bloodFirstHoldsPuzzles(layout)) {
             return false;
         }
         if (iceFillTried || !AutoSecretConfig.getInstance().isIceFillFirst()
                 || pilot && !AutoSecretConfig.getInstance().isDoPuzzles()
-                || !AutoPuzzlesConfig.getInstance().isAutoIceFillEnabled()) {
+                || !AutoPuzzlesConfig.getInstance().isAutoIceFillEnabled() || Autopilot.iceFillWaitsForQuiz(rooms, pilot)) {
             return false;
         }
         for (RoomStatus.Room r : rooms) {
@@ -2639,21 +2668,27 @@ public final class AutoSecretFeature {
             setPhase(Phase.SETTLE);
             return;
         }
-        if (decideQuiz(layout, rooms, dist)) {
-            Autopilot.setHud(status, "Quiz first");
-            return;
+        // A priority trip (Quiz First's walk-in, Ice Fill First) that would show a room worth an insta clear on the map
+        // clears that room first (autopilot-instaclear-roomcost-1126); then the trip goes as before.
+        RoomStatus.Room prio = priorityTrip(layout, rooms, dist);
+        Autopilot.Order o = prio == null ? null : Autopilot.instaOnTheWay(layout, rooms, dist, secreted, clearsDone,
+                puzzlesDone, prio, prio.name() + " first");
+        if (o == null) {
+            if (decideQuiz(layout, rooms, dist)) {
+                Autopilot.setHud(status, "Quiz first");
+                return;
+            }
+            // Ice Fill First runs the Autopilot too: before, only the Quiz's first cooldown reached it, so an Ice Fill
+            // found mid-run (or a floor with no Quiz) waited for its turn in the tour (his 11-22 F7: found 20:09:01, done
+            // 83 s later).
+            if (decideIceFill(layout, rooms, dist)) {
+                Autopilot.setHud(status, "Ice Fill first");
+                return;
+            }
+            // Insta clears are the planner's since autopilot-menu-1126 (Allow Insta Clearing, Autopilot.instaSavings):
+            // the old known-entry warp here (decideInstaClear) stays for Auto Secret alone.
+            o = Autopilot.decide(layout, rooms, dist, secreted, clearsDone, puzzlesDone);
         }
-        // Ice Fill First runs the Autopilot too: before, only the Quiz's first cooldown reached it, so an Ice Fill found
-        // mid-run (or a floor with no Quiz) waited for its turn in the tour (his 11-22 F7: found 20:09:01, done 83 s later).
-        if (decideIceFill(layout, rooms, dist)) {
-            Autopilot.setHud(status, "Ice Fill first");
-            return;
-        }
-        if (decideInstaClear(layout, rooms, dist, here)) {
-            Autopilot.setHud("Insta clearing " + target, "a known insta-clear entry is a clear for one warp");
-            return;
-        }
-        Autopilot.Order o = Autopilot.decide(layout, rooms, dist, secreted, clearsDone, puzzlesDone);
         if (o.type() == Autopilot.Type.DOOR_FIRST) {
             if (doorFirst(layout, rooms, dist, o.why())) {
                 return;

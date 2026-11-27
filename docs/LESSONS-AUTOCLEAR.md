@@ -796,3 +796,21 @@ his hotbar slot back (never behind a use in one server tick), or his next right 
   (seeds a target 8 door steps from its warp room) failed on origin for days because this fix (674df3c46, acplan-1121) never
   reached a ready line, and the case never turned Auto Routes on, which plain Auto Secret needs to start ("Turn Auto Routes on
   first"). A "pre-existing" sim failure may be a case whose partner commit was dropped: check `git branch --contains` first.
+- Insta clear room value (autopilot-instaclear-roomcost-1126, killer560 2026-11-26: "insta-clearing is going to 100% of
+  the time be faster than clearing a room itself ... don't just go based off of room size ... Slime is awful ... Cathedral
+  is very simple"): the planner had one flat clear guess for every room, so a heavy room's insta clear was worth no more
+  than a light one's and lost to small detours. `autoclear/RoomClearTable` (bundled `autopilot/room-clear-cost.json`, from
+  `tools/autopilot/build-room-clear-cost.py`: Blood Rush pack boxes per room, the walk through them, height spread and
+  miniboss, least-squares fitted to his shared room-costs.json) shapes the guess per room; a room's own learned median
+  still wins. Fit 11-26: 0.64 + 0.06/pack + 0.40 per 10 blocks of walk + 0.25 per 10 blocks of height + 1.14 miniboss;
+  top Crypt 8.3, Pit 7.6, Waterfall 6.8, Slime 5.5; Cathedral 1.8; bottom 0.8 (Scaffolding, Spikes). Rerun the script
+  after br-data.json changes. Testkit 1126-logic-roomcost.
+- Only normal and yellow (miniboss) rooms can be insta cleared (killer560 2026-11-26: "it is impossible to insta-clear
+  trap or any puzzles. You can insta-clear normal rooms and yellow room"): `AutopilotPlanner.instaType` = NORMAL, RARE,
+  CHAMPION; never PUZZLE, TRAP, FAIRY, BLOOD, ENTRANCE. Before this, CLEAR candidates already existed only for those
+  three types (AutoClearTargets.isMobRoom), so nothing else was ever credited; the rule is now explicit in instaSavings.
+- A trip shows every room on its door path and each of their neighbours, not only the target's neighbours (killer560
+  2026-11-26: "I don't want it to jump through the room before quiz if that room is something that it should
+  insta-clear"): `AutopilotPlanner.instaBefore(at, .., from)` checks the whole path; Quiz First's walk-in and Ice Fill
+  First (Auto Secret's own trips, outside the planner) ask `Autopilot.instaOnTheWay` first, Blood First's rush pick goes
+  through `instaNextDoor` too (rush rooms themselves are never credited). Testkit 1126-sim-instacost-quiz/-icefill/-bloodfirst.

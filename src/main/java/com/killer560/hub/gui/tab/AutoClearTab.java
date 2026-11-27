@@ -2,13 +2,10 @@ package com.killer560.hub.gui.tab;
 
 import com.killer560.hub.autoclear.AutoClearConfig;
 import com.killer560.hub.autosecret.AutoSecretConfig;
-import com.killer560.hub.autosecret.AutoSecretFeature;
 import com.killer560.hub.autosecret.DungeonsAutopilot;
 import com.killer560.hub.gui.SectionHeaders;
 import com.killer560.hub.gui.SettingsButtonWidget;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
@@ -58,10 +55,6 @@ public class AutoClearTab extends BaseTab {
         w.add(onOffButton("Dungeons Autopilot", DungeonsAutopilot::isOn, DungeonsAutopilot::setOn, () -> { },
                 requestRebuild, contentX, y[0], contentWidth, 20));
         y[0] += ROW;
-        w.add(new StringWidget(contentX, y[0], contentWidth, 12, Component.literal("§7" + AutoSecretFeature.statusText()),
-                Minecraft.getInstance().font));
-        y[0] += 14;
-
         header(w, contentX, y, contentWidth, "Mode");
         w.add(SettingsButtonWidget.cycleEnum(() -> value("Mode", cfg.getMode().label()), cfg::getMode, cfg::setMode, save)
                 .bounds(contentX, y[0], contentWidth, 20).build());
@@ -72,21 +65,20 @@ public class AutoClearTab extends BaseTab {
         y[0] += ROW;
 
         header(w, contentX, y, contentWidth, "Order");
+        // autopilot-menu-1126 (killer560 2026-11-26): this order; Clear First is gone (Blood First off is clear first).
         toggle(w, contentX, y[0], half, "Blood First", cfg::isBloodFirst, cfg::setBloodFirst, save);
-        toggle(w, colB, y[0], right, "Clear First", cfg::isClearFirst, cfg::setClearFirst, save);
+        toggle(w, colB, y[0], right, "Clear Room Before Secreting", cfg::isClearBeforeSecret, cfg::setClearBeforeSecret, save);
         y[0] += ROW;
-        toggle(w, contentX, y[0], half, "Clear Room Before Secreting", cfg::isClearBeforeSecret, cfg::setClearBeforeSecret, save);
+        toggle(w, contentX, y[0], half, "Allow Insta Clearing", cfg::isInstaClear, cfg::setInstaClear, save);
         toggle(w, colB, y[0], right, "Do Puzzles", cfg::isDoPuzzles, cfg::setDoPuzzles, save);
         y[0] += ROW;
-        toggle(w, contentX, y[0], half, "Insta Clear First", cfg::isInstaClear, cfg::setInstaClear, save);
-        toggle(w, colB, y[0], right, "Ice Fill First", cfg::isIceFillFirst, cfg::setIceFillFirst, save);
+        toggle(w, contentX, y[0], half, "Ice Fill First", cfg::isIceFillFirst, cfg::setIceFillFirst, save);
+        toggle(w, colB, y[0], right, "Quiz First", cfg::isQuizFirst, cfg::setQuizFirst, save);
         y[0] += ROW;
-        toggle(w, contentX, y[0], half, "Quiz First", cfg::isQuizFirst, cfg::setQuizFirst, save);
-        toggle(w, colB, y[0], right, "Skip Unnecessary Secrets", cfg::isSkipUnneededSecrets, cfg::setSkipUnneededSecrets, save);
+        toggle(w, contentX, y[0], half, "Skip Unnecessary Secrets", cfg::isSkipUnneededSecrets, cfg::setSkipUnneededSecrets, save);
+        toggle(w, colB, y[0], right, "Face Door on Arrival", cfg::isFaceDoorOnArrival, cfg::setFaceDoorOnArrival, save);
         y[0] += ROW;
-        toggle(w, contentX, y[0], contentWidth, "Face Door on Arrival", cfg::isFaceDoorOnArrival, cfg::setFaceDoorOnArrival, save);
-        y[0] += ROW;
-        w.add(SettingsButtonWidget.cycleEnum(() -> value("Room Before Blood", cfg.getRoomBeforeBlood().label()),
+        w.add(SettingsButtonWidget.cycleEnum(() -> value("Secret Room Before Blood", cfg.getRoomBeforeBlood().label()),
                 cfg::getRoomBeforeBlood, cfg::setRoomBeforeBlood, save).bounds(contentX, y[0], contentWidth, 20).build());
         y[0] += ROW;
         w.add(SettingsButtonWidget.cycleEnum(() -> value("Room Order", cfg.getSecretOrder().label()), cfg::getSecretOrder,
@@ -95,26 +87,28 @@ public class AutoClearTab extends BaseTab {
 
         header(w, contentX, y, contentWidth, "Timing");
         int pSpan = AutoSecretConfig.MAX_PUZZLE_WAIT_S - AutoSecretConfig.MIN_PUZZLE_WAIT_S;
-        slider(w, contentX, y[0], half, () -> "Puzzle Wait: " + cfg.getPuzzleWaitSeconds() + " s",
+        slider(w, contentX, y[0], half, () -> "Puzzle Stall Timeout: " + cfg.getPuzzleWaitSeconds() + " s",
                 (cfg.getPuzzleWaitSeconds() - AutoSecretConfig.MIN_PUZZLE_WAIT_S) / (double) pSpan,
                 v -> cfg.setPuzzleWaitSeconds((int) Math.round(AutoSecretConfig.MIN_PUZZLE_WAIT_S + v * pSpan)), save);
         int sSpan = AutoSecretConfig.MAX_STALL_S - AutoSecretConfig.MIN_STALL_S;
-        slider(w, colB, y[0], right, () -> "Route Stall: " + cfg.getRouteStallSeconds() + " s",
+        slider(w, colB, y[0], right, () -> "Route Stall Timeout: " + cfg.getRouteStallSeconds() + " s",
                 (cfg.getRouteStallSeconds() - AutoSecretConfig.MIN_STALL_S) / (double) sSpan,
                 v -> cfg.setRouteStallSeconds((int) Math.round(AutoSecretConfig.MIN_STALL_S + v * sSpan)), save);
         y[0] += ROW;
-        double kSpan = AutoSecretConfig.MAX_KEY_BASE - AutoSecretConfig.MIN_KEY_BASE;
-        slider(w, contentX, y[0], contentWidth, () -> String.format(Locale.US, "Key Range: %.1f (-> %.1f)",
-                        cfg.getKeyBaseRange(), cfg.keyPickupRange()),
-                (cfg.getKeyBaseRange() - AutoSecretConfig.MIN_KEY_BASE) / kSpan,
-                v -> cfg.setKeyBaseRange(Math.round((AutoSecretConfig.MIN_KEY_BASE + v * kSpan) * 10) / 10.0), save);
-        y[0] += ROW;
 
         header(w, contentX, y, contentWidth, "Clearing");
+        // One-Tap Warp is about Spirit Sceptre bats: shown only with that weapon (its value is kept meanwhile; with the
+        // Hyperion no bat flies, so it does nothing). The weapon cycler rebuilds the tab so the row comes and goes.
+        boolean sceptre = clear.getWeapon() == AutoClearConfig.Weapon.SPIRIT_SCEPTRE;
         w.add(SettingsButtonWidget.cycleEnum(() -> value("Clear Weapon", clear.getWeapon().label()), clear::getWeapon,
-                clear::setWeapon, saveClear).bounds(contentX, y[0], half, 20).build());
-        w.add(SettingsButtonWidget.cycleEnum(() -> value("One-Tap Warp", clear.getOneTap().label()), clear::getOneTap,
-                clear::setOneTap, saveClear).bounds(colB, y[0], right, 20).build());
+                clear::setWeapon, () -> {
+                    clear.save();
+                    requestRebuild.run();
+                }).bounds(contentX, y[0], sceptre || isSearchScan() ? half : contentWidth, 20).build());
+        if (sceptre || isSearchScan()) {
+            w.add(SettingsButtonWidget.cycleEnum(() -> value("One-Tap Warp", clear.getOneTap().label()), clear::getOneTap,
+                    clear::setOneTap, saveClear).bounds(colB, y[0], right, 20).build());
+        }
         y[0] += ROW;
         toggle(w, contentX, y[0], half, "Hyperion Hops", clear::isHyperionHops, clear::setHyperionHops, saveClear);
         toggle(w, colB, y[0], right, "Pick Up Wither Keys", clear::isPickUpKeys, clear::setPickUpKeys, saveClear);

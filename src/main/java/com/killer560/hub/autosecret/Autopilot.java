@@ -123,6 +123,9 @@ final class Autopilot {
         noScoreSaid = false;
         lastBloodFirstWait = null;
         clearedFirst = null;
+        skipPlan = null;
+        instaSaid.clear();
+        quizWaitSaid = false;
         current = null;
         currentFailed = false;
         actionsDone = 0;
@@ -206,6 +209,52 @@ final class Autopilot {
         }
     }
 
+    /** The key of the room he stands in, or null. */
+    private static String hereKey(DungeonLayout layout, List<RoomStatus.Room> rooms) {
+        int here = layout.currentRoom();
+        for (RoomStatus.Room r : rooms) {
+            if (r.room() == here) {
+                return keyOf(r);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Allow Insta Clearing on a priority trip (autopilot-instaclear-roomcost-1126, killer560 2026-11-26: "if there is
+     * something like quiz only or ice fill prio on, then it still needs to think about insta-clearing ... it should
+     * insta-clear that room before it and then go into quiz"): before Auto Secret's own trip to {@code target} (the Quiz,
+     * Ice Fill), a room the planner credits an insta clear that the trip would show on the map (on the door path or next
+     * to it) is cleared first when its saving beats the detour. {@code what} names the trip in the log.
+     * @return the CLEAR order to take first, or null (the trip goes ahead)
+     */
+    static Order instaOnTheWay(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist,
+                               Set<String> secreted, Set<String> clearsDone, Set<String> puzzlesDone,
+                               RoomStatus.Room target, String what) {
+        AutoSecretConfig cfg = AutoSecretConfig.getInstance();
+        if (target == null || !cfg.isInstaClear() || layout.currentRoom() == target.room()) {
+            return null;
+        }
+        boolean party = cfg.getRunMode() == AutoSecretConfig.RunMode.PARTY;
+        AutopilotScore.State s = state(layout, rooms);
+        lastDist = dist;
+        List<AutopilotPlanner.Candidate> cands = candidates(layout, rooms, dist, secreted, clearsDone, puzzlesDone, s, party);
+        AutopilotPlanner.Shape shape = shape(layout, rooms, cands, s, party, false);
+        if (shape.instaSaving().isEmpty()) {
+            return null;
+        }
+        AutopilotPlanner.Candidate trip = new AutopilotPlanner.Candidate(AutopilotPlanner.Kind.PUZZLE, keyOf(target), 0,
+                0, false, -1);
+        AutopilotPlanner.Choice go = new AutopilotPlanner.Choice(trip, what, cands);
+        AutopilotPlanner.Choice ic = AutopilotPlanner.instaNextDoor(go, cands, tourTravel(), shape, hereKey(layout, rooms));
+        if (ic == go) {
+            return null;
+        }
+        closeCurrent();
+        return begin(layout, "[Autopilot] decide (" + what + ")", new AutopilotPlanner.Choice(ic.pick(), ic.why(), cands),
+                rooms);
+    }
+
     static Order decide(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist,
                         Set<String> secreted, Set<String> clearsDone, Set<String> puzzlesDone) {
         closeCurrent();
@@ -229,6 +278,15 @@ final class Autopilot {
 
         if (cfg.isBloodFirst() && !bloodOpened) {
             AutopilotPlanner.Choice rush = AutopilotPlanner.chooseBloodFirst(cands);
+            if (rush != null && cfg.isInstaClear()) {
+                // The rush trip shows the rooms beside its path: one worth an insta clear goes first (never a rush room).
+                AutopilotPlanner.Choice ir = AutopilotPlanner.instaNextDoor(rush, cands, tourTravel(),
+                        shape(layout, rooms, cands, s, party, false), hereKey(layout, rooms));
+                if (ir != rush) {
+                    LOGGER.info("[Autopilot] {} {}: {}", ir.pick().kind(), ir.pick().room(), ir.why());
+                    rush = ir;
+                }
+            }
             if (rush != null) {
                 AutopilotPlanner.Choice byRate = AutopilotPlanner.choose(party, cands);
                 return begin(layout, head + (byRate == null ? "" : " | by rate alone: " + byRate.pick().describe()), rush, rooms);
@@ -263,6 +321,7 @@ final class Autopilot {
         // Secret / Secret Then Clear: that fixed order, each phase one visit per room (acplan-1121). Clear First: every
         // room is cleared before any secret, whatever the mode; the mode plans what is left.
         AutoSecretConfig.Mode mode = cfg.getMode();
+        AutopilotPlanner.Shape shape = shape(layout, rooms, cands, s, party, true);
         boolean clearsPhase = cfg.clearsFirst() && AutopilotPlanner.clearsLeft(cands);
         boolean ordered = clearsPhase || mode == AutoSecretConfig.Mode.CLEAR_THEN_SECRET
                 || mode == AutoSecretConfig.Mode.SECRET_THEN_CLEAR;
@@ -270,9 +329,10 @@ final class Autopilot {
                 ? AutopilotPlanner.chooseOrdered(clearsPhase || mode == AutoSecretConfig.Mode.CLEAR_THEN_SECRET,
                         clearsPhase ? cands.stream().filter(k -> k.kind() == AutopilotPlanner.Kind.CLEAR
                                 || k.kind() == AutopilotPlanner.Kind.KEY).toList() : cands, tourTravel(),
-                        cfg.isClearBeforeSecret(), 3_000_000L)
+                        cfg.isClearBeforeSecret(), 3_000_000L, shape)
                 : AutopilotPlanner.chooseFastest(party, cands, tourTravel(),
-                        AutopilotScore.usefulSecrets(s) * AutopilotScore.secretValue(s), cfg.isClearBeforeSecret(), 3_000_000L);
+                        AutopilotScore.usefulSecrets(s) * AutopilotScore.secretValue(s), cfg.isClearBeforeSecret(), 3_000_000L,
+                        shape);
         // Solo 300: a mob room is cleared before its secrets are taken, then secreted next (AutopilotPlanner.clearFirst).
         // Party keeps routes first (its clears are the team's, after every route); the fixed orders keep theirs.
         AutopilotPlanner.Choice cf = party || ordered ? c : AutopilotPlanner.clearFirst(c, cands, clearedFirst);
@@ -285,6 +345,14 @@ final class Autopilot {
             clearedFirst = null;
         }
         c = cf;
+        AutopilotPlanner.Choice ic = AutopilotPlanner.instaNextDoor(c, cands, tourTravel(), shape, hereKey(layout, rooms));
+        if (ic != c) {
+            LOGGER.info("[Autopilot] {} {}: {}", ic.pick().kind(), ic.pick().room(), ic.why());
+            if (!party && !ordered) {
+                clearedFirst = ic.pick().room();   // its secrets come next, as for any Solo clear
+            }
+            c = ic;
+        }
         // Clear First with no mob room left on this side, or Party with no secret left on it: a wither door with that work
         // behind it goes before the other phase (acplan2-1121: it secreted, or cleared, while clears or routes waited
         // behind a door).
@@ -800,12 +868,13 @@ final class Autopilot {
             if (clears && !r.cleared() && !clearsDone.contains(r.name()) && AutoClearFeature.isMobRoom(layout, r.room())
                     && !com.killer560.hub.autoclear.ChestClearRule.clearedInItsEyes(layout, r.room())) {
                 out.add(new AutopilotPlanner.Candidate(AutopilotPlanner.Kind.CLEAR, key, AutopilotScore.roomValue(s),
-                        travel + com.killer560.hub.autoclear.RoomCosts.seconds(r.name(), clearSeconds), mate, rushIndex));
+                        travel + clearEstimate(r), mate, rushIndex));
             }
             // Blood First leaves every puzzle until the blood door is open (killer560, 2026-11-18: "if it is on blood rush
             // first that should ignore quiz until after blood rush same with things like ice fill"); crossing one is a path.
             if (cfg.isDoPuzzles() && !(cfg.isBloodFirst() && !bloodOpened) && r.isType("PUZZLE")
-                    && !puzzlesDone.contains(r.name()) && !puzzleFinished(r) && autoFor(r.name())) {
+                    && !puzzlesDone.contains(r.name()) && !puzzleFinished(r) && autoFor(r.name())
+                    && !("Ice Fill".equals(r.name()) && iceFillWaitsForQuiz(rooms, true))) {
                 out.add(new AutopilotPlanner.Candidate(AutopilotPlanner.Kind.PUZZLE, key, AutopilotScore.puzzleValue(s),
                         travel + puzzleSeconds(r.name()), mate, -1));
             }
@@ -988,6 +1057,151 @@ final class Autopilot {
                 travel + 1.0 + routeSecondsPerNode * e.route().nodes().size(), mate, rushIndex));
     }
 
+    // ---- Room Order, Allow Insta Clearing, Skip Unnecessary Secrets' floor plan (autopilot-menu-1126) ----
+
+    /** Odds that an etherwarp into a room the map has not shown insta clears it: his insta-clear.json on 2026-11-26, 21 of
+     *  24 decided etherwarps into an undiscovered room (into a discovered one 2 of 85). */
+    static final double INSTA_ODDS = 0.85;
+    /** Seconds from that landing to the room reading cleared (median of the 42 etherwarp insta clears there, 537 ms). */
+    static final double INSTA_FLIP_SECONDS = 0.55;
+    private static final Set<String> instaSaid = new HashSet<>();
+    /** Skip Unnecessary Secrets: the rooms whose secrets the floor plan takes (null: no plan yet). */
+    private static Set<String> skipPlan;
+
+    /** What {@link AutopilotPlanner#visits} needs beyond the candidates: Room Order, the door graph, insta savings, the skip plan. */
+    private static AutopilotPlanner.Shape shape(DungeonLayout layout, List<RoomStatus.Room> rooms,
+                                                List<AutopilotPlanner.Candidate> cands, AutopilotScore.State s, boolean party,
+                                                boolean withSkipPlan) {
+        AutoSecretConfig cfg = AutoSecretConfig.getInstance();
+        Map<Integer, String> keyById = new java.util.HashMap<>();
+        Map<String, Integer> size = new java.util.HashMap<>();
+        String root = null;
+        for (RoomStatus.Room r : rooms) {
+            keyById.put(r.room(), keyOf(r));
+            size.put(keyOf(r), r.tiles().length);
+            if (r.isType("ENTRANCE")) {
+                root = keyOf(r);
+            }
+        }
+        Map<String, List<String>> neighbours = new java.util.HashMap<>();
+        for (RoomStatus.Room r : rooms) {
+            List<String> next = new ArrayList<>();
+            for (int[] n : DungeonMapPathfinder.neighbours(layout, r.room(), true)) {
+                String k = keyById.get(n[0]);
+                if (k != null && !next.contains(k)) {
+                    next.add(k);
+                }
+            }
+            neighbours.put(keyOf(r), next);
+        }
+        Map<String, Double> insta = cfg.isInstaClear() ? instaSavings(layout, rooms, cands) : Map.of();
+        Set<String> plan = withSkipPlan && !party && cfg.isSkipUnneededSecrets() ? skipPlan(rooms, cands, s) : null;
+        return new AutopilotPlanner.Shape(cfg.getSecretOrder(), size, neighbours, root, insta, plan);
+    }
+
+    /**
+     * Allow Insta Clearing: for each clear whose room the map has not shown yet, the seconds its first entry by etherwarp
+     * saves ((the room's learned clear time - the flip) x {@link #INSTA_ODDS}), so big slow rooms count most. Never a room
+     * on the blood rush path (killer560 2026-11-26: never insta clear a blood rush room) and never a key room (an insta
+     * clear loses its key).
+     */
+    private static Map<String, Double> instaSavings(DungeonLayout layout, List<RoomStatus.Room> rooms,
+                                                    List<AutopilotPlanner.Candidate> cands) {
+        Map<String, RoomStatus.Room> byKey = new java.util.HashMap<>();
+        for (RoomStatus.Room r : rooms) {
+            byKey.put(keyOf(r), r);
+        }
+        Map<String, Double> out = new java.util.HashMap<>();
+        for (AutopilotPlanner.Candidate c : cands) {
+            RoomStatus.Room r = byKey.get(c.room());
+            if (c.kind() != AutopilotPlanner.Kind.CLEAR || r == null || !unshown(layout, r)) {
+                continue;
+            }
+            String no = !AutopilotPlanner.instaType(r.type()) ? "a " + r.type() + " room can never insta clear"
+                    : c.rushIndex() >= 0 ? "a blood rush room"
+                    : com.killer560.hub.autoclear.KeyRooms.guardOf(layout, r.room()) != null ? "its key would be lost" : null;
+            if (no != null) {
+                if (instaSaid.add(c.room())) {
+                    LOGGER.info("[Autopilot] insta clear: {} left out - {}", c.room(), no);
+                }
+                continue;
+            }
+            double save = (clearEstimate(r) - INSTA_FLIP_SECONDS) * INSTA_ODDS;
+            if (save > 0) {
+                out.put(c.room(), save);
+            }
+        }
+        return out;
+    }
+
+    /** Room tiles the sim's per-tile mob count is measured against (its floors average about two and a half). */
+    private static final double SIM_MEAN_TILES = 2.5;
+
+    /** A room's clear seconds: its own learned median (Learned Room Costs, 3+ clears), else this run's learned clear
+     *  time shaped by where the room's mobs spawn ({@link com.killer560.hub.autoclear.RoomClearTable}). The sim spawns
+     *  its mobs per tile ({@code SimMobFloor.PER_TILE}), not where Hypixel does, so there the shape is the room's tiles. */
+    static double clearEstimate(RoomStatus.Room r) {
+        double shaped = com.killer560.hub.roomsim.SimState.isActive()
+                ? clearSeconds * r.tiles().length / SIM_MEAN_TILES
+                : com.killer560.hub.autoclear.RoomClearTable.scaled(r.name(), clearSeconds);
+        return com.killer560.hub.autoclear.RoomCosts.seconds(r.name(), shaped);
+    }
+
+    /** The map has not shown this room yet (sim: an insta room nobody has stood next to), so an etherwarp in insta clears it. */
+    static boolean unshown(DungeonLayout layout, RoomStatus.Room r) {
+        if (com.killer560.hub.roomsim.SimState.isActive()) {
+            return com.killer560.hub.roomsim.SimKeyRoom.instaReady(r.name());
+        }
+        int[] tiles = layout.tiles(r.room());
+        for (int t : tiles) {
+            if (com.killer560.hub.livemap.LiveMapFeature.mapStateAt(t) != com.killer560.hub.livemap.LiveMapFeature.MAP_UNDISCOVERED) {
+                return false;
+            }
+        }
+        return tiles.length > 0;
+    }
+
+    /**
+     * Skip Unnecessary Secrets (Solo): from the moment every room is identified, one plan of which rooms' secrets to take
+     * ({@link AutopilotPlanner#skipPlan}), kept through the run; made again only when the planned rooms no longer cover
+     * what the S+ needs (a route came up short, a room went out of reach, the score moved another way). Null before then.
+     */
+    private static Set<String> skipPlan(List<RoomStatus.Room> rooms, List<AutopilotPlanner.Candidate> cands,
+                                        AutopilotScore.State s) {
+        if (rooms.isEmpty() || rooms.stream().anyMatch(r -> "Unknown".equals(r.name())) || s.currentTotal() < 0
+                || s.totalSecrets() <= 0) {
+            return skipPlan;
+        }
+        double need = AutopilotScore.usefulSecrets(s) * AutopilotScore.secretValue(s);
+        String why = skipPlan == null ? "the full map is known" : null;
+        if (why == null) {
+            double covered = 0;
+            for (AutopilotPlanner.Candidate c : cands) {
+                if (c.kind() == AutopilotPlanner.Kind.SECRET && skipPlan.contains(c.room())) {
+                    covered += c.gain();
+                }
+            }
+            if (covered < need - 1e-6) {
+                why = String.format(Locale.US, "the planned rooms now cover %.1f of the %.1f secret score needed", covered, need);
+            }
+        }
+        if (why == null) {
+            return skipPlan;
+        }
+        List<String> take = AutopilotPlanner.skipPlan(cands, tourTravel(), need);
+        List<String> skip = new ArrayList<>();
+        for (AutopilotPlanner.Candidate c : cands) {
+            if (c.kind() == AutopilotPlanner.Kind.SECRET && c.gain() > 0 && !take.contains(c.room())) {
+                skip.add(c.room());
+            }
+        }
+        LOGGER.info("[Autopilot] skip plan{}: {} secrets needed, taking {} | skipping {} ({})", skipPlan == null ? "" : " again",
+                AutopilotScore.usefulSecrets(s), take.isEmpty() ? "none" : String.join(", ", take),
+                skip.isEmpty() ? "none" : String.join(", ", skip), why);
+        skipPlan = new HashSet<>(take);
+        return skipPlan;
+    }
+
     /** A room's key in a candidate: its name, or its main tile for an unidentified one (several share "Unknown"). */
     static String keyOf(RoomStatus.Room r) {
         return "Unknown".equals(r.name()) ? "Unknown@" + r.mainTile() : r.name();
@@ -1017,6 +1231,33 @@ final class Autopilot {
         int warps = Math.max(1, (int) Math.ceil(best * 1.25 / Math.max(1.0, ClearExecutor.hopRange())));
         return (14 + 2 * warps + 4 * steps) / 20.0;
     }
+
+    /**
+     * Quiz before Ice Fill (killer560 2026-11-26: "it should always open quiz before icefill if both are on"): while the
+     * floor's Quiz is still to do by its auto and Oruo has not begun, Ice Fill is not begun, in every mode and Room Order,
+     * so Ice Fill fills the Quiz's first wait instead of the Quiz being stood through after it. Lifts once the Quiz has
+     * started, is done or failed, or was given up.
+     */
+    static boolean iceFillWaitsForQuiz(List<RoomStatus.Room> rooms, boolean pilot) {
+        // The Autopilot does the Quiz as a puzzle (Do Puzzles + Auto Quiz) or by Quiz First; plain Auto Secret only by Quiz First.
+        boolean quizComing = QuizPlan.wanted() || pilot && AutoSecretConfig.getInstance().isDoPuzzles() && autoFor("quiz");
+        if (!quizComing || QuizPlan.gaveUp() || com.killer560.hub.puzzlesolvers.QuizState.started()
+                || com.killer560.hub.puzzlesolvers.QuizState.done()) {
+            return false;
+        }
+        for (RoomStatus.Room r : rooms) {
+            if ("Quiz".equals(r.name()) && !puzzleFinished(r)) {
+                if (!quizWaitSaid) {
+                    quizWaitSaid = true;
+                    LOGGER.info("[Autopilot] Ice Fill waits: the Quiz is started first (Quiz before Ice Fill)");
+                }
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean quizWaitSaid;
 
     /** Estimated seconds for each Auto Puzzles auto, standing in the room (unmeasured guesses - logged beside the real time). */
     static double puzzleSeconds(String name) {

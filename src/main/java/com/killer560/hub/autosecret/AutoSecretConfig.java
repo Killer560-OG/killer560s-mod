@@ -23,7 +23,11 @@ public final class AutoSecretConfig {
     private static AutoSecretConfig instance;
 
     private int toggleKey = KeyUtil.NONE;
-    /** Before secreting, warp into rooms through entries the Insta Clear tracker says clear them. */
+    /**
+     * Allow Insta Clearing (was "Insta Clear First" until autopilot-menu-1126; same key, same default): the Autopilot
+     * planner may count that a room's first entry by etherwarp while the map has not shown it clears it outright, and
+     * plan for it (Autopilot.instaSavings). Never a blood rush room or a key room.
+     */
     private boolean instaClear = true;
     /** Go to Ice Fill early and let Auto Ice Fill do it (only when Auto Ice Fill is on). */
     private boolean iceFillFirst = true;
@@ -100,8 +104,6 @@ public final class AutoSecretConfig {
     private boolean disableAfterBloodRush = false;
     /** Clear a room in the same visit before doing its secrets (killer560, 2026-11-21 ~11:15 PM). */
     private boolean clearBeforeSecret = false;
-    /** Clear every room of the dungeon before any secrets (killer560, 2026-11-21: a separate option). */
-    private boolean clearFirst = false;
 
     // ---- Dungeon Autopilot (Auto Secret + Auto Clear + Auto Puzzles under one planner) ----
     /** What the autopilot optimizes for (derived from {@link #getMode()} since apmenu-1121). */
@@ -154,10 +156,15 @@ public final class AutoSecretConfig {
      * always the last one.
      */
     public enum SecretOrder {
-        /** The rooms with the most secrets left first, nearer first on a tie. */
+        /** Whatever is fastest: the least travel through every room (the constant keeps its old name for saved files). */
+        LEAST_ETHERWARPS("Fastest Time"),
+        /** The biggest rooms first (the most secrets left for Auto Secret's own order), nearer first on a tie. */
         LARGEST_TO_SMALLEST("Largest To Smallest"),
-        /** The order through every room with the fewest warps in all ({@code TourPlanner.shortest}). */
-        LEAST_ETHERWARPS("Least Etherwarps");
+        /** The smallest rooms first (autopilot-menu-1126). */
+        SMALLEST_TO_LARGEST("Smallest To Largest"),
+        /** The end of every branch of the map first, then back toward the Entrance, one branch at a time
+         *  (AutopilotPlanner.edgesIn; autopilot-menu-1126). */
+        EDGES_IN("Edges In");
 
         private final String label;
 
@@ -216,7 +223,11 @@ public final class AutoSecretConfig {
     private boolean doPuzzles = true;
     /** The one Status HUD every auto clear shares (AutoStatusHud, 2026-10-15) - Auto Clear, Auto Secret, Autopilot. */
     private boolean statusHud = true;
-    /** The base key pickup range in blocks (unverified - see DungeonKeys.DEFAULT_BASE_RANGE). */
+    /**
+     * The base key pickup range: the game's own (DungeonKeys.DEFAULT_BASE_RANGE). The Key Range row was removed
+     * (autopilot-menu-1126, killer560: "you shouldnt need it. it is default engrained into the game"); a saved
+     * "keyBaseRange" is ignored and no longer written. Only a test sets it, for that session.
+     */
     private double keyBaseRange = com.killer560.hub.doorkeys.DungeonKeys.DEFAULT_BASE_RANGE;
     public static final double MIN_KEY_BASE = 0.5;
     public static final double MAX_KEY_BASE = 5.0;
@@ -283,12 +294,9 @@ public final class AutoSecretConfig {
             cfg.doPuzzles = ConfigJson.getBool(o, "doPuzzles", cfg.doPuzzles);
             // Before 2026-10-15 this was "autopilotHud" (Autopilot HUD); a file from then keeps its choice.
             cfg.statusHud = ConfigJson.getBool(o, "statusHud", ConfigJson.getBool(o, "autopilotHud", cfg.statusHud));
-            // getDouble drops a non-finite value (a hand-edited NaN made key pickup never reach).
-            cfg.setKeyBaseRange(ConfigJson.getDouble(o, "keyBaseRange", cfg.keyBaseRange));
             cfg.roomBeforeBlood = ConfigJson.getEnum(o, "roomBeforeBlood", RoomBeforeBlood.class, cfg.roomBeforeBlood);
             cfg.disableAfterBloodRush = ConfigJson.getBool(o, "disableAfterBloodRush", cfg.disableAfterBloodRush);
             cfg.clearBeforeSecret = ConfigJson.getBool(o, "clearBeforeSecret", cfg.clearBeforeSecret);
-            cfg.clearFirst = ConfigJson.getBool(o, "clearFirst", cfg.clearFirst);
         }
         // A file from before the one feature (no "mode") takes its mode from Run Mode / Room Plan.
         cfg.mode = o != null && o.has("mode") ? ConfigJson.getEnum(o, "mode", Mode.class, cfg.mode)
@@ -347,13 +355,11 @@ public final class AutoSecretConfig {
         o.addProperty("skipUnneededSecrets", skipUnneededSecrets);
         o.addProperty("doPuzzles", doPuzzles);
         o.addProperty("statusHud", statusHud);
-        o.addProperty("keyBaseRange", keyBaseRange);
         o.addProperty("mode", mode.name());
         o.addProperty("bloodRush", bloodRush.name());
         o.addProperty("roomBeforeBlood", roomBeforeBlood.name());
         o.addProperty("disableAfterBloodRush", disableAfterBloodRush);
         o.addProperty("clearBeforeSecret", clearBeforeSecret);
-        o.addProperty("clearFirst", clearFirst);
         ConfigJson.write(CONFIG_PATH, o);
     }
 
@@ -445,10 +451,13 @@ public final class AutoSecretConfig {
     public void setDisableAfterBloodRush(boolean v) { disableAfterBloodRush = v; }
     public boolean isClearBeforeSecret() { return clearBeforeSecret; }
     public void setClearBeforeSecret(boolean v) { clearBeforeSecret = v; }
-    public boolean isClearFirst() { return clearFirst; }
-    /** Clear First, or the Clear Then Secret mode: every clear room before any secrets (the planner's clears-only phase). */
-    public boolean clearsFirst() { return clearFirst || mode == Mode.CLEAR_THEN_SECRET; }
-    public void setClearFirst(boolean v) { clearFirst = v; }
+    /**
+     * Every mob room cleared before any secrets (the planner's clears-only phase): the Clear Then Secret mode only. The Clear
+     * First switch is gone (autopilot-menu-1126; a saved "clearFirst" is ignored). Solo 300 is the fastest way to 300, one
+     * pass: each room cleared, then its secrets, then the next (killer560 2026-11-26: "it is way less optimal to go all
+     * aroudn the map once to kill mobs then once to get secrets its far better to clear a room then secret it").
+     */
+    public boolean clearsFirst() { return mode == Mode.CLEAR_THEN_SECRET; }
 
     public boolean isSkipUnneededSecrets() { return skipUnneededSecrets; }
     public void setSkipUnneededSecrets(boolean v) { skipUnneededSecrets = v; }

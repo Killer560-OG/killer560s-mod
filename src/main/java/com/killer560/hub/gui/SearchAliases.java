@@ -31,6 +31,9 @@ public final class SearchAliases {
             Map.entry("auto blood rush", "dungeons autopilot"),
             Map.entry("blood rush", "dungeons autopilot"),
             Map.entry("clear first", "dungeons autopilot"),
+            // autopilot-menu-1126 renamed these rows.
+            Map.entry("insta clear first", "dungeons autopilot"),
+            Map.entry("puzzle wait", "dungeons autopilot"),
             // espname-1118: Dungeon ESP / Mob ESP became Dungeon Mob Highlight.
             Map.entry("dungeon esp", "dungeon mob highlight"),
             Map.entry("mob esp", "dungeon mob highlight"),

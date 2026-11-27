@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Dungeon Autopilot's choice - pure, no Minecraft state (the testkit's logic test drives it with made-up candidates).
@@ -169,6 +170,12 @@ public final class AutopilotPlanner {
      */
     public static Choice chooseFastest(boolean party, List<Candidate> all, Travel travel, double secretScoreNeeded,
                                        boolean clearBeforeSecret, long budgetNanos) {
+        return chooseFastest(party, all, travel, secretScoreNeeded, clearBeforeSecret, budgetNanos, Shape.NONE);
+    }
+
+    /** {@link #chooseFastest} with the visits ordered by Room Order and Allow Insta Clearing ({@link Shape}). */
+    public static Choice chooseFastest(boolean party, List<Candidate> all, Travel travel, double secretScoreNeeded,
+                                       boolean clearBeforeSecret, long budgetNanos, Shape shape) {
         Choice byRate = choose(party, all);
         if (byRate == null || byRate.pick().kind() == Kind.KEY || travel == null) {
             return byRate;
@@ -192,10 +199,12 @@ public final class AutopilotPlanner {
         for (Candidate c : needed) {
             visited.add(c.room());
         }
-        // Cheapest secrets first by seconds per score: a visited room's route alone, any other also its detour.
+        // Cheapest secrets first by seconds per score: a visited room's route alone, any other also its detour. With a
+        // Skip Unnecessary Secrets plan, the planned rooms come first (a skipped room only if they no longer cover it).
         List<Candidate> bySecond = new ArrayList<>(secrets);
-        bySecond.sort(Comparator.comparingDouble((Candidate c) -> secretCost(c, visited, travel) / c.gain())
-                .thenComparing(Candidate::room));
+        java.util.Set<String> plan = shape.skipPlan();
+        bySecond.sort(Comparator.comparingInt((Candidate c) -> plan == null || plan.contains(c.room()) ? 0 : 1)
+                .thenComparingDouble(c -> secretCost(c, visited, travel) / c.gain()).thenComparing(Candidate::room));
         double covered = 0;
         List<Candidate> chosen = new ArrayList<>();
         for (Candidate c : bySecond) {
@@ -215,11 +224,11 @@ public final class AutopilotPlanner {
         if (needed.isEmpty()) {
             return byRate;
         }
-        Visits v = visits(needed, travel, budgetNanos);
+        Visits v = visits(needed, travel, budgetNanos, shape);
         String why = String.format(Locale.US, "%s: fastest to %s - %d room visit(s), %d route(s) for %.1f of %.1f secret"
-                        + " score, travel %.1f s, all in %.1f s", party ? "Party, secrets first" : "Solo",
+                        + " score, travel %.1f s, all in %.1f s%s", party ? "Party, secrets first" : "Solo",
                 party ? "the secret need" : "300", v.rooms(), chosen.size(), covered, secretScoreNeeded, v.travel(),
-                v.travel() + v.work());
+                v.travel() + v.work(), v.note());
         return new Choice(v.tour().get(0), why, byRate.ranked(), v.tour());
     }
 
@@ -244,6 +253,12 @@ public final class AutopilotPlanner {
      */
     public static Choice chooseOrdered(boolean clearsFirst, List<Candidate> all, Travel travel, boolean clearBeforeSecret,
                                        long budgetNanos) {
+        return chooseOrdered(clearsFirst, all, travel, clearBeforeSecret, budgetNanos, Shape.NONE);
+    }
+
+    /** {@link #chooseOrdered} with the visits ordered by Room Order and Allow Insta Clearing ({@link Shape}). */
+    public static Choice chooseOrdered(boolean clearsFirst, List<Candidate> all, Travel travel, boolean clearBeforeSecret,
+                                       long budgetNanos, Shape shape) {
         Choice byRate = choose(false, all);
         if (byRate == null || byRate.pick().kind() == Kind.KEY || travel == null) {
             return byRate;
@@ -268,10 +283,10 @@ public final class AutopilotPlanner {
             phase = new ArrayList<>(secrets);
             phase.addAll(clearsOf(secrets, byRate.ranked()));
         }
-        Visits v = visits(phase, travel, budgetNanos);
-        String why = String.format(Locale.US, "%s: %s - %d room visit(s), travel %.1f s, all in %.1f s",
-                clearsFirst ? "Clear Then Secret" : "Secret Then Clear", phase == clears ? "clears" : "secrets", v.rooms(),
-                v.travel(), v.travel() + v.work());
+        Visits v = visits(phase, travel, budgetNanos, shape);
+        String why = String.format(Locale.US, "%s: %s - %d room visit(s), travel %.1f s, all in %.1f s%s",
+                clearsFirst ? "Clear First" : "Secret Then Clear", phase == clears ? "clears" : "secrets", v.rooms(),
+                v.travel(), v.travel() + v.work(), v.note());
         return new Choice(v.tour().get(0), why, byRate.ranked(), v.tour());
     }
 
@@ -294,12 +309,76 @@ public final class AutopilotPlanner {
         return out;
     }
 
-    /** A plan of room visits: candidates in visit order, rooms visited, seconds of travel and of work. */
-    record Visits(List<Candidate> tour, int rooms, double travel, double work) {
+    /** A plan of room visits: candidates in visit order, rooms visited, seconds of travel and of work (insta savings
+     *  taken off), and a note for the decide line (Room Order, each insta clear counted). */
+    record Visits(List<Candidate> tour, int rooms, double travel, double work, String note) {
     }
 
-    /** One visit per room (its clear and puzzle, then its route), the visits in the order with the least travel. */
+    /**
+     * Room Order and Allow Insta Clearing for {@link #visits} (autopilot-menu-1126). {@code order}: the Room Order setting;
+     * {@code size}: each room's tiles (a room missing counts 1); {@code neighbours}: the rooms each room has a door to;
+     * {@code root}: the Entrance's key (Edges In's middle); {@code instaSaving}: the seconds a room's clear saves when its
+     * first entry is an etherwarp while the map has not shown it (only rooms where that is allowed; a room is shown once he
+     * stands in a room next door, so the saving holds only while no neighbour of it is visited first).
+     */
+    public record Shape(AutoSecretConfig.SecretOrder order, Map<String, Integer> size, Map<String, List<String>> neighbours,
+                        String root, Map<String, Double> instaSaving, java.util.Set<String> skipPlan) {
+        public static final Shape NONE = new Shape(AutoSecretConfig.SecretOrder.LEAST_ETHERWARPS, Map.of(), Map.of(), null,
+                Map.of(), null);
+    }
+
+    /**
+     * Skip Unnecessary Secrets' floor plan (killer560, 2026-11-26: "plan that from the second you can see the full map for
+     * which secrets you want to skip"): the secret rooms to take, the cheapest set by real seconds over the WHOLE floor
+     * whose gain covers {@code need}. A room's price is its route's work, plus - when no clear or puzzle visit goes there
+     * anyway - twice the trip from the nearest room that is visited anyway (never from where he stands now, so the plan
+     * does not drift as he moves). Cheapest seconds per score first. Pure, for the testkit.
+     * @return the room keys to take secrets in (the rest are skipped), in the order chosen
+     */
+    public static List<String> skipPlan(List<Candidate> all, Travel travel, double need) {
+        java.util.Set<String> visited = new java.util.HashSet<>();
+        List<Candidate> secrets = new ArrayList<>();
+        for (Candidate c : all) {
+            if (c.gain() <= 0 || c.kind() == Kind.KEY) {
+                continue;
+            }
+            if (c.kind() == Kind.SECRET) {
+                secrets.add(c);
+            } else {
+                visited.add(c.room());
+            }
+        }
+        java.util.function.ToDoubleFunction<Candidate> price = c -> {
+            double in = Math.max(0, travel.fromHere(c.room()));
+            double work = Math.max(0, c.seconds() - in);
+            if (visited.contains(c.room())) {
+                return work;
+            }
+            double near = visited.isEmpty() ? in : Double.MAX_VALUE;
+            for (String v : visited) {
+                near = Math.min(near, Math.max(0, travel.between(v, c.room())));
+            }
+            return work + 2 * near;
+        };
+        secrets.sort(Comparator.comparingDouble((Candidate c) -> price.applyAsDouble(c) / c.gain()).thenComparing(Candidate::room));
+        List<String> out = new ArrayList<>();
+        double covered = 0;
+        for (Candidate c : secrets) {
+            if (covered >= need - 1e-9) {
+                break;
+            }
+            out.add(c.room());
+            covered += c.gain();
+        }
+        return out;
+    }
+
     static Visits visits(List<Candidate> needed, Travel travel, long budgetNanos) {
+        return visits(needed, travel, budgetNanos, Shape.NONE);
+    }
+
+    /** One visit per room (its clear and puzzle, then its route), the visits in Room Order (Fastest Time: least travel). */
+    static Visits visits(List<Candidate> needed, Travel travel, long budgetNanos, Shape shape) {
         java.util.Map<String, List<Candidate>> rooms = new java.util.LinkedHashMap<>();
         for (Candidate c : needed) {
             rooms.computeIfAbsent(c.room(), k -> new ArrayList<>()).add(c);
@@ -318,14 +397,201 @@ public final class AutopilotPlanner {
                 work += Math.max(0, c.seconds() - fromHere[i]);
             }
         }
-        int[] order = leastTravel(fromHere, between, budgetNanos);
+        AutoSecretConfig.SecretOrder mode = shape.order() == null ? AutoSecretConfig.SecretOrder.LEAST_ETHERWARPS
+                : shape.order();
+        int[] order = switch (mode) {
+            case LARGEST_TO_SMALLEST, SMALLEST_TO_LARGEST -> byRank(keys, fromHere, k -> {
+                int size = shape.size().getOrDefault(k, 1);
+                return mode == AutoSecretConfig.SecretOrder.LARGEST_TO_SMALLEST ? -size : size;
+            });
+            case EDGES_IN -> {
+                List<String> rank = edgesIn(shape.neighbours(), shape.root());
+                yield byRank(keys, fromHere, k -> rank.contains(k) ? rank.indexOf(k) : Integer.MAX_VALUE);
+            }
+            default -> leastTravel(fromHere, between, budgetNanos);
+        };
+        // Allow Insta Clearing: a clear whose room is still unshown costs its saving less; Fastest Time also moves such a
+        // room ahead of its first neighbour when that is sooner overall (the neighbour's visit would show it).
+        java.util.Map<String, Double> saving = new java.util.HashMap<>();
+        for (String k : keys) {
+            double s = shape.instaSaving().getOrDefault(k, 0.0);
+            if (s > 0 && rooms.get(k).stream().anyMatch(c -> c.kind() == Kind.CLEAR)) {
+                saving.put(k, s);
+            }
+        }
+        if (mode == AutoSecretConfig.SecretOrder.LEAST_ETHERWARPS && !saving.isEmpty()) {
+            order = instaOrder(order, keys, fromHere, between, saving, shape.neighbours());
+        }
+        List<String> held = heldInsta(order, keys, saving, shape.neighbours());
+        double saved = 0;
+        for (String k : held) {
+            saved += saving.get(k);
+        }
         List<Candidate> tour = new ArrayList<>();
         for (int i : order) {
             List<Candidate> here = rooms.get(keys.get(i));
             here.sort(Comparator.comparingInt((Candidate c) -> c.kind() == Kind.SECRET ? 1 : 0));
             tour.addAll(here);
         }
-        return new Visits(tour, n, TourPlanner.travel(order, fromHere, between), work);
+        StringBuilder note = new StringBuilder();
+        if (mode != AutoSecretConfig.SecretOrder.LEAST_ETHERWARPS) {
+            note.append(", room order ").append(mode.label());
+        }
+        for (String k : held) {
+            note.append(String.format(Locale.US, ", insta clear %s (-%.1f s)", k, saving.get(k)));
+        }
+        for (String k : saving.keySet()) {
+            if (!held.contains(k)) {
+                note.append(", no insta clear for ").append(k).append(" (a room next door comes first)");
+            }
+        }
+        return new Visits(tour, n, TourPlanner.travel(order, fromHere, between), Math.max(0, work - saved), note.toString());
+    }
+
+    /** {@code keys} by {@code rank} (lower first), then nearer first, then by name: the fixed Room Orders. */
+    private static int[] byRank(List<String> keys, double[] fromHere, java.util.function.ToIntFunction<String> rank) {
+        Integer[] idx = new Integer[keys.size()];
+        for (int i = 0; i < idx.length; i++) {
+            idx[i] = i;
+        }
+        java.util.Arrays.sort(idx, Comparator.comparingInt((Integer i) -> rank.applyAsInt(keys.get(i)))
+                .thenComparingDouble(i -> fromHere[i]).thenComparing(keys::get));
+        int[] out = new int[idx.length];
+        for (int i = 0; i < idx.length; i++) {
+            out[i] = idx[i];
+        }
+        return out;
+    }
+
+    /**
+     * Edges In (killer560, 2026-11-26: "it just goes to the end of splits and clears back towards the middle"): the rooms
+     * in post-order of the breadth-first tree from {@code root} over the doors, the deepest branch first, so each branch
+     * is taken from its far end back toward the Entrance before the next one starts (never far corner to far corner).
+     * Rooms the tree does not reach follow by name. Pure, for the testkit.
+     */
+    public static List<String> edgesIn(Map<String, List<String>> neighbours, String root) {
+        List<String> out = new ArrayList<>();
+        if (root == null || !neighbours.containsKey(root)) {
+            List<String> all = new ArrayList<>(neighbours.keySet());
+            all.sort(null);
+            return all;
+        }
+        Map<String, List<String>> children = new java.util.HashMap<>();
+        java.util.Set<String> seen = new java.util.HashSet<>(List.of(root));
+        java.util.ArrayDeque<String> queue = new java.util.ArrayDeque<>(List.of(root));
+        List<String> bfs = new ArrayList<>();
+        while (!queue.isEmpty()) {
+            String at = queue.poll();
+            bfs.add(at);
+            List<String> next = new ArrayList<>(neighbours.getOrDefault(at, List.of()));
+            next.sort(null);
+            for (String nb : next) {
+                if (seen.add(nb)) {
+                    children.computeIfAbsent(at, k -> new ArrayList<>()).add(nb);
+                    queue.add(nb);
+                }
+            }
+        }
+        Map<String, Integer> height = new java.util.HashMap<>();
+        for (int i = bfs.size() - 1; i >= 0; i--) {
+            int h = 0;
+            for (String c : children.getOrDefault(bfs.get(i), List.of())) {
+                h = Math.max(h, height.get(c) + 1);
+            }
+            height.put(bfs.get(i), h);
+        }
+        postOrder(root, children, height, out);
+        List<String> rest = new ArrayList<>();
+        for (String k : neighbours.keySet()) {
+            if (!seen.contains(k)) {
+                rest.add(k);
+            }
+        }
+        rest.sort(null);
+        out.addAll(rest);
+        return out;
+    }
+
+    private static void postOrder(String at, Map<String, List<String>> children, Map<String, Integer> height,
+                                  List<String> out) {
+        List<String> kids = new ArrayList<>(children.getOrDefault(at, List.of()));
+        kids.sort(Comparator.comparingInt((String k) -> -height.get(k)).thenComparing(k -> k));
+        for (String k : kids) {
+            postOrder(k, children, height, out);
+        }
+        out.add(at);
+    }
+
+    /** The insta rooms whose saving holds in {@code order}: none of their neighbours is visited before them. */
+    static List<String> heldInsta(int[] order, List<String> keys, Map<String, Double> saving,
+                                  Map<String, List<String>> neighbours) {
+        List<String> held = new ArrayList<>();
+        java.util.Set<String> visited = new java.util.HashSet<>();
+        for (int i : order) {
+            String k = keys.get(i);
+            if (saving.containsKey(k) && neighbours.getOrDefault(k, List.of()).stream().noneMatch(visited::contains)) {
+                held.add(k);
+            }
+            visited.add(k);
+        }
+        return held;
+    }
+
+    /**
+     * Fastest Time with insta clears: each insta room whose saving the least-travel order loses (a neighbour comes first)
+     * is tried just before that neighbour, biggest saving first, and kept there when travel less savings is lower.
+     */
+    static int[] instaOrder(int[] order, List<String> keys, double[] fromHere, double[][] between, Map<String, Double> saving,
+                            Map<String, List<String>> neighbours) {
+        int[] best = order;
+        double bestCost = instaCost(best, keys, fromHere, between, saving, neighbours);
+        List<String> byGain = new ArrayList<>(saving.keySet());
+        byGain.sort(Comparator.comparingDouble((String k) -> -saving.get(k)).thenComparing(k -> k));
+        // autopilot-instaclear-roomcost-1126: every slot before its first neighbour is tried (not only the one right
+        // before it), and the passes repeat while one helps, since moving one room can free another.
+        for (int pass = 0; pass < 4; pass++) {
+            boolean moved = false;
+            for (String k : byGain) {
+                if (heldInsta(best, keys, saving, neighbours).contains(k)) {
+                    continue;
+                }
+                int me = keys.indexOf(k);
+                List<Integer> rest = new ArrayList<>();
+                for (int i : best) {
+                    if (i != me) {
+                        rest.add(i);
+                    }
+                }
+                int first = 0;
+                while (first < rest.size() && !neighbours.getOrDefault(k, List.of()).contains(keys.get(rest.get(first)))) {
+                    first++;
+                }
+                for (int at = 0; at <= first; at++) {
+                    List<Integer> trialList = new ArrayList<>(rest);
+                    trialList.add(at, me);
+                    int[] trial = trialList.stream().mapToInt(Integer::intValue).toArray();
+                    double cost = instaCost(trial, keys, fromHere, between, saving, neighbours);
+                    if (cost < bestCost - 1e-9) {
+                        best = trial;
+                        bestCost = cost;
+                        moved = true;
+                    }
+                }
+            }
+            if (!moved) {
+                break;
+            }
+        }
+        return best;
+    }
+
+    private static double instaCost(int[] order, List<String> keys, double[] fromHere, double[][] between,
+                                    Map<String, Double> saving, Map<String, List<String>> neighbours) {
+        double cost = TourPlanner.travel(order, fromHere, between);
+        for (String k : heldInsta(order, keys, saving, neighbours)) {
+            cost -= saving.get(k);
+        }
+        return cost;
     }
 
     /** Rooms the least-travel order is exact for (Held-Karp, about a millisecond at 12). */
@@ -397,6 +663,108 @@ public final class AutopilotPlanner {
      * counted cleared by the chest rule) or with a teammate in it is not touched. {@link Autopilot} applies it in Solo only.
      * @return the choice to take (the same one when nothing applies)
      */
+    /**
+     * Allow Insta Clearing at the step (autopilot-menu-1126, his 11-26 F7: Melon and Atlas were counted as insta clears, then
+     * a visit next door showed them on the map first and both were killed by hand): when the pick's room is next door to
+     * a room still credited an insta clear ({@code sh.instaSaving}), that room's clear goes first, while the map has not
+     * shown it, if the detour costs less than the clear it saves. Otherwise {@code c} unchanged.
+     */
+    public static Choice instaNextDoor(Choice c, List<Candidate> all, Travel t, Shape sh) {
+        return instaNextDoor(c, all, t, sh, null);
+    }
+
+    /**
+     * {@link #instaNextDoor} on the whole way there (autopilot-instaclear-roomcost-1126, killer560 2026-11-26: "I don't want
+     * it to jump through the room before quiz if that room is something that it should insta-clear"): the rooms on the
+     * door path from {@code from} (the room he stands in; null: only the pick's own neighbours) to the pick are entered on
+     * the way, each showing its neighbours, so a credited room among them or next to them goes first when its saving beats
+     * the detour; of several, the biggest net saving.
+     */
+    public static Choice instaNextDoor(Choice c, List<Candidate> all, Travel t, Shape sh, String from) {
+        if (c == null || c.pick().kind() == Kind.KEY) {
+            return c;
+        }
+        Candidate best = instaBefore(c.pick().room(), all, t, sh, from);
+        if (best == null) {
+            return c;
+        }
+        double net = sh.instaSaving().get(best.room()) - detour(t, best.room(), c.pick().room());
+        return new Choice(best, String.format(Locale.US, "insta clear %s first: the way to %s would show it on the map"
+                + " (saves %.1f s net)", best.room(), c.pick().room(), net), c.ranked(), fronted(c.tour(), best));
+    }
+
+    /** The credited insta room the trip from {@code from} to {@code at} would show (on the door path or next to it) whose
+     *  saving beats the detour most, or null. Pure, for the testkit. */
+    public static Candidate instaBefore(String at, List<Candidate> all, Travel t, Shape sh, String from) {
+        if (sh.instaSaving().isEmpty() || at == null) {
+            return null;
+        }
+        java.util.Set<String> shown = new java.util.HashSet<>(sh.neighbours().getOrDefault(at, List.of()));
+        for (String p : doorPath(sh.neighbours(), from, at)) {
+            shown.add(p);
+            shown.addAll(sh.neighbours().getOrDefault(p, List.of()));
+        }
+        Candidate best = null;
+        double bestNet = 0;
+        for (Candidate k : all) {
+            Double save = sh.instaSaving().get(k.room());
+            if (k.kind() != Kind.CLEAR || save == null || k.room().equals(at) || k.teammateInside() || !shown.contains(k.room())) {
+                continue;
+            }
+            double net = save - detour(t, k.room(), at);
+            if (net > bestNet) {
+                best = k;
+                bestNet = net;
+            }
+        }
+        return best;
+    }
+
+    /** What going through {@code via} first adds: the leg from it on to {@code at} beyond the straight trip. The trip into
+     *  {@code via} itself is not counted, since its clear needs a visit anyway (now as an insta clear instead of later as a
+     *  kill clear): killer560 2026-11-26, "insta-clearing is going to 100% of the time be faster than clearing a room". */
+    private static double detour(Travel t, String via, String at) {
+        return Math.max(0, Math.max(0, t.between(via, at)) - Math.max(0, t.fromHere(at)));
+    }
+
+    /** The rooms strictly between {@code from} and {@code at} on the fewest-doors path (empty when next door, unknown or
+     *  {@code from} is null). */
+    static List<String> doorPath(Map<String, List<String>> neighbours, String from, String at) {
+        if (from == null || from.equals(at) || !neighbours.containsKey(from)) {
+            return List.of();
+        }
+        Map<String, String> back = new java.util.HashMap<>();
+        java.util.ArrayDeque<String> q = new java.util.ArrayDeque<>();
+        q.add(from);
+        back.put(from, from);
+        while (!q.isEmpty() && !back.containsKey(at)) {
+            String x = q.poll();
+            for (String n : neighbours.getOrDefault(x, List.of())) {
+                if (back.putIfAbsent(n, x) == null) {
+                    q.add(n);
+                }
+            }
+        }
+        if (!back.containsKey(at)) {
+            return List.of();
+        }
+        List<String> out = new ArrayList<>();
+        for (String x = back.get(at); !x.equals(from); x = back.get(x)) {
+            out.add(x);
+        }
+        return out;
+    }
+
+    /** Rooms that can be insta cleared at all (killer560 2026-11-26: "it is impossible to insta-clear trap or any puzzles.
+     *  You can insta-clear normal rooms and yellow room"): the database's NORMAL, RARE and CHAMPION (the yellow miniboss
+     *  room) types; never PUZZLE, TRAP, FAIRY, BLOOD or ENTRANCE. */
+    public static boolean instaType(String type) {
+        return type != null && switch (type.toUpperCase(Locale.ROOT)) {
+            case "NORMAL", "RARE", "CHAMPION" -> true;
+            default -> false;
+        };
+    }
+
     public static Choice clearFirst(Choice c, List<Candidate> all, String clearedFirst) {
         if (c == null || c.pick().kind() == Kind.KEY) {
             return c;
