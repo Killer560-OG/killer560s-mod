@@ -5070,6 +5070,14 @@ public final class RouteExecutor {
         return !running || activeNode == null || !awaitPhaseDone;
     }
 
+    /** The secret bats the room database lists for {@code route}'s room, or no limit when it does not know the room. */
+    private static int roomBats(Route route) {
+        com.killer560.hub.roomdatabase.RoomEntry e = route == null ? null
+                : com.killer560.hub.roomdatabase.RoomDatabase.lookupByName(route.roomName());
+        return e == null || e.secretCoords == null || e.secretCoords.bat == null || e.secretCoords.bat.isEmpty()
+                ? Integer.MAX_VALUE : e.secretCoords.bat.size();
+    }
+
     /**
      * A CRYPT node (killer560, 2026-10-05: "it will do the same attacking thing till either a prince or crypt are
      * killed"): the Crypt Weapon setting's item, aimed straight down (it explodes, never teleports), with the use key HELD
@@ -5084,6 +5092,11 @@ public final class RouteExecutor {
         // A BAT node is this same node for secret bats (killer560, 2026-10-13: "just like crypts ... but is for bats"):
         // the Bat Weapon setting, Bat Attack Time, and bat kills of his (AwaitEvents#bats) instead of crypt kills.
         boolean bat = node.type == RouteNode.Type.BAT;
+        if (bat) {
+            // Never more kills than the room has bats: Pirate's "await 2 secret" (its bat and the chest beside it) held
+            // the node 1.5 s after its one bat died, three runs of three (acrun-1126-pm).
+            goal = Math.min(goal, roomBats(route));
+        }
         String kind = bat ? "bat" : "crypt";
         String KIND = bat ? "BAT" : "CRYPT";
         AutoRoutesConfig.CryptWeapon weapon = bat ? AutoRoutesConfig.getInstance().getBatWeapon()
@@ -5093,11 +5106,26 @@ public final class RouteExecutor {
             finishAction();
             return;
         }
-        if (step == Step.PREP && bat && RouteRunMemory.metThisRun(awaitNodeKey)) {
-            LOGGER.info("[AutoRoutes] Node #{} BAT: its bat was already killed earlier this run - not attacking",
-                    route.indexOf(node) + 1);
+        if (step == Step.PREP && RouteRunMemory.metThisRun(awaitNodeKey)) {
+            // A crypt node too (acrun-1126-pm: Sarcophagus #3 held 36 ticks on the crypt it had killed 13 s before, when
+            // Autopilot off and on started the route again; Deathmite #16 the same on the endgame's second visit).
+            LOGGER.info("[AutoRoutes] Node #{} {}: its {} already killed earlier this run - not attacking",
+                    route.indexOf(node) + 1, KIND, bat ? "bat was" : "crypts were");
             finishAction();
             return;
+        }
+        if (step == Step.PREP && bat) {
+            // Killed with no route running (Auto Clear's Implosion, his own hit): Doors #7 and Lava Ravine #3 held 1.5 s
+            // on a bat Auto Clear had killed 3 s and 48 s before (acrun-1126-pm).
+            Vec3 at = RouteCoords.toReal(frame, node.relativePos());
+            int dead = RouteRunMemory.deadBatsNear(at, AwaitEvents.BAT_SPAWN_RANGE);
+            if (dead >= goal) {
+                LOGGER.info("[AutoRoutes] Node #{} BAT: {} secret bat(s) already died within {} blocks this run - not "
+                        + "attacking", route.indexOf(node) + 1, dead, AwaitEvents.BAT_SPAWN_RANGE);
+                RouteRunMemory.met(awaitNodeKey, List.of());
+                finishAction();
+                return;
+            }
         }
         if (step == Step.PREP && !bat && AutoRoutesConfig.getInstance().masterSkipNow()) {
             LOGGER.info("[AutoRoutes] Node #{} CRYPT: Master Mode, Skip Kills on - no attack, moving on", route.indexOf(node) + 1);
@@ -5248,9 +5276,7 @@ public final class RouteExecutor {
             if (kills(bat) >= goal && seek == CryptSeek.NONE) {
                 LOGGER.info("[AutoRoutes] Node #{} {}: {} kill(s) after holding use {} tick(s)", route.indexOf(node) + 1,
                         KIND, kills(bat), stepTicks);
-                if (bat) {
-                    RouteRunMemory.met(awaitNodeKey, List.of());
-                }
+                RouteRunMemory.met(awaitNodeKey, List.of());
                 releaseUse(client);
                 restoreCryptSlot(client, player);
                 finishAction();

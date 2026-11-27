@@ -22,7 +22,8 @@
      "Craft Cost: while you hover the recipe menu's Supercraft item, the panel also shows the amounts for its N crafts in parentheses next to each quantity and cost, the total and Instant Buy.",
      "Auto Creeper Beams (Melee): a lantern is only hit from a spot where a look onto it lands within reach, so it no longer stands on the way to its spot turning back and forth for seconds; a hit that still waits more than six ticks tries another spot",
      "Auto Clear now finds a starred mob that walked out of its room through an open door into a cleared room or one with no mobs of its own (a puzzle such as the Quiz) and kills it there, looks from a spot inside each open door before giving a room up, and says a mob may have left the room when it does give up",
-     "Craft Cost: the Supercraft amounts in parentheses now read the tooltip as Hypixel writes it (the red cross before each ingredient hid them all), and the ingredient rows are ordered from most to least expensive."
+     "Craft Cost: the Supercraft amounts in parentheses now read the tooltip as Hypixel writes it (the red cross before each ingredient hid them all), and the ingredient rows are ordered from most to least expensive.",
+     "Auto Routes: a crypt node whose crypts it already killed this run, and a bat node whose bat already died this run (Auto Clear's hit or your own), move on at once instead of holding 1.5 s; a bat node never waits for more bats than its room has; Dungeon Autopilot no longer runs a room's route again for a secret that is still being taken there"
     ]
    }
   ]

@@ -3126,7 +3126,10 @@ public final class AutoSecretFeature {
         RoomStatus.Room best = null;
         int bestDist = Integer.MAX_VALUE;
         for (RoomStatus.Room r : rooms) {
+            // Never the room whose last secret is still being taken where he stands (leaveWaitRoom): Deathmite, Staircase
+            // and Melon ran their whole route again for a chest that registered 9 ticks later (acrun-1126-pm).
             if (!secreted.contains(r.name()) || revisited.contains(r.name()) || r.secrets() <= 0
+                    || r.name().equals(leaveWaitRoom)
                     || com.killer560.hub.autoroutes.RouteRunMemory.givenUpIn(r.name())
                     || !dist.containsKey(r.room()) || !worthGoingBack(r)) {
                 continue;

@@ -192,13 +192,7 @@ public final class AwaitEvents {
 
     /** The secrets counted in the open window (keys as {@link RouteRunMemory} has them), for the node they meet. */
     static Set<String> windowSecrets() {
-        Set<String> out = new HashSet<>();
-        for (String k : counted) {
-            if (!k.startsWith("batkill ")) {
-                out.add(k);
-            }
-        }
-        return out;
+        return new HashSet<>(counted);
     }
 
     /** A secret of his seen while no route ran, for {@link #begin}: the last few only. */
@@ -282,6 +276,16 @@ public final class AwaitEvents {
         tickKey(client);
         KeySpots.tick(client);
         if (!active) {
+            // No route running: only remember which secret bats died (Auto Clear's Implosion, his own hit), so a BAT node
+            // reached later does not hold its weapon on a bat that is gone (RouteRunMemory#deadBatsNear). Only a death
+            // that has just begun: a body still falling after the run memory was cleared died in the run before.
+            if (com.killer560.hub.secrets.DungeonState.isInDungeon()) {
+                for (Entity e : client.level.entitiesForRendering()) {
+                    if (e instanceof Bat dying && dying.isDeadOrDying() && dying.deathTime <= 2 && isSecretBat(dying)) {
+                        RouteRunMemory.batDied(dying.getId(), dying.position());
+                    }
+                }
+            }
             return;
         }
         for (Entity e : client.level.entitiesForRendering()) {
@@ -835,7 +839,9 @@ public final class AwaitEvents {
      * weapon uses was at most {@link #CRYPT_WINDOW} ticks before it, as a crypt kill is attributed. Each bat once.
      */
     private static void onBatKill(Minecraft client, LocalPlayer player, Bat bat) {
-        if (!counted.add("batkill " + bat.getId())) {
+        // Judged once per run, not once per window: its body is still dying when the next node's window opens a warp
+        // away, and was "ignored: bat died 10-46 blocks away" after it had been counted (acrun-1126-pm).
+        if (!RouteRunMemory.batDied(bat.getId(), bat.position())) {
             return;
         }
         double d = bat.distanceTo(player);

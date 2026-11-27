@@ -61,6 +61,8 @@ public final class RouteRunMemory {
     private static final Set<String> boomedNodes = new HashSet<>();
     /** How far each room's route got this run: {nodes done, nodes in the route}, kept after a stop (the HUD's percent). */
     private static final Map<String, int[]> progress = new LinkedHashMap<>();
+    /** Secret bats seen dying this run, by entity id, where they died - whoever killed them, route or not. */
+    private static final Map<Integer, Vec3> deadBats = new LinkedHashMap<>();
 
     private static Object level;
     private static int generation = Integer.MIN_VALUE;
@@ -99,6 +101,34 @@ public final class RouteRunMemory {
         boomedNodes.clear();
         givenUpNodes.clear();
         givenUpRooms.clear();
+        deadBats.clear();
+    }
+
+    /** A secret bat was seen dying. @return whether this is the first time this run (a floor has under 20; 64 kept). */
+    static boolean batDied(int id, Vec3 pos) {
+        check();
+        if (deadBats.containsKey(id)) {
+            return false;
+        }
+        if (deadBats.size() >= 64) {
+            return true;
+        }
+        deadBats.put(id, pos);
+        LOGGER.info("[RouteMemory] secret bat {} died at {} this run ({} so far; route running={})", id,
+                String.format(Locale.ROOT, "%.1f,%.1f,%.1f", pos.x, pos.y, pos.z), deadBats.size(), RouteExecutor.isRunning());
+        return true;
+    }
+
+    /** Secret bats that died within {@code range} blocks of {@code pos} this run. */
+    static int deadBatsNear(Vec3 pos, double range) {
+        check();
+        int n = 0;
+        for (Vec3 p : deadBats.values()) {
+            if (p.distanceToSqr(pos) <= range * range) {
+                n++;
+            }
+        }
+        return n;
     }
 
     /** For the testkit: forget the run, as a new run would. */
