@@ -715,30 +715,81 @@ public final class TeleportUtils {
     public static BlockPos etherwarpableInTile(BlockPos tileCentre, Vec3 from) {
         // Two passes: the floor course first, then a wider band for a room whose clicked quadrant is a pit or a
         // raised platform. Widening rather than starting wide keeps a normal room's answer on its own floor.
+        // A landing nothing warps back out of is passed over for the next nearest (hasWayOut).
+        Set<BlockPos> sealed = new java.util.HashSet<>();
         for (int band : new int[]{2, 8}) {
-            BlockPos best = null;
-            double bestDistSq = Double.MAX_VALUE;
-            BlockPos.MutableBlockPos mut = new BlockPos.MutableBlockPos();
-            for (int dy = band; dy >= -band; dy--) {
-                for (int dx = -TILE_HALF; dx <= TILE_HALF; dx++) {
-                    for (int dz = -TILE_HALF; dz <= TILE_HALF; dz++) {
-                        mut.set(tileCentre.getX() + dx, tileCentre.getY() + dy, tileCentre.getZ() + dz);
-                        if (!landable(mut) || !underCover(mut)) {
-                            continue;
-                        }
-                        double d = from.distanceToSqr(mut.getX() + 0.5, mut.getY() + 1.0, mut.getZ() + 0.5);
-                        if (d < bestDistSq) {
-                            bestDistSq = d;
-                            best = mut.immutable();
+            for (int tries = 0; tries < 4; tries++) {
+                BlockPos best = null;
+                double bestDistSq = Double.MAX_VALUE;
+                BlockPos.MutableBlockPos mut = new BlockPos.MutableBlockPos();
+                for (int dy = band; dy >= -band; dy--) {
+                    for (int dx = -TILE_HALF; dx <= TILE_HALF; dx++) {
+                        for (int dz = -TILE_HALF; dz <= TILE_HALF; dz++) {
+                            mut.set(tileCentre.getX() + dx, tileCentre.getY() + dy, tileCentre.getZ() + dz);
+                            if (!landable(mut) || !underCover(mut) || sealed.contains(mut)) {
+                                continue;
+                            }
+                            double d = from.distanceToSqr(mut.getX() + 0.5, mut.getY() + 1.0, mut.getZ() + 0.5);
+                            if (d < bestDistSq) {
+                                bestDistSq = d;
+                                best = mut.immutable();
+                            }
                         }
                     }
                 }
-            }
-            if (best != null) {
-                return best;
+                if (best == null || hasWayOut(best)) {
+                    if (best != null) {
+                        return best;
+                    }
+                    break;
+                }
+                sealed.add(best);
             }
         }
         return null;
+    }
+
+    /** Yaw every 10 degrees at these pitches first (flat and downward: most landings see floor near them at once). */
+    private static final int[] WAY_OUT_PITCHES = {20, 40, 5, 60, -10, 80, -35, -60};
+
+    /**
+     * Whether an etherwarp from {@code land} can land anywhere but on {@code land} itself (strand-cages-1126: the block
+     * at Cages' main tile center is inside an iron-bar cage under a cobblestone lid; a trip ended there and nothing
+     * warped back out, until the Autopilot stopped with "nothing left it can reach"). The voxel walk the sim's server
+     * and the planner share, from the sneaking eye over the block, out to the hop range; a coarse fan first, then one
+     * every 3 degrees before saying no (only a real pocket pays for that).
+     */
+    public static boolean hasWayOut(BlockPos land) {
+        Level level = level();
+        if (level == null) {
+            return true;
+        }
+        double range = ClearExecutor.hopRange();
+        double x = land.getX() + 0.5;
+        double y = com.killer560.hub.etherwarpoverlay.EtherwarpOverlayFeature.standYOn(level, land) + sneakEye();
+        double z = land.getZ() + 0.5;
+        for (int pitch : WAY_OUT_PITCHES) {
+            for (int yaw = -180; yaw < 180; yaw += 10) {
+                if (leavesTo(level, land, x, y, z, yaw, pitch, range)) {
+                    return true;
+                }
+            }
+        }
+        for (float pitch = -88.5f; pitch <= 88.5f; pitch += 3f) {
+            for (float yaw = -180f; yaw < 180f; yaw += 3f) {
+                if (leavesTo(level, land, x, y, z, yaw, pitch, range)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private static boolean leavesTo(Level level, BlockPos land, double x, double y, double z, float yaw, float pitch,
+                                    double range) {
+        Vec3 l = getLook(yaw, pitch);
+        RaycastResult r = traverseVoxels(level, x, y, z, x + l.x * range, y + l.y * range, z + l.z * range, true);
+        return r.succeeded() && r.pos() != null && !land.equals(r.pos());
     }
 
     private static long[] buildSphere() {

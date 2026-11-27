@@ -481,6 +481,9 @@ public final class EtherwarpPathfinder {
     /** Why the last search on the planner thread found no plan, in a few words for chat (null = no reason known). */
     public static volatile String lastRefusal;
 
+    /** {@link #lastRefusal} for a goal nothing warps back out of: the goal is the trouble, not where he stands. */
+    public static final String NO_WAY_OUT = "no etherwarp leads back out of that block";
+
     private static List<Node> planFloorAny(Vec3 from, BlockPos to, int tileIdx, PathConfig cfg, double dist,
                                            DungeonLayout layout, boolean exactWanted, long exactNanos, boolean onBlock,
                                            java.util.Set<Long> air) {
@@ -504,6 +507,12 @@ public final class EtherwarpPathfinder {
             lastRefusal = "nothing to stand on at that block";
             return null;
         }
+        if (tileIdx < 0 && !TeleportUtils.hasWayOut(to)) {
+            // A trip there would be the last one (strand-cages-1126: a route's start node inside Cages' iron-bar cage).
+            LOGGER.info("[Path] {} has no way out - no etherwarp from it lands anywhere else. Not going.", to);
+            lastRefusal = NO_WAY_OUT;
+            return null;
+        }
         FloorGraphs graphs = graphFor(level, dist);
         EtherSearch.Hop start = startHop(from);
         WarpGraph.Goal goal = new WarpGraph.Goal();
@@ -518,7 +527,10 @@ public final class EtherwarpPathfinder {
         if (tile6 >= 0) {
             FloorTiles tiles = graphTiles;
             int t = tile6;
-            goal.region = (x, y, z) -> tiles.tileOf(x, y, z) == t;
+            // Never a landing nothing warps back out of (TeleportUtils.hasWayOut, asked once a block for this plan).
+            java.util.Map<Long, Boolean> wayOut = new java.util.concurrent.ConcurrentHashMap<>();
+            goal.region = (x, y, z) -> tiles.tileOf(x, y, z) == t && wayOut.computeIfAbsent(EtherSearch.pack(x, y, z),
+                    k -> TeleportUtils.hasWayOut(new BlockPos(x, y, z)));
             goal.tile = t;
             // Of the landings the fewest warps reach, the one nearest the middle of the clicked tile, not just past
             // its doorway - never a warp more for it.

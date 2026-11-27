@@ -3840,7 +3840,8 @@ public final class AutoSecretFeature {
     private static void tripFailed(String why) {
         tripFailed0(why);
         Minecraft mc = Minecraft.getInstance();
-        if (!NO_PATH.equals(why) || mc.player == null || mc.player.blockPosition().equals(recoverFrom)) {
+        if (!NO_PATH.equals(why) || goalSealed(why) || mc.player == null
+                || mc.player.blockPosition().equals(recoverFrom)) {
             return;
         }
         // Back one warp to where Auto Clear's last trip left from (it got in that way), else to where the last trip ended.
@@ -3863,6 +3864,15 @@ public final class AutoSecretFeature {
         }
     }
 
+    /**
+     * The planner refused the trip's goal itself: no etherwarp leads back out of it (strand-cages-1126, a start node in
+     * Cages' iron-bar cage). Where he stands is not the trouble and no retry changes it, so the target is left out at once.
+     */
+    private static boolean goalSealed(String why) {
+        return NO_PATH.equals(why) && com.killer560.hub.livemap.autoclear.EtherwarpPathfinder.NO_WAY_OUT
+                .equals(ClearExecutor.lastFailReason());
+    }
+
     /** A trip that did not get there. Two more tries from wherever he is, then that room is left out this run. */
     private static void tripFailed0(String why) {
         if (pilot) {
@@ -3879,7 +3889,7 @@ public final class AutoSecretFeature {
             return;
         }
         Minecraft mc = Minecraft.getInstance();
-        if (pilot && target != null && mc.player != null && NO_PATH.equals(why)) {
+        if (pilot && target != null && mc.player != null && NO_PATH.equals(why) && !goalSealed(why)) {
             // The planner found no warp chain out of the spot he stands on: from here every retry of it fails the same way
             // (his 11-22 F7, 20:09:25-33: Hall three times in 2 s, then New Trap, Three Weirdos - all from one block in
             // Dome). The Autopilot plans around it until he stands somewhere else (Autopilot.candidates).
@@ -3891,7 +3901,7 @@ public final class AutoSecretFeature {
             noPathTargets.add(target);
         }
         int n = tripFailures.merge(String.valueOf(target), 1, Integer::sum);
-        boolean giveUp = n > MAX_TRIP_FAILURES;
+        boolean giveUp = n > MAX_TRIP_FAILURES || goalSealed(why);
         LOGGER.info("[AutoSecret] trip to {} failed ({}){}", target, why, giveUp ? " - leaving it out" : " - trying again");
         if (giveUp) { // a retry is logged above, not said (killer560, 2026-10-16: start/stop lines only)
             String because = NO_PATH.equals(why) && ClearExecutor.lastFailReason() != null
