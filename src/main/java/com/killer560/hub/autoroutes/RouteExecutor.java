@@ -703,6 +703,8 @@ public final class RouteExecutor {
     private static final Set<RouteNode> firedInRun = new HashSet<>();
     /** The node that fired last this run: standing in its ring is not a new step onto it ({@link #steppedOntoOther}). */
     private static RouteNode lastFired;
+    /** Number index (0-based) of the node this run started from: {@link #stackFor} never pulls in one before it. */
+    private static int runFrom;
 
     private RouteExecutor() {
     }
@@ -919,6 +921,7 @@ public final class RouteExecutor {
         frame = f;
         ordered = r.nodesInPathOrder();
         nextNode = Math.max(0, ordered.indexOf(startNode));
+        runFrom = Math.max(0, r.indexOf(startNode));
         cursor = Math.max(0, Math.min(Math.max(0, r.path().size() - 1), startNode.pathIndex));
         noProgressTicks = 0;
         bestTargetDistance = Double.MAX_VALUE;
@@ -2227,7 +2230,7 @@ public final class RouteExecutor {
             LOGGER.info("[AutoRoutes] the hold after an unlanded warp ends - node {} fires", nodeTag(trigger));
         }
         refireHoldAt = null; // any stack firing (a landing elsewhere, his click) ends the hold
-        List<RouteNode> stack = route.stackOf(trigger);
+        List<RouteNode> stack = stackFor(trigger);
         stackQueue.clear();
         stackQueue.addAll(stack);
         stackTrigger = trigger;
@@ -2238,6 +2241,14 @@ public final class RouteExecutor {
                     route.indexOf(trigger) + 1, describeStack(stack));
         }
         beginAction(stackQueue.poll());
+    }
+
+    /** What fires on {@code trigger}'s tile now: on a path-less route its stack plus any node on the tile the run would
+     *  otherwise never fire ({@link Route#stackWithSkipped}); on a recorded route its stack. */
+    private static List<RouteNode> stackFor(RouteNode trigger) {
+        return route.path().isEmpty()
+                ? route.stackWithSkipped(trigger, runFrom, n -> firedInRun.contains(n) || givenUpNode(n))
+                : route.stackOf(trigger);
     }
 
     private static String describeStack(java.util.Collection<RouteNode> nodes) {
@@ -2641,13 +2652,13 @@ public final class RouteExecutor {
             if (pathless && teleported) {
                 RouteNode landedIn = nodeLandedIn(player, cfg, finished);
                 if (landedIn != null) {
-                    up = route.stackOf(landedIn).get(0);
+                    up = stackFor(landedIn).get(0);
                     inPlace = true;
                 }
             }
             if (up == null && nextNode < ordered.size()) {
                 RouteNode n = ordered.get(nextNode);
-                up = route.stackOf(n).get(0);
+                up = stackFor(n).get(0);
                 inPlace = pathless
                         ? n.contains(frame, RouteCoords.toReal(frame, n.relativePos()), cfg.getHeight(), feetBox(player))
                         : n.pathIndex <= cursor;

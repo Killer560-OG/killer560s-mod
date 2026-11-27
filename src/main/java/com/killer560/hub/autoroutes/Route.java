@@ -102,12 +102,54 @@ public final class Route {
         if (!stack.contains(trigger)) {
             stack.add(trigger); // not (or no longer) in the list: it still fires itself
         }
+        sortStack(stack);
+        return stack;
+    }
+
+    private void sortStack(List<RouteNode> stack) {
         stack.sort(Comparator.comparingInt(this::fireRank)
                 .thenComparingInt(n -> {
                     int i = nodes.indexOf(n);
                     return i < 0 ? Integer.MAX_VALUE : i;
                 }));
+    }
+
+    /**
+     * {@link #stackOf} plus the nodes on the trigger's tile that its consecutive run leaves out but this run would never
+     * fire otherwise (killer560, 2026-11-26: "if i make a node nubmer 7 but the node that goes onto it is 4 then it just
+     * wont fire number 7"): one numbered after the run's first node ({@code from}) and before the trigger that has not
+     * fired ({@code done} false) - an out-of-order landing went past it - and, when nothing in the stack moves him off
+     * the tile, every later one that has not fired, since he is left standing on it. A stack that moves him keeps its
+     * later nodes for the route's return to the tile (arstack-1115).
+     */
+    public List<RouteNode> stackWithSkipped(RouteNode trigger, int from, java.util.function.Predicate<RouteNode> done) {
+        List<RouteNode> stack = stackOf(trigger);
+        int at = nodes.indexOf(trigger);
+        if (at < 0) {
+            return stack;
+        }
+        boolean moves = false;
+        for (RouteNode n : stack) {
+            moves |= movesOff(n);
+        }
+        int added = 0;
+        for (int i = Math.max(0, from); i < nodes.size(); i++) {
+            RouteNode n = nodes.get(i);
+            if (i != at && (i < at || !moves) && n.sameTile(trigger) && !stack.contains(n) && !done.test(n)) {
+                stack.add(n);
+                added++;
+            }
+        }
+        if (added > 0) {
+            sortStack(stack);
+        }
         return stack;
+    }
+
+    /** Takes him off the tile it fires on: an etherwarp, a path warp, a jump, a walk, a use that lands, a command. */
+    private boolean movesOff(RouteNode n) {
+        return fireRank(n) >= 2 * RouteNode.MOVER_RANK || n.type == RouteNode.Type.COMMAND
+                || (n.type == RouteNode.Type.USE_ITEM && n.hasLanding);
     }
 
     private boolean isArrival(RouteNode node) {
