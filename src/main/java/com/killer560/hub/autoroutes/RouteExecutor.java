@@ -703,8 +703,46 @@ public final class RouteExecutor {
     private static final Set<RouteNode> firedInRun = new HashSet<>();
     /** The node that fired last this run: standing in its ring is not a new step onto it ({@link #steppedOntoOther}). */
     private static RouteNode lastFired;
-    /** Number index (0-based) of the node this run started from: {@link #stackFor} never pulls in one before it. */
+    /** Place in {@link #ordered} of the node this run started from: {@link #stackFor} never pulls in one before it. */
     private static int runFrom;
+    /** {@link #carryOnNextStart}: the route, the client tick the carry lapses at and the nodes that count as fired. */
+    private static Route carryRoute;
+    private static long carryUntil;
+    private static final Set<RouteNode> carryFired = new HashSet<>();
+    /** How long a carry waits for its warp to land and the next run to start (a walk-gap warp takes a few ticks). */
+    private static final int CARRY_TICKS = 100;
+    /** The same for a go-back's trip, which may cross rooms ({@link #carryAllBut}). */
+    private static final int GO_BACK_CARRY_TICKS = 600;
+
+    /**
+     * A go-back for missed secrets: the next start of {@code r} (within {@link #GO_BACK_CARRY_TICKS}) counts every node but
+     * {@code redo} as already fired, so only those nodes run, wherever their numbers sit, and the run then completes.
+     */
+    public static void carryAllBut(Route r, java.util.Collection<RouteNode> redo) {
+        carryRoute = r;
+        carryUntil = com.killer560.hub.livemap.autoclear.ClearExecutor.clientTick() + GO_BACK_CARRY_TICKS;
+        carryFired.clear();
+        for (RouteNode n : r.nodes()) {
+            if (!redo.contains(n)) {
+                carryFired.add(n);
+            }
+        }
+    }
+
+    /**
+     * The next start of this route (within {@link #CARRY_TICKS}) carries on the run that is stopping now: what fired
+     * stays fired and the order wraps from the new start, so Auto Secret's warp onto a node across a walk gap never
+     * reruns the nodes before it, whatever their numbers.
+     */
+    static void carryOnNextStart() {
+        if (!running || route == null) {
+            return;
+        }
+        carryRoute = route;
+        carryUntil = com.killer560.hub.livemap.autoclear.ClearExecutor.clientTick() + CARRY_TICKS;
+        carryFired.clear();
+        carryFired.addAll(firedInRun);
+    }
 
     private RouteExecutor() {
     }
@@ -735,7 +773,41 @@ public final class RouteExecutor {
      * ({@link AutoRoutesFeature#warpOntoWalkNode}).
      */
     static WalkGap walkGap() {
-        return awaitingWalk() && frame != null ? new WalkGap(route, frame, plannedNext) : null;
+        return awaitingWalk() && frame != null ? new WalkGap(route, frame, nearestUnfiredHead()) : null;
+    }
+
+    /**
+     * The node to go to across a walk gap: of the nodes not yet fired this run that begin an unfired stretch of the run's
+     * order (the node before it fired, or there is none), the nearest to him - not the lowest number (killer560,
+     * 2026-11-27: "the number for the node does not matter"). Inside a stretch the route's own order still holds, since
+     * a node there may need the breaker or boom before it. Once per gap, never per tick.
+     */
+    private static RouteNode nearestUnfiredHead() {
+        LocalPlayer p = Minecraft.getInstance().player;
+        RouteNode best = plannedNext;
+        if (p == null) {
+            return best;
+        }
+        double bestD = best == null ? Double.MAX_VALUE
+                : p.position().distanceToSqr(RouteCoords.toReal(frame, best.relativePos()));
+        for (int i = 0; i < ordered.size(); i++) {
+            RouteNode n = ordered.get(i);
+            RouteNode before = i == 0 ? null : ordered.get(i - 1);
+            if (firedInRun.contains(n) || givenUpNode(n)
+                    || before != null && !firedInRun.contains(before) && !givenUpNode(before)) {
+                continue;
+            }
+            double d = p.position().distanceToSqr(RouteCoords.toReal(frame, n.relativePos()));
+            if (d < bestD) {
+                best = n;
+                bestD = d;
+            }
+        }
+        if (best != plannedNext) {
+            LOGGER.info("[AutoRoutes] walk gap: #{} ({}) is the nearest node not fired yet - going there before #{}",
+                    route.indexOf(best) + 1, best.type, plannedNext == null ? "?" : String.valueOf(route.indexOf(plannedNext) + 1));
+        }
+        return best;
     }
 
     record WalkGap(Route route, RouteCoords.Frame frame, RouteNode node) {
@@ -919,9 +991,12 @@ public final class RouteExecutor {
         }
         route = r;
         frame = f;
-        ordered = r.nodesInPathOrder();
+        long nowTick = com.killer560.hub.livemap.autoclear.ClearExecutor.clientTick();
+        boolean carry = r == carryRoute && nowTick <= carryUntil;
+        carryRoute = null;
+        ordered = r.runOrder(startNode, carry);
         nextNode = Math.max(0, ordered.indexOf(startNode));
-        runFrom = Math.max(0, r.indexOf(startNode));
+        runFrom = nextNode;
         cursor = Math.max(0, Math.min(Math.max(0, r.path().size() - 1), startNode.pathIndex));
         noProgressTicks = 0;
         bestTargetDistance = Double.MAX_VALUE;
@@ -962,6 +1037,12 @@ public final class RouteExecutor {
         stackQueue.clear();
         stackTrigger = null;
         firedInRun.clear();
+        if (carry) {
+            firedInRun.addAll(carryFired);
+            LOGGER.info("[AutoRoutes] \"{}\" carries on the run before it: {} node(s) already fired are not run again",
+                    r.roomName(), carryFired.size());
+        }
+        carryFired.clear();
         lastFired = null;
         endWalkHold();
         RouteRotation.clear();
@@ -1010,7 +1091,7 @@ public final class RouteExecutor {
         if (r == null || f == null) {
             return null;
         }
-        List<RouteNode> order = r.nodesInPathOrder();
+        List<RouteNode> order = r.runOrder(r.startNode(), false);
         RoutePath path = r.path();
         Vec3 rel = null;
         int lastIndex = -1;
@@ -2247,7 +2328,7 @@ public final class RouteExecutor {
      *  otherwise never fire ({@link Route#stackWithSkipped}); on a recorded route its stack. */
     private static List<RouteNode> stackFor(RouteNode trigger) {
         return route.path().isEmpty()
-                ? route.stackWithSkipped(trigger, runFrom, n -> firedInRun.contains(n) || givenUpNode(n))
+                ? route.stackWithSkipped(trigger, ordered, runFrom, n -> firedInRun.contains(n) || givenUpNode(n))
                 : route.stackOf(trigger);
     }
 
@@ -2304,7 +2385,9 @@ public final class RouteExecutor {
         awaitDoneAge = 0;
         nodeSwapped = false;
         sneakReadyAge = -1;
-        firedInRun.add(node);
+        if (firedInRun.add(node)) {
+            RouteRunMemory.nodeFired(RouteRunMemory.nodeKey(route, node));
+        }
         lastFired = node;
         actionOrigin = feet(Minecraft.getInstance().player);
         // Any node firing ends a held walk ("keep me walking until I hit a different node", AP3's rule), and the

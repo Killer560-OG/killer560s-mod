@@ -62,6 +62,25 @@ public final class Route {
     }
 
     /**
+     * The order a run started at {@code start} fires in. A node's number means nothing about whether it is done
+     * (killer560, 2026-11-27: "the number for the node does not matter"): a path-less run from the route's own start node
+     * goes on past the last node to the first and on up to the start, so nodes numbered before the start are still run
+     * (his Diagonal: start #12, #14 lands on #1, and #1-#11 never fired). So does a run that carries on an earlier one
+     * ({@code carried}, Auto Secret's warp onto a node across a walk gap). Any other start (he stepped onto a node
+     * mid-route) keeps path order from there.
+     */
+    public List<RouteNode> runOrder(RouteNode start, boolean carried) {
+        List<RouteNode> order = nodesInPathOrder();
+        int at = order.indexOf(start);
+        if (at > 0 && path.isEmpty() && (start.start || carried)) {
+            List<RouteNode> wrapped = new ArrayList<>(order.subList(at, order.size()));
+            wrapped.addAll(order.subList(0, at));
+            return wrapped;
+        }
+        return order;
+    }
+
+    /**
      * Every node on {@code trigger}'s tile ({@link RouteNode#sameTile}), trigger included, in the order they fire:
      * by {@link RouteNode#stackRank}, and nodes of the same rank in the order they were added (node number) - so a boom,
      * a crypt and a boom fire boom, boom, crypt (killer560, 2026-10-06: "if i make a boom a crypt then a boom, it should
@@ -117,14 +136,15 @@ public final class Route {
     /**
      * {@link #stackOf} plus the nodes on the trigger's tile that its consecutive run leaves out but this run would never
      * fire otherwise (killer560, 2026-11-26: "if i make a node nubmer 7 but the node that goes onto it is 4 then it just
-     * wont fire number 7"): one numbered after the run's first node ({@code from}) and before the trigger that has not
-     * fired ({@code done} false) - an out-of-order landing went past it - and, when nothing in the stack moves him off
-     * the tile, every later one that has not fired, since he is left standing on it. A stack that moves him keeps its
-     * later nodes for the route's return to the tile (arstack-1115).
+     * wont fire number 7"): one placed in the run's {@code order} ({@link #runOrder}) after its first node ({@code from})
+     * and before the trigger that has not fired ({@code done} false) - an out-of-order landing went past it - and, when
+     * nothing in the stack moves him off the tile, every later one that has not fired, since he is left standing on it.
+     * A stack that moves him keeps its later nodes for the route's return to the tile (arstack-1115).
      */
-    public List<RouteNode> stackWithSkipped(RouteNode trigger, int from, java.util.function.Predicate<RouteNode> done) {
+    public List<RouteNode> stackWithSkipped(RouteNode trigger, List<RouteNode> order, int from,
+                                            java.util.function.Predicate<RouteNode> done) {
         List<RouteNode> stack = stackOf(trigger);
-        int at = nodes.indexOf(trigger);
+        int at = order.indexOf(trigger);
         if (at < 0) {
             return stack;
         }
@@ -133,8 +153,8 @@ public final class Route {
             moves |= movesOff(n);
         }
         int added = 0;
-        for (int i = Math.max(0, from); i < nodes.size(); i++) {
-            RouteNode n = nodes.get(i);
+        for (int i = Math.max(0, from); i < order.size(); i++) {
+            RouteNode n = order.get(i);
             if (i != at && (i < at || !moves) && n.sameTile(trigger) && !stack.contains(n) && !done.test(n)) {
                 stack.add(n);
                 added++;

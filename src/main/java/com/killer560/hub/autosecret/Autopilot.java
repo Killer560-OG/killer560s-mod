@@ -55,7 +55,8 @@ final class Autopilot {
 
     /** What Auto Secret should do next. */
     /** DOOR_FIRST: a wither door (or the key room for it) may go before the pick, which waits unbegun ({@link #beginDeferred}). */
-    enum Type { SECRET, CLEAR, PUZZLE, EXPLORE, DOOR, FINISH, KEY, DOOR_FIRST }
+    /** GO_BACK: back to a room whose route ran, for only the nodes that missed ({@link AutopilotPlanner#goBack}). */
+    enum Type { SECRET, CLEAR, PUZZLE, EXPLORE, DOOR, FINISH, KEY, DOOR_FIRST, GO_BACK }
 
     /**
      * @param room       the target room (SECRET, CLEAR, PUZZLE, EXPLORE)
@@ -687,7 +688,7 @@ final class Autopilot {
         }
         if (p.kind() == AutopilotPlanner.Kind.SECRET && room != null) {
             Route route = RouteStore.getInstance().forRoom(room.name());
-            currentNodes = route == null ? 0 : route.nodes().size();
+            currentNodes = p.goBack() ? goBackNodes.getOrDefault(p.room(), 0) : route == null ? 0 : route.nodes().size();
         }
         String verb = switch (p.kind()) {
             case SECRET -> "Secreting";
@@ -699,7 +700,7 @@ final class Autopilot {
         setHud(verb + " " + displayName(room, p.room()), String.format(Locale.US, "%.1f pts in ~%.0f s - %s", p.gain(),
                 p.seconds(), c.why()));
         Type t = switch (p.kind()) {
-            case SECRET -> Type.SECRET;
+            case SECRET -> p.goBack() ? Type.GO_BACK : Type.SECRET;
             case CLEAR -> Type.CLEAR;
             case PUZZLE -> Type.PUZZLE;
             case EXPLORE -> Type.EXPLORE;
@@ -797,6 +798,8 @@ final class Autopilot {
 
     /** Each candidate room's travel estimate from the last decision, by {@link #keyOf}. */
     private static final Map<String, Double> travelByKey = new java.util.HashMap<>();
+    /** The go-back candidates of the last decision: how many nodes of the route each would run again. */
+    private static final Map<String, Integer> goBackNodes = new java.util.HashMap<>();
 
     private static List<AutopilotPlanner.Candidate> candidates(DungeonLayout layout, List<RoomStatus.Room> rooms,
                                                                Map<Integer, Integer> dist, Set<String> secreted,
@@ -805,6 +808,7 @@ final class Autopilot {
         AutoSecretConfig cfg = AutoSecretConfig.getInstance();
         List<AutopilotPlanner.Candidate> out = new ArrayList<>();
         travelByKey.clear();
+        goBackNodes.clear();
         trapModes.clear();
         boolean routes = AutoRoutesConfig.getInstance().isEnabled();
         if (!routes && !noRoutesSaid) {
@@ -820,6 +824,7 @@ final class Autopilot {
         realTravel = realTravel(layout, rooms, dist);
         // Room Before Blood: Skip leaves the secrets of the room in front of the blood door out.
         int skipSecrets = AutoSecretFeature.skipPreBlood() ? AutoSecretFeature.preBloodRoom(layout, rooms) : -2;
+        int useful = AutopilotScore.usefulSecrets(s);
         for (RoomStatus.Room r : rooms) {
             Integer steps = dist.get(r.room());
             if (steps == null) {
@@ -864,6 +869,19 @@ final class Autopilot {
                             AutopilotScore.secretGain(s, r.unfound(), party) + AutopilotScore.cryptGain(s, crypts), secs,
                             mate, rushIndex));
                 }
+            }
+            // A room whose route ran short of its secrets: weighed like any other secret room, priced by only the nodes
+            // that missed, and only while the S+ still needs secrets (goback-weigh-1127; was an endgame-only nearest pick).
+            AutoSecretFeature.GoBack gb = routes && useful > 0 && secreted.contains(r.name()) ? AutoSecretFeature.goBackNodes(r)
+                    : null;
+            if (gb != null) {
+                int crypts = 0;
+                for (com.killer560.hub.autoroutes.RouteNode n : gb.nodes()) {
+                    crypts += n.type() == com.killer560.hub.autoroutes.RouteNode.Type.CRYPT ? 1 : 0;
+                }
+                goBackNodes.put(key, gb.nodes().size());
+                out.add(AutopilotPlanner.goBack(key, AutopilotScore.secretGain(s, gb.missing(), party)
+                        + AutopilotScore.cryptGain(s, crypts), travel, gb.nodes().size(), routeSecondsPerNode, mate, rushIndex));
             }
             if (clears && !r.cleared() && !clearsDone.contains(r.name()) && AutoClearFeature.isMobRoom(layout, r.room())
                     && !com.killer560.hub.autoclear.ChestClearRule.clearedInItsEyes(layout, r.room())) {
@@ -1216,7 +1234,7 @@ final class Autopilot {
      * distance to the room's nearest tile over the hop range, a quarter longer for the way round walls, plus a little a
      * room for the search. Zero inside the room.
      */
-    private static double travelSeconds(DungeonLayout layout, RoomStatus.Room r, int steps) {
+    static double travelSeconds(DungeonLayout layout, RoomStatus.Room r, int steps) {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null || layout.currentRoom() == r.room()) {
             return 0;

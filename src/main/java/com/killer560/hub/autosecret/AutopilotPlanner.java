@@ -34,16 +34,39 @@ public final class AutopilotPlanner {
     /**
      * One thing it could do next.
      * @param rushIndex the room's place on the Blood Rush Split path (0 = Entrance), -1 when off it
+     * @param goBack    a SECRET that goes back to a room whose route already ran, for the secrets it missed ({@link #goBack})
      */
-    public record Candidate(Kind kind, String room, double gain, double seconds, boolean teammateInside, int rushIndex) {
+    public record Candidate(Kind kind, String room, double gain, double seconds, boolean teammateInside, int rushIndex,
+                            boolean goBack) {
+        public Candidate(Kind kind, String room, double gain, double seconds, boolean teammateInside, int rushIndex) {
+            this(kind, room, gain, seconds, teammateInside, rushIndex, false);
+        }
+
         public double rate() {
             return gain / Math.max(MIN_SECONDS, seconds);
         }
 
         public String describe() {
-            return String.format(Locale.US, "%s %s %.3f/%.2fs=%.4f%s", kind, room, gain, seconds, rate(),
-                    teammateInside ? " (teammate)" : "");
+            return String.format(Locale.US, "%s %s %.3f/%.2fs=%.4f%s%s", kind, room, gain, seconds, rate(),
+                    goBack ? " (go-back)" : "", teammateInside ? " (teammate)" : "");
         }
+    }
+
+    /**
+     * A go-back weighed like any other secret room (goback-weigh-1127, killer560 11-27: "others will be a 9 secret room and
+     * itll miss a secret and redo the whole room wasting a bunch of time"): it costs the trip there and only the nodes that
+     * missed (priced as a fresh route's nodes are), and is worth only the secrets still missing ({@code gain}). So an
+     * expensive one for a single secret loses to cheaper score elsewhere, and a cheap one is taken in its turn.
+     */
+    public static Candidate goBack(String room, double gain, double travel, int missedNodes, double secondsPerNode,
+                                   boolean teammateInside, int rushIndex) {
+        return new Candidate(Kind.SECRET, room, gain, travel + 1.0 + secondsPerNode * missedNodes, teammateInside, rushIndex,
+                true);
+    }
+
+    /** {@code all} without go-backs: once the secret score needed is covered, going back is never worth a trip. */
+    static List<Candidate> withoutGoBacks(List<Candidate> all) {
+        return all.stream().noneMatch(Candidate::goBack) ? all : all.stream().filter(c -> !c.goBack()).toList();
     }
 
     /** The pick, why, and every candidate in the order it was weighed (best first); {@code tour}: the order it plans to
@@ -176,6 +199,9 @@ public final class AutopilotPlanner {
     /** {@link #chooseFastest} with the visits ordered by Room Order and Allow Insta Clearing ({@link Shape}). */
     public static Choice chooseFastest(boolean party, List<Candidate> all, Travel travel, double secretScoreNeeded,
                                        boolean clearBeforeSecret, long budgetNanos, Shape shape) {
+        if (secretScoreNeeded <= 1e-9) {
+            all = withoutGoBacks(all);   // the S+ needs no more secrets: Party's spares never send it back to a room
+        }
         Choice byRate = choose(party, all);
         if (byRate == null || byRate.pick().kind() == Kind.KEY || travel == null) {
             return byRate;
@@ -215,7 +241,7 @@ public final class AutopilotPlanner {
             covered += c.gain();
         }
         if (party && chosen.isEmpty()) {
-            chosen.addAll(secrets);   // the need is met: Party keeps going for the spare ones
+            chosen.addAll(withoutGoBacks(secrets));   // the need is met: Party keeps going for the spare ones
         }
         needed.addAll(chosen);
         if (party && clearBeforeSecret) {
@@ -274,6 +300,9 @@ public final class AutopilotPlanner {
             } else if (!c.teammateInside()) {
                 clears.add(c);
             }
+        }
+        if (secrets.stream().anyMatch(c -> !c.goBack())) {
+            secrets = withoutGoBacks(secrets);   // a fixed order takes every fresh route first, go-backs after them
         }
         List<Candidate> phase = clearsFirst ? (clears.isEmpty() ? secrets : clears) : (secrets.isEmpty() ? clears : secrets);
         if (phase.isEmpty()) {

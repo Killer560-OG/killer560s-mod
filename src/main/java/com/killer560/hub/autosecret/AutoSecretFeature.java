@@ -8,6 +8,7 @@ import com.killer560.hub.autoroutes.AutoRoutesConfig;
 import com.killer560.hub.autoroutes.AutoRoutesFeature;
 import com.killer560.hub.autoroutes.Route;
 import com.killer560.hub.autoroutes.RouteExecutor;
+import com.killer560.hub.autoroutes.RouteNode;
 import com.killer560.hub.autoroutes.RouteStore;
 import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.dungeoninfo.DungeonInfoFeature;
@@ -2723,6 +2724,11 @@ public final class AutoSecretFeature {
                     pathToRoom(layout, r, Trip.EXPLORE);
                 }
             }
+            case GO_BACK -> {
+                if (!goBack(layout, r, dist, "autopilot", o.why())) {
+                    setPhase(Phase.SETTLE);
+                }
+            }
             case DOOR -> goToDoor(layout, o.door(), o.blood(), o.why());
             case FINISH -> finishPilot(layout, rooms, dist, o);
             case KEY -> goKey(o.key(), o.why());
@@ -3107,6 +3113,11 @@ public final class AutoSecretFeature {
                 return;
             }
         }
+        // Without Auto Clear the uncleared room is the last trip (it hands back there), so missed secrets come first: after
+        // it the go-back below was never reached (goback-weigh-1127: 1127-sim-ap-goback-partial stopped at Bridges).
+        if (!uncleared.isEmpty() && !handOffRooms && goBackForMissed(layout, rooms, dist)) {
+            return;
+        }
         if (!uncleared.isEmpty()) {
             RoomStatus.Room r = uncleared.get(0);
             clearsDone.add(r.name());
@@ -3144,7 +3155,8 @@ public final class AutoSecretFeature {
      * killer560, 2026-10-19: "if it gets to the end of a run for the auto clearer, has done puzzles and everything and not
      * enough secrets are collected go back to rooms it thinks it missed a secret in." Once the rest of the floor is done,
      * a room whose route ended with secrets still uncounted (the route ran to its end, so it was skipped as "got") is
-     * visited once more for them, nearest first. Each room is sent back to at most once.
+     * visited once more for them, the cheapest per missing secret first. Each room is sent back to at most once. Under the
+     * Autopilot the planner weighs go-backs with everything else ({@link Autopilot#decide}); this is its fallback.
      */
     private static boolean goBackForMissed(DungeonLayout layout, List<RoomStatus.Room> rooms, Map<Integer, Integer> dist) {
         if (fastestTotal() && AutoSecretConfig.getInstance().isSkipUnneededSecrets()
@@ -3158,36 +3170,97 @@ public final class AutoSecretFeature {
                 return false;
             }
         }
+        // The cheapest per missing secret first (goback-weigh-1127): the trip plus only the nodes that missed, so a far room
+        // missing one secret waits behind a near one missing three.
         RoomStatus.Room best = null;
-        int bestDist = Integer.MAX_VALUE;
+        double bestRate = -1;
         for (RoomStatus.Room r : rooms) {
-            // Never the room whose last secret is still being taken where he stands (leaveWaitRoom): Deathmite, Staircase
-            // and Melon ran their whole route again for a chest that registered 9 ticks later (acrun-1126-pm).
-            if (!secreted.contains(r.name()) || revisited.contains(r.name()) || r.secrets() <= 0
-                    || r.name().equals(leaveWaitRoom)
-                    || com.killer560.hub.autoroutes.RouteRunMemory.givenUpIn(r.name())
-                    || !dist.containsKey(r.room()) || !worthGoingBack(r)) {
+            GoBack gb = dist.containsKey(r.room()) ? goBackNodes(r) : null;
+            if (gb == null) {
                 continue;
             }
-            int[] counted = roomCount(r.name());
-            if (counted == null || counted[0] >= counted[1]) {
-                continue;
-            }
-            int d = dist.get(r.room());
-            if (d < bestDist) {
+            double rate = AutopilotPlanner.goBack(r.name(), gb.missing(), Autopilot.travelSeconds(layout, r, dist.get(r.room())),
+                    gb.nodes().size(), Autopilot.routeSecondsPerNode(), false, -1).rate();
+            if (rate > bestRate) {
                 best = r;
-                bestDist = d;
+                bestRate = rate;
             }
         }
-        if (best == null) {
+        return best != null && goBack(layout, best, dist, "endgame", String.format(Locale.US, "%.2f secrets a second",
+                bestRate));
+    }
+
+    /** A room worth going back to: the secrets it is missing and the only nodes of its route that would run again. */
+    record GoBack(int missing, List<RouteNode> nodes) {
+    }
+
+    /**
+     * Whether a room whose route ran may be gone back to, and for what (null: never). Each room is sent back to at most
+     * once; never the room whose last secret is still being taken where he stands, a room given up, one {@link
+     * #worthGoingBack} refuses, one with every secret counted, or one where no node can be named for what is missing.
+     */
+    static GoBack goBackNodes(RoomStatus.Room r) {
+        // Never the room whose last secret is still being taken where he stands (leaveWaitRoom): Deathmite, Staircase
+        // and Melon ran their whole route again for a chest that registered 9 ticks later (acrun-1126-pm).
+        if (!secreted.contains(r.name()) || revisited.contains(r.name()) || r.secrets() <= 0
+                || r.name().equals(leaveWaitRoom)
+                || com.killer560.hub.autoroutes.RouteRunMemory.givenUpIn(r.name()) || !worthGoingBack(r)) {
+            return null;
+        }
+        int[] counted = roomCount(r.name());
+        if (counted == null || counted[0] >= counted[1]) {
+            return null;
+        }
+        List<RouteNode> missed = com.killer560.hub.autoroutes.RouteRunMemory.missedNodes(
+                RouteStore.getInstance().forRoom(r.name()));
+        if (missed.isEmpty()) {
+            if (planSaid.add("goBackAll:" + r.name())) {
+                LOGGER.info("[AutoSecret] endgame: no going back to {} ({}/{}) - every node of its route ran and every"
+                        + " secret wait in it was met, so no node can be named for the missing secret(s) and another"
+                        + " run would find nothing new", r.name(), counted[0], counted[1]);
+            }
+            return null;
+        }
+        return new GoBack(counted[1] - counted[0], missed);
+    }
+
+    /** Sends him back to {@code r} for its missed nodes, once ({@code by}: "endgame" or "autopilot", for the log). */
+    private static boolean goBack(DungeonLayout layout, RoomStatus.Room r, Map<Integer, Integer> dist, String by,
+                                  String why) {
+        revisited.add(r.name());
+        secreted.remove(r.name());
+        LOGGER.info("[AutoSecret] {}: {} ended its route short of its secrets - going back for them ({} room(s) away; {})",
+                by, r.name(), dist.get(r.room()), why);
+        note(ModChat.text("Going back for the missed secrets in "), ModChat.value(r.name()));
+        return goMissed(layout, r, dist);
+    }
+
+    /**
+     * The go-back trip: only the nodes of the room's route that missed (never fired, or a secret wait never met), from the
+     * nearest of them, never the whole route again (killer560, 11-27: "itll miss a secret and redo the whole room wasting
+     * a bunch of time").
+     */
+    private static boolean goMissed(DungeonLayout layout, RoomStatus.Room r, Map<Integer, Integer> dist) {
+        List<RouteNode> redo = com.killer560.hub.autoroutes.RouteRunMemory.missedNodes(
+                RouteStore.getInstance().forRoom(r.name()));
+        target = r.name();
+        targetRoomId = r.room();
+        LOGGER.info("[AutoSecret] target {}: {} unfound, {} room(s) away; going back for {} node(s) of its route: {}",
+                r.name(), r.unfound(), dist.get(r.room()), redo.size(), redo.stream().map(n -> n.type.name()).toList());
+        status = "Secreting " + r.name() + " (" + r.unfound() + " unfound)";
+        AutoRoutesFeature.cancelForInteractiveMap("Auto Secret");
+        routeCompletionsSeen = RouteExecutor.completions();
+        routeStartsSeen = RouteExecutor.starts();
+        walkWarps = 0;
+        routeStartClock = com.killer560.hub.autoroutes.RouteRunMemory.clock();
+        routeFoundAtStart = Math.max(0, r.secrets() - r.unfound());
+        if (!AutoRoutesFeature.warpOntoMissed(layout, r.room(), redo)) {
+            secreted.add(r.name());
+            LOGGER.info("[AutoSecret] {}: no node it missed can be warped onto - skipped", r.name());
             return false;
         }
-        revisited.add(best.name());
-        secreted.remove(best.name());
-        LOGGER.info("[AutoSecret] endgame: {} ended its route short of its secrets - going back for them ({} room(s) away)",
-                best.name(), bestDist);
-        note(ModChat.text("Going back for the missed secrets in "), ModChat.value(best.name()));
-        return goSecret(layout, best, dist, best.name(), "none");
+        beginTravel(Trip.WALK_NODE);
+        return true;
     }
 
     /**

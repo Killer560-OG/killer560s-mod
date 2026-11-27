@@ -53,6 +53,8 @@ public final class RouteRunMemory {
     private static final Set<String> claimed = new HashSet<>();
     /** Nodes whose await (or bat node's kill) was met this run, by {@link #nodeKey}. */
     private static final Set<String> metNodes = new HashSet<>();
+    /** Nodes that began this run, by {@link #nodeKey}: {@link #everyNodeFired}. */
+    private static final Set<String> firedNodes = new HashSet<>();
     private static final Set<String> routedRooms = new HashSet<>();
     /** Bat / crypt nodes the route gave up on this run ({@link #nodeKey}), and their rooms: nothing automated goes back. */
     private static final Set<String> givenUpNodes = new HashSet<>();
@@ -96,6 +98,7 @@ public final class RouteRunMemory {
         got.clear();
         claimed.clear();
         metNodes.clear();
+        firedNodes.clear();
         routedRooms.clear();
         progress.clear();
         boomedNodes.clear();
@@ -289,6 +292,52 @@ public final class RouteRunMemory {
     public static boolean givenUpIn(String room) {
         check();
         return room != null && givenUpRooms.contains(room);
+    }
+
+    /** A node began this run (once per node a route run, so a few hundred a floor; capped). */
+    static void nodeFired(String nodeKey) {
+        check();
+        if (firedNodes.size() < 2048) {
+            firedNodes.add(nodeKey);
+        }
+    }
+
+    /**
+     * Whether every node of {@code route} has fired this run: going back to its room would only repeat what already ran
+     * and found nothing more (his Diagonal, 11-27: the go-back ran the same three nodes again for the same 1/4).
+     */
+    public static boolean everyNodeFired(Route route) {
+        check();
+        if (route == null || route.nodes().isEmpty()) {
+            return false;
+        }
+        for (RouteNode n : route.nodes()) {
+            if (!firedNodes.contains(nodeKey(route, n))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * The nodes of {@code route} a go-back has to run for the secrets its run missed: every node that never fired this run,
+     * and every fired node with a secret wait that was never met (it let go, or a click never registered). Empty when
+     * nothing can be named, and then going back would only repeat what ran (killer560, 11-27: "itll miss a secret and redo
+     * the whole room wasting a bunch of time"). A node given up on (a bat or crypt) is never named.
+     */
+    public static List<RouteNode> missedNodes(Route route) {
+        check();
+        List<RouteNode> out = new ArrayList<>();
+        if (route == null) {
+            return out;
+        }
+        for (RouteNode n : route.nodes()) {
+            String key = nodeKey(route, n);
+            if (!givenUpNodes.contains(key) && (!firedNodes.contains(key) || n.awaitEnabled && !metNodes.contains(key))) {
+                out.add(n);
+            }
+        }
+        return out;
     }
 
     /** Whether this node's await (or bat node's kill) was met earlier this run. */

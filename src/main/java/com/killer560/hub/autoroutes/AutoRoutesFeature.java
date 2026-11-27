@@ -836,6 +836,7 @@ public final class AutoRoutesFeature {
         if (goal == null) {
             return false;
         }
+        RouteExecutor.carryOnNextStart();
         RouteExecutor.stop("Auto Secret: warping onto the next node");
         RouteExecutor.clearStoppedByUser();
         RouteExecutor.clearJustFinished();
@@ -845,6 +846,46 @@ public final class AutoRoutesFeature {
         externalTeleport = true;
         ClearExecutor.setExternalOwner(true);
         walkGapWarp(gap, goal, 0);
+        return true;
+    }
+
+    /**
+     * A go-back for missed secrets (killer560, 11-27: "itll miss a secret and redo the whole room"): warps onto the one of
+     * {@code redo} (nodes of the room's route, {@code RouteRunMemory.missedNodes}) nearest to him, and the run that
+     * starts there runs only {@code redo} ({@link RouteExecutor#carryAllBut}). False when no node of it can be warped onto.
+     */
+    public static boolean warpOntoMissed(DungeonLayout layout, int room, List<RouteNode> redo) {
+        RoomRoute rr = roomRoute(layout, room);
+        LocalPlayer p = Minecraft.getInstance().player;
+        if (rr == null || p == null || redo.isEmpty()) {
+            return false;
+        }
+        RouteNode best = null;
+        BlockPos goal = null;
+        double bestD = Double.MAX_VALUE;
+        for (RouteNode n : redo) {
+            BlockPos g = nodeGoal(rr.frame(), n);
+            double d = g == null ? Double.MAX_VALUE : p.position().distanceToSqr(Vec3.atCenterOf(g));
+            if (d < bestD) {
+                best = n;
+                goal = g;
+                bestD = d;
+            }
+        }
+        if (best == null) {
+            return false;
+        }
+        RouteExecutor.clearStoppedByUser();
+        if (RouteExecutor.isRunning()) {
+            RouteExecutor.stop("Auto Secret: going back for a missed secret");
+        }
+        RouteExecutor.carryAllBut(rr.route(), redo);
+        LOGGER.info("[AutoRoutes] go-back in {}: warping onto #{} ({}) at {} - {} node(s) to run again", rr.frame().roomName(),
+                rr.route().indexOf(best) + 1, best.type, goal.toShortString(), redo.size());
+        mapArrivalGuard = true;
+        externalTeleport = true;
+        ClearExecutor.setExternalOwner(true);
+        walkGapWarp(new RouteExecutor.WalkGap(rr.route(), rr.frame(), best), goal, 0);
         return true;
     }
 
@@ -1166,8 +1207,13 @@ public final class AutoRoutesFeature {
                             + (entered.startNode() == null ? "none" : "#" + (entered.indexOf(entered.startNode()) + 1))
                             + ")");
             latchedNode = null;
-            addedToFire = null;
-            addedToFireRoute = null;
+            // A go-back's warp from another room lands (and queues its node, finishArrivalEarly above) on the tick this
+            // room change is seen: a node queued for THIS room's route stays (goback-weigh-1127: it was dropped here, so
+            // 1127-sim-ap-goback-partial's #3 never ran and Auto Secret gave up "did not arm").
+            if (addedToFireRoute == null || addedToFireRoute != entered) {
+                addedToFire = null;
+                addedToFireRoute = null;
+            }
             // New room, clean slate - see resetForWorld.
             boolean wasStopped = RouteExecutor.wasStoppedByUser();
             RouteExecutor.clearStoppedByUser();
