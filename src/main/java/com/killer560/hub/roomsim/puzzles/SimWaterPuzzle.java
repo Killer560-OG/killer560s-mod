@@ -158,7 +158,8 @@ public final class SimWaterPuzzle {
     private static final Map<WoolColor, List<LayerPiston>> LAYERS = new ConcurrentHashMap<>();
 
     /**
-     * THE REWARD CHEST, placed when the board is solved.
+     * THE REWARD CHEST, standing from the start and locked until the board is solved, as on Hypixel (its click answers
+     * "That chest is locked!" until the last layer is down; waterboard-chest-timed-click-1126).
      *
      * <p>killer560 (2026-10-06): "Waterboard needs a chest that spawns in once I complete the puzzle, it should be
      * in between those carpets down low but closer to the exit between them not touching the wall." Decoded: the far
@@ -179,6 +180,7 @@ public final class SimWaterPuzzle {
     /** testkit (acslow3-1115): uses of the reward chest the server took, and a lock that makes them open nothing. */
     private static volatile int rewardUses = 0;
     private static volatile boolean rewardLockedForTest = false;
+    private static volatile int refuseUses = 0;
 
     /**
      * THE BACK LEVER IS THE LAPIS SLOT.
@@ -419,8 +421,14 @@ public final class SimWaterPuzzle {
                 return InteractionResult.PASS;
             }
             rewardUses++;
-            if (rewardLockedForTest) {
-                return InteractionResult.FAIL; // testkit: a chest Hypixel still holds locked - the click opens nothing
+            if (rewardLockedForTest || !complete || (refuseUses > 0 && refuseUses-- > 0)) {
+                // Hypixel keeps it locked until the last gate is down, and says so (his logger sessions 11-18..11-26:
+                // the line and an enderman sound 2-3 ticks after every early click).
+                if (player instanceof net.minecraft.server.level.ServerPlayer sp) {
+                    sp.sendSystemMessage(net.minecraft.network.chat.Component.literal(com.killer560.hub.util.ChestWindows.LOCKED_LINE)
+                            .withStyle(net.minecraft.ChatFormatting.RED));
+                }
+                return InteractionResult.FAIL;
             }
             if (!rewardOpened) {
                 rewardOpened = true;
@@ -434,6 +442,33 @@ public final class SimWaterPuzzle {
     private static void tick(Minecraft client) {
         if (!isArmed() || !SimState.canAct(client)) return;
         tickCounter++;
+        Long due = WOOL_DUE.peekFirst();
+        if (due != null && tickCounter >= due) {
+            WOOL_DUE.pollFirst();
+            woolDone++;
+            MinecraftServer server = client.getSingleplayerServer();
+            if (server != null) syncWool(server);
+        }
+    }
+
+    /**
+     * The water needs time to run from the lever to the walkway: on Hypixel the last gate pulled back 25 to 53 ticks after
+     * the last lever (his logger sessions, 11-26), and the chest unlocked with it. So a layer a timed click earns moves
+     * this many ticks after the click, and the board is done (chest unlocked) when the last one has.
+     */
+    static final int WATER_TRAVEL_TICKS = 30;
+    /** The {@link #tickCounter} each timed click's water reaches the walkway, oldest first (cleared at arm time). */
+    private static final java.util.concurrent.ConcurrentLinkedDeque<Long> WOOL_DUE = new java.util.concurrent.ConcurrentLinkedDeque<>();
+    /** Timed clicks whose water has reached the walkway: what the layers show ({@link #syncWool}). */
+    private static volatile int woolDone = 0;
+
+    private static void syncWoolLater() {
+        WOOL_DUE.addLast(tickCounter + WATER_TRAVEL_TICKS);
+    }
+
+    private static void clearWoolDue() {
+        WOOL_DUE.clear();
+        woolDone = 0;
     }
 
     private static boolean isArmed() { return anchor != null || standaloneOrigin != null; }
@@ -601,6 +636,8 @@ public final class SimWaterPuzzle {
         }
         hasWater = withWater;
         setFlowing(level, false);
+        clearWoolDue();
+        placeRewardChest(level);
         LOGGER.info("Sim Water Board: armed on board {} (identifier {}, optimizedPath {}) - {} gate click(s)"
                         + " then {} timed, colors out: {}",
                 slots, identifier, optimized, preFlow.size(), timed.size(), board);
@@ -717,7 +754,7 @@ public final class SimWaterPuzzle {
             return;
         }
         timedDone++;
-        syncWool(server);
+        syncWoolLater();
     }
 
     /**
@@ -756,7 +793,7 @@ public final class SimWaterPuzzle {
             double off = elapsed - timed.get(timedDone).getValue();
             if (Math.abs(off) <= TOLERANCE_SECONDS) {
                 timedDone++;
-                syncWool(server);
+                syncWoolLater();
                 return;
             }
             offScript("the back lever " + fmt(Math.abs(off)) + "s too " + (off < 0 ? "early" : "late"));
@@ -766,6 +803,7 @@ public final class SimWaterPuzzle {
             // A restart, not a mistake.
             openedTick = -1;
             timedDone = 0;
+            clearWoolDue();
             syncWool(server);
             ModChat.send("Sim", ModChat.text("Water stopped. "),
                     ModChat.dim("Pull the back lever again to restart the timing."));
@@ -861,7 +899,7 @@ public final class SimWaterPuzzle {
         List<WoolColor> colours = board;
         int total = timed.size();
         int shouldBeOpen = total == 0 ? colours.size()
-                : (int) Math.floor((double) colours.size() * timedDone / total);
+                : (int) Math.floor((double) colours.size() * woolDone / total);
         Set<WoolColor> wanted = EnumSet.noneOf(WoolColor.class);
         for (int i = 0; i < shouldBeOpen && i < colours.size(); i++) {
             wanted.add(colours.get(i));
@@ -878,11 +916,9 @@ public final class SimWaterPuzzle {
     }
 
     private static void checkComplete(MinecraftServer server) {
-        if (complete || !preFlowDone.containsAll(preFlow) || timedDone < timed.size()) return;
+        if (complete || !preFlowDone.containsAll(preFlow) || woolDone < timed.size()) return;
         complete = true;
         ModChat.send("Sim", ModChat.good("Water Board"), ModChat.text(" solved."));
-        // Queued after syncWool's own server task, so the last layer is already down when the chest appears.
-        server.execute(() -> placeRewardChest(server.overworld()));
     }
 
     /**
@@ -892,7 +928,7 @@ public final class SimWaterPuzzle {
      */
     private static void placeRewardChest(ServerLevel level) {
         SimRoomPuzzles.Anchor a = anchor;
-        if (a == null || rewardChest != null || !complete) return;
+        if (a == null || rewardChest != null) return;
         BlockPos spot = a.world(CHEST_SPOT);
         BlockPos front = a.world(CHEST_FRONT);
         Direction facing = null;
@@ -1007,6 +1043,7 @@ public final class SimWaterPuzzle {
 
     /** Back to the starting state without rebuilding: levers down, gates closed, water off, wool out. */
     private static void restart(MinecraftServer server) {
+        clearWoolDue();
         preFlowDone.clear();
         timedDone = 0;
         complete = false;
@@ -1043,14 +1080,17 @@ public final class SimWaterPuzzle {
             }
             setFlowing(level, false);
             removeRewardChest(level);
+            placeRewardChest(level); // locked again
         });
     }
 
     public static boolean isComplete() { return complete; }
     public static int rewardUsesForTest() { return rewardUses; }
     public static void lockRewardForTest(boolean locked) { rewardLockedForTest = locked; }
+    /** Testkit: answer the next {@code n} uses of the unlocked chest "locked" too (a server a tick behind the gate). */
+    public static void refuseUsesForTest(int n) { refuseUses = n; }
 
-    /** Where the reward chest stands, or null before the board is solved. For the testkit's 93-solve-waterboard. */
+    /** Where the reward chest stands (from arm time, locked until solved), or null. For the testkit's 93-solve-waterboard. */
     public static BlockPos rewardChestPos() { return rewardChest; }
 
     /** Whether the reward chest has been opened (right-clicked) since it appeared. */
@@ -1100,6 +1140,7 @@ public final class SimWaterPuzzle {
         complete = false;
         openedTick = -1;
         tickCounter = 0;
+        clearWoolDue();
     }
 
     /** Puts the arena back to its starting state, for an Architect's First Draft or {@code /simpuzzle reset}. */

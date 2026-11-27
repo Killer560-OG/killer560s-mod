@@ -95,40 +95,35 @@ final class RewardChest {
      * @param maxChests chests to open, nearest the anchor first
      */
     RewardChest(String tag, int[] anchorRel, int[] boxRel, int maxChests) {
-        this(tag, anchorRel, boxRel, maxChests, 0);
+        this(tag, anchorRel, boxRel, maxChests, null);
     }
 
     /**
-     * Ticks between clicks on a chest that has not opened yet, with no cap on the number of clicks; 0 for the default
-     * (a click retried only once its answer is overdue, at most {@link #MAX_CLICKS}). Water Board uses 4 (killer560,
-     * 2026-10-19: "waterboard should keep clicking that secret every 4 ticks until it gets it") - its chest stays locked
-     * until the water has run, so three answered clicks used to end the step with the chest still shut.
-     */
-    private final int retryEvery;
-
-    /**
-     * Whether the chest can be opened yet (acslow3-1115): TRUE unlocked, FALSE still locked, null when nothing can say.
-     * While it is not TRUE the {@link #retryEvery} clicks are held back: a probe every {@link #LOCKED_PROBE_EVERY} ticks,
-     * at most {@link #LOCKED_PROBES} while it reads FALSE (no cap while nothing can say), so a locked chest is not clicked
-     * 60 times; the moment it reads TRUE the next click goes at once and the {@link #retryEvery} clicks run until it opens.
+     * A chest the server keeps locked until its puzzle is done (Water Board): TRUE it can be opened, FALSE it cannot yet,
+     * null when nothing can say; null for a chest that is never locked. While it reads FALSE nothing is clicked; the body
+     * stays turned onto the chest, so the click goes in the very tick it reads TRUE (waterboard-chest-timed-click-1126,
+     * killer560 2026-11-26: "click the second that the bars in the middle move out of the way ... and then re-click if it
+     * senses that it didn't get it"). After that a click is repeated only on a real answer: Hypixel's "That chest is
+     * locked!" ({@link com.killer560.hub.util.ChestWindows#lockedSince}) or no window once the answer is overdue
+     * ({@link #unanswered}), at most {@link #MAX_UNLOCKED_CLICKS}. While nothing can say, a probe every
+     * {@link #LOCKED_PROBE_EVERY} ticks. Before: a probe every 20 ticks while locked and a click every 4 once the tab
+     * read solved, so his chest opened 4 to 20 ticks after the last gate (logger sessions 11-18 to 11-26).
      */
     private final java.util.function.Supplier<Boolean> unlocked;
     private static final int LOCKED_PROBE_EVERY = 20;
-    private static final int LOCKED_PROBES = 5;
+    private static final int MAX_UNLOCKED_CLICKS = 100;
     /** Ticks the step waits for a locked chest's unlock before letting Autopilot go on. */
     private static final int LOCKED_GIVE_UP_TICKS = 1200;
     private boolean unlockSeen = false;
+    private int unlockedClicks = 0;
+    /** {@link com.killer560.hub.util.ChestWindows#lockedCount} as the last click went out. */
+    private int lockedMark = 0;
     /** testkit: a chest given directly, with no room (a Grim session has no dungeon room). */
     private boolean fixedTarget = false;
 
-    RewardChest(String tag, int[] anchorRel, int[] boxRel, int maxChests, int retryEvery) {
-        this(tag, anchorRel, boxRel, maxChests, retryEvery, null);
-    }
-
-    RewardChest(String tag, int[] anchorRel, int[] boxRel, int maxChests, int retryEvery,
+    RewardChest(String tag, int[] anchorRel, int[] boxRel, int maxChests,
                 java.util.function.Supplier<Boolean> unlocked) {
         this.unlocked = unlocked;
-        this.retryEvery = retryEvery;
         this.tag = tag;
         this.camera = new FreeCam(tag + " chest");
         this.warp = new AutoReposition(tag + " chest", camera);
@@ -153,8 +148,8 @@ final class RewardChest {
         active = true;
         ticks = 0;
         startTick = com.killer560.hub.util.SessionRecorderSink.tick();
-        LOGGER.info("[AutoPuzzles] {}: solved - claiming the reward chest (max {} chest(s), retryEvery={}) tick={}", tag,
-                maxChests, retryEvery, startTick);
+        LOGGER.info("[AutoPuzzles] {}: solved - claiming the reward chest (max {} chest(s){}) tick={}", tag,
+                maxChests, unlocked == null ? "" : ", clicked the tick it unlocks", startTick);
     }
 
     void reset(Minecraft client) {
@@ -178,6 +173,7 @@ final class RewardChest {
         unloaded = false;
         retryLoggedFor = -1;
         unlockSeen = false;
+        unlockedClicks = 0;
         fixedTarget = false;
     }
 
@@ -306,66 +302,35 @@ final class RewardChest {
             note("the reward chest is out of reach and no spot in reach of it can be got to");
             return;
         }
-        if (retryEvery > 0) {
-            Boolean open = unlocked == null ? Boolean.TRUE : unlocked.get();
-            int every = retryEvery;
-            if (Boolean.TRUE.equals(open)) {
-                if (!unlockSeen) {
-                    unlockSeen = true;
-                    if (clicks > 0) {
-                        LOGGER.info("[AutoPuzzles] {}: the puzzle reads solved - the chest is unlocked, clicking now"
-                                + " (then every {} tick(s) until it opens) after {} locked probe(s) elapsedTicks={}", tag,
-                                retryEvery, clicks, elapsed());
-                        sinceClick = Integer.MAX_VALUE / 2;
-                    }
-                }
-            } else {
-                if (ticks > LOCKED_GIVE_UP_TICKS) {
-                    finish("the chest never read unlocked in " + LOCKED_GIVE_UP_TICKS / 20 + " s (" + clicks + " probe(s))");
-                    return;
-                }
-                if (Boolean.FALSE.equals(open) && clicks >= LOCKED_PROBES) {
-                    note("the reward chest is still locked - waiting for the puzzle to read solved (" + clicks
-                            + " probe(s) sent)");
-                    return;
-                }
-                every = LOCKED_PROBE_EVERY;
-            }
-            if (clicks > 0 && sinceClick < every) {
-                LOGGER.debug("[AutoPuzzles] {}: next click in {} tick(s)", tag, every - sinceClick);
-                return; // the next click goes exactly `every` ticks after the last; the window or the lid ends it
-            }
-        } else if (clicks > 0 && !unanswered()) {
-            if (LOGGER.isDebugEnabled()) {
-                LOGGER.debug("[AutoPuzzles] {}: click {} answer not due yet ({} tick(s) since, due after {})", tag,
-                        clicks, sinceClick, answerTicks());
-            }
-            return; // a click went out and its answer is not due yet; the window or the lid is what moves this on
-        }
-        if (clicks > 0 && retryLoggedFor != clicks) {
-            retryLoggedFor = clicks;
-            LOGGER.info("[AutoPuzzles] {}: click {} on {} unanswered after {} tick(s) (answer due {}, acked={}) -"
-                            + " clicking again", tag, clicks, AutoPuzzleUtil.fmt(target), sinceClick, answerTicks(),
-                    com.killer560.hub.util.ChestWindows.acked(clickSeq));
-        }
-        // No turn tick of the click's own and no camera wait (killer560, 2026-10-15: no fixed waits): the body is turned
-        // onto the chest in the tick it becomes clickable - the landing, or the first tick it is in reach - under this
-        // step's free camera, and the click goes the next tick, once the movement packet has reported the look and the
-        // landing's sneak is let go. Before, the landing waited 2 ticks for the sneak and then TurnFirst turned it.
-        if (landed || !AutoPuzzleUtil.aimedAt(player, target)) {
-            if (AutoPuzzleUtil.aimBodyAt(player, target, camera) || landed) {
-                if (player.isShiftKeyDown()) {
-                    AutoReposition.releaseSneak(client);
-                }
+        if (unlocked != null) {
+            // Aimed BEFORE the wait for the unlock, so the click goes in the very tick the chest unlocks.
+            if (aim(client, player, landed) || !lockedMayClick()) {
                 return;
             }
-        }
-        if (retryEvery <= 0 && clicks >= MAX_CLICKS) {
-            LOGGER.info("[AutoPuzzles] {}: the reward chest at {} did not open after {} click(s) - giving up on it"
-                    + " elapsedTicks={}", tag, AutoPuzzleUtil.fmt(target), clicks, elapsed());
-            opened.add(target); // not again
-            target = null;
-            return;
+        } else {
+            if (clicks > 0 && !unanswered()) {
+                if (LOGGER.isDebugEnabled()) {
+                    LOGGER.debug("[AutoPuzzles] {}: click {} answer not due yet ({} tick(s) since, due after {})", tag,
+                            clicks, sinceClick, answerTicks());
+                }
+                return; // a click went out and its answer is not due yet; the window or the lid is what moves this on
+            }
+            if (clicks > 0 && retryLoggedFor != clicks) {
+                retryLoggedFor = clicks;
+                LOGGER.info("[AutoPuzzles] {}: click {} on {} unanswered after {} tick(s) (answer due {}, acked={}) -"
+                                + " clicking again", tag, clicks, AutoPuzzleUtil.fmt(target), sinceClick, answerTicks(),
+                        com.killer560.hub.util.ChestWindows.acked(clickSeq));
+            }
+            if (aim(client, player, landed)) {
+                return;
+            }
+            if (clicks >= MAX_CLICKS) {
+                LOGGER.info("[AutoPuzzles] {}: the reward chest at {} did not open after {} click(s) - giving up on it"
+                        + " elapsedTicks={}", tag, AutoPuzzleUtil.fmt(target), clicks, elapsed());
+                opened.add(target); // not again
+                target = null;
+                return;
+            }
         }
         if (player.isShiftKeyDown()) {
             AutoReposition.releaseSneak(client);
@@ -381,6 +346,7 @@ final class RewardChest {
         }
         // Marked BEFORE the click goes: the integrated server can answer on its own thread before the next line runs.
         int mark = com.killer560.hub.util.ChestWindows.count();
+        int lockedNow = com.killer560.hub.util.ChestWindows.lockedCount();
         if (!AutoPuzzleUtil.interactBlock(client, target)) {
             LOGGER.info("[AutoPuzzles] {}: the reward chest at {} has no clickable shape - skipped elapsedTicks={}", tag,
                     AutoPuzzleUtil.fmt(target), elapsed());
@@ -392,12 +358,78 @@ final class RewardChest {
         sinceClick = 0;
         clickedAwaitingScreen = true;
         windowMark = mark;
+        lockedMark = lockedNow;
+        if (unlockSeen) {
+            unlockedClicks++;
+        }
         clickSeq = com.killer560.hub.util.RightClick.lastUseOnSequence();
         LOGGER.info("[AutoPuzzles] {}: clicked the reward chest at {} ({} from his eye, click {}{}) seq={}"
                         + " elapsedTicks={}", tag, AutoPuzzleUtil.fmt(target),
                 String.format(java.util.Locale.ROOT, "%.2f", Math.sqrt(distSq)), clicks,
-                retryEvery <= 0 ? "" : unlockSeen ? ", next in " + retryEvery + " tick(s) until it opens"
-                        : ", locked probe - next in " + LOCKED_PROBE_EVERY + " tick(s) at most", clickSeq, elapsed());
+                unlocked == null ? "" : unlockSeen ? ", unlocked - again only if it answers locked or not at all"
+                        : ", probe - nothing says whether it is locked", clickSeq, elapsed());
+    }
+
+    /**
+     * Turns the body onto the chest in the tick it becomes clickable - the landing, or the first tick it is in reach -
+     * under this step's free camera; the click goes the next tick, once the movement packet has reported the look and the
+     * landing's sneak is let go (killer560, 2026-10-15: no fixed waits; before, the landing waited 2 ticks for the sneak and
+     * then TurnFirst turned it). True when this tick was spent on it.
+     */
+    private boolean aim(Minecraft client, LocalPlayer player, boolean landed) {
+        if (!landed && AutoPuzzleUtil.aimedAt(player, target)) {
+            return false;
+        }
+        if (!AutoPuzzleUtil.aimBodyAt(player, target, camera) && !landed) {
+            return false;
+        }
+        if (player.isShiftKeyDown()) {
+            AutoReposition.releaseSneak(client);
+        }
+        return true;
+    }
+
+    /** A chest that is locked until its puzzle is done (see {@link #unlocked}): whether a click goes this tick. */
+    private boolean lockedMayClick() {
+        Boolean open = unlocked.get();
+        if (!Boolean.TRUE.equals(open)) {
+            if (ticks > LOCKED_GIVE_UP_TICKS) {
+                finish("the chest never read unlocked in " + LOCKED_GIVE_UP_TICKS / 20 + " s (" + clicks + " probe(s))");
+                return false;
+            }
+            if (open != null) {
+                note("the reward chest is still locked - clicking the tick it unlocks");
+                return false;
+            }
+            return clicks == 0 || sinceClick >= LOCKED_PROBE_EVERY;
+        }
+        if (!unlockSeen) {
+            unlockSeen = true;
+            LOGGER.info("[AutoPuzzles] {}: the chest reads unlocked - clicking now (after {} probe(s)) elapsedTicks={}",
+                    tag, clicks, elapsed());
+            return true;
+        }
+        if (unlockedClicks == 0) {
+            return true;
+        }
+        boolean refused = com.killer560.hub.util.ChestWindows.lockedSince(lockedMark);
+        if (!refused && !unanswered()) {
+            return false; // its answer is not in yet; the window or the lid ends the step
+        }
+        if (unlockedClicks >= MAX_UNLOCKED_CLICKS) {
+            LOGGER.info("[AutoPuzzles] {}: the reward chest at {} did not open after {} click(s) since it read unlocked -"
+                    + " giving up on it elapsedTicks={}", tag, AutoPuzzleUtil.fmt(target), unlockedClicks, elapsed());
+            opened.add(target);
+            target = null;
+            return false;
+        }
+        if (retryLoggedFor != clicks) {
+            retryLoggedFor = clicks;
+            LOGGER.info("[AutoPuzzles] {}: click {} on {} {} after {} tick(s) - clicking again", tag, clicks,
+                    AutoPuzzleUtil.fmt(target), refused ? "answered locked" : "unanswered (answer due " + answerTicks()
+                            + ")", sinceClick);
+        }
+        return true;
     }
 
     /**

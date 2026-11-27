@@ -118,7 +118,7 @@ public final class SecretSound {
         long rtt = info == null ? 100 : info.getLatency();
         return Math.max(150L, Math.min(CHEST_CONFIRM_MS, rtt * 2 + 50));
     }
-    private static final String LOCKED_LINE = "That chest is locked!";
+    private static final String LOCKED_LINE = com.killer560.hub.util.ChestWindows.LOCKED_LINE;
     /** One entry per chest click awaiting its proof (a second click inside the wait used to overwrite the first: one sound for two). */
     private record Pending(long at, BlockPos pos, boolean knownLocked) { }
     private static final java.util.ArrayDeque<Pending> pendingChests = new java.util.ArrayDeque<>();

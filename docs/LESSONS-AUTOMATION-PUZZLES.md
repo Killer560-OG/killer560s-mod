@@ -117,6 +117,16 @@ The puzzle autos at run time (camera, timing, leaving, each puzzle). Part of the
   `StillHold.onServerClose(id)` (HEAD of handleContainerClose, InventoryWalkCloseMixin) drops a held close for the window
   the server just closed. Testkit 1118-termclose-serverclosed (boss session) fails on dbceac2df.
 
+- **Water Board's chest unlocks the tick the last walkway layer pulls back** (waterboard-chest-timed-click-1126,
+  killer560 2026-11-26: "click the second that the bars in the middle move out of the way"). His logger sessions of
+  11-18..11-26 (10 boards, killer560s-mod-logs/wbchest-1126-analyze.py): every click before the third layer's middle
+  piston (relative (15,54,z)) retracted got "That chest is locked!" 2-3 ticks later, every click after it opened the chest,
+  one only 1 tick after. The old step probed every 20 ticks and clicked every 4 once the tab said solved, so it opened
+  1-16 ticks (mean ~10) late, and on 11-25 it spent its 5 probes before the gate and never clicked again.
+  `autopuzzles/WaterGates` re-reads the five cells (15,56,15..19) only when a block, section or block-event packet touched
+  them (PuzzlePacketMixin), and `RewardChest`'s gated mode clicks the tick they read clear and again only on the locked
+  line (`ChestWindows.lockedSince`) or an overdue answer.
+
 ## Per puzzle
 
 - **Simon Says: a frozen client lost lantern steps** (flake-ss-auto-only-1120). The wall was polled once per client tick, but

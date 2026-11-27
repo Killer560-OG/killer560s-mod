@@ -158,8 +158,12 @@ Part of the sim docs: [SIM.md](SIM.md).
   with a power cell behind. The solver still reads only (15, 56, z).
 - **The reward chest is relative (15, 56, 22)**, facing up the walkway, between the gray carpets ((13|14|16|17, 56, 22),
   (14|16, 56, 23)) and not touching the end wall (his spec). It is straight under `AutoWater`'s chest spot (15, 58, 22), so
-  Secret Aura opens it through the glass (server reach has no line-of-sight check). Placed on solve, removed by a reset,
-  dropped by `forget`; `isRewardChestOpened` on the server. Testkit 93-solve-waterboard checks all of it through
+  Secret Aura opens it through the glass (server reach has no line-of-sight check). It stands from arm time and is
+  LOCKED until the board is complete, as Hypixel's is (waterboard-chest-timed-click-1126): a use before then answers
+  "That chest is locked!" and fails; a reset puts it back locked, `forget` drops it; `isRewardChestOpened` on the server.
+- **Water takes time.** A timed lever's layer moves `WATER_TRAVEL_TICKS` (30) after the click, not at once (his logger
+  sessions: the last gate pulled back 25-53 ticks after the last lever), so the board is complete, and the chest
+  unlocked, only when the last layer is down. Testkit 93-solve-waterboard-chest-gate / -retry time the chest click by it. Testkit 93-solve-waterboard checks all of it through
   `PuzzleCoords` (old jar fails at the start, "0,0,1,1,1").
 - Water stands still outside the Water Board: see [SIM-SERVER.md](SIM-SERVER.md).
 

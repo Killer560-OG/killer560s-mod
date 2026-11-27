@@ -54,20 +54,19 @@ final class AutoWater {
     /** Held from the first reposition warp until the chest spot (see {@link FreeCam}). */
     private static final FreeCam CAMERA = new FreeCam("Water");
     private static final AutoReposition REPOSITION = new AutoReposition("Water", CAMERA, true);
-    /** The reward chest at relative (15, 56, 22), under the chest spot (see {@link RewardChest}). Clicked every
-     *  {@link #CHEST_CLICK_EVERY} ticks until it opens once the puzzle reads solved: it stays locked until the water has
-     *  run, and before that only a few slow probes go (acslow3-1115: his log had 65 clicks on the locked chest). */
+    /** The reward chest at relative (15, 56, 22), under the chest spot (see {@link RewardChest}). Hypixel keeps it
+     *  locked until the last gate on the walkway is out of the way ({@link WaterGates}); it is clicked in the tick that
+     *  happens and again only when the server answers "locked" or not at all. */
     private static final RewardChest CHEST = new RewardChest("Water Board", new int[]{15, 56, 22},
-            new int[]{0, 50, 0, 30, 64, 30}, 1, AutoWater.CHEST_CLICK_EVERY, AutoWater::chestUnlocked);
-    /** killer560, 2026-10-19: "waterboard should keep clicking that secret every 4 ticks until it gets it". */
-    static final int CHEST_CLICK_EVERY = 4;
+            new int[]{0, 50, 0, 30, 64, 30}, 1, AutoWater::chestUnlocked);
     /** testkit: forces the unlock signal (null = the real one). */
     private static Boolean unlockForTest;
 
     /**
-     * The chest is unlocked once Hypixel calls the puzzle done: the tab list's Water Board line reads ✔ (or ✖), or the
-     * dungeon map shows the room cleared - the same rule Secret Aura waits on for this room. Null when neither source can
-     * say (the tab is read only for Score Calculator or the map's Extra Info, the map only once calibrated).
+     * The chest is unlocked the tick the last gate is out of the way ({@link WaterGates}, measured on his sessions), or
+     * once Hypixel calls the puzzle done: the tab list's Water Board line reads ✔ (or ✖), or the dungeon map shows the
+     * room cleared - the rule Secret Aura waits on for this room. Null when nothing can say (the gate cells not loaded,
+     * the tab read only for Score Calculator or the map's Extra Info, the map only once calibrated).
      */
     private static Boolean chestUnlocked() {
         if (unlockForTest != null) {
@@ -75,6 +74,10 @@ final class AutoWater {
         }
         if (com.killer560.hub.cheatutils.SecretAuraFeature.puzzleDone(ROOM)) {
             return Boolean.TRUE;
+        }
+        Boolean gates = WaterGates.clear(Minecraft.getInstance().level);
+        if (gates != null) {
+            return gates;
         }
         return com.killer560.hub.scorecalc.ScoreCalculatorFeature.estimateWanted()
                 || LiveMapFeature.hasRoomStates() ? Boolean.FALSE : null;
@@ -198,6 +201,9 @@ final class AutoWater {
         if (atChest) {
             // Secret Aura waits in this room until the tab list or the map says the puzzle is over, so on Hypixel
             // nothing ever opened the chest the auto had just stood over (killer560, 2026-10-15). It opens it itself.
+            if (!WaterGates.armed() && cr != null) {
+                WaterGates.arm(cr);
+            }
             CHEST.start();
             CHEST.tick(client);
             return;
@@ -477,6 +483,7 @@ final class AutoWater {
         CAMERA.release(client.player);
         atChest = false;
         CHEST.reset(client);
+        WaterGates.disarm();
         stoppedThisRoom = false;
         startAreaAttempted = false;
     }

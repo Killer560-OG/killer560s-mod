@@ -65,4 +65,17 @@ public final class ChestWindows {
 
     /** Whether a chest window has arrived since {@code mark} (an earlier {@link #count}). */
     public static boolean since(int mark) { return count != mark; }
+
+    /** Hypixel's whole answer to a click on a chest it keeps shut (a puzzle's reward before the puzzle is done). */
+    public static final String LOCKED_LINE = "That chest is locked!";
+    private static volatile int locked;
+
+    /** From {@code AutoPuzzlesFeature}'s chat listener: {@link #LOCKED_LINE} arrived. */
+    public static void noteLocked() { locked++; }
+
+    /** "Locked" answers so far this session; compare with {@link #lockedSince}. */
+    public static int lockedCount() { return locked; }
+
+    /** Whether a {@link #LOCKED_LINE} has arrived since {@code mark} (an earlier {@link #lockedCount}). */
+    public static boolean lockedSince(int mark) { return locked != mark; }
 }

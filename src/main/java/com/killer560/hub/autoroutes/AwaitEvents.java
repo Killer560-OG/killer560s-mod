@@ -110,7 +110,7 @@ public final class AwaitEvents {
             // Diagnostic only (no count: the skull click already counted it): when Hypixel confirms his essence, and
             // whether a route was running and waiting. startsWith is safe - a player's chat line starts with his name.
             // Hypixel's answer to a locked chest (matched whole: a player's line always carries a name prefix).
-            if ("That chest is locked!".equals(plain)) {
+            if (com.killer560.hub.util.ChestWindows.LOCKED_LINE.equals(plain)) {
                 onChestLocked();
             }
             if (plain.startsWith("You found a Wither Essence!")) {

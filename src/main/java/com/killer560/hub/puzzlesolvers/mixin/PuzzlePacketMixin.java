@@ -3,7 +3,10 @@ package com.killer560.hub.puzzlesolvers.mixin;
 import com.killer560.hub.autopuzzles.AutoBeams;
 import com.killer560.hub.puzzlesolvers.TeleportMazeSolverFeature;
 import net.minecraft.client.multiplayer.ClientPacketListener;
+import net.minecraft.network.protocol.game.ClientboundBlockEventPacket;
+import net.minecraft.network.protocol.game.ClientboundBlockUpdatePacket;
 import net.minecraft.network.protocol.game.ClientboundPlayerPositionPacket;
+import net.minecraft.network.protocol.game.ClientboundSectionBlocksUpdatePacket;
 import net.minecraft.network.protocol.game.ClientboundSoundPacket;
 import com.killer560.hub.util.ModLog;
 import org.spongepowered.asm.mixin.Mixin;
@@ -44,6 +47,32 @@ public abstract class PuzzlePacketMixin {
             AutoBeams.onSound(packet);
         } catch (RuntimeException e) {
             killer560smod$puzzles$hookThrew("sound", e);
+        }
+    }
+
+    // Water Board's gates (autopuzzles/WaterGates): at RETURN, so the change is in the level (the first call of each
+    // handler on the network thread throws out of ensureRunningOnSameThread to reschedule; RETURN runs once, on the client
+    // thread). All three are public void handlers taking just the packet on 26.3 and 26.2 (LiveMap's and Powder's hooks).
+    @Inject(method = "handleBlockUpdate", at = @At("RETURN"), require = 0)
+    private void killer560smod$puzzles$onBlock(ClientboundBlockUpdatePacket packet, CallbackInfo ci) {
+        try {
+            com.killer560.hub.autopuzzles.WaterGates.onBlock(packet.getPos());
+        } catch (RuntimeException e) {
+            killer560smod$puzzles$hookThrew("blockUpdate", e);
+        }
+    }
+
+    @Inject(method = "handleChunkBlocksUpdate", at = @At("RETURN"), require = 0)
+    private void killer560smod$puzzles$onSection(ClientboundSectionBlocksUpdatePacket packet, CallbackInfo ci) {
+        com.killer560.hub.autopuzzles.WaterGates.onSection();
+    }
+
+    @Inject(method = "handleBlockEvent", at = @At("RETURN"), require = 0)
+    private void killer560smod$puzzles$onBlockEvent(ClientboundBlockEventPacket packet, CallbackInfo ci) {
+        try {
+            com.killer560.hub.autopuzzles.WaterGates.onBlock(packet.getPos());
+        } catch (RuntimeException e) {
+            killer560smod$puzzles$hookThrew("blockEvent", e);
         }
     }
 

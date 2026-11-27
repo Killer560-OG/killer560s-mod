@@ -187,10 +187,14 @@ public final class AutoPuzzlesFeature {
     }
 
     private static void onMessage(Component message) {
+        String msg = ChatObserver.strip(message).trim();
+        if (com.killer560.hub.util.ChestWindows.LOCKED_LINE.equals(msg)) {
+            com.killer560.hub.util.ChestWindows.noteLocked(); // a reward chest click refused (RewardChest re-clicks on it)
+            return;
+        }
         if (!AutoPuzzlesConfig.getInstance().isAutoQuizEnabled()) {
             return;
         }
-        String msg = ChatObserver.strip(message).trim();
         // Same line QuizSolverFeature uses to clear the previous question's answer - re-arm for the next one
         // even if the next answer arrives in the same tick (so the null gap is never observed).
         if (msg.startsWith("[STATUE] Oruo the Omniscient: ") && msg.endsWith("correctly!")

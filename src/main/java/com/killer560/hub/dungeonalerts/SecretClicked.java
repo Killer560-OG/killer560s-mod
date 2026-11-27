@@ -36,7 +36,7 @@ public final class SecretClicked {
     /** A locked line further than this after the click belongs to no box of ours. */
     private static final long LOCKED_WINDOW_MS = 1500L;
     private static volatile int soundsPassed;
-    private static final String LOCKED_LINE = "That chest is locked!";
+    private static final String LOCKED_LINE = com.killer560.hub.util.ChestWindows.LOCKED_LINE;
     private static final float[] GOLD = {1.0f, 0.67f, 0.0f, 0.8f};
     private static final float[] RED = {1.0f, 0.2f, 0.2f, 0.8f};
 
