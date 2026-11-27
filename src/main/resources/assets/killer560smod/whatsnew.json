@@ -21,7 +21,8 @@
      "Auto Melody: on a board that opens with the moving pane already on its target, clicks now count how long the pane has really stood there since the board opened, so a lookahead or next-row click that would land after its first step is let go instead of being sent wrong, and a missed click no longer leaves the board untouched",
      "Craft Cost: while you hover the recipe menu's Supercraft item, the panel also shows the amounts for its N crafts in parentheses next to each quantity and cost, the total and Instant Buy.",
      "Auto Creeper Beams (Melee): a lantern is only hit from a spot where a look onto it lands within reach, so it no longer stands on the way to its spot turning back and forth for seconds; a hit that still waits more than six ticks tries another spot",
-     "Auto Clear now finds a starred mob that walked out of its room through an open door into a cleared room or one with no mobs of its own (a puzzle such as the Quiz) and kills it there, looks from a spot inside each open door before giving a room up, and says a mob may have left the room when it does give up"
+     "Auto Clear now finds a starred mob that walked out of its room through an open door into a cleared room or one with no mobs of its own (a puzzle such as the Quiz) and kills it there, looks from a spot inside each open door before giving a room up, and says a mob may have left the room when it does give up",
+     "Craft Cost: the Supercraft amounts in parentheses now read the tooltip as Hypixel writes it (the red cross before each ingredient hid them all), and the ingredient rows are ordered from most to least expensive."
     ]
    }
   ]

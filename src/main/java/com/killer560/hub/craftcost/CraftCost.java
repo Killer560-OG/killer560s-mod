@@ -50,7 +50,7 @@ public final class CraftCost {
     private static final Logger LOGGER = ModLog.get("killer560smod-craftcost");
     private static final int[] GRID = {10, 11, 12, 19, 20, 21, 28, 29, 30};
     private static final Pattern CRAFTS = Pattern.compile("\\((\\d+)x crafts?\\)");
-    private static final Pattern NEED = Pattern.compile("^\\d+/(\\d+) (.+)$");
+    private static final Pattern NEED = Pattern.compile("\\d+/(\\d+) (.+)$");
     private static final int PAD = 4, LINE = 11, GAP = 4, COL = 8;
     private static final List<String> SAMPLE = List.of("§lCraft Cost: §r§6120.5k", "§764x §fEnchanted Diamond  §6118k",
             "§71x §fHyperion  §62.5k", "§7Instant Buy: §6125k");
@@ -237,7 +237,7 @@ public final class CraftCost {
             Matcher m = CRAFTS.matcher(line);
             if (n == 0 && m.find()) {
                 n = Integer.parseInt(m.group(1));
-            } else if ((m = NEED.matcher(line)).matches()) {
+            } else if ((m = NEED.matcher(line)).find()) {
                 need.put(m.group(2).trim(), Long.parseLong(m.group(1)));
             }
         }
@@ -262,13 +262,16 @@ public final class CraftCost {
         double order = 0, instant = 0, order2 = 0, instant2 = 0;
         boolean incomplete = false, anyBazaar = false, anyBin = false;
         // {qty, name, cost, bin, command} per line; the title and the totals use the same columns.
-        List<String[]> rows = new ArrayList<>();
+        record Pr(String[] cells, double total) {
+        }
+        List<Pr> rows = new ArrayList<>();
         for (Map.Entry<String, Acc> e : merged.entrySet()) {
             Acc a = e.getValue();
             Double sell = PriceData.bazaarSell(e.getKey());
             Double buy = PriceData.bazaarBuy(e.getKey());
             double unit = sell != null && sell > 0 ? sell + 0.1 : buy != null && buy > 0 ? buy : 0;
             String cost, bin = "", cmd = null;
+            double rowTotal = -1;
             long tot = multi == null ? 0 : multi.need().getOrDefault(a.name, (long) a.count[0] * multi.n());
             String qty2 = multi == null ? "" : " §8(" + tot + "x)", cost2 = "";
             if (unit > 0) {
@@ -276,6 +279,7 @@ public final class CraftCost {
                 instant += (buy != null && buy > 0 ? buy : unit) * a.count[0];
                 anyBazaar = true;
                 cost = "§6" + coins(unit * a.count[0]);
+                rowTotal = unit * a.count[0];
                 order2 += unit * tot;
                 instant2 += (buy != null && buy > 0 ? buy : unit) * tot;
                 cost2 = multi == null ? "" : " §8(" + coins(unit * tot) + ")";
@@ -289,6 +293,7 @@ public final class CraftCost {
                     instant2 += lowest * tot;
                     cost2 = multi == null ? "" : " §8(" + coins(lowest * tot) + ")";
                     cost = "§6" + coins(lowest * a.count[0]);
+                    rowTotal = lowest * a.count[0];
                     bin = "§8BIN";
                     anyBin = true;
                     cmd = "ahs " + a.name;
@@ -297,12 +302,14 @@ public final class CraftCost {
                     cost = "§8not on Bazaar";
                 }
             }
-            rows.add(new String[]{"§7" + a.count[0] + "x" + qty2, "§f" + a.name, cost + cost2, bin, cmd});
+            rows.add(new Pr(new String[]{"§7" + a.count[0] + "x" + qty2, "§f" + a.name, cost + cost2, bin, cmd}, rowTotal));
         }
         String plus = incomplete ? "+" : "";
         List<String[]> all = new ArrayList<>();
         all.add(new String[]{"", "§lCraft Cost", "§6" + coins(order) + (multi == null ? "" : " §8(" + coins(order2) + ")") + plus, "", null});
-        all.addAll(rows);
+        // Most expensive row first (killer560, 11-26); unpriced rows last, ties in recipe order (the sort is stable).
+        rows.sort((x, y) -> Double.compare(y.total(), x.total()));
+        rows.forEach(r -> all.add(r.cells()));
         if (anyBazaar) {
             all.add(new String[]{"", "§7Instant Buy", "§6" + coins(instant) + (multi == null ? "" : " §8(" + coins(instant2) + ")") + plus, "", null});
         }
