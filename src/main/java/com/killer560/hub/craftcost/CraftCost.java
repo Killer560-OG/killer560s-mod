@@ -1,5 +1,7 @@
 package com.killer560.hub.craftcost;
 
+import com.killer560.hub.clicksound.ClickSounds;
+import com.killer560.hub.compat.McCompat;
 import com.killer560.hub.compat.McInput;
 import com.killer560.hub.croesus.DungeonChestValuer;
 import com.killer560.hub.experiments.mixin.AbstractContainerScreenAccessor;
@@ -12,6 +14,7 @@ import com.killer560.hub.util.ItemNbt;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.util.ServerCommands;
 import com.killer560.hub.util.SkyblockGate;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenMouseEvents;
 import net.minecraft.client.Minecraft;
@@ -60,13 +63,29 @@ public final class CraftCost {
     }
 
     /** The built panel: rows plus the size, fixed until the recipe or the prices change. */
-    record Layout(List<Row> rows, int width, int height, int binX) {
-        static final Layout EMPTY = new Layout(List.of(), 0, 0, 0);
+    record Layout(List<Row> rows, int width, int height, int binX, Map<String, Long> needs) {
+        static final Layout EMPTY = new Layout(List.of(), 0, 0, 0, Map.of());
     }
 
     /** The hovered Supercraft item's lore: N crafts and each ingredient's total need by plain name. */
     record Multi(int n, Map<String, Long> need) {
     }
+
+    /** The Supercraft item's slot: as the logger recorded it in the real recipe menu, 11-26. */
+    private static final int SUPER_SLOT = 32;
+    private static final String RESET = "@reset";
+    /** Crafts the panel counts: 1, the amount carried from a clicked parent ingredient, or the Supercraft amount he set. */
+    private static int amount = 1;
+    private static String amountKey = "";
+    private static String clickedId;
+    private static long clickedNeed, clickedAt;
+    /** The last Supercraft N seen per result item id; a different N than last time is an amount he set. Bounded. */
+    private static final Map<String, Integer> LAST_N = new LinkedHashMap<>() {
+        @Override
+        protected boolean removeEldestEntry(Map.Entry<String, Integer> e) {
+            return size() > 32;
+        }
+    };
 
     private static ContainerOverlayElement element;
     private static Layout layout = Layout.EMPTY;
@@ -84,6 +103,12 @@ public final class CraftCost {
                 () -> CraftCostConfig.getInstance().isEnabled(), CraftCost::drawPanel)
                 .previewSize(() -> new int[]{layout.width() > 0 ? layout.width() : 150, panelHeight()}).clampOnScreen();
         ScreenEvents.AFTER_INIT.register(CraftCost::onScreenInit);
+        ClientPlayConnectionEvents.DISCONNECT.register((h, c) -> {
+            LAST_N.clear();
+            clickedId = null;
+            amountKey = "";
+            amount = 1;
+        });
     }
 
     private static int panelHeight() {
@@ -124,8 +149,10 @@ public final class CraftCost {
         }
         builtKey = "";
         // Only a left click on a priced row is taken; every slot click (and every other click) stays Hypixel's.
-        ScreenMouseEvents.allowMouseClick(screen).register((s, event) ->
-                McInput.button(event) != 0 || !onClick(event.x(), event.y()));
+        ScreenMouseEvents.allowMouseClick(screen).register((s, event) -> {
+            noteIngredientClick(container);
+            return McInput.button(event) != 0 || !onClick(event.x(), event.y());
+        });
         ScreenEvents.afterExtract(screen).register((s, g, mouseX, mouseY, partialTick) -> {
             try {
                 render(client, container, g, mouseX, mouseY);
@@ -161,7 +188,8 @@ public final class CraftCost {
         Slot hov = ((com.killer560.hub.slotbinds.mixin.AbstractContainerScreenAccessor) screen).killer560smod$getHoveredSlot();
         ItemStack sup = hov != null && hov.hasItem() && isSupercraft(hov.getItem()) ? hov.getItem() : null;
         ItemLore supLore = sup == null ? null : sup.get(DataComponents.LORE);
-        String key = sig + "/" + System.identityHashCode(sup) + "/" + System.identityHashCode(supLore) + "/" + menu.slots.get(25).getItem().getCount() + "/" + CraftCostConfig.version() + "/"
+        ItemStack superItem = menu.slots.get(SUPER_SLOT).getItem();
+        String key = sig + "/" + System.identityHashCode(superItem) + "/" + System.identityHashCode(sup) + "/" + System.identityHashCode(supLore) + "/" + menu.slots.get(25).getItem().getCount() + "/" + CraftCostConfig.version() + "/"
                 + PriceData.generation() + "/" + System.identityHashCode(menu);
         if (!key.equals(builtKey)) {
             builtKey = key;
@@ -170,7 +198,9 @@ public final class CraftCost {
             for (int i : GRID) {
                 grid.add(menu.slots.get(i).getItem());
             }
-            layout = result < 0 ? Layout.EMPTY : build(grid, client.font, sup == null ? null : parse(sup));
+            ItemStack res = result < 0 ? ItemStack.EMPTY : menu.slots.get(result).getItem();
+            layout = result < 0 ? Layout.EMPTY : build(grid, client.font, sup == null ? null : parse(sup),
+                    amountFor(menu, id(res), res.getCount(), isSupercraft(superItem) ? parse(superItem) : null));
         }
         if (layout.rows().isEmpty()) {
             return;
@@ -186,6 +216,40 @@ public final class CraftCost {
         g.nextStratum();
         element.draw(g, onLeft ? left - pw - 4 : left + 176 + 4, acc.killer560smod$getTopPos(), pw,
                 Math.round(layout.height() * fit), CraftCost::drawPanel);
+    }
+
+    /** Remembers a click on a grid ingredient and how many of it this menu needs, for the recipe it may open. */
+    private static void noteIngredientClick(AbstractContainerScreen<?> screen) {
+        Slot hov = ((com.killer560.hub.slotbinds.mixin.AbstractContainerScreenAccessor) screen).killer560smod$getHoveredSlot();
+        int at = hov == null || !hov.hasItem() || layout.rows().isEmpty() ? -1 : screen.getMenu().slots.indexOf(hov);
+        String id = at < 0 || java.util.Arrays.stream(GRID).noneMatch(g -> g == at) ? null : id(hov.getItem());
+        if (id != null) {
+            clickedId = id;
+            clickedNeed = layout.needs().getOrDefault(id, 0L);
+            clickedAt = System.currentTimeMillis();
+        }
+    }
+
+    /**
+     * The crafts the panel counts for this menu. A new recipe menu starts at the amount carried from the ingredient just clicked
+     * in the previous one (ceil(needed / yield), only when it is that very item's recipe, within 5 s), else 1; a Supercraft N that
+     * differs from the last one seen for this recipe is an amount he set and wins; a reset sets 1 until the next ingredient click.
+     */
+    private static int amountFor(AbstractContainerMenu menu, String rid, int yield, Multi set) {
+        String k = System.identityHashCode(menu) + "/" + rid;
+        if (!k.equals(amountKey)) {
+            amountKey = k;
+            boolean carried = clickedId != null && clickedId.equals(rid) && System.currentTimeMillis() - clickedAt < 5000L;
+            amount = carried ? (int) Math.min(100_000L, Math.max(1L, (clickedNeed + yield - 1) / Math.max(1, yield))) : 1;
+            clickedId = null;
+        }
+        if (set != null && rid != null) {
+            Integer was = LAST_N.put(rid, set.n());
+            if (was != null && was != set.n()) {
+                amount = set.n();
+            }
+        }
+        return amount;
     }
 
     /** The clickable row under (mx, my) as last drawn, else -1. */
@@ -210,7 +274,17 @@ public final class CraftCost {
             return false;
         }
         int i = rowAt(mx, my);
-        return i >= 0 && ServerCommands.toServer(layout.rows().get(i).cmd());
+        if (i < 0) {
+            return false;
+        }
+        String cmd = layout.rows().get(i).cmd();
+        if (RESET.equals(cmd)) {
+            amount = 1;
+            builtKey = "";
+            ClickSounds.playSlotClick();
+            return true;
+        }
+        return ServerCommands.toServer(cmd);
     }
 
     private static String id(ItemStack s) {
@@ -245,7 +319,7 @@ public final class CraftCost {
     }
 
     /** The grid's ingredients merged by item id with their buy order and instant buy costs; empty when the grid has none. */
-    static Layout build(List<ItemStack> grid, Font font, Multi multi) {
+    static Layout build(List<ItemStack> grid, Font font, Multi multi, int amt) {
         computes++;
         record Acc(String name, int[] count) {
         }
@@ -259,6 +333,7 @@ public final class CraftCost {
         if (merged.isEmpty()) {
             return Layout.EMPTY;
         }
+        merged.values().forEach(a -> a.count[0] *= amt);
         double order = 0, instant = 0, order2 = 0, instant2 = 0;
         boolean incomplete = false, anyBazaar = false, anyBin = false;
         // {qty, name, cost, bin, command} per line; the title and the totals use the same columns.
@@ -272,8 +347,8 @@ public final class CraftCost {
             double unit = sell != null && sell > 0 ? sell + 0.1 : buy != null && buy > 0 ? buy : 0;
             String cost, bin = "", cmd = null;
             double rowTotal = -1;
-            long tot = multi == null ? 0 : multi.need().getOrDefault(a.name, (long) a.count[0] * multi.n());
-            String qty2 = multi == null ? "" : " §8(" + tot + "x)", cost2 = "";
+            long tot = multi == null ? 0 : multi.need().getOrDefault(a.name, (long) a.count[0] / amt * multi.n());
+            String qty2 = multi == null ? "" : " §7(" + tot + "x)", cost2 = "";
             if (unit > 0) {
                 order += unit * a.count[0];
                 instant += (buy != null && buy > 0 ? buy : unit) * a.count[0];
@@ -282,7 +357,7 @@ public final class CraftCost {
                 rowTotal = unit * a.count[0];
                 order2 += unit * tot;
                 instant2 += (buy != null && buy > 0 ? buy : unit) * tot;
-                cost2 = multi == null ? "" : " §8(" + coins(unit * tot) + ")";
+                cost2 = multi == null ? "" : " §e(" + coins(unit * tot) + ")";
                 cmd = "bz " + a.name;
             } else {
                 Double lowest = PriceData.lowestBin(e.getKey());
@@ -291,7 +366,7 @@ public final class CraftCost {
                     instant += lowest * a.count[0];
                     order2 += lowest * tot;
                     instant2 += lowest * tot;
-                    cost2 = multi == null ? "" : " §8(" + coins(lowest * tot) + ")";
+                    cost2 = multi == null ? "" : " §e(" + coins(lowest * tot) + ")";
                     cost = "§6" + coins(lowest * a.count[0]);
                     rowTotal = lowest * a.count[0];
                     bin = "§8BIN";
@@ -306,12 +381,15 @@ public final class CraftCost {
         }
         String plus = incomplete ? "+" : "";
         List<String[]> all = new ArrayList<>();
-        all.add(new String[]{"", "§lCraft Cost", "§6" + coins(order) + (multi == null ? "" : " §8(" + coins(order2) + ")") + plus, "", null});
+        all.add(new String[]{"", "§lCraft Cost" + (amt > 1 ? "§r §7(" + amt + " crafts)" : ""), "§6" + coins(order) + (multi == null ? "" : " §e(" + coins(order2) + ")") + plus, "", null});
         // Most expensive row first (killer560, 11-26); unpriced rows last, ties in recipe order (the sort is stable).
         rows.sort((x, y) -> Double.compare(y.total(), x.total()));
         rows.forEach(r -> all.add(r.cells()));
         if (anyBazaar) {
-            all.add(new String[]{"", "§7Instant Buy", "§6" + coins(instant) + (multi == null ? "" : " §8(" + coins(instant2) + ")") + plus, "", null});
+            all.add(new String[]{"", "§7Instant Buy", "§6" + coins(instant) + (multi == null ? "" : " §e(" + coins(instant2) + ")") + plus, "", null});
+        }
+        if (amt > 1) {
+            all.add(new String[]{"", "§fReset to This Recipe", "", "", RESET});
         }
         int qtyW = 0, nameW = 0, costW = 0;
         for (String[] r : all) {
@@ -325,13 +403,15 @@ public final class CraftCost {
         int y = PAD;
         for (int i = 0; i < all.size(); i++) {
             String[] r = all.get(i);
-            if (i == 1 || i == all.size() - 1 && anyBazaar) {
+            if (i == 1 || i == all.size() - (amt > 1 ? 2 : 1) && anyBazaar || amt > 1 && i == all.size() - 1) {
                 y += GAP;
             }
             out.add(new Row(r[0], PAD + qtyW - font.width(r[0]), r[1], nameX, r[2], costEnd - font.width(r[2]), costEnd, r[3], y, r[4]));
             y += LINE;
         }
-        return new Layout(List.copyOf(out), width, y + PAD - 1, binX);
+        Map<String, Long> needs = new LinkedHashMap<>();
+        merged.forEach((id, a) -> needs.put(id, (long) a.count[0]));
+        return new Layout(List.copyOf(out), width, y + PAD - 1, binX, needs);
     }
 
     private static String coins(double v) {
@@ -379,6 +459,13 @@ public final class CraftCost {
         return layout.rows().stream().map(r -> new int[]{(int) Math.round(element.drawnX() + r.costEnd() * s),
                 (int) Math.round(element.drawnY() + (r.y() + 4) * s), (int) Math.round(element.drawnX() + r.nameX() * s),
                 r.cmd() == null ? 0 : 1}).toList();
+    }
+
+    /** The ingredient-click bookkeeping a real left click runs, for the slot under the cursor of the open screen. */
+    public static void noteClickForTest() {
+        if (McCompat.screen(Minecraft.getInstance()) instanceof AbstractContainerScreen<?> s) {
+            noteIngredientClick(s);
+        }
     }
 
     public static boolean clickForTest(double x, double y) {
