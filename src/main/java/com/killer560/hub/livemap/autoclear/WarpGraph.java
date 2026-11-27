@@ -2702,6 +2702,7 @@ public final class WarpGraph {
         // The node each hop lands on, in the same (reversed, then turned round) order; -1 for the exact goal block.
         lastLands.clear();
         lastLandX = Float.isNaN(lastYaw) ? nx[last] : Integer.MIN_VALUE;
+        lastLandY = Float.isNaN(lastYaw) ? ny[last] : Integer.MIN_VALUE;
         lastLandZ = Float.isNaN(lastYaw) ? nz[last] : Integer.MIN_VALUE;
         if (!Float.isNaN(lastYaw)) {
             out.add(new EtherSearch.Hop(standX(last), standY(last), standZ(last), nx[last], ny[last], nz[last],
@@ -2726,9 +2727,55 @@ public final class WarpGraph {
         return out;
     }
 
-    /** The block x/z the last region path lands on (MIN_VALUE after an exact-goal path). */
+    /** The block the last region path lands on (MIN_VALUE after an exact-goal path). */
     public int lastLandX = Integer.MIN_VALUE;
+    public int lastLandY = Integer.MIN_VALUE;
     public int lastLandZ = Integer.MIN_VALUE;
+
+    /**
+     * After a plan that found nothing: every node this graph's own edges reach from that plan's start landings. From a
+     * nook whose landings join nothing else of the graph (his Pirate mast top, imap-nopath-1127) it is a handful of
+     * nodes, and the planner looks for a way out of them with every landing of his room (EtherwarpPathfinder.escapePlan).
+     * Planner thread.
+     */
+    public java.util.BitSet lastStartReach() {
+        java.util.BitSet seen = new java.util.BitSet(count);
+        int[] queue = new int[Math.max(1, count)];
+        int tail = 0;
+        for (int k = 0; k < Math.max(0, startN); k++) {
+            int u = find(startPos[k]);
+            if (u >= 0 && !seen.get(u)) {
+                seen.set(u);
+                queue[tail++] = u;
+            }
+        }
+        for (int head = 0; head < tail; head++) {
+            int[] to = eTo[queue[head]];
+            for (int e = 0; to != null && e < to.length; e++) {
+                if (!seen.get(to[e])) {
+                    seen.set(to[e]);
+                    queue[tail++] = to[e];
+                }
+            }
+        }
+        return seen;
+    }
+
+    /** The node on block x, y, z whose edges are worked out, or -1. */
+    public int edgedNode(int x, int y, int z) {
+        int u = find(EtherSearch.pack(x, y, z));
+        return u >= 0 && eTo[u] != null ? u : -1;
+    }
+
+    /** Whether a node with its edges, outside {@code reach}, stands on a block {@code where} accepts. */
+    public boolean anyEdgedOutside(java.util.BitSet reach, EtherSearch.CellTest where) {
+        for (int u = 0; u < count; u++) {
+            if (eTo[u] != null && !reach.get(u) && where.test(nx[u], ny[u], nz[u])) {
+                return true;
+            }
+        }
+        return false;
+    }
 
     /** For the path {@link #reconstruct} returned last: the node each hop lands on, or -1 for an exact goal block. */
     private final ArrayList<Integer> lastLands = new ArrayList<>();

@@ -20,7 +20,8 @@
      "Dungeons Autopilot and Auto Clear: while the first warp waits for the entrance gate to open, your own item stays in your hand and your right clicks go with it; the warp item comes out only as the gate opens, with no extra tick",
      "Auto Clear no longer gives up on the wither door when its first trips fail right as the run starts on a busy PC: it waits for its warp map to be ready and tries again; trap room routes no longer stop when a walk ends pressed against a block: the walk is planned again from where you stand",
      "Auto Clear no longer warps onto a block while its way-out check is still running: the trip waits a tick or two for the answer, so a busy PC no longer lands you in the Dragon room pocket that nothing leads back out of.",
-     "Dungeons Autopilot and Auto Routes: a route entered at its start node now also runs the nodes numbered before the start node (a node's number no longer decides what is left to do), so a room such as Diagonal whose start node is near the end of its list gets all its secrets; a node that needs a walk is reached by a warp to the nearest node not yet run, no node runs twice, and the endgame no longer goes back to a room whose every node already ran"
+     "Dungeons Autopilot and Auto Routes: a route entered at its start node now also runs the nodes numbered before the start node (a node's number no longer decides what is left to do), so a room such as Diagonal whose start node is near the end of its list gets all its secrets; a node that needs a walk is reached by a warp to the nearest node not yet run, no node runs twice, and the endgame no longer goes back to a room whose every node already ran",
+     "Interactive Map: a press out of a room from a spot the warp map cannot leave on its own (such as Pirate's mast top) no longer fails in a few milliseconds; it finds the warps off that spot and flies on to the room or start node"
     ]
    }
   ]

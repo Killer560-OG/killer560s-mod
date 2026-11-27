@@ -594,6 +594,11 @@ public final class EtherwarpPathfinder {
             if (fine != null) {
                 return toNodes(fine);
             }
+            List<EtherSearch.Hop> out = airy ? null : escapePlan(level, grid, layout, from, start, goal, exactFallback,
+                    graphs, t0, cfg.timeout() * 1_000_000L);
+            if (out != null) {
+                return toNodes(out);
+            }
         }
         long end = System.nanoTime();
         if (exactWanted && tile6 < 0 && path != null && graph.endedNear && !airy) {
@@ -907,6 +912,79 @@ public final class EtherwarpPathfinder {
                 path.size(), fine.endedNear ? " (near)" : "", ms(end - f0), fine.nodeCount(), fine.rays, ms(end - t0),
                 fine.fragileLeft ? "; ONE STILL FRAGILE" : "");
         return path;
+    }
+
+    /**
+     * Planner thread. When the warm floor graph finds nothing because every landing his first warp reaches joins nothing
+     * else of it (a nook its 2x2 buckets cut off: his Pirate mast top at y 84, imap-nopath-1127, where every press out
+     * of the room failed in 3-15 ms while a press inside it flew 6 warps): every landing of his room, as finePlan
+     * searches them, onto the nearest landing the graph knows outside that nook, then the graph from there. Null when
+     * the nook is not the reason (nothing of his room lies outside it), or either leg finds nothing.
+     */
+    private static List<EtherSearch.Hop> escapePlan(Level level, EtherSearch.Grid grid, DungeonLayout layout, Vec3 from,
+                                                    EtherSearch.Hop start, WarpGraph.Goal goal,
+                                                    WarpGraph.Goal exactFallback, FloorGraphs graphs, long t0,
+                                                    long timeout) {
+        WarpGraph graph = graphs.used;
+        WarpGraph.LandingRule base = graphRule;
+        int room = layout == null ? -1 : layout.roomAtWorld(from.x, from.z);
+        if (base == null || room < 0 || graph != graphs.full || !graph.warmDone()) {
+            return null;
+        }
+        long e0 = System.nanoTime();
+        java.util.BitSet reach = graph.lastStartReach();
+        EtherSearch.CellTest inRoom = (x, y, z) -> layout.roomAtWorld(x + 0.5, z + 0.5) == room
+                && (goal.deadEnd == null || !goal.deadEnd.test(x, y, z));
+        if (!graph.anyEdgedOutside(reach, inRoom)) {
+            return null;
+        }
+        WarpGraph fine = new WarpGraph(graphRange, STAND_OFFSET, 1,
+                (g, x, y, z) -> layout.roomAtWorld(x + 0.5, z + 0.5) == room && base.ok(g, x, y, z), graphMinY, graphMaxY);
+        fine.partialFrom = 0.0;
+        fine.startPartialFrom = 0.0;
+        fine.setExtraAimPoints(true);
+        fine.setTiles(graphTiles);
+        WarpGraph.Goal out = new WarpGraph.Goal();
+        out.x = goal.x;
+        out.y = goal.y;
+        out.z = goal.z;
+        out.deadEnd = goal.deadEnd;
+        out.refusedFirst = goal.refusedFirst;
+        out.region = (x, y, z) -> {
+            int u = graph.edgedNode(x, y, z);
+            return u >= 0 && !reach.get(u) && inRoom.test(x, y, z);
+        };
+        // Twice the fine search's budget: about 90 landings off his mast top took 120-200 ms on a fully loaded test PC
+        // (first press 202 ms, out of time at 200), where his own PC works out 760 in 113 ms.
+        List<EtherSearch.Hop> first = fine.plan(grid, start, out, e0 + 2 * FINE_NANOS, FINE_MAX_WARPS);
+        if (first == null || first.isEmpty() || fine.lastLandY == Integer.MIN_VALUE) {
+            LOGGER.info("[Path] no way out of the {} node(s) the floor graph reaches from here: the room search found"
+                    + " nothing ({} ms, {} landing(s) worked out{})", reach.cardinality(), ms(System.nanoTime() - e0),
+                    fine.nodeCount(), fine.timedOut ? ", out of time" : "");
+            return null;
+        }
+        long e1 = System.nanoTime();
+        int lx = fine.lastLandX;
+        int ly = fine.lastLandY;
+        int lz = fine.lastLandZ;
+        EtherSearch.Hop at = new EtherSearch.Hop(lx + 0.5, ly + STAND_OFFSET, lz + 0.5, lx, ly, lz, 0f, 0f);
+        goal.refusedFirst = null;
+        if (exactFallback != null) {
+            exactFallback.refusedFirst = null;
+        }
+        List<EtherSearch.Hop> rest = graphs.plan(grid, () -> new LevelEtherGrid(level), workers(), workerCount, at, goal,
+                exactFallback, e1, timeout, MAX_WARPS);
+        LOGGER.info("[Path] the floor graph reaches only {} node(s) from here; the room search found {} warp(s) out onto"
+                        + " {},{},{} in {} ms ({} landing(s) worked out), then the graph {} ({} ms), total {} ms",
+                reach.cardinality(), first.size(), lx, ly, lz, ms(e1 - e0), fine.nodeCount(),
+                rest == null ? "nothing" : rest.size() + " warp(s)", ms(System.nanoTime() - e1),
+                ms(System.nanoTime() - t0));
+        if (rest == null) {
+            return null;
+        }
+        List<EtherSearch.Hop> trip = new ArrayList<>(first);
+        trip.addAll(rest);
+        return trip;
     }
 
     /** Whether a tile of room {@code a} and a tile of room {@code b} meet across a door cell that is not locked. */
