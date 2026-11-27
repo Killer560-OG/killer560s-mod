@@ -35,6 +35,12 @@ public final class RouteCoords {
 
         /** @return the room the player is standing in, or null while its identity/rotation are unknown. */
         public static Frame current() {
+            // The map still holds the LAST run's rooms for the second between a world change and "Dungeon entered" (a held
+            // run keeps its grid for a rejoin), and the new world's spawn lands inside one of them: its nodes were drawn
+            // in the Entrance (entrance-flash-1127). No dungeon, no room.
+            if (!com.killer560.hub.secrets.DungeonState.isInDungeon()) {
+                return null;
+            }
             RoomEntry entry = LiveMapFeature.currentRoomEntry();
             int[] cr = LiveMapFeature.currentRoomClayAndRotation();
             if (entry == null || entry.name == null || cr == null) {
