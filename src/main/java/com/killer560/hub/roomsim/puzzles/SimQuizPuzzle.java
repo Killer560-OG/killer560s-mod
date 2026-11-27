@@ -862,6 +862,9 @@ public final class SimQuizPuzzle {
     /** Solved, and the room this class is bound to is Three Weirdos - for tests that must not mistake a Quiz. */
     public static boolean isWeirdosComplete() { return complete && weirdosRoom; }
 
+    /** The weirdo at the correct chest, the NPC Hypixel's "wasn't fooled by" line names. */
+    public static String correctWeirdoName() { return WEIRDO_NAMES[Math.max(0, Math.min(correctIndex, WEIRDO_NAMES.length - 1))]; }
+
     /** Solved, and the room this class is bound to is the Quiz (or a standalone arena). */
     public static boolean isQuizComplete() { return complete && !weirdosRoom; }
 

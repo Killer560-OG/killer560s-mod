@@ -205,7 +205,9 @@ public final class PuzzleHudFeature {
         }
         Matcher m = SOLVED.matcher(plain);
         if (m.matches()) {
-            SOLVES.addLast(new Recent(m.group(1), m.group(2).toLowerCase(Locale.ROOT), now));
+            String what = m.group(2).toLowerCase(Locale.ROOT);
+            // Three Weirdos' real line names the NPC, never the room.
+            SOLVES.addLast(new Recent(m.group(1), what.startsWith("wasn't fooled by ") ? "three weirdos" : what, now));
             if (SOLVES.size() > 8) {
                 SOLVES.removeFirst();
             }

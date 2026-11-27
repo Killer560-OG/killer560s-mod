@@ -162,7 +162,7 @@ public final class ScoreCalculatorFeature {
     private static final String TTT_KEY = "tic tac toe";
     private static final String BLAZE_KEY = "higher or lower";
     private static final Pattern TTT_WORD = Pattern.compile("\\bttt\\b");
-    private static final Pattern BLAZE_DONE_WORD = Pattern.compile("solved|done|complete|finished");
+    private static final Pattern DONE_WORD = Pattern.compile("solved|done|complete|finished");
     /** A PUZZLE FAIL line named Blaze this run: no later kill or party message counts it, until Architect resets it. */
     private static boolean blazeFailed;
 
@@ -553,10 +553,7 @@ public final class ScoreCalculatorFeature {
         Matcher party = PARTY_MESSAGE.matcher(plain);
         if (party.matches()) {
             String body = party.group(1).trim().toLowerCase(Locale.ROOT);
-            if (cfg.isChatPuzzleDone() && !body.contains("fail") && BLAZE_DONE_WORD.matcher(body).find()) {
-                if (body.contains("blaze") && !blazeFailed) {
-                    markChatDone(BLAZE_KEY);
-                }
+            if (cfg.isChatPuzzleDone() && !body.contains("fail") && DONE_WORD.matcher(body).find()) {
                 if (body.contains("tic tac toe") || TTT_WORD.matcher(body).find()) {
                     markChatDone(TTT_KEY);
                 }

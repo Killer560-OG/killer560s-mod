@@ -17,11 +17,11 @@ import java.util.UUID;
  * possible"). The mod reacts to it ({@code AutoPuzzleActivity.solvedByHim}), so the sim must say it, or that path is never
  * exercised here.
  *
- * <p>Only Tic Tac Toe's wording is from a real log ("PUZZLE SOLVED! 9878981 tied Tic Tac Toe! Good job!", Mod Only Test
- * 22:28:37); every other puzzle's middle part here is a stand-in ("completed Ice Path"). The mod matches the shape alone -
- * anchored prefix, the player as a real name, "! Good job!" - so a stand-in reads the same as Hypixel's own words.
- * Blaze (Higher and Lower) gets no line: Hypixel sends none (155 of his real logs, checked 2026-11-26); Three Weirdos' real
- * wording is "wasn't fooled by <NPC>" (not matched here, the stand-in only keeps the shape).
+ * <p>Only two wordings are from real logs (156 of his logs, checked 2026-11-26): "PUZZLE SOLVED! Killer560 tied Tic Tac
+ * Toe! Good job!" and "PUZZLE SOLVED! Xolty wasn't fooled by Eveleth! Good job!" (Three Weirdos, the NPC at the correct
+ * chest). Every other puzzle's middle part here is an UNVERIFIED stand-in ("completed Ice Path") until a real line is
+ * logged. The mod matches the shape alone - anchored prefix, the player as a real name, "! Good job!".
+ * Blaze (Higher and Lower) gets no line: Hypixel sends none.
  */
 public final class SimPuzzleSolvedLine {
 
@@ -52,8 +52,10 @@ public final class SimPuzzleSolvedLine {
             if (!said.add(room)) continue;
             UUID who = client.player.getUUID();
             String name = solverName(room, client.player.getGameProfile().name());
-            String line = "PUZZLE SOLVED! " + name + " " + ("Tic Tac Toe".equals(room) ? "tied Tic Tac Toe"
-                    : "completed " + room) + "! Good job!";
+            String what = "Tic Tac Toe".equals(room) ? "tied Tic Tac Toe" : "Three Weirdos".equals(room)
+                    ? "wasn't fooled by " + com.killer560.hub.roomsim.puzzles.SimQuizPuzzle.correctWeirdoName()
+                    : "completed " + room;
+            String line = "PUZZLE SOLVED! " + name + " " + what + "! Good job!";
             server.execute(() -> {
                 if (!com.killer560.hub.roomsim.SimCoop.guestSpots().isEmpty()) {
                     // Co-op (coopsim-p5): the whole party reads it, as on Hypixel.
