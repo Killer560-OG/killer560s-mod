@@ -132,7 +132,13 @@ final class BeaconAutoTuner {
         if (running) {
             // The server closes the menu on the click that completes (11-25: the same tick, a Speed click too): a close within a
             // round trip of the last click is done, whichever button it was.
-            ModChat.send("Auto Tune", ModChat.text(ticks - lastClick <= rtt + 3 ? "done" : "stopped, the menu closed"));
+            // Done and started go to the log only (killer560 11-26: "remove the auto tune start and done lines").
+            boolean done = ticks - lastClick <= rtt + 3;
+            if (done) {
+                ModChat.log("Auto Tune", ModChat.text("done"));
+            } else {
+                ModChat.send("Auto Tune", ModChat.text("stopped, the menu closed"));
+            }
         }
         reset();
     }
@@ -179,7 +185,7 @@ final class BeaconAutoTuner {
         }
         if (!running) {
             running = true;
-            ModChat.send("Auto Tune", ModChat.text("started"));
+            ModChat.log("Auto Tune", ModChat.text("started"));
         }
         if (pendingSlot >= 0) {
             // Answered only when the button shows a new value: the click's own pickup empties the slot at once and the old
