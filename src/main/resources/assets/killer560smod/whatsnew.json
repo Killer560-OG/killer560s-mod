@@ -13,7 +13,8 @@
      "Puzzle HUD no longer lists the Higher Or Lower blaze puzzle twice (as Higher Or Lower and again as Lower Blaze or Higher Blaze): it is one row, named for the blaze room the map found",
      "Dungeons Autopilot: going back to a room for secrets its route missed is now weighed like any other room (the trip there plus only the nodes that missed, for only the secrets still missing), so a far room missing one secret no longer wins over cheaper score elsewhere, and it never goes back once the S+ needs no more secrets; a go-back now really runs the missed node when its trip comes from another room, and without Auto Clear it is done before the last uncleared room instead of never",
      "Auto Tune no longer says started or done in chat; it still says when it stopped early and when something went wrong.",
-     "Auto Puzzles: the reward chest step no longer waits forever on the chest window it opened itself when Auto Close Chest is off (Ice Fill stalled the Autopilot before the Quiz); it closes that window and carries on, and Auto Boulder and Auto Tic Tac Toe do the same for the chest they grab. A screen you opened yourself is still waited on."
+     "Auto Puzzles: the reward chest step no longer waits forever on the chest window it opened itself when Auto Close Chest is off (Ice Fill stalled the Autopilot before the Quiz); it closes that window and carries on, and Auto Boulder and Auto Tic Tac Toe do the same for the chest they grab. A screen you opened yourself is still waited on.",
+     "The mod menu's Home page has a Website button (killer560smod.pages.dev) in place of Features Doc, and the features icon in the header and the README now go to the website's features page, since the features Google Doc is retired"
     ]
    }
   ]

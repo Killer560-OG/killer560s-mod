@@ -165,9 +165,9 @@ public class ModScreen extends Screen {
     public static final String DISCORD_URL = "https://discord.gg/hkQMF5fE84";
     /** killer560's channel (2026-10-14: "Add a button to this that will take you to my youtube channel"). */
     public static final String YOUTUBE_URL = "https://www.youtube.com/@Killer560_iscool";
+    static final String WEBSITE_URL = "https://killer560smod.pages.dev";
     static final String GITHUB_URL = "https://github.com/" + com.killer560.hub.autoupdate.AutoUpdater.REPO;
-    static final String FEATURES_URL = "https://docs.google.com/document/d/e/2PACX-1vQsLEy_hlz-Dv518bH7AgYjyoGgdNl2jSAF4T8vzQ"
-            + "Hawmkg0f56q6Yrp67Zqncc8h9N-pdAvFLC5_D-/pub";
+    static final String FEATURES_URL = WEBSITE_URL + "/features";
 
     /** A setting the drawer should scroll to and flash after the next build (a search hit). */
     private static String pendingFocusLabel;
@@ -1598,7 +1598,7 @@ public class ModScreen extends Screen {
         return false;
     }
 
-    /** The header's round buttons {x, y, w, h}: 0 Discord, 1 GitHub, 2 features doc, 3 YouTube. */
+    /** The header's round buttons {x, y, w, h}: 0 Discord, 1 GitHub, 2 website features page, 3 YouTube. */
     private boolean insideIcon(int mouseX, int mouseY, int i) {
         int[] b = iconBounds(i); // once, not four times a frame
         return inside(mouseX, mouseY, b);
@@ -2264,7 +2264,7 @@ public class ModScreen extends Screen {
             r.fill(kx + 1, searchY + 4, kx + kw - 1, searchY + searchH - 4, MenuStyle.KEY_CHIP_BG);
         }
         // icons
-        // Discord's, GitHub's and YouTube's own colors, the features doc in the menu's accent.
+        // Discord's, GitHub's and YouTube's own colors, the features page icon in the menu's accent.
         int[] colours = {0xFF5865F2, 0xFF333333, MenuStyle.OR2, 0xFFFF0033};
         for (int i = 0; i < 4; i++) {
             int[] b = iconBounds(i);
@@ -3063,15 +3063,15 @@ public class ModScreen extends Screen {
             // killer560 (2026-10-14): his channel at the top, and Sweat Mode right next to Check Updates. 2026-10-15: Reboot
             // came off (the /reboot command stays), leaving eight - a 4x2 grid.
             // 2026-10-16: tools on the top row (Edit HUD, Edit Bars, Check Updates, Sweat Mode), links below (YouTube,
-            // Discord, GitHub, Features Doc).
+            // Website, Discord, GitHub).
             b.add(editorButton("Edit HUD", com.killer560.hub.hud.HudEditorScreen::new));
             b.add(editorButton("Edit Bars", com.killer560.hub.hud.HudEditorScreen::forBars));
             b.add(new HomeButton("Check Updates", () -> com.killer560.hub.gui.tab.AutoUpdateTab.checkNow(() -> { })));
             b.add(new HomeButton(HOME_SWEAT, com.killer560.hub.util.SweatMode::enter));
             b.add(new HomeButton("YouTube", () -> com.killer560.hub.util.ExternalOpen.uri(YOUTUBE_URL)));
+            b.add(new HomeButton("Website", () -> com.killer560.hub.util.ExternalOpen.uri(WEBSITE_URL)));
             b.add(new HomeButton("Discord", () -> com.killer560.hub.util.ExternalOpen.uri(DISCORD_URL)));
             b.add(new HomeButton("GitHub", () -> com.killer560.hub.util.ExternalOpen.uri(GITHUB_URL)));
-            b.add(new HomeButton("Features Doc", () -> com.killer560.hub.util.ExternalOpen.uri(FEATURES_URL)));
             return b;
         }
 
