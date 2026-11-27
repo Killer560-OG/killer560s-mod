@@ -10,6 +10,7 @@ import com.killer560.hub.livemap.autoclear.TeleportUtils;
 import com.killer560.hub.pathfinding.ShortWalk;
 import com.killer560.hub.secrets.DungeonState;
 import com.killer560.hub.util.BodyAim;
+import com.killer560.hub.util.ChatObserver;
 import com.killer560.hub.util.FeatureGuard;
 import com.killer560.hub.util.ModLog;
 import com.killer560.hub.witherdoors.WitherDoorsFeature;
@@ -83,8 +84,32 @@ public final class GreenRoomStart {
     private static BlockPos goal;
     private static BlockPos testGoal;
     private static String result = "idle";
+    /** Why it is not acting yet, last logged (one line per change, never per tick). */
+    private static String lastWait;
+    /** The world (identity hash) whose "Starting in 1 second." line came: the run starts in a second, nothing new begins. */
+    private static int lastSecondLevel;
 
     private GreenRoomStart() {
+    }
+
+    /** Boot (cheat build): listens for the countdown's last line, the point after which a new warp would land in the run. */
+    static void register() {
+        ChatObserver.subscribe(m -> {
+            if ("Starting in 1 second.".equals(ChatObserver.strip(m))) {
+                lastSecondLevel = System.identityHashCode(Minecraft.getInstance().level);
+            }
+        });
+    }
+
+    private static boolean lastSecond(Minecraft client) {
+        return lastSecondLevel != 0 && lastSecondLevel == System.identityHashCode(client.level);
+    }
+
+    private static void waiting(String why) {
+        if (!why.equals(lastWait)) {
+            lastWait = why;
+            LOGGER.info("[GreenRoomStart] not acting yet: {}", why);
+        }
     }
 
     /** An autopilot armed in the green room: walk to the door's front while the run has not started. */
@@ -93,6 +118,7 @@ public final class GreenRoomStart {
             registered = true;
             ClientTickEvents.START_CLIENT_TICK.register(FeatureGuard.start("GreenRoomStart.tick", GreenRoomStart::tick));
         }
+        lastWait = null;
         done = false;
         warpTried = false;
         warpMisses = 0;
@@ -106,6 +132,13 @@ public final class GreenRoomStart {
     /** Test hook (hx: no Entrance there): the next arm walks to {@code feet} instead of the door's front; null clears. */
     public static void testGoal(BlockPos feet) {
         testGoal = feet;
+    }
+
+    private static boolean testUnidentified;
+
+    /** Test hook: the dungeon reads as not identified yet (the join second) until cleared. */
+    public static void testUnidentified(boolean v) {
+        testUnidentified = v;
     }
 
     /** Test hook: what the last arm did (armed, warping, warped, warp missed, walking, arrived, you moved, ...). */
@@ -127,9 +160,22 @@ public final class GreenRoomStart {
             return;
         }
         LocalPlayer p = client.player;
-        if (p == null || client.level == null || !armed() || WitherDoorsFeature.runStarted() || !DungeonState.isInDungeon()
-                || LiveMapFeature.isInBoss()) {
+        if (p == null || client.level == null || !armed() || WitherDoorsFeature.runStarted() || LiveMapFeature.isInBoss()) {
             end(p, armed() ? "the run started" : "switched off");
+            return;
+        }
+        if (testUnidentified || !DungeonState.isInDungeon()) {
+            // Armed while the world was still loading (his key in the join second, 11-27 runs 3 and 6): the sidebar names
+            // the floor a few ticks later, so wait for it, never give the arm up. The arming feature ends on a world change.
+            if (warping || walking) {
+                end(p, "left the dungeon");
+            } else {
+                waiting("the dungeon is not identified yet (the sidebar is not read)");
+            }
+            return;
+        }
+        if (!warping && !walking && lastSecond(client)) {
+            end(p, "the run starts in a second (\"Starting in 1 second.\" was already said) - the autopilot takes over");
             return;
         }
         if (hisInput(client.options)) {
@@ -178,18 +224,25 @@ public final class GreenRoomStart {
     }
 
     private static void start(Minecraft client, LocalPlayer p) {
-        retryIn = 20;   // the world scan may not have the door yet: asked again in a second
-        if (!p.onGround() || ShortWalk.isActive()) {
+        retryIn = 4;   // the world scan may not have the door yet: asked again in four ticks
+        if (!p.onGround()) {
+            waiting("not on the ground yet");
+            return;
+        }
+        if (ShortWalk.isActive()) {
+            waiting("another walk is running");
             return;
         }
         if (!warpTried && startWarp(client, p)) {
             return;
         }
         if (!ShortWalk.mixinApplied()) {
+            waiting("the walk helper is not applied");
             return;
         }
         BlockPos to = testGoal != null ? testGoal : doorFront(p);
         if (to == null) {
+            waiting("no Entrance door in the map's layout within a room of him yet");
             return;
         }
         double off = Math.hypot(to.getX() + 0.5 - p.getX(), to.getZ() + 0.5 - p.getZ());
@@ -225,18 +278,22 @@ public final class GreenRoomStart {
     private static boolean startWarp(Minecraft client, LocalPlayer p) {
         if (!AutoSecretConfig.getInstance().isGreenRoomWarp()) {
             warpTried = true;
+            LOGGER.info("[GreenRoomStart] Warp to Door Before Start is off - walking");
             return false;
         }
-        String skip = ItemIdentity.findEtherwarpSlot(p) < 0 ? "no etherwarp item in the hotbar"
-                : ClearExecutor.isBusy() ? "the map's warp runner is busy" : null;
-        if (skip != null) {
+        if (ItemIdentity.findEtherwarpSlot(p) < 0) {
             warpTried = true;
-            LOGGER.info("[GreenRoomStart] no warp to the gate ({}) - walking", skip);
+            LOGGER.info("[GreenRoomStart] no warp to the gate (no etherwarp item in the hotbar) - walking");
             return false;
+        }
+        if (ClearExecutor.isBusy()) {
+            waiting("the map's warp runner is busy");   // asked again in four ticks, not a reason to walk
+            return true;
         }
         BlockPos[] stands = testGoal != null ? new BlockPos[]{testGoal} : gateStands(p);
         if (stands == null) {
-            return false;   // the door is not scanned yet: asked again on the walk's retry
+            waiting("no Entrance door in the map's layout within a room of him yet");
+            return true;   // asked again in four ticks
         }
         warpTried = true;
         Vec3 eye = p.position().add(0, TeleportUtils.eyeHeight(true), 0);
@@ -440,6 +497,7 @@ public final class GreenRoomStart {
         if (!done) {
             done = true;
             result = why;
+            LOGGER.info("[GreenRoomStart] ended: {}", why);
         }
     }
 }

@@ -44,6 +44,7 @@ public final class DungeonsAutopilot {
             return;
         }
         ClientTickEvents.END_CLIENT_TICK.register(FeatureGuard.end("DungeonsAutopilot.tick", DungeonsAutopilot::tick));
+        GreenRoomStart.register();
     }
 
     public static boolean isOn() {
