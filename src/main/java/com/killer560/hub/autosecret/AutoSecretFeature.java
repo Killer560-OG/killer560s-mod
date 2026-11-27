@@ -1209,7 +1209,7 @@ public final class AutoSecretFeature {
         boolean quizTrip = QuizPlan.wanted() && !QuizPlan.gaveUp() && !com.killer560.hub.puzzlesolvers.QuizState.done()
                 && !com.killer560.hub.puzzlesolvers.QuizState.started();
         boolean iceTrip = !iceFillTried && AutoSecretConfig.getInstance().isIceFillFirst()
-                && AutoSecretConfig.getInstance().isDoPuzzles() && AutoPuzzlesConfig.getInstance().isAutoIceFillEnabled()
+                && AutoSecretConfig.getInstance().isDoPuzzles() && Autopilot.iceFillAuto()
                 && !Autopilot.iceFillWaitsForQuiz(rooms, true);
         RoomStatus.Room ice = null;
         for (RoomStatus.Room r : rooms) {
@@ -1232,7 +1232,7 @@ public final class AutoSecretFeature {
         }
         if (iceFillTried || !AutoSecretConfig.getInstance().isIceFillFirst()
                 || pilot && !AutoSecretConfig.getInstance().isDoPuzzles()
-                || !AutoPuzzlesConfig.getInstance().isAutoIceFillEnabled() || Autopilot.iceFillWaitsForQuiz(rooms, pilot)) {
+                || !Autopilot.iceFillAuto() || Autopilot.iceFillWaitsForQuiz(rooms, pilot)) {
             return false;
         }
         for (RoomStatus.Room r : rooms) {

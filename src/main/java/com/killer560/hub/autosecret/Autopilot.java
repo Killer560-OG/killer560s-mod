@@ -1299,11 +1299,17 @@ final class Autopilot {
         return (int) Math.min(120, Math.max(30, puzzleSeconds(name) * 3));
     }
 
+    /** Auto Ice Fill and the Ice Fill Solver it reads are both on: with the solver off it only waits, so no trip there. */
+    static boolean iceFillAuto() {
+        return AutoPuzzlesConfig.getInstance().isAutoIceFillEnabled()
+                && com.killer560.hub.puzzlesolvers.IceFillSolverConfig.getInstance().isEnabled();
+    }
+
     /** Whether Auto Puzzles has this puzzle's auto switched on (the master toggle included). */
     static boolean autoFor(String name) {
         AutoPuzzlesConfig a = AutoPuzzlesConfig.getInstance();
         return switch (name.toLowerCase(Locale.ROOT)) {
-            case "ice fill" -> a.isAutoIceFillEnabled();
+            case "ice fill" -> iceFillAuto();
             case "ice path" -> a.isAutoIcePathEnabled();
             case "higher blaze", "lower blaze" -> a.isAutoBlazeEnabled();
             case "creeper beams" -> a.isAutoBeamsEnabled();
