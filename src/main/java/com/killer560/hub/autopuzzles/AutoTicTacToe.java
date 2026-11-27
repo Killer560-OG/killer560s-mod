@@ -499,6 +499,8 @@ final class AutoTicTacToe {
         if (McCompat.screen(client) != null) {
             if (chestStage == ChestStage.AURA) {
                 advanceChest(ChestStage.WALK_BACK, "the chest's window opened");
+            } else if (chestStage == ChestStage.WALK_BACK && com.killer560.hub.util.ChestWindows.closeOwn(client)) {
+                return; // the window of the chest it grabbed: closed, not waited on (rewardchest-screen-stall-1126)
             } else {
                 chestHold("a screen is open");
             }

@@ -338,6 +338,9 @@ public final class AutoBoulder {
                 sawContainer = true;
             }
             releaseKeys(client);
+            if (sawContainer && com.killer560.hub.util.ChestWindows.closeOwn(client)) {
+                return true; // the chest window Secret Aura opened for this step: closed, not waited on (rewardchest-screen-stall-1126)
+            }
             waitFor("a screen is open (stage " + stage + (sawContainer ? ", counted as the chest's window" : "") + ")");
             return true;
         }

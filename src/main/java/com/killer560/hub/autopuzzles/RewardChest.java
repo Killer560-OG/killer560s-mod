@@ -70,6 +70,10 @@ final class RewardChest {
     private final Set<BlockPos> opened = new HashSet<>();
     private final Set<BlockPos> warpTried = new HashSet<>();
     private boolean clickedAwaitingScreen = false;
+    /** The window of the chest this step opened is on screen: closed next tick, never waited on (rewardchest-screen-stall-1126). */
+    private int ownWindow = 0;
+    /** Ticks a window that arrived but is not on screen yet is waited for (Auto Close Chest off: the screen follows the packet). */
+    private static final int OWN_WINDOW_WAIT = 10;
     /** {@link com.killer560.hub.util.ChestWindows#count} as the last click went out. */
     private int windowMark = 0;
     /** The last click's prediction sequence, which the server acks once it has handled it. */
@@ -166,6 +170,7 @@ final class RewardChest {
         opened.clear();
         warpTried.clear();
         clickedAwaitingScreen = false;
+        ownWindow = 0;
         windowMark = 0;
         everFound = false;
         hops = 0;
@@ -210,6 +215,25 @@ final class RewardChest {
         if (clickedAwaitingScreen && target != null && com.killer560.hub.util.ChestWindows.since(windowMark)) {
             done(target, McCompat.screen(client) != null ? "its window opened" : "its window arrived (not shown)");
             return;
+        }
+        if (ownWindow > 0) {
+            // The chest window this step opened itself (Auto Close Chest off) is not a screen to wait on: close it the way
+            // Escape does and carry on. Only a screen the player opened is respected below.
+            boolean closed = com.killer560.hub.util.ChestWindows.closeOwn(client);
+            if (closed) {
+                LOGGER.info("[AutoPuzzles] {}: closed the chest window it opened", tag);
+            }
+            ownWindow = closed || McCompat.screen(client) != null ? 0 : ownWindow - 1;
+            if (ownWindow > 0) {
+                return; // its window has not come up yet
+            }
+            if (opened.size() >= maxChests) {
+                finish("done");
+                return;
+            }
+            if (closed) {
+                return;
+            }
         }
         if (McCompat.screen(client) != null) {
             // Any other screen (the Interactive Map, chat, a menu) is not the chest's window: only a chest window that
@@ -461,7 +485,9 @@ final class RewardChest {
                         + " {} of {} done elapsedTicks={}", tag, AutoPuzzleUtil.fmt(chest), why, clicks, sinceClick,
                 opened.size(), maxChests, elapsed());
         target = null;
-        if (opened.size() >= maxChests) {
+        ownWindow = why.startsWith("its window")
+                && !com.killer560.hub.autoclosechest.AutoCloseChestConfig.getInstance().isEnabled() ? OWN_WINDOW_WAIT : 0;
+        if (opened.size() >= maxChests && ownWindow == 0) {
             finish("done");
         }
     }

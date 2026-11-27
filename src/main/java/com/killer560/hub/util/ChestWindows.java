@@ -66,6 +66,20 @@ public final class ChestWindows {
     /** Whether a chest window has arrived since {@code mark} (an earlier {@link #count}). */
     public static boolean since(int mark) { return count != mark; }
 
+    /**
+     * Closes the chest window on screen the way Escape does (the normal close-container packet). For a step that opened
+     * that window itself: it must never wait on it forever when Auto Close Chest is off (rewardchest-screen-stall-1126).
+     * @return whether a chest window was open and is now closed
+     */
+    public static boolean closeOwn(net.minecraft.client.Minecraft client) {
+        if (com.killer560.hub.compat.McCompat.screen(client) instanceof net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?> s
+                && s.getMenu() instanceof net.minecraft.world.inventory.ChestMenu) {
+            s.onClose();
+            return true;
+        }
+        return false;
+    }
+
     /** Hypixel's whole answer to a click on a chest it keeps shut (a puzzle's reward before the puzzle is done). */
     public static final String LOCKED_LINE = "That chest is locked!";
     private static volatile int locked;
