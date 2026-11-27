@@ -817,6 +817,8 @@ his hotbar slot back (never behind a use in one server tick), or his next right 
   (seeds a target 8 door steps from its warp room) failed on origin for days because this fix (674df3c46, acplan-1121) never
   reached a ready line, and the case never turned Auto Routes on, which plain Auto Secret needs to start ("Turn Auto Routes on
   first"). A "pre-existing" sim failure may be a case whose partner commit was dropped: check `git branch --contains` first.
+
+- A failed Auto Clear trip while the floor graph is still warming (GO just opened the gate; a loaded PC) is no proof: the planner ran out of time ("not a proof of no way ... timedOut true ... warm false"), and each retry also pauses the warm-up. Four such failures in 2 s gave the wither door up for good (acflakes-1126, entrance-exit floor 1). They are not counted (6 per run) and the next trip waits for EtherwarpPathfinder.searchReady() (the QUICK graph warm), 10 ticks at most; testkit 1126-sim-ac-coldtrip. The first version waited up to 40 ticks for fullWarm(): the full graph was never warm within 40 ticks of GO under load, so every cold failure cost the whole wait and he left the Entrance at tick 54-56 (1126-sim-ac-entrance-exit's limit is 40; lane1126-2333, acdrops-1127); the retry that then worked planned on the quick graph. Wait for the graph the next search will use, not the best one.
 - Insta clear room value (autopilot-instaclear-roomcost-1126, killer560 2026-11-26: "insta-clearing is going to 100% of
   the time be faster than clearing a room itself ... don't just go based off of room size ... Slime is awful ... Cathedral
   is very simple"): the planner had one flat clear guess for every room, so a heavy room's insta clear was worth no more

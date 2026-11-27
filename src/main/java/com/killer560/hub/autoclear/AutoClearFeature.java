@@ -7,6 +7,7 @@ import com.killer560.hub.livemap.LiveMapFeature;
 import com.killer560.hub.livemap.autoclear.AutoClearUtils;
 import com.killer560.hub.livemap.autoclear.ClearExecutor;
 import com.killer560.hub.livemap.autoclear.DungeonMapPathfinder;
+import com.killer560.hub.livemap.autoclear.EtherwarpPathfinder;
 import com.killer560.hub.livemap.autoclear.TeleportUtils;
 import com.killer560.hub.mobesp.MobEspFeature;
 import com.killer560.hub.pathfinding.ShortWalk;
@@ -117,6 +118,11 @@ public final class AutoClearFeature {
     private static int mobTicks = 0;
     private static int noMobTicks = 0;
     private static int pathFailures = 0;
+    /** Failed trips not counted because the floor graph was still warming, since the run started or a give-up. */
+    private static int coldFails = 0;
+    private static long coldWaitUntil = Long.MIN_VALUE;
+    static final int MAX_COLD_FAILS = 6;
+    static final int COLD_WAIT_TICKS = 10;
     private static int hopTicks = 0;
     /** Ticks since the last Hyperion cast's use while its landing is not yet stood on (-1: none pending), the fall its
      *  landing was predicted, and the learned cost of a cast past that fall (use, dash, landing seen; ~3 measured). */
@@ -495,6 +501,8 @@ public final class AutoClearFeature {
         mobTicks = 0;
         noMobTicks = 0;
         pathFailures = 0;
+        coldFails = 0;
+        coldWaitUntil = Long.MIN_VALUE;
         blockedDoor = -1;
         hopsOffFor = -1;
         roomMobs = List.of();
@@ -912,6 +920,19 @@ public final class AutoClearFeature {
             }
             noMobTicks = 0;
             travelStarted = false;
+        }
+        if (travelStarted && failed && coldFails < MAX_COLD_FAILS && !EtherwarpPathfinder.fullWarm()) {
+            // The floor graph is still warming (the gate just opened, a loaded PC): its "nothing" ran out of time and is
+            // no proof, and the next try at once only starves the warm-up. The four tries went in 2 s and gave the door
+            // up for good (entrance-exit-giveup-1126). Not counted: the next trip waits until a search is quick again (the
+            // quick graph warm), 10 ticks at most - the full graph is not warm 40 ticks after GO either, and a 40-tick wait
+            // kept him in the Entrance past 1126-sim-ac-entrance-exit's 40 ticks (acdrops-1127).
+            coldFails++;
+            coldWaitUntil = ClearExecutor.clientTick() + COLD_WAIT_TICKS;
+            LOGGER.info("[AutoClear] trip {} failed while the floor graph is still warming up - not counted ({} of {}),"
+                    + " trying again once it is warm", action, coldFails, MAX_COLD_FAILS);
+            travelStarted = false;
+            return true;
         }
         if (travelStarted && failed) {
             pathFailures++;
@@ -3243,6 +3264,7 @@ public final class AutoClearFeature {
         blockedDoor = doorTarget;
         blockedRoom = layout.currentRoom();
         pathFailures = 0;
+        coldFails = 0;
         say(ModChat.bad("No way to the wither door"), ModChat.dim(" - " + why + ", leaving it until something changes"));
         LOGGER.info("[AutoClear] gave up on wither door {}: {} - waiting for a new room or lock", doorTarget, why);
         lastReason = "wither door " + doorTarget + ": " + why;
@@ -5146,6 +5168,9 @@ public final class AutoClearFeature {
                 phase = Phase.RELEASE;
                 return;
             }
+        }
+        if (ClearExecutor.clientTick() < coldWaitUntil && !EtherwarpPathfinder.searchReady()) {
+            return;   // a trip failed on the cold graph: let the quick graph finish warming first (tripEnded)
         }
         ClearExecutor.setExternalOwner(true);
         boolean started = trip.getAsBoolean();

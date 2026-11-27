@@ -111,6 +111,11 @@ public final class EtherwarpPathfinder {
         return !known;
     }
 
+    /** {@link #searchReady(double)} on the range the floor graph was built for. */
+    public static boolean searchReady() {
+        return searchReady(graphRange);
+    }
+
     /** Whether the full floor graph is warm (a quick-graph plan is worth planning again once it is). Any thread. */
     public static boolean fullWarm() {
         FloorGraphs g = graph;

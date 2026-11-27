@@ -17,7 +17,8 @@
      "The mod menu's Home page has a Website button (killer560smod.pages.dev) in place of Features Doc, and the features icon in the header and the README now go to the website's features page, since the features Google Doc is retired",
      "Dungeon sim: the Three Weirdos solved line now reads as Hypixel sends it, \"wasn't fooled by\" and the NPC; the Puzzle HUD names who solved Three Weirdos from that line, and Score Calculator no longer counts a Blaze puzzle from a party chat message.",
      "Dungeons Autopilot: the warp onto the stand by the Entrance gate in the green room now also happens when you switch it on while the dungeon is still loading, and it never starts in the last second before the run",
-     "Dungeons Autopilot and Auto Clear: while the first warp waits for the entrance gate to open, your own item stays in your hand and your right clicks go with it; the warp item comes out only as the gate opens, with no extra tick"
+     "Dungeons Autopilot and Auto Clear: while the first warp waits for the entrance gate to open, your own item stays in your hand and your right clicks go with it; the warp item comes out only as the gate opens, with no extra tick",
+     "Auto Clear no longer gives up on the wither door when its first trips fail right as the run starts on a busy PC: it waits for its warp map to be ready and tries again; trap room routes no longer stop when a walk ends pressed against a block: the walk is planned again from where you stand"
     ]
    }
   ]

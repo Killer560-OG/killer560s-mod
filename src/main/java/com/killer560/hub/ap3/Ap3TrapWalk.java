@@ -109,6 +109,13 @@ public final class Ap3TrapWalk {
     /** The align finish: its ticks, ticks at rest on the point, and the sneak the last tick installed. */
     private static int alignTicks;
     private static int settleTicks;
+    /** The align's closest error so far and its tick, and the walks planned again from an align a block held. */
+    private static double alignBest;
+    private static int alignBestAt;
+    private static int rewalks;
+    /** An align that has not come 0.01 closer in this many ticks while a block holds him walks again (at most twice). */
+    private static final int STUCK_TICKS = 10;
+    private static final int MAX_REWALKS = 2;
     private static boolean lastSneak;
     /** A saved walk led into by an align onto its start ({@link #endLead}), and the pair's own gate meanwhile. */
     private static SavedWalk lead;
@@ -146,6 +153,7 @@ public final class Ap3TrapWalk {
         ticks = 0;
         alignTicks = 0;
         settleTicks = 0;
+        rewalks = 0;
         lastSneak = false;
         retryIn = RETRY_EVERY;
         acceptFrom = SEQ.get() + 1;
@@ -203,6 +211,7 @@ public final class Ap3TrapWalk {
         ticks = 0;
         alignTicks = 0;
         settleTicks = 0;
+        rewalks = MAX_REWALKS;   // an ALIGN node has no walk to plan again
         lastSneak = false;
         retryIn = RETRY_EVERY;
         acceptFrom = SEQ.get() + 1;
@@ -507,11 +516,35 @@ public final class Ap3TrapWalk {
             return null;
         }
         settleTicks = 0;
+        if (alignTicks == 1 || err < alignBest - 0.01) {
+            alignBest = err;
+            alignBestAt = alignTicks;
+        } else if (lead == null && rewalks < MAX_REWALKS && player.horizontalCollision
+                && alignTicks - alignBestAt >= STUCK_TICKS) {
+            // The align steers a straight line and knows no blocks: a walk that ended off its line under a loaded PC (its
+            // re-plans out of time) left him pressed on a block face 0.8 off for the whole timeout, and the route stopped
+            // (traproutes-oldtrap-r90-flake-1126). The walk planner sees the blocks: plan the rest from here.
+            rewalks++;
+            LOGGER.info("[TrapWalk] {}: the align is held by a block at ({}, {}), {} off for {} tick(s) - walking it again"
+                    + " ({} of {})", label, f(player.getX()), f(player.getZ()), String.format(Locale.US, "%.4f", err),
+                    alignTicks - alignBestAt, rewalks, MAX_REWALKS);
+            phase = Phase.WALKING;
+            plan = null;
+            predicted = null;
+            planning = false;
+            retryIn = 0;
+            acceptFrom = SEQ.get() + 1;
+            return null;
+        }
         if (alignTicks > cfg.getAlignTimeoutTicks()) {
             if (still && Math.abs(ex) <= gate.halfW && Math.abs(ez) <= gate.halfL) {
                 arrive(String.format(Locale.US, "align timed out after %d tick(s) at rest %.4f off, inside the node",
                         alignTicks, err));
             } else {
+                LOGGER.info("[TrapWalk] {}: align gives up at ({}, {}, {}) onto ({}, {}), speed {}, against a block {}, on"
+                                + " the ground {}", label, f(player.getX()), f(player.getY()), f(player.getZ()), f(gate.x),
+                        f(gate.z), String.format(Locale.US, "%.4f", vel.horizontalDistance()), player.horizontalCollision,
+                        player.onGround());
                 refuse(String.format(Locale.US, "couldn't align on the node (%.4f blocks off after %d ticks)",
                         err, alignTicks));
             }
