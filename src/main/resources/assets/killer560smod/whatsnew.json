@@ -7,7 +7,8 @@
     "title": "More",
     "blurb": "Changes in this update.",
     "items": [
-     "Autopilot insta clears pick better rooms: it no longer swaps a big room it meant to insta clear for a small one whose way runs through the big room (which then only got passed through and killed), it still takes a small room first when the way to the next room would show it, and a kill visit to a room already shown on the map no longer counts as a failed insta clear entry."
+     "Autopilot insta clears pick better rooms: it no longer swaps a big room it meant to insta clear for a small one whose way runs through the big room (which then only got passed through and killed), it still takes a small room first when the way to the next room would show it, and a kill visit to a room already shown on the map no longer counts as a failed insta clear entry.",
+     "Auto Routes: a server correction while you fall through a Dungeon Breaker node's blocks (the New Trap fall) or land from it no longer posts a chat line or plays the correction alarm; it is still followed and logged, and corrections anywhere else alert as before."
     ]
    }
   ]

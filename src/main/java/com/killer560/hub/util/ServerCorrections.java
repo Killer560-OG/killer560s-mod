@@ -46,6 +46,18 @@ public final class ServerCorrections {
     }
 
     /**
+     * A correction he asked not to be alerted to (killer560, 2026-11-27, Auto Routes' breaker fall: "Just don't have it
+     * alert me of a flag"): honored and carried on from as every other, logged and counted, but no chat line and no alarm.
+     */
+    public static void reportQuiet(String feature, String what, double distance) {
+        synchronized (ServerCorrections.class) {
+            reports++;
+        }
+        LOGGER.info("[Correction] {}: server moved you {} blocks {} (no chat line, no alarm)", feature,
+                String.format(Locale.US, "%.2f", distance), what);
+    }
+
+    /**
      * The same chat line + alarm for something that is not a measured move but is handled by the same rule - the server
      * never putting him where an action was sent to (an etherwarp that did not land).
      *

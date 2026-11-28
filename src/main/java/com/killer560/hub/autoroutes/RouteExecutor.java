@@ -1349,7 +1349,11 @@ public final class RouteExecutor {
         }
         RouteTrace.correction(traceIndex(activeNode), activeNode == null ? "-" : traceWhat(activeNode),
                 self == null ? null : self.position(), ServerCorrections.lastMoveDistance(), what);
-        ServerCorrections.report("Auto Routes", what, ServerCorrections.lastMoveDistance());
+        if (breakerFallQuiet()) {
+            ServerCorrections.reportQuiet("Auto Routes", what + " in a breaker fall", ServerCorrections.lastMoveDistance());
+        } else {
+            ServerCorrections.report("Auto Routes", what, ServerCorrections.lastMoveDistance());
+        }
         RouteRotation.rebase();
         cameraGraceTicks = Math.max(cameraGraceTicks, 3);
     }
@@ -6757,6 +6761,25 @@ public final class RouteExecutor {
         lingerLevel = null;
     }
 
+    /** The last game tick he was falling while a breaker node's blocks still stood (newtrap-fall-no-alert-1127). */
+    private static long breakerFallTick = Long.MIN_VALUE;
+    /** Ticks past a round trip after the fall in which its last correction (the landing) still counts as the fall's. */
+    private static final int FALL_QUIET_TAIL_TICKS = 4;
+
+    /**
+     * A correction now is the breaker fall's (killer560, 2026-11-27, the New Trap fall: "Just don't have it alert me of a
+     * flag"): he fell through a breaker node's blocks this tick, or within a round trip and {@link #FALL_QUIET_TAIL_TICKS}
+     * of it (landing on a block the server had already broken is corrected one round trip later). Nowhere else.
+     */
+    private static boolean breakerFallQuiet() {
+        net.minecraft.client.multiplayer.ClientLevel level = Minecraft.getInstance().level;
+        if (level == null || breakerFallTick == Long.MIN_VALUE) {
+            return false;
+        }
+        long since = level.getGameTime() - breakerFallTick;
+        return since >= 0 && since <= (com.killer560.hub.util.PingTracker.automationMs() + 49) / 50 + FALL_QUIET_TAIL_TICKS;
+    }
+
     /** Every client tick from the feature, whether a route runs or not. See the fields above. */
     static void tickBreakerLinger(Minecraft client) {
         if (lingerNode == null) {
@@ -6766,6 +6789,9 @@ public final class RouteExecutor {
         if (player == null || client.level == null || client.level != lingerLevel) {
             clearBreakerLinger("world change");
             return;
+        }
+        if (!lingerBlocks.isEmpty() && !player.onGround() && player.getDeltaMovement().y < 0) {
+            breakerFallTick = client.level.getGameTime();
         }
         if (running && activeNode == lingerNode) {
             return; // the node itself is still breaking
