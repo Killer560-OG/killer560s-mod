@@ -1820,7 +1820,10 @@ public final class AutoSecretFeature {
                     || r.isType("FAIRY")) {
                 continue;
             }
-            if (InstaClearTracker.knownEntries(r.name()).isEmpty()) {
+            // A room the map already shows is no insta clear attempt (instaclear-pick-1127: its kill visits no longer
+            // count against an entry, so they must not be tried as one either).
+            if (InstaClearTracker.knownEntries(r.name()).isEmpty()
+                    || !com.killer560.hub.roomsim.SimState.isActive() && !Autopilot.unshown(layout, r)) {
                 continue;
             }
             com.killer560.hub.autoclear.KeyRooms.Guard guard = com.killer560.hub.autoclear.KeyRooms.guardOf(layout, r.room());

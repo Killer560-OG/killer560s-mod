@@ -26,7 +26,8 @@ import java.util.TreeMap;
  * room entry or by a test's fake one.
  *
  * <p>One {@link Obs} per room entry. Only three outcomes count: {@link Outcome#INSTA} is a success, {@link
- * Outcome#KILLED} and {@link Outcome#NO_CLEAR} are failures, and everything else (no starred mobs, room already
+ * Outcome#KILLED} and {@link Outcome#NO_CLEAR} are failures (only on an entry that could insta clear, {@link
+ * Obs#attempt}), and everything else (no starred mobs, room already
  * cleared, no dungeon map, flip not observable) is kept for the record but proves nothing either way. A manual
  * {@code verdict} (set by killer560 with the removed {@code /autosecret instaclear mark}) overrides the measured outcome.
  *
@@ -96,6 +97,13 @@ final class InstaClearStore {
 
         Outcome effective() {
             return verdict != null ? verdict : outcome;
+        }
+
+        /** The entry could have insta cleared: the map had not shown the room yet (or its state is unknown). A kill
+         *  visit to a room the map already showed (instaclear-pick-1127: 1,705 KILLED "discovered" and 496 "unopened"
+         *  in his file, against 16 "undiscovered") never tried one, so it is no failure of that entry. */
+        boolean attempt() {
+            return !"unopened".equals(before) && !"discovered".equals(before) && !"failed".equals(before);
         }
 
         JsonObject toJson() {
@@ -269,7 +277,7 @@ final class InstaClearStore {
         Outcome e = o.effective();
         if (e != null && e.success()) {
             c[0]++;
-        } else if (e != null && e.failure()) {
+        } else if (e != null && e.failure() && (o.verdict != null || o.attempt())) {
             c[1]++;
         } else {
             c[2]++;

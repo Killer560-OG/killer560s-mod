@@ -1,5 +1,18 @@
 [
  {
+  "date": "2026-11-28",
+  "summary": "Autopilot insta clears pick better rooms: it no longer swaps",
+  "sections": [
+   {
+    "title": "More",
+    "blurb": "Changes in this update.",
+    "items": [
+     "Autopilot insta clears pick better rooms: it no longer swaps a big room it meant to insta clear for a small one whose way runs through the big room (which then only got passed through and killed), it still takes a small room first when the way to the next room would show it, and a kill visit to a room already shown on the map no longer counts as a failed insta clear entry."
+    ]
+   }
+  ]
+ },
+ {
   "date": "2026-11-27",
   "summary": "Dungeons Autopilot: Allow Insta Clearing now values each roo",
   "sections": [

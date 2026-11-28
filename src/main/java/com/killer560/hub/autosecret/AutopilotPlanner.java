@@ -717,22 +717,21 @@ public final class AutopilotPlanner {
         if (best == null) {
             return c;
         }
-        double net = sh.instaSaving().get(best.room()) - detour(t, best.room(), c.pick().room());
+        double net = instaNet(best, c.pick().room(), all, t, sh, from, shownOnTheWay(sh.neighbours(), from, c.pick().room()));
         return new Choice(best, String.format(Locale.US, "insta clear %s first: the way to %s would show it on the map"
                 + " (saves %.1f s net)", best.room(), c.pick().room(), net), c.ranked(), fronted(c.tour(), best));
     }
 
     /** The credited insta room the trip from {@code from} to {@code at} would show (on the door path or next to it) whose
-     *  saving beats the detour most, or null. Pure, for the testkit. */
+     *  saving beats the detour most, or null. Pure, for the testkit. The way to that room shows rooms too: a credited
+     *  room it goes through that the trip to {@code at} would not show (or {@code at} itself) loses its saving, off the
+     *  net (instaclear-pick-1127, his 11-27 F7s: Slime's 4.3 s insta clear was swapped for Dome's and Default's, whose
+     *  trips went through Slime, and Slime was then killed by hand in 4.8 s). */
     public static Candidate instaBefore(String at, List<Candidate> all, Travel t, Shape sh, String from) {
         if (sh.instaSaving().isEmpty() || at == null) {
             return null;
         }
-        java.util.Set<String> shown = new java.util.HashSet<>(sh.neighbours().getOrDefault(at, List.of()));
-        for (String p : doorPath(sh.neighbours(), from, at)) {
-            shown.add(p);
-            shown.addAll(sh.neighbours().getOrDefault(p, List.of()));
-        }
+        java.util.Set<String> shown = shownOnTheWay(sh.neighbours(), from, at);
         Candidate best = null;
         double bestNet = 0;
         for (Candidate k : all) {
@@ -740,13 +739,48 @@ public final class AutopilotPlanner {
             if (k.kind() != Kind.CLEAR || save == null || k.room().equals(at) || k.teammateInside() || !shown.contains(k.room())) {
                 continue;
             }
-            double net = save - detour(t, k.room(), at);
+            double net = instaNet(k, at, all, t, sh, from, shown);
             if (net > bestNet) {
                 best = k;
                 bestNet = net;
             }
         }
         return best;
+    }
+
+    /** {@code k}'s saving less the detour and less the savings of the credited rooms its own way goes through that the
+     *  way to {@code at} would not show, and {@code at}'s own when that way goes through it or {@code k} is next to it.
+     *  Only rooms passed through, not their neighbours: a warp past a room's door rarely stands there long enough to show
+     *  it, and counting them gave up swaps that held more insta clears (instapick-fix-1127: on 1126-sim-instacost-all
+     *  Gravel stayed behind Flags, was shown, and the run insta cleared 3-4 of 8 armed rooms where origin did 6).
+     *  {@code shown}: {@link #shownOnTheWay} to {@code at}. */
+    private static double instaNet(Candidate k, String at, List<Candidate> all, Travel t, Shape sh, String from,
+                                   java.util.Set<String> shown) {
+        double net = sh.instaSaving().get(k.room()) - detour(t, k.room(), at);
+        java.util.Set<String> byK = new java.util.HashSet<>(doorPath(sh.neighbours(), from, k.room()));
+        if (sh.neighbours().getOrDefault(k.room(), List.of()).contains(at)) {
+            byK.add(at);
+        }
+        for (Candidate x : all) {
+            Double lost = sh.instaSaving().get(x.room());
+            if (x.kind() == Kind.CLEAR && lost != null && !x.room().equals(k.room()) && byK.contains(x.room())
+                    && (x.room().equals(at) || !shown.contains(x.room()))) {
+                net -= lost;
+            }
+        }
+        return net;
+    }
+
+    /** The rooms a trip from {@code from} to {@code at} shows on the map: those on its door path, their neighbours and
+     *  {@code at}'s own, never {@code at} itself. */
+    private static java.util.Set<String> shownOnTheWay(Map<String, List<String>> neighbours, String from, String at) {
+        java.util.Set<String> shown = new java.util.HashSet<>(neighbours.getOrDefault(at, List.of()));
+        for (String p : doorPath(neighbours, from, at)) {
+            shown.add(p);
+            shown.addAll(neighbours.getOrDefault(p, List.of()));
+        }
+        shown.remove(at);
+        return shown;
     }
 
     /** What going through {@code via} first adds: the leg from it on to {@code at} beyond the straight trip. The trip into

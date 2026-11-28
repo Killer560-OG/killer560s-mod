@@ -660,8 +660,11 @@ final class Autopilot {
         }
         current = p;
         // Only a room holding a shut door's key drops one at its last death; any other clear has nothing to wait for.
+        // A Blood First rush room counts too: a quick clear ends before the map shows the door its key opens (guardOf is
+        // still null then), and the key came 0.3-0.6 s after the clear while another room was already planned.
         clearHoldsKey = p.kind() == AutopilotPlanner.Kind.CLEAR && room != null
-                && com.killer560.hub.autoclear.KeyRooms.guardOf(layout, room.room()) != null;
+                && (com.killer560.hub.autoclear.KeyRooms.guardOf(layout, room.room()) != null
+                || p.rushIndex() >= 0 && com.killer560.hub.autoclear.KeyRooms.mayHoldKey(layout, room.room()));
         clearMayDropKey = p.kind() == AutopilotPlanner.Kind.CLEAR && room != null
                 && com.killer560.hub.autoclear.KeyRooms.mayHoldKey(layout, room.room());
         // A failure noted while no action was open (after closeAction, say) belongs to no action, not to this one.
