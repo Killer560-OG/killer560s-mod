@@ -214,7 +214,7 @@ public final class EtherwarpPathfinder {
 
     /**
      * {@link #chainExists} spread over ticks: each {@link #step} searches for a slice and carries on where the last one
-     * stopped (Auto Clear's way-out check, acpocket-perf-1124: one 25 ms search was a frame hitch). Client thread only.
+     * stopped (Auto Clear's way-out check). Started on the client thread; then one other thread may step it (its own grid).
      */
     public static final class ChainProbe {
         private final EtherSearch search;

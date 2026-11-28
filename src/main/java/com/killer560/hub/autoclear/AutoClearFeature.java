@@ -160,27 +160,50 @@ public final class AutoClearFeature {
     private static final int EXIT_CHECK_MAX = 256;
     /** The one-room warp search's budget for a way out; running out of it counts as a way out (never a guess against). */
     private static final long EXIT_SEARCH_MS = 25;
-    /** One tick's share of that search, in ns (acpocket-perf-1124: the whole 25 ms at once was a frame hitch). */
-    private static long exitSliceNs = 2_000_000L;
+    /** For the testkit: the way-out thread waits this long before each search (a loaded PC), so a trip surely asks first. */
+    private static volatile long exitDelayMs = 0;
 
-    /** For the testkit: a shorter slice, so a search surely takes several ticks (the wait for its verdict is tested). */
-    public static void exitSliceNsForTest(long ns) {
-        exitSliceNs = ns;
+    public static void exitDelayMsForTest(long ms) {
+        exitDelayMs = ms;
     }
 
-    /** A way-out chain search spread over ticks; the block counts as having a way out until it finishes. */
+    /**
+     * Way-out searches run here, off the client thread (ptam-wayout-budget, his 11-27 Mage clear: run as 2 ms slices one
+     * a tick, each search out of time took 12 ticks, and the trips that waited for them stood idle 47+29+12 ticks). Two
+     * daemon threads, made on first use; a search reads only its own grid, like the planner's.
+     */
+    private static final class ExitPool {
+        static final java.util.concurrent.ExecutorService POOL = java.util.concurrent.Executors.newFixedThreadPool(2, r -> {
+            Thread t = new Thread(r, "killer560smod-wayout");
+            t.setDaemon(true);
+            return t;
+        });
+    }
+
+    /** A way-out chain search on the way-out thread; a trip onto its block waits for the answer (a tick, mostly none). */
     private static final class ExitProbe {
         final BlockPos stand;
         final BlockPos from;
-        final com.killer560.hub.livemap.autoclear.EtherwarpPathfinder.ChainProbe search;
-        long spentNs;
-        long maxNs;
-        int slices;
+        final int askedTick;
+        final java.util.concurrent.Future<Boolean> verdict;
+        volatile long spentNs;
+        /** The client thread's share: starting the search and handing it over. */
+        long clientNs;
 
         ExitProbe(BlockPos stand, BlockPos from, com.killer560.hub.livemap.autoclear.EtherwarpPathfinder.ChainProbe search) {
             this.stand = stand;
             this.from = from;
-            this.search = search;
+            this.askedTick = exitTick;
+            this.verdict = ExitPool.POOL.submit(() -> {
+                long delay = exitDelayMs;
+                if (delay > 0) {
+                    Thread.sleep(delay);
+                }
+                long t = System.nanoTime();
+                Boolean r = search.step(EXIT_SEARCH_MS * 1_000_000L);
+                spentNs = System.nanoTime() - t;
+                return r;
+            });
         }
     }
 
@@ -188,35 +211,45 @@ public final class AutoClearFeature {
     private static final String WAITING_EXIT = "waiting for a way-out check";
     /** The block a mob's trip last waited on for its way-out verdict (see {@link #exitPending}). */
     private static BlockPos exitHeld = null;
+    /** Client ticks counted by {@link #exitProbeTick}, for how long a verdict took. */
+    private static int exitTick = 0;
+    /** The most ticks one way-out verdict took after it was asked, this session (testkit: one or none). */
+    private static int exitMaxWaitTicks = 0;
 
-    /** The longest single way-out search slice this room's checks ran, in ms (testkit: stays a few ms). */
+    /** The longest the client thread spent starting one way-out search, in ms (testkit: stays a few ms). */
     private static double exitMaxSliceMs = 0;
 
     public static double exitMaxSliceMs() {
         return exitMaxSliceMs;
     }
 
-    /** One slice of the oldest pending way-out search, every tick (client thread). */
+    public static int exitMaxWaitTicks() {
+        return exitMaxWaitTicks;
+    }
+
+    /** Takes in every way-out verdict that came back, every tick (client thread). */
     private static void exitProbeTick() {
-        ExitProbe p = exitProbes.peek();
-        if (p != null && exitStep(p)) {
-            exitProbes.poll();
+        exitTick++;
+        if (!exitProbes.isEmpty()) {
+            exitProbes.removeIf(AutoClearFeature::exitStep);
         }
     }
 
-    /** One slice of {@code p}; true once it has an answer (or ran out of its 25 ms, which counts as a way out). */
+    /** Records {@code p}'s verdict; true once it has one (a search out of its 25 ms counts as a way out). */
     private static boolean exitStep(ExitProbe p) {
-        long t = System.nanoTime();
-        Boolean r = p.search.step(exitSliceNs);
-        long d = System.nanoTime() - t;
-        p.spentNs += d;
-        p.slices++;
-        p.maxNs = Math.max(p.maxNs, d);
-        exitMaxSliceMs = Math.max(exitMaxSliceMs, d / 1e6);
-        if (r == null && p.spentNs < EXIT_SEARCH_MS * 1_000_000L) {
+        if (!p.verdict.isDone()) {
             return false;
         }
-        String ms = String.format(Locale.US, "%.1f ms, %d slice(s), longest %.1f ms", p.spentNs / 1e6, p.slices, p.maxNs / 1e6);
+        Boolean r;
+        try {
+            r = p.verdict.get();
+        } catch (Exception e) {
+            r = null;
+        }
+        int waited = exitTick - p.askedTick;
+        exitMaxWaitTicks = Math.max(exitMaxWaitTicks, waited);
+        String ms = String.format(Locale.US, "%.1f ms on the way-out thread, %.1f ms on the client thread, answered %d tick(s)"
+                + " after it was asked", p.spentNs / 1e6, p.clientNs / 1e6, waited);
         if (r == Boolean.FALSE) {
             noExitStands.add(p.stand);
             LOGGER.info("[AutoClear] no way out of {}: no warp, walk or warp chain from it leads back to {} ({}) - never landing"
@@ -238,16 +271,19 @@ public final class AutoClearFeature {
     }
 
     /**
-     * Whether {@code stand}'s way-out search is still running; its search goes to the front so the verdict comes next.
+     * Whether {@code stand}'s way-out search is still running (an answer already back is taken in here).
      * A trip onto such a block waits for it (acquiz-two-fails-1127: on a loaded PC the first 2 ms slice did not answer,
      * the block counted as having a way out, and the trip landed him in the Dragon pocket 0.5 s into the clear).
      */
     private static boolean exitPending(BlockPos stand) {
-        for (ExitProbe p : exitProbes) {
+        for (java.util.Iterator<ExitProbe> it = exitProbes.iterator(); it.hasNext(); ) {
+            ExitProbe p = it.next();
             if (p.stand.equals(stand)) {
-                if (p != exitProbes.peek()) {
-                    exitProbes.remove(p);
-                    exitProbes.addFirst(p);
+                if (exitStep(p)) {
+                    // Answered since the tick began: go now if it has a way out; a block with none is held this tick so
+                    // the caller's next pass reads the verdict (returning false here sent a trip onto a proved trap).
+                    it.remove();
+                    return noExitStands.contains(stand);
                 }
                 return true;
             }
@@ -295,8 +331,9 @@ public final class AutoClearFeature {
             LOGGER.info("[AutoClear] way out of {} back to {}: {}", stand.toShortString(), from.toShortString(), way);
             return false;
         }
-        // The warp chain search runs a slice a tick; until it answers, a trip onto the block waits (exitPending), and
+        // The warp chain search runs on the way-out thread; until it answers, a trip onto the block waits (exitPending), and
         // noExitStands/the later calls carry the verdict (a search out of time counts as a way out).
+        long t = System.nanoTime();
         var chain = com.killer560.hub.livemap.autoclear.EtherwarpPathfinder.ChainProbe.start(land, from, ClearExecutor.pathConfig(),
                 ClearExecutor.hopRange());
         if (chain == null) {
@@ -304,10 +341,9 @@ public final class AutoClearFeature {
             return false;
         }
         ExitProbe probe = new ExitProbe(stand.immutable(), from, chain);
-        if (exitProbes.isEmpty() && exitStep(probe)) {
-            return noExitStands.contains(stand);
-        }
+        probe.clientNs = System.nanoTime() - t;
         exitProbes.add(probe);
+        exitMaxSliceMs = Math.max(exitMaxSliceMs, probe.clientNs / 1e6);
         return false;
     }
     private static int roomsCleared = 0;
