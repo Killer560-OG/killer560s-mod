@@ -85,7 +85,7 @@ public class ZeroPingEtherwarpTab extends BaseTab {
             });
             y += ROW + 6;
             // Works For (killer560, 2026-11-11: "the only thing i should have to select is auto routes, interactive map,
-            // auto puzzles and manual"). Auto Routes is also the zero-ping chain of Auto Routes' etherwarp nodes.
+            // auto puzzles and manual"). Camera only: Auto Routes' warps chain a tick apart with or without it (2026-11-27).
             w.add(SectionHeaders.row(contentX, y, contentWidth, "Works For", true));
             y += 16;
             y = sourceRows(w, null, cfg::getWorksForSetting, cfg::setWorksFor, cfg, contentX, y, contentWidth,

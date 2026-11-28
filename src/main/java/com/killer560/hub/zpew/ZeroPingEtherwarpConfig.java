@@ -12,7 +12,7 @@ import java.util.EnumMap;
  *
  * <p>Since zpewunify-1111 (killer560, 2026-11-11: "remove the zero ping stuff from auto routes ... have it all come from
  * zpew") this is also where Auto Routes' old Zero Ping Chain and Charged Chain live: Zero Ping Etherwarp working for Auto
- * Routes is the zero-ping chain, Multi Warps working for Auto Routes (or the Interactive Map) is the Charged Chain.
+ * Routes was the zero-ping chain until 2026-11-27 (the chain is always on now), Multi Warps working for Auto Routes (or the Interactive Map) is the Charged Chain.
  * Both lists have the same four sources ({@link ZpewSource.Group}); Multi Warps never needs Zero Ping Etherwarp's switch.
  */
 public final class ZeroPingEtherwarpConfig {

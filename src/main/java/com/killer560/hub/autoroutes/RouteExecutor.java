@@ -902,6 +902,7 @@ public final class RouteExecutor {
             stoppedByUser = true;
         }
         clearZeroPing("route stopped: " + reason);
+        chainHoldUntil = Long.MIN_VALUE / 2;
         // A breaker node only keeps mining once it has FINISHED; stopped while it was still acting (waiting for charges,
         // say), or stopped by him (a fresh movement key, his click), it sends nothing more (96-ar-breakerwait pass 2).
         if (wasRunning && (activeNode != null && activeNode == lingerNode
@@ -1253,6 +1254,15 @@ public final class RouteExecutor {
             return;
         }
         RouteNode node = activeNode;
+        if (execTicks < chainHoldUntil && node != null && node.type == RouteNode.Type.PATH && hopIndex >= 0
+                && step != Step.CONFIRM) {
+            // A warp of the broken chain answered late: the pair flies from the hop nearest where that put him.
+            LOGGER.info("[AutoRoutes] position packet after a broken chain (moved {}) - a warp sent before the break; path "
+                    + "#{} flies from where it put him", String.format(Locale.US, "%.2f",
+                    ServerCorrections.lastMoveDistance()), route.indexOf(node) + 1);
+            loadHop(node, nearestHopOrigin(player, node));
+            return;
+        }
         if (node != null && node.type == RouteNode.Type.PATH && trapWalk) {
             // A walked trap-room pair has no teleport of its own: this is the server putting him back. Honored, never
             // fought, never a stop - AP3's walk planner plans the walk again from where he now is. Checked BEFORE the
@@ -1362,8 +1372,9 @@ public final class RouteExecutor {
     private static int nearestHopOrigin(LocalPlayer player, RouteNode node) {
         int best = 0;
         double bestD = Double.MAX_VALUE;
-        for (int i = 0; i < node.pathHops.size(); i++) {
-            RouteNode.PathHop h = node.pathHops.get(i);
+        List<RouteNode.PathHop> hs = hops(node);
+        for (int i = 0; i < hs.size(); i++) {
+            RouteNode.PathHop h = hs.get(i);
             double d = player.position().distanceTo(RouteCoords.toReal(frame, h.ox(), h.oy(), h.oz()));
             if (d < bestD) {
                 bestD = d;
@@ -3537,9 +3548,9 @@ public final class RouteExecutor {
         }
         if (hopIndex + 1 < hops(node).size()) {
             // The next hop goes on THIS tick (killer560, 2026-10-06: "in theory I should be able to teleport 20 times a
-            // second if there is no waiting"): tickWarp only returns true once the server's position packet has put him
-            // on the landing, so the next warp already aims from where the server has him. It used to sit out the
-            // interact delay first - 2 ticks per hop more than the landing itself.
+            // second if there is no waiting"): tickWarp returns true a tick after the use, the hop taken as landed on
+            // its predicted landing (zeroPingChainNow; the next warp aims from feet()), or with the server's position
+            // packet when it could not chain.
             loadHop(node, hopIndex + 1);
             tickPath(client, player, node);
             return;
@@ -3782,7 +3793,7 @@ public final class RouteExecutor {
         if (replansThisPair >= MAX_REPLANS) {
             return false;
         }
-        Vec3 eyeAt = player.position();
+        Vec3 eyeAt = feet(player);
         if (warpTarget != null && !RoutePathPlanner.reaches(eyeAt.x, eyeAt.y + TeleportUtils.eyeHeight(true), eyeAt.z,
                 warpTarget, com.killer560.hub.livemap.autoclear.ClearExecutor.hopRange() + 0.5)) {
             // Beyond his item's reach: that is Replan For My Range's call (off by default), not a block in the way.
@@ -4235,6 +4246,12 @@ public final class RouteExecutor {
                             + "{} tick(s), client shift {})", nodeTag(node), stepTicks, SNEAK_TIMEOUT,
                             player.isShiftKeyDown());
                 }
+                return false;
+            }
+            if (execTicks < chainHoldUntil) {
+                logHold("chainhold:" + traceIndex(node), "Etherwarp ({}): a chain broke {} tick(s) ago - nothing is sent "
+                        + "until its warps are answered ({} tick(s) left)", nodeTag(node),
+                        warpRoundTripTicks() - (chainHoldUntil - execTicks), chainHoldUntil - execTicks);
                 return false;
             }
             if (sneakReadyAge < 0) {
@@ -4827,7 +4844,7 @@ public final class RouteExecutor {
         if (node.type != RouteNode.Type.ETHERWARP || !node.hasPlaceEye || warpTarget == null || client.level == null) {
             return false;
         }
-        Vec3 eye = new Vec3(player.getX(), player.getY() + TeleportUtils.eyeHeight(true), player.getZ());
+        Vec3 eye = feet(player).add(0, TeleportUtils.eyeHeight(true), 0);
         double range = Math.max(1.0, com.killer560.hub.pathfinding.EtherwarpHopper.range());
         TeleportUtils.RaycastResult shot = TeleportUtils.getEtherPos(eye, warpYaw, warpPitch, range);
         BlockPos in = shot.pos();
@@ -4898,7 +4915,7 @@ public final class RouteExecutor {
         if (hopIndex < 0 || target == null || client.level == null) {
             return false;
         }
-        Vec3 eye = new Vec3(player.getX(), player.getY() + TeleportUtils.eyeHeight(true), player.getZ());
+        Vec3 eye = feet(player).add(0, TeleportUtils.eyeHeight(true), 0);
         double range = Math.max(1.0, com.killer560.hub.pathfinding.EtherwarpHopper.range());
         TeleportUtils.RaycastResult shot = TeleportUtils.getEtherPos(eye, warpYaw, warpPitch, range);
         BlockPos waitOn = null;
@@ -7280,17 +7297,22 @@ public final class RouteExecutor {
      * from the landing itself (the old behavior for a warp in place).
      */
     /**
-     * Zero Ping Chain, in a warp's CONFIRM: take this warp as landed on its PREDICTED landing, now, so the next etherwarp
-     * node fires this tick from there - one warp a tick, no round trip per landing. Only when the option is on, obvious
-     * mode, a path-less route, an etherwarp node (not a path hop), nothing stacked, at least a tick after its own use (one
-     * use per tick, BadPacketsJ), no block click unpaired (util/RightClick), the predicted ray lands on the planned block,
-     * and the next node in order is a bare etherwarp (no await, nothing stacked on it) whose ring holds the predicted
-     * landing. The warp goes on the in-flight list; {@link #zeroPingPacket} checks it when the server's teleport comes.
+     * The chain, in a warp's CONFIRM: take this warp as landed on its PREDICTED landing, now, so the next warp fires this
+     * tick from there - one warp a tick, no round trip per landing. Always (killer560, 2026-11-27: "the etherwarp shoudnt
+     * rely on zero ping it should always be 1 tick"; until then only with Zero Ping Etherwarp working for Auto Routes, and
+     * never for a path's hops: 144 ticks over 73 pairs in his run that night). Only the aim uses the prediction: he is
+     * never moved, his position stays the server's. Obvious mode, a path-less route, at least a tick after its own use
+     * (one use per tick, BadPacketsJ), no block click unpaired (util/RightClick), the predicted ray lands on the planned
+     * block, and what fires next is this path's next hop, or (an etherwarp node, nothing stacked) a bare etherwarp node
+     * (no await, nothing stacked on it) whose ring holds the predicted landing. A pair's last hop and a chain's last node
+     * wait for the server. The warp goes on the in-flight list; {@link #zeroPingPacket} checks it when the teleport comes.
      */
     private static boolean zeroPingChainNow(LocalPlayer player, RouteNode node) {
         AutoRoutesConfig cfg = AutoRoutesConfig.getInstance();
-        if (!cfg.isZeroPingChain() || stepTicks < 1 || hopIndex >= 0 || node.type != RouteNode.Type.ETHERWARP
-                || route == null || !route.path().isEmpty() || !stackQueue.isEmpty() || warpTarget == null
+        boolean hop = node.type == RouteNode.Type.PATH && hopIndex >= 0 && hopIndex + 1 < hops(node).size();
+        if (cfg.isLegitMode() || stepTicks < 1 || execTicks < chainHoldUntil
+                || !(hop || hopIndex < 0 && node.type == RouteNode.Type.ETHERWARP && stackQueue.isEmpty())
+                || route == null || !route.path().isEmpty() || warpTarget == null
                 || actionOrigin == null || warpEaten || com.killer560.hub.util.RightClick.unpaired()) {
             return false;
         }
@@ -7310,6 +7332,15 @@ public final class RouteExecutor {
         double standY = com.killer560.hub.etherwarpoverlay.EtherwarpOverlayFeature.standYOn(Minecraft.getInstance().level,
                 warpTarget);
         Vec3 predicted = new Vec3(warpTarget.getX() + 0.5, standY + 0.05, warpTarget.getZ() + 0.5);
+        if (hop) {
+            inFlight.addLast(new InFlight(node, predicted, warpTarget, execTicks));
+            zpFeet = predicted;
+            zpChained++;
+            LOGGER.info("[AutoRoutes] Chain: {} hop {}/{} taken as landed on its prediction {} (block {}) {} tick(s) after "
+                            + "its use - the next hop fires now from there; {} warp(s) in flight", nodeTag(node), hopIndex + 1,
+                    hops(node).size(), fmt(predicted), warpTarget.toShortString(), stepTicks, inFlight.size());
+            return true; // tickPath loads the next hop, aimed from feet()
+        }
         // The next node in order, as finishAction will pick it.
         int at = stackTrigger == null ? ordered.indexOf(node) : ordered.indexOf(stackTrigger);
         int n = (at >= 0 ? at : nextNode) + 1;
@@ -7353,8 +7384,15 @@ public final class RouteExecutor {
         Vec3 pos = player.position();
         int idx = 0;
         int match = -1;
+        boolean exact = false;
+        // The server answers in order: the OLDEST warp he stands exactly on is the one answered (hops under two blocks
+        // apart, a ping-pong); only with none, the newest within the landing tolerance (an answer or two skipped).
         for (InFlight f : inFlight) {
-            if (pos.distanceTo(f.landing()) <= LANDING_TOLERANCE) {
+            double d = pos.distanceTo(f.landing());
+            if (d <= 0.3 && !exact) {
+                match = idx;
+                exact = true;
+            } else if (d <= LANDING_TOLERANCE && !exact) {
                 match = idx;
             }
             idx++;
@@ -7363,6 +7401,10 @@ public final class RouteExecutor {
             for (int i = 0; i <= match; i++) {
                 InFlight f = inFlight.pollFirst();
                 zpConfirmed++;
+                if (i == match) {
+                    noteLandingTicks((int) (execTicks - f.sentAt()));
+                    lastLandingAt = execTicks;
+                }
                 LOGGER.info("[AutoRoutes] Zero Ping Chain: {}'s landing confirmed by the server at {} ({} off the prediction, "
                                 + "{} tick(s) after its use); {} still in flight", nodeTag(f.node()), fmt(pos),
                         String.format(Locale.US, "%.2f", pos.distanceTo(f.landing())), execTicks - f.sentAt(), inFlight.size());
@@ -7385,12 +7427,31 @@ public final class RouteExecutor {
         }
         InFlight head = inFlight.peekFirst();
         zpBroken++;
-        reportCorrection(String.format(Locale.US, "during a zero ping chain: %s was predicted to land at %s, the server put "
+        reportCorrection(String.format(Locale.US, "during an etherwarp chain: %s was predicted to land at %s, the server put "
                         + "you %.1f blocks from it - carrying on from here", nodeTag(head.node()), fmt(head.landing()),
                 pos.distanceTo(head.landing())));
         clearZeroPing("server put him off the predicted landing");
-        letGoAfterCorrection(client, player);
+        chainBroken(client, player);
         return true;
+    }
+
+    /** Route tick until which nothing chains and no path hop is sent: the warps of a broken chain are still being answered. */
+    private static long chainHoldUntil = Long.MIN_VALUE / 2;
+
+    /**
+     * A chain broke (a correction, or a warp the server never answered): he is where the server has him, honored. The
+     * server may still answer warps sent before it knew, so nothing is sent for a round trip; then a path flies again from
+     * the hop whose origin is nearest him ({@link #tickWarp}'s AIM), and an etherwarp node is let go as after any
+     * correction. Never a stop.
+     */
+    private static void chainBroken(Minecraft client, LocalPlayer player) {
+        chainHoldUntil = execTicks + warpRoundTripTicks();
+        RouteNode node = activeNode;
+        if (node != null && node.type == RouteNode.Type.PATH && hopIndex >= 0 && !hops(node).isEmpty()) {
+            loadHop(node, nearestHopOrigin(player, node));
+        } else {
+            letGoAfterCorrection(client, player);
+        }
     }
 
     /**
@@ -7423,14 +7484,17 @@ public final class RouteExecutor {
     /** Every tick: a warp in flight the server never answered is a correction (reported, chain dropped, never fought). */
     private static void zeroPingTimeout(Minecraft client, LocalPlayer player) {
         InFlight head = inFlight.peekFirst();
-        if (head == null || execTicks - head.sentAt() <= LANDING_TIMEOUT + serverLagTicks()) {
+        // A path's hops are the planner's and fly again from where he is, so a hop the server dropped is called as soon
+        // as a refused warp is (twice the slowest recent landing); a node's warp keeps the landing timeout.
+        boolean path = head != null && head.node().type == RouteNode.Type.PATH;
+        if (head == null || execTicks - head.sentAt() <= (path ? refusedRetryTicks() : LANDING_TIMEOUT) + serverLagTicks()) {
             return;
         }
         zpBroken++;
-        ServerCorrections.reportEvent("Auto Routes", String.format(Locale.US, "zero ping chain: %s never landed (%d ticks) - "
+        ServerCorrections.reportEvent("Auto Routes", String.format(Locale.US, "etherwarp chain: %s never landed (%d ticks) - "
                 + "carrying on from here", nodeTag(head.node()), execTicks - head.sentAt()));
         clearZeroPing("a warp in flight never landed");
-        letGoAfterCorrection(client, player);
+        chainBroken(client, player);
     }
 
     private static boolean landed(LocalPlayer player, Vec3 landing) {

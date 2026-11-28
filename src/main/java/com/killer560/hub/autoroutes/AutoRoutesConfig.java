@@ -372,18 +372,6 @@ public final class AutoRoutesConfig {
     public static boolean legitModeSelectable() { return false; }
     public void setLegitMode(boolean v) { legitMode = v && legitModeSelectable(); }
 
-    /**
-     * Zero Ping Chain (killer560, 2026-10-25: zero ping etherwarp "for auto routes and such"): consecutive etherwarp nodes
-     * go one a tick, each aimed from the PREDICTED landing of the one before, instead of waiting a round trip for every
-     * landing. Obvious mode only. Driven by the Etherwarp tab since zpewunify-1111: Zero Ping Etherwarp on (and active
-     * here) and working for Auto Routes - or the Charged Chain, which fires its warps through the same chain.
-     */
-    public boolean isZeroPingChain() {
-        com.killer560.hub.zpew.ZeroPingEtherwarpConfig z = com.killer560.hub.zpew.ZeroPingEtherwarpConfig.getInstance();
-        return !isLegitMode() && (z.isActiveHere() && z.worksFor(com.killer560.hub.zpew.ZpewSource.AUTO_ROUTES)
-                || isChargedChain());
-    }
-
     /** Charged Chain (killer560, 2026-10-25: "multiple etherwarps in a tick for 0tick routes"): with Blink charging, a chain
      *  spends Blink's banked ticks to fire all its warps inside one real tick. The Etherwarp tab's Multi Warps for Auto
      *  Routes since zpewunify-1111; it never needs Zero Ping Etherwarp's switch. */
