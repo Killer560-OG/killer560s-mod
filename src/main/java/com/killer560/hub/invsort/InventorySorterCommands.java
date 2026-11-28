@@ -53,6 +53,10 @@ public final class InventorySorterCommands {
                                             InventorySorterExecutor.applyByName(StringArgumentType.getString(context, "name"));
                                             return 1;
                                         })))
+                        .then(ClientCommands.literal("binds").executes(context -> {
+                            openMenu(true);
+                            return 1;
+                        }))
                         .then(ClientCommands.literal("list").executes(context -> {
                             list();
                             return 1;
@@ -65,11 +69,16 @@ public final class InventorySorterCommands {
 
     /** Opens the layouts menu on the next task - the chat screen that ran the command closes itself first. */
     public static void openMenu() {
+        openMenu(false);
+    }
+
+    /** {@code slotBinds}: opened on its Slot Binds editor ({@code /invsort binds}). */
+    static void openMenu(boolean slotBinds) {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null) {
             return;
         }
-        client.execute(() -> client.setScreenAndShow(new InventorySorterScreen(null)));
+        client.execute(() -> client.setScreenAndShow(new InventorySorterScreen(null).editSlotBinds(slotBinds)));
     }
 
     private static void list() {

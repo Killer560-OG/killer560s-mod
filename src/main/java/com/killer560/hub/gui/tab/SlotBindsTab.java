@@ -10,10 +10,7 @@ import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.network.chat.Component;
 
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import com.killer560.hub.compat.McCompat;
 
 /** Slot Binds settings - see {@link com.killer560.hub.slotbinds.SlotBindsFeature}'s class doc for the
@@ -24,7 +21,11 @@ import com.killer560.hub.compat.McCompat;
  *  connecting line drawn in the inventory itself - see "Show Binds" below. */
 public class SlotBindsTab extends BaseTab implements KeyCaptureTab {
 
+    private static final long ARM_MS = 4000L;
+
     private boolean listening = false;
+    /** When Clear All Binds took its first click; the second within {@link #ARM_MS} clears. */
+    private long clearArmedAt;
 
     public SlotBindsTab() {
         super("Slot Binds");
@@ -84,6 +85,21 @@ public class SlotBindsTab extends BaseTab implements KeyCaptureTab {
 
         // (b) killer560, 2026-09-27: "remove the no binds yet section in the menu" - an empty list just
         // shows nothing below the toggles above instead of an explicit "No binds set yet." placeholder.
+
+        // slotbinds-multi-1128: every bind cleared at once, with a confirming second click.
+        boolean armed = System.currentTimeMillis() - clearArmedAt <= ARM_MS;
+        widgets.add(SettingsButtonWidget.builder(Component.literal(armed ? "Confirm"
+                        : "Clear All Binds: " + cfg.pairs().size()), btn -> {
+                    if (System.currentTimeMillis() - clearArmedAt > ARM_MS) {
+                        clearArmedAt = cfg.pairs().isEmpty() ? 0 : System.currentTimeMillis();
+                    } else {
+                        clearArmedAt = 0;
+                        cfg.clearBinds();
+                        cfg.save();
+                    }
+                    requestRebuild.run();
+                }).bounds(contentX, y, contentWidth, 18).danger(armed).build());
+        y += 26;
 
         return widgets;
     }

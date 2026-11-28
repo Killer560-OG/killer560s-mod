@@ -23,8 +23,6 @@ import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
-import java.util.Map;
-
 /**
  * Real inventory "Slot Binds" feature (simplified to a
  * single global bind list rather than the 6 profiles). Links two slots in your real vanilla
@@ -82,6 +80,14 @@ import java.util.Map;
  *   quick press - released within {@link #QUICK_PRESS_MS} with no drag - toggles protect on the item under
  *   the press. A press that dragged is a slot bind only. A slow hold with no drag does nothing.</li>
  * </ul>
+ * <p>
+ * <b>2026-11-28 many to one, quicker setup</b> (killer560: "slot binds should allow me to set multiple slots to one
+ * slot and it is a pain to set up"). A slot may be in several binds ({@link SlotBindsConfig#pairs}); a shift-click
+ * swaps with {@link SlotBindsConfig#partnerOf} (the partner it swapped with last, else its first bind), still one
+ * SWAP click sent from the click itself. Setup: while the bind key is HELD, a left click selects a slot and every
+ * further left click links or unlinks a slot with it ({@link SlotBindsConfig#setupClick}; the hotbar end stays
+ * selected); every bind is drawn and a hint line shows while the key is held. A press used for setup clicks does
+ * nothing on release. The Inventory Sorter screen edits the same binds.
  */
 public final class SlotBindsFeature {
 
@@ -105,6 +111,8 @@ public final class SlotBindsFeature {
         final long startMs;
         /** True when Protect Item uses this same key (decided at key-down). */
         final boolean sharedWithProtect;
+        /** True once a left click made a setup pick during this press: the release then does nothing else. */
+        boolean setup;
 
         Gesture(Slot startSlot, double startX, double startY, long startMs, boolean sharedWithProtect) {
             this.startSlot = startSlot;
@@ -174,9 +182,18 @@ public final class SlotBindsFeature {
             SlotBindsConfig cfg = SlotBindsConfig.getInstance();
             Slot hovered = accessor.killer560smod$getHoveredSlot();
 
+            if (gesture[0] != null && com.killer560.hub.compat.McInput.button(event) == 0
+                    && cfg.getBindKey() != KeyUtil.codeForMouseButton(0)) {
+                // Setup: the bind key is held, so a left click picks slots instead of moving items.
+                gesture[0].setup = true;
+                if (hovered != null) {
+                    pendingSlot[0] = cfg.setupClick(pendingSlot[0], hovered.index);
+                }
+                return false;
+            }
             if (hovered == null || !event.hasShiftDown() || hovered.index < 5 || hovered.index >= 45) return true;
-            Integer bound = cfg.getBinds().get(hovered.index);
-            if (bound == null) return true;
+            int bound = cfg.partnerOf(hovered.index);
+            if (bound == -1) return true;
             int from;
             int to;
             if (hovered.index >= 36 && hovered.index < 45) {
@@ -199,6 +216,7 @@ public final class SlotBindsFeature {
                     ((net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>) screen)
                             .getMenu().containerId,
                     from, to % 36, ContainerInput.SWAP, client.player);
+            cfg.noteSwap(hovered.index, bound);
             return false;
         });
 
@@ -220,16 +238,20 @@ public final class SlotBindsFeature {
                 return false;
             }
             boolean shared = ownsSharedKey(screen, code);
-            if (!shared && (hovered == null || hovered.index < 5 || hovered.index >= 45)) return true;
             // Nothing happens yet: the press is decided on key-up (see resolve), from where the cursor is then.
             gesture[0] = new Gesture(hovered, mouse[0], mouse[1], System.currentTimeMillis(), shared);
-            return false;
+            // Off a bindable slot the key still reaches the game, as before; held, it still opens setup clicks.
+            return !shared && (hovered == null || hovered.index < 5 || hovered.index >= 45);
         };
         java.util.function.IntPredicate bindRelease = code -> {
             SlotBindsConfig cfg = SlotBindsConfig.getInstance();
             if (gesture[0] == null || cfg.getBindKey() == -1 || code != cfg.getBindKey()) return true;
             Gesture held = gesture[0];
             gesture[0] = null;
+            if (held.setup) {
+                pendingSlot[0] = -1; // setup ends with the key; the binds were saved click by click
+                return false;
+            }
             Slot released = accessor.killer560smod$getHoveredSlot();
             resolve((AbstractContainerScreen<?>) screen, cfg, pendingSlot, held, released, mouse[0], mouse[1]);
             return false;
@@ -265,22 +287,22 @@ public final class SlotBindsFeature {
             return;
         }
         if (held.sharedWithProtect) {
-            if (held.startSlot != null && cfg.getBinds().containsKey(held.startSlot.index)) {
+            if (held.startSlot != null && cfg.isBound(held.startSlot.index)) {
                 pressBind(cfg, pendingSlot, held.startSlot.index); // first press on a bound slot only removes the bind
             } else if (heldMs < QUICK_PRESS_MS) {
                 ItemProtectFeature.toggleProtectFromSlot(held.startSlot);
             }
             return;
         }
-        if (held.startSlot != null) {
+        if (held.startSlot != null && held.startSlot.index >= 5 && held.startSlot.index < 45) {
             pressBind(cfg, pendingSlot, held.startSlot.index);
         }
     }
 
-    /** The single press of the bind key over {@code index}, as it has always worked: deletes the bind if the slot is
-     *  bound, otherwise arms it so the next press places the other end. */
+    /** The single press of the bind key over {@code index}, as it has always worked: deletes the slot's binds (all of
+     *  them, when it has several) if it is bound, otherwise arms it so the next press places the other end. */
     private static void pressBind(SlotBindsConfig cfg, int[] pendingSlot, int index) {
-        if (cfg.getBinds().containsKey(index)) {
+        if (cfg.isBound(index)) {
             // (c) killer560, 2026-09-27: "If i press the bind key while hoving a already created bind it should
             // delete it" - hovering a slot that's already bound deletes that bind pair instead of starting a new one.
             cfg.removeBind(index);
@@ -341,18 +363,12 @@ public final class SlotBindsFeature {
     }
 
     /** Second press of the bind key while a bind is pending: binds the pending slot to {@code target} when
-     *  the pair is legal (one end in the hotbar, a real inventory slot 5..44, not the same slot), otherwise
-     *  just cancels. Either way nothing is left pending. Public for the testkit (case 703). */
+     *  the pair is legal ({@link SlotBindsConfig#legal}) and new, keeping the binds either slot already has;
+     *  otherwise just cancels. Either way nothing is left pending. Public for the testkit (case 703). */
     public static boolean finishBind(SlotBindsConfig cfg, int[] pendingSlot, Integer target) {
         int first = pendingSlot[0];
         pendingSlot[0] = -1;
-        if (first == -1 || target == null || target < 5 || target >= 45 || target == first) return false;
-        boolean firstIsHotbar = first >= 36 && first < 45;
-        boolean secondIsHotbar = target >= 36 && target < 45;
-        if (!firstIsHotbar && !secondIsHotbar) {
-            return false; // neither slot is in the hotbar - not a legal vanilla SWAP pair (see class doc)
-        }
-        cfg.addBind(first, target);
+        if (first == -1 || target == null || !cfg.addBind(first, target)) return false;
         cfg.save();
         return true;
     }
@@ -390,21 +406,29 @@ public final class SlotBindsFeature {
             drawLink(graphics, sx + 8, sy + 8, (int) mouseX, (int) mouseY, color);
         }
 
-        if (cfg.getBinds().isEmpty()) return;
-        for (Map.Entry<Integer, Integer> entry : cfg.getBinds().entrySet()) {
-            // The map stores both directions of every pair (a->b and b->a) so shift-click lookup works
-            // from either end - only draw once per pair.
-            if (entry.getKey() >= entry.getValue()) continue;
-            Slot slotA = findSlot(screen, entry.getKey());
-            Slot slotB = findSlot(screen, entry.getValue());
+        // While a bind is being set up every bind shows, also in On Hover mode, with one line saying what a click does.
+        boolean setup = pendingSlot != -1
+                || (held != null && (held.setup || System.currentTimeMillis() - held.startMs >= QUICK_PRESS_MS));
+        if (setup) {
+            String hint = pendingSlot == -1 ? "Slot Binds: click a slot to select it"
+                    : "Slot Binds: click slots to link or unlink them";
+            net.minecraft.client.gui.Font font = Minecraft.getInstance().font;
+            com.killer560.hub.gui.MenuStyle.text(graphics, hint, leftPos + (176 - font.width(hint)) / 2,
+                    topPos - 11, com.killer560.hub.gui.MenuStyle.TXT);
+        }
+        boolean onHover = !setup && cfg.getOverlayMode() == SlotBindsConfig.OverlayMode.ON_HOVER;
+        java.util.List<int[]> pairs = cfg.pairs();
+        for (int i = 0; i < pairs.size(); i++) {
+            int[] pair = pairs.get(i);
+            Slot slotA = findSlot(screen, pair[0]);
+            Slot slotB = findSlot(screen, pair[1]);
             if (slotA == null || slotB == null) continue;
             int ax = leftPos + slotA.x;
             int ay = topPos + slotA.y;
             int bx = leftPos + slotB.x;
             int by = topPos + slotB.y;
 
-            if (cfg.getOverlayMode() == SlotBindsConfig.OverlayMode.ON_HOVER
-                    && !isHoveringSlot(mouseX, mouseY, ax, ay) && !isHoveringSlot(mouseX, mouseY, bx, by)) {
+            if (onHover && !isHoveringSlot(mouseX, mouseY, ax, ay) && !isHoveringSlot(mouseX, mouseY, bx, by)) {
                 continue;
             }
 
@@ -430,7 +454,7 @@ public final class SlotBindsFeature {
      *  ({@code livemap.MapPainter#drawArrow}), just translated once instead of every render row. Used
      *  both for a confirmed pair's slot-to-slot link and (while a bind is pending) the slot-to-cursor
      *  line, since both are just "a line between two points" to this method. */
-    private static void drawLink(GuiGraphicsExtractor graphics, int ax, int ay, int bx, int by, int color) {
+    public static void drawLink(GuiGraphicsExtractor graphics, int ax, int ay, int bx, int by, int color) {
         float dx = bx - ax;
         float dy = by - ay;
         float length = (float) Math.sqrt(dx * dx + dy * dy);

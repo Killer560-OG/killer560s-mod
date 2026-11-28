@@ -1338,7 +1338,7 @@ final class SettingTooltipsData {
         d.put("smooth teleport/other teleports", "Glide on Sinseeker Scythe and Aspect of the Leech teleports.");
         d.put("show when failed", "Also highlights the target when the etherwarp would fail.");
         d.put("full block box", "ON boxes the whole block; OFF follows its real shape.");
-        d.put("slot binds", "Links two inventory slots so shift-clicking one swaps them. Hold the bind key over a slot and release it over a hotbar slot to swap the two. If Protect Item uses the same key, a quick tap protects the item and a drag is only a swap.");
+        d.put("slot binds", "Links inventory slots to a hotbar slot so shift-clicking one swaps them; several slots can share one hotbar slot (shift-clicking the shared slot swaps with the one it swapped with last). Setup: hold the bind key and click a slot, then click each slot to link with it; click a linked slot to unlink it. Without a click, holding the key over a slot and releasing over a hotbar slot swaps the two. If Protect Item uses the same key, a quick tap protects the item and a drag is only a swap.");
         d.put("bind key", "Key to create or delete a bind: hover a slot and press it, then hover a second slot and press it again.");
         d.put("remove", "Deletes this slot bind pair.");
         d.put("chat commands", "Auto-replies to ! commands like !coords and !ping in the chat channels enabled below.");
@@ -2848,6 +2848,8 @@ final class SettingTooltipsData {
         d.put("health and mana bars/armor", "Always hides the vanilla armor points bar, whether Stat Bars is on or not.");
         d.put("health and mana bars/hunger", "Always hides the vanilla hunger bar, whether Stat Bars is on or not.");
         d.put("health and mana bars/held item name", "The item name vanilla shows over the hotbar when you switch slot. Hidden Over Bars: hidden only where it would cover one of these bars or texts. Hidden: always hidden. Shown: always shown.");
+        d.put("slot binds/clear all binds", "Removes every slot bind; asks for a second click to confirm. The number is how many binds you have. The items are not moved.");
+        d.put("slot binds/confirm", "Click again within four seconds to remove every slot bind.");
         d.put("slot binds/show binds", "Whether bound-slot borders are always drawn or only while your mouse is over one.");
         d.put("slot binds/border color", "Color of the border and line drawn on bound slots.");
         d.put("wither doors/wither doors", "Highlights the Wither and Blood doors your dungeon map shows, once the run has started. The nearest Wither door turns green once you have a Wither Key.");

@@ -103,6 +103,16 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
     private int listW;
     private int statusY;
 
+    /** Slot Binds editor (slotbinds-multi-1128): grid clicks edit {@code SlotBindsConfig}'s binds, not the layout. */
+    private boolean bindMode;
+    /** The container slot (5-44) selected in the Slot Binds editor, or -1. */
+    private int bindSel = -1;
+    /** When Clear Binds took its first click; the second within {@link #CLEAR_ARM_MS} clears. */
+    private long clearArmedAt;
+    private static final long CLEAR_ARM_MS = 4000L;
+    private SettingsButtonWidget bindModeButton;
+    private SettingsButtonWidget clearBindsButton;
+
     private com.killer560.hub.gui.CommitEditBox nameBox;
     private SettingsButtonWidget bindButton;
     private SettingsButtonWidget fetchButton;
@@ -127,6 +137,73 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         super(Component.literal("Inventory Sorter"));
         this.parent = parent;
         resetToInventory();
+    }
+
+    /** Turns the Slot Binds editor on or off: in it a left click on a grid slot selects it and every further click
+     *  links or unlinks a slot with the selected one ({@code SlotBindsConfig.setupClick}, the same rule as the
+     *  inventory's held bind key), a right click removes every bind of that slot. The binds are Slot Binds' own
+     *  (saved to its file at each click), never a copy. Public for tests and {@code /invsort binds}. */
+    public InventorySorterScreen editSlotBinds(boolean on) {
+        bindMode = on;
+        bindSel = -1;
+        clearArmedAt = 0;
+        held = -1;
+        heldPool = null;
+        pressedSlot = -1;
+        refreshBindModeButtons();
+        say(on ? "Click a slot, then the slots to link with it. Right click a slot: unlink it." : "", false);
+        return this;
+    }
+
+    public boolean editingSlotBinds() {
+        return bindMode;
+    }
+
+    /** One click of the Slot Binds editor on inventory index {@code slot} (0-35). Public for tests. */
+    public void bindClick(int slot, int button) {
+        com.killer560.hub.slotbinds.SlotBindsConfig binds = com.killer560.hub.slotbinds.SlotBindsConfig.getInstance();
+        int s = InventorySorterExecutor.toContainerSlot(slot);
+        int before = binds.pairs().size();
+        if (button == 1) {
+            if (binds.removeBind(s)) {
+                binds.save();
+            }
+            bindSel = -1;
+        } else {
+            bindSel = binds.setupClick(bindSel, s);
+        }
+        int now = binds.pairs().size();
+        say(now > before ? "Linked. " + now + " binds." : now < before ? "Unlinked. " + now + " binds."
+                : bindSel == -1 ? "Nothing selected." : "Selected " + slotName(slot)
+                + ": click the slots to link with it.", false);
+        refreshBindModeButtons();
+    }
+
+    /** Clear Binds: the first click arms it, the second within four seconds removes every bind. Public for tests. */
+    public void clearBindsClick() {
+        com.killer560.hub.slotbinds.SlotBindsConfig binds = com.killer560.hub.slotbinds.SlotBindsConfig.getInstance();
+        if (System.currentTimeMillis() - clearArmedAt > CLEAR_ARM_MS) {
+            clearArmedAt = binds.pairs().isEmpty() ? 0 : System.currentTimeMillis();
+            say(clearArmedAt == 0 ? "No binds to clear." : "Click Confirm to remove all " + binds.pairs().size()
+                    + " binds.", clearArmedAt != 0);
+        } else {
+            clearArmedAt = 0;
+            bindSel = -1;
+            binds.clearBinds();
+            binds.save();
+            say("All binds cleared.", false);
+        }
+        refreshBindModeButtons();
+    }
+
+    private void refreshBindModeButtons() {
+        if (bindModeButton == null) {
+            return;
+        }
+        bindModeButton.setMessage(Component.literal(bindMode ? "§aSlot Binds" : "Slot Binds"));
+        clearBindsButton.visible = bindMode;
+        boolean armed = System.currentTimeMillis() - clearArmedAt <= CLEAR_ARM_MS;
+        clearBindsButton.setMessage(Component.literal(armed ? "§cConfirm" : "Clear Binds"));
     }
 
     /** Fills the grid from the real inventory right now, every slot back in the layout. Public for tests. */
@@ -789,6 +866,14 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         refreshBindLabel();
         addRenderableWidget(SettingsButtonWidget.builder(Component.literal("Done"), b -> onClose())
                 .bounds(panelX + PANEL_W - 48, panelY + 4, 40, 14).build());
+        // The Slot Binds editor's switch and its Clear Binds (two clicks), left of Done.
+        bindModeButton = SettingsButtonWidget.builder(Component.literal("Slot Binds"), b -> editSlotBinds(!bindMode))
+                .bounds(panelX + PANEL_W - 48 - 4 - 62, panelY + 4, 62, 14).build();
+        addRenderableWidget(bindModeButton);
+        clearBindsButton = SettingsButtonWidget.builder(Component.literal("Clear Binds"), b -> clearBindsClick())
+                .bounds(panelX + PANEL_W - 48 - 4 - 62 - 4 - 66, panelY + 4, 66, 14).build();
+        addRenderableWidget(clearBindsButton);
+        refreshBindModeButtons();
     }
 
     /** {x, y, w, h} of a list row's Edit button; the row starts at {@code ry}, its name column is {@code nameW} wide.
@@ -827,7 +912,7 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         ScreenChrome.backdrop(graphics, this.width, this.height);
         ScreenChrome.frame(graphics, panelX, panelY, PANEL_W, PANEL_H);
         ScreenChrome.headerBar(graphics, panelX + 3, panelY + 2, PANEL_W - 6, 18, "Inventory Sorter");
-        MenuStyle.text(graphics, "layouts", panelX + 11 + this.font.width("Inventory Sorter") + 6, panelY + 7,
+        MenuStyle.text(graphics, bindMode ? "slot binds" : "layouts", panelX + 11 + this.font.width("Inventory Sorter") + 6, panelY + 7,
                 MenuStyle.DIM2);
         MenuStyle.text(graphics, "SAVED LAYOUTS", listX, gridY, MenuStyle.DIM);
         MenuStyle.text(graphics, "KEY", listX + listW - 1 - KEY_W / 2 - this.font.width("KEY") / 2, gridY, MenuStyle.DIM);
@@ -863,6 +948,31 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
             }
             if (over) {
                 graphics.fill(p[0] + 1, p[1] + 1, p[0] + SLOT - 1, p[1] + SLOT - 1, 0x40FFFFFF);
+            }
+        }
+
+        if (bindMode) {
+            // Every Slot Binds bind on the grid: a border on both slots and a line between them, in Slot Binds' own
+            // border color; the selected slot in the theme's accent with a line to the mouse.
+            com.killer560.hub.slotbinds.SlotBindsConfig binds = com.killer560.hub.slotbinds.SlotBindsConfig.getInstance();
+            List<int[]> pairs = binds.pairs();
+            for (int k = 0; k < pairs.size(); k++) {
+                int[] a = slotPos(pairs.get(k)[0] % 36);
+                int[] b = slotPos(pairs.get(k)[1] % 36);
+                graphics.outline(a[0], a[1], SLOT, SLOT, binds.getOverlayColor());
+                graphics.outline(b[0], b[1], SLOT, SLOT, binds.getOverlayColor());
+                com.killer560.hub.slotbinds.SlotBindsFeature.drawLink(graphics, a[0] + SLOT / 2, a[1] + SLOT / 2,
+                        b[0] + SLOT / 2, b[1] + SLOT / 2, binds.getOverlayColor());
+            }
+            if (bindSel != -1) {
+                int[] a = slotPos(bindSel % 36);
+                graphics.outline(a[0], a[1], SLOT, SLOT, MenuStyle.OR_HOVER);
+                com.killer560.hub.slotbinds.SlotBindsFeature.drawLink(graphics, a[0] + SLOT / 2, a[1] + SLOT / 2,
+                        mouseX, mouseY, MenuStyle.OR_HOVER);
+            }
+            if (clearArmedAt != 0 && System.currentTimeMillis() - clearArmedAt > CLEAR_ARM_MS) {
+                clearArmedAt = 0;
+                refreshBindModeButtons(); // the confirm ran out: back to "Clear Binds"
             }
         }
 
@@ -1011,6 +1121,12 @@ public class InventorySorterScreen extends Screen implements MenuThemedScreen {
         }
         int button = com.killer560.hub.compat.McInput.button(event);
         int slot = slotAt(event.x(), event.y());
+        if (bindMode && (slot >= 0 || poolAt(event.x(), event.y()) >= 0 || overPoolArea(event.x(), event.y()))) {
+            if (slot >= 0) {
+                bindClick(slot, button); // the layout editor's item moves are off while binds are edited
+            }
+            return true;
+        }
         if (heldPool != null && button == 1) {
             heldPool = null; // right click: put the picked-up item back
             pressedPool = false;

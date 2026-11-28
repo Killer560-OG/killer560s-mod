@@ -15,7 +15,8 @@
      "Auto Clear and the Dungeons Autopilot stand still less before a trip: the sneak for the next etherwarp is now pressed during the room's last Wither Impact, while a trip waits on its way-out check and just before a roam, the Autopilot picks its next target in the same tick a step ends, and a trip planned while you were still coming down onto a block no longer stands 5 ticks when its plan comes in late.",
      "Auto Clear with the Spirit Sceptre now spaces its casts at least 4 ticks apart, so every cast sends a bat; Hypixel ignored about 4 in 10 of the faster ones, and some mobs were left to a bat that never flew",
      "Auto Clear with the Spirit Sceptre now notices a cast that sent no bat (the server ignored it) and casts again instead of leaving the mob to a bat that never flew; the cast chain is also tested against your own right-clicks, swaps and clicks in the same tick",
-     "Dungeons Autopilot with Blood First now waits for a cleared room's key even when the room was cleared so fast that the map had not yet shown the door the key opens, instead of planning another room first."
+     "Dungeons Autopilot with Blood First now waits for a cleared room's key even when the room was cleared so fast that the map had not yet shown the door the key opens, instead of planning another room first.",
+     "Slot Binds: several slots can now be bound to the same slot (for example three inventory slots to hotbar slot 1). Setup is quicker: hold the bind key and click a slot, then click each slot to link with it (click a linked slot to unlink it); every bind is drawn while you set up, and Clear All Binds removes them all after a confirming click. Cheat build: the Inventory Sorter screen has a Slot Binds editor (the Slot Binds button, or /invsort binds) that shows and edits the same binds."
     ]
    }
   ]
