@@ -1129,6 +1129,10 @@ public final class AutoClearFeature {
                 // A mob known to be in the room (lost from view, or skipped from where he stood) is gone for at once;
                 // with none known the room is looked at a while first, as before.
                 int roamAfter = !known.isEmpty() ? ROAM_KNOWN_AFTER_TICKS : roamedAny ? ROAM_LOOK_TICKS : ROAM_AFTER_TICKS;
+                if (!roamDone && !doneWithoutMap && noMobTicks + 2 > roamAfter + lag) {
+                    // The roam's trip goes within two ticks: its sneak goes down now, heard by its first warp.
+                    primedWaitTicks += primeTrip() ? 1 : 0;
+                }
                 // Not cleared and nothing in sight: walk the room before giving up on it (killer560, 2026-10-19).
                 if (!roamDone && !doneWithoutMap && noMobTicks > roamAfter + lag
                         && roam(client, player, layout, room, known)) {
@@ -3144,6 +3148,7 @@ public final class AutoClearFeature {
         }
         if (exitPending(spot)) {
             action = WAITING_EXIT;
+            primedWaitTicks += primeTrip() ? 1 : 0;   // the roam trip goes once the check is in
             return true;
         }
         final double separation = bestD;
@@ -3224,6 +3229,7 @@ public final class AutoClearFeature {
             boolean noLand = noLandStands.contains(spot) || noExit(client, player, spot);
             if (!noLand && exitPending(spot)) {
                 action = WAITING_EXIT;
+                primedWaitTicks += primeTrip() ? 1 : 0;
                 return true;
             }
             action = "roaming " + roomName + " to " + k.name() + " (" + k.why() + ")";
@@ -3896,6 +3902,9 @@ public final class AutoClearFeature {
             }
             exitHeld = spot;
             action = WAITING_EXIT;
+            // The trip onto it goes once the check is in (tl1127-sneak-after-impact: 16 of 55 trips on the sim floor
+            // stood 1-2 ticks after it for their sneak).
+            primedWaitTicks += primeTrip() ? 1 : 0;
             return;
         }
         exitHeld = null;
@@ -5535,6 +5544,35 @@ public final class AutoClearFeature {
                 return;
             }
         }
+        // The blast reaches every mob left (tl1127-sneak-after-impact): its deaths end the room and the trip out of it
+        // is an etherwarp, so the sneak goes down now too (it stood 1-2 ticks before that trip's first warp). Not while a
+        // Secret Aura click is coming: a sneaking right click on the chest would be the held item's, not the chest's.
+        if (!roomMobs.isEmpty() && primeTrip()) {
+            primedLastCastTicks++;
+        }
+    }
+
+    /**
+     * The sneak down in this tick's input for an etherwarp trip that comes next ({@link ClearExecutor#primeSneak}): not
+     * while a Secret Aura click is coming (a sneaking right click on the chest is the held item's, not the chest's), nor
+     * under a held use of a weapon whose aim is not straight down (a repeat of it would leave from the crouched eye).
+     */
+    private static boolean primeTrip() {
+        return (!useHeld || AutoClearConfig.getInstance().getWeapon() == AutoClearConfig.Weapon.HYPERION && phase == Phase.ATTACK)
+                && !com.killer560.hub.cheatutils.SecretAuraFeature.clickDue(Minecraft.getInstance()) && ClearExecutor.primeSneak();
+    }
+
+    /** Ticks the room's last in-place Wither Impact held the sneak down for the trip out, ever - for the testkit. */
+    private static int primedLastCastTicks = 0;
+    /** Ticks a trip waiting on its way-out check, or the roam about to start, held the sneak down, ever - for the testkit. */
+    private static int primedWaitTicks = 0;
+
+    public static int primedLastCastTicks() {
+        return primedLastCastTicks;
+    }
+
+    public static int primedWaitTicks() {
+        return primedWaitTicks;
     }
 
     private static void holdUse(Minecraft client) {

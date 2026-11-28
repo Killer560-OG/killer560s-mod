@@ -664,6 +664,21 @@ public final class ClearExecutor {
                     replanWaitTicks = 0;
                     return;
                 }
+                if (result != null && !result.isEmpty() && gate == null && now != null && fellWhilePlanning(now.position(), from)) {
+                    // tl1127-sneak-after-impact: searched from the air as he came down onto the block below (Auto Clear
+                    // leaves while he settles) and handed back ticks later: he is under the plan's first spot, which stood
+                    // OFF_START_TICKS and then counted as a failed try (14 ticks for a 6 tick trip, 1127-sim-ac-tripfirstuse
+                    // on a landing half a block above a slab). Planned again from where he lands - not a failed try.
+                    fellReplans++;
+                    LOGGER.info("[Path] the plan from {} is stale (he came down to {} while it was searched) - planning again",
+                            fmt(from), fmt(now.position()));
+                    goalTo = to;
+                    goalTile = tileIdx;
+                    goalComplete = complete;
+                    replanPending = true;
+                    replanWaitTicks = 0;
+                    return;
+                }
                 if (result != null && result.isEmpty()) {
                     // Already standing where the click asked for (in the clicked tile, or on the block).
                     alreadyThere(to);
@@ -752,6 +767,21 @@ public final class ClearExecutor {
                 }
             });
         });
+    }
+
+    /** Straight down from where the search started, and out of its first spot's reach ({@link ClearNode#inside}). */
+    private static boolean fellWhilePlanning(Vec3 at, Vec3 from) {
+        double dx = at.x - from.x;
+        double dy = from.y - at.y;
+        double dz = at.z - from.z;
+        return dy > 0 && dx * dx + dz * dz < 1.0e-4 && dy * dy > 0.1;
+    }
+
+    /** Plans thrown away because he came down while they were searched ({@link #fellWhilePlanning}) - for the testkit. */
+    private static int fellReplans;
+
+    public static int fellReplans() {
+        return fellReplans;
     }
 
     /** A search's result was taken by the client thread's task queue between two ticks, not by a START's wait. */

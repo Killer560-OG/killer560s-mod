@@ -463,6 +463,7 @@ public final class AutoSecretFeature {
     }
 
     private static void tick(Minecraft client) {
+        endTicks++;
         if (phase == Phase.IDLE || stopChecks(client) || playerTookOver(client)) {
             return;
         }
@@ -474,6 +475,7 @@ public final class AutoSecretFeature {
         if (keyTarget != null && (phase == Phase.TRAVEL || phase == Phase.KEY_WAIT) && keyGone(client)) {
             return;
         }
+        Phase entry = phase;
         switch (phase) {
             case DECIDE -> decide(client);
             case TRAVEL -> tickTravel(client);
@@ -505,6 +507,22 @@ public final class AutoSecretFeature {
             default -> {
             }
         }
+        if (phase == Phase.DECIDE && entry != Phase.DECIDE) {
+            // A step that ended in this handler decides now (tl1127-sneak-after-impact): DECIDE waited for the next END,
+            // a dead tick before every such trip (45 in his 11-27 session), and its swap and sneak a tick after that.
+            sameTickDecides++;
+            decide(client);
+        }
+    }
+
+    /** Decisions made in the END handler that ended the step before, or at the START after it, ever - for the testkit. */
+    private static int sameTickDecides = 0;
+    /** END handler calls, and the one the last decision was made in (a START decides only a DECIDE set after that END). */
+    private static long endTicks;
+    private static long decideEnd = -1;
+
+    public static int sameTickDecides() {
+        return sameTickDecides;
     }
 
     // ------------------------------------------------------------------------------------------- route -> next trip
@@ -523,6 +541,12 @@ public final class AutoSecretFeature {
         }
         if (routeJustCompleted() && !com.killer560.hub.autopuzzles.AutoPuzzleActivity.isWorking()) {
             onRouteDone(client);
+        }
+        if (phase == Phase.DECIDE && decideEnd != endTicks && !stopChecks(client) && !holdForPuzzle() && !holdForMimic()) {
+            // DECIDE set after the last END (Auto Clear's hand-back runs after this handler's END): decided now, so the
+            // trip's sneak goes in this tick's input instead of a tick after the next END (tl1127-sneak-after-impact).
+            sameTickDecides++;
+            decide(client);
         }
     }
 
@@ -977,6 +1001,7 @@ public final class AutoSecretFeature {
     }
 
     private static void decide(Minecraft client) {
+        decideEnd = endTicks;
         blockedSecrets = null;
         // killer560, 2026-10-14: "if i have already used auto routes in a room during auto clear then it should treat
         // it as though I got every secret in the room even if it is missing one, since some rooms auto routes will
