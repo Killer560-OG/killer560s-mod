@@ -252,3 +252,12 @@ System property `killer560smod.test.clipboardfile=<path>`: Screenshot Copy and t
 `ClearExecutor.testGate(List<BlockPos>)`: the next queue run without a search (a direct one-warp trip) is held as a first
 trip through the shut entrance gate is, primed each tick and let go the tick every block is air (testkit
 1126-hx-firsttrip-gate-same-*, where the Hx server has no gate).
+
+`ClearExecutor.testLateSearch(boolean)`: while on, every etherwarp search hands its result back 60 ms late, so it misses
+the START's 4 ms wait and comes in between ticks (the late hand-back that tl1127-trip-firstuse sends from the next START;
+testkit 62-argrim-1127-same-latesearch-*). Switching it either way forgets a hand-back not yet sent, so a search left
+over from an earlier case is never counted in the next one.
+
+`ClearExecutor.testSearchEveryTrip(boolean)`: while on, no one-warp trip skips the planner (`etherDirectFast` declines),
+so every Auto Clear trip is searched. 62-argrim-1127-same-latesearch-* turn it on with testLateSearch: their arena's
+trips are all one straight warp, so without it no search ran and the late start was never reached (lane1127-1425).

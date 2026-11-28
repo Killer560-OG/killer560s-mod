@@ -30,7 +30,8 @@
      "Auto Trap routes in the Trap rooms no longer stall on a slow PC: a walk re-plan that ran out of time now gets more time on the next try.",
      "Dungeons Autopilot no longer goes to the Ice Fill room (and waits there) when the Ice Fill Solver is off.",
      "Auto Routes: a Dungeon Breaker node now always digs the blocks standing in its reach and only then fires the warp stacked on it; before, a node whose blocks were dug in an earlier run could read them as already broken, dig nothing and hold the warp. A breaker dig also waits a tick when your own click goes in that tick.",
-     "Dungeons Autopilot: new Auto Enable On Dungeon Entry switch (off by default) turns the Autopilot on by itself each time you enter a dungeon, as if you pressed it; once per run, so switched off during the run it stays off until your next dungeon"
+     "Dungeons Autopilot: new Auto Enable On Dungeon Entry switch (off by default) turns the Autopilot on by itself each time you enter a dungeon, as if you pressed it; once per run, so switched off during the run it stays off until your next dungeon",
+     "Auto Clear and Auto Secret: an etherwarp trip whose path search finishes between two ticks no longer stands still for up to 3 ticks before its first warp; the sneak goes down while the path is searched and the first warp goes the next tick."
     ]
    }
   ]

@@ -416,7 +416,7 @@ public final class ClearExecutor {
     public static boolean etherDirectFast(BlockPos to, Runnable complete) {
         Minecraft client = Minecraft.getInstance();
         LocalPlayer player = client.player;
-        if (player == null || client.level == null || pathPending || replanPending) {
+        if (player == null || client.level == null || pathPending || replanPending || testSearchEveryTrip) {
             return false;
         }
         Vec3 at = player.position();
@@ -569,6 +569,7 @@ public final class ClearExecutor {
             goalTile = tileIdx;
             goalComplete = complete;
             pathPending = true;
+            searchSneak = true;
             pendingGen = generation;
             pathPendingTicks = 0;
             lastPathFailed = false;
@@ -596,6 +597,7 @@ public final class ClearExecutor {
         pathPendingTicks = 0;
         lastPathFailed = false;
         tripQueued = true;
+        searchSneak = gate == null;
         java.util.concurrent.atomic.AtomicReference<Runnable> back = new java.util.concurrent.atomic.AtomicReference<>();
         searchBack = back;
         searchFuture = PLANNER.submit(() -> {
@@ -623,6 +625,13 @@ public final class ClearExecutor {
             tripQueued = false;   // searched: work that gave way to it may go on while the client thread takes the plan
             List<EtherwarpPathfinder.Node> result = path;
             String refused = EtherwarpPathfinder.lastRefusal;
+            if (testLateSearch) {
+                try {
+                    Thread.sleep(60);   // testkit: the result misses the START's wait and comes between ticks
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
             back.set(() -> {
                 if (gen == pendingGen) {
                     pathPending = false; // only the search that set it clears it
@@ -736,8 +745,56 @@ public final class ClearExecutor {
                     improveInBackground(list, to, tileIdx, layout);
                 }
             });
-            client.execute(() -> runHandBack(back));
+            client.execute(() -> {
+                if (back.get() != null) {
+                    runHandBack(back);
+                    handedBackLate = true;   // between ticks: the next START sends it (lateSearchStart)
+                }
+            });
         });
+    }
+
+    /** A search's result was taken by the client thread's task queue between two ticks, not by a START's wait. */
+    private static boolean handedBackLate;
+    /** Test hook (docs/TESTING-HOOKS.md): every search hands its result back 60 ms late, between ticks. */
+    private static volatile boolean testLateSearch;
+
+    public static void testLateSearch(boolean on) {
+        testLateSearch = on;
+        handedBackLate = false;   // a search handed back before the switch is not counted after it
+    }
+
+    /** Test hook (docs/TESTING-HOOKS.md): no one-warp trip skips the search ({@link #etherDirectFast} declines). */
+    private static boolean testSearchEveryTrip;
+
+    public static void testSearchEveryTrip(boolean on) {
+        testSearchEveryTrip = on;
+    }
+
+    private static int lateSearchStarts;
+
+    /** Searched trips taken between ticks whose first warp went from the next START (testkit 1127-sim-ac-tripfirstuse). */
+    public static int lateSearchStarts() {
+        return lateSearchStarts;
+    }
+
+    /**
+     * tl1127-trip-firstuse: a search that outlasted the START's wait came in between ticks, and its queue then waited for
+     * the hop it worked out to go from the START after (sendNow off): a tick standing still on the trip's first warp
+     * (7 of 56 trips on 1127-sim-ac-tripfirstuse's floor, 3 ticks each). It goes as a search taken in the tick does: from
+     * this START, its swap first. The sneak was down through the search (forceSneakNow), so the server has heard it.
+     */
+    private static void lateSearchStart() {
+        if (!handedBackLate) {
+            return;
+        }
+        handedBackLate = false;
+        List<ClearNode> started = nodes;
+        if (lastPressTick == clientTicks - 1 && started != null && !started.isEmpty() && gateHold == null && !sendNow
+                && issued.isEmpty() && pendingInteract == null) {
+            lateSearchStarts++;
+            sendFromThisTick(started);
+        }
     }
 
     /**
@@ -750,6 +807,8 @@ public final class ClearExecutor {
     private static volatile java.util.concurrent.atomic.AtomicReference<Runnable> searchBack;
     /** How long a tick's START waits for that search before letting the tick go without it (the result then comes next tick). */
     private static final long SEARCH_WAIT_NANOS = 4_000_000L;
+    /** The pending search is an etherwarp trip's from where he stands (not one through the shut gate): its sneak may go down now. */
+    private static boolean searchSneak;
 
     private static void runHandBack(java.util.concurrent.atomic.AtomicReference<Runnable> back) {
         Runnable r = back == null ? null : back.getAndSet(null);
@@ -1999,6 +2058,11 @@ public final class ClearExecutor {
         } else if ((primedTick >= clientTicks - 1 || castPrimedTick == clientTicks) && screenTick < clientTicks - 1) {
             return true;
         }
+        if (pathPending && searchSneak && screen == null) {
+            // tl1127-trip-firstuse: an etherwarp trip is being searched; its first warp waits for the server to hear the
+            // sneak, so the sneak goes down while the planner works rather than on the tick the plan comes in.
+            return true;
+        }
         if (!active) {
             return false;
         }
@@ -2020,6 +2084,7 @@ public final class ClearExecutor {
         }
         // A trip searched this tick (Auto Clear's START runs first) goes in this tick, as a cached or one-warp trip does.
         awaitSearch();
+        lateSearchStart();
         hasSwappedThisTick = swappedOnTick == clientTicks;
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED
                 && !com.killer560.hub.autoroutes.AutoRoutesConfig.getInstance().isChargedChain()
