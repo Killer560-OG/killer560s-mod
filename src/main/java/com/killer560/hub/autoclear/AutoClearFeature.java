@@ -598,6 +598,7 @@ public final class AutoClearFeature {
         seenMobs.clear();
         edgeLogged.clear();
         doomed.clear();
+        unseen.clear();
         batLogs.clear();
         missedAims.clear();
         aimKey = Long.MIN_VALUE;
@@ -4005,6 +4006,7 @@ public final class AutoClearFeature {
 
     /** Each running tick: a bare use that left while our sceptre use was held is our bat (the last tick sent it). */
     private static void noteBatSent(LocalPlayer player) {
+        int sentTo = targetId;
         int uses = com.killer560.hub.util.RightClick.itemUsesSent();
         if (uses != itemUsesSeen) {
             if (itemUsesSeen >= 0 && useHeld && targetId >= 0
@@ -4030,6 +4032,10 @@ public final class AutoClearFeature {
                 }
                 if (!doomed.containsKey(targetId)) {
                     afterEnoughBats(s);
+                }
+                if (doomed.containsKey(sentTo)) {
+                    unseen.put(sentTo, new Unseen(com.killer560.hub.autoclear.BatLog.shots(), batSentTick,
+                            com.killer560.hub.util.ServerLag.mark()));
                 }
             }
             itemUsesSeen = uses;
@@ -4060,6 +4066,20 @@ public final class AutoClearFeature {
     private static final java.util.Map<Integer, BatLog> batLogs = new java.util.HashMap<>();
     /** Mobs left to their bat: not targeted until they die or the bat should long have hit (then shot again). */
     private static final java.util.Map<Integer, Flight> doomed = new java.util.HashMap<>();
+    /** Ticks after a trusted cast within which its bat must be seen (a real one shows 2-3 ticks after the use, his 11-27 log). */
+    static final int SEEN_BAT_TICKS = 7;
+    /** A mob left to a bat whose entity has not been seen yet: the BatLog shot to look at and when the cast left. */
+    private record Unseen(int shot, long sent, long lag) {
+    }
+
+    private static final java.util.Map<Integer, Unseen> unseen = new java.util.HashMap<>();
+    private static int batsUnseen = 0;
+
+    /** For the testkit: trusted casts whose bat never showed and that were cast again, ever (only goes up). */
+    public static int batsUnseen() {
+        return batsUnseen;
+    }
+
     private static final Set<Integer> oneTapLogged = new HashSet<>();
     /** A trusted bat did not kill it: never trusted again this run. */
     private static final Set<Integer> oneTapFailed = new HashSet<>();
@@ -4209,6 +4229,29 @@ public final class AutoClearFeature {
     }
 
     /**
+     * A mob left to a bat is trusted at once (no dead tick), but the bat must then show: a cast Hypixel dropped makes no
+     * bat, and the mob waited 16-34 ticks for it (his 11-27 run, 14 of 46). With none seen {@link #SEEN_BAT_TICKS} after
+     * the cast, the mob is taken back and shot again (the 4-tick sceptre pace still applies).
+     */
+    private static void checkSeenBats(long now) {
+        for (var it = unseen.entrySet().iterator(); it.hasNext(); ) {
+            var en = it.next();
+            Unseen u = en.getValue();
+            var shot = com.killer560.hub.autoclear.BatLog.shot(u.shot());
+            if (shot == null || Math.abs(shot.useTick - u.sent()) > 2 || shot.seenTick >= 0 || !doomed.containsKey(en.getKey())) {
+                it.remove();
+            } else if (now - u.sent() >= SEEN_BAT_TICKS + com.killer560.hub.util.ServerLag.ticksSince(u.lag())) {
+                it.remove();
+                Flight f = doomed.remove(en.getKey());
+                batLogs.remove(en.getKey());
+                batsUnseen++;
+                LOGGER.info("[AutoClear] one-tap: no bat was seen {} ticks after the cast at {} - the server dropped it;"
+                        + " shooting it again", now - u.sent(), f.name());
+            }
+        }
+    }
+
+    /**
      * A tick of the one-tap bookkeeping, before a target is picked: a doomed mob whose bat should long have hit and that
      * is still alive is shot again (never trusted again); with After Impact, the target's bat still in flight keeps the
      * body on the mob (the Guided Bat follows the aim - wiki) and nothing else is done.
@@ -4216,6 +4259,7 @@ public final class AutoClearFeature {
      */
     private static boolean oneTapStep(Minecraft client, LocalPlayer player) {
         long now = ClearExecutor.clientTick();
+        checkSeenBats(now);
         for (var it = doomed.entrySet().iterator(); it.hasNext(); ) {
             var entry = it.next();
             Flight f = entry.getValue();
@@ -5587,8 +5631,15 @@ public final class AutoClearFeature {
 
     /** Ticks between two of Auto Clear's presses of the use key: 10 uses a second. */
     static final int FAST_REPEAT_TICKS = 2;
-    /** The client tick of Auto Clear's last press. */
+    /**
+     * Ticks between two Spirit Sceptre presses (autopilot-sceptre-run-1127, his 11-27 11:05 run, wire-checked in the logger's
+     * session: every sceptre use 4 or more ticks after the one before drew its bat (41 of 41), one 2-3 ticks after drew one
+     * only 61 times in 142 - Hypixel drops a Guided Bat cast that close, and the dropped ones were trusted as one-tap kills).
+     */
+    static final int SCEPTRE_REPEAT_TICKS = 4;
+    /** The client tick of Auto Clear's last press, and of its last press with the sceptre in hand. */
     private static long lastPressTick = Long.MIN_VALUE / 2;
+    private static long lastSceptrePressTick = Long.MIN_VALUE / 2;
 
     /** Presses of the use key still queued for this tick's handleKeybinds that are not Auto Clear's own. */
     public static int hisUseClicksQueued(Minecraft client) {
@@ -5609,7 +5660,10 @@ public final class AutoClearFeature {
             client.options.keyUse.setDown(false);
         }
         long now = ClearExecutor.clientTick();
-        if (now - lastPressTick < FAST_REPEAT_TICKS) {
+        LocalPlayer p = client.player;
+        boolean sceptre = p != null
+                && ItemIdentity.matches(p.getMainHandItem(), AutoClearConfig.Weapon.SPIRIT_SCEPTRE.itemId());
+        if (now - lastPressTick < FAST_REPEAT_TICKS || sceptre && now - lastSceptrePressTick < SCEPTRE_REPEAT_TICKS) {
             return;
         }
         com.mojang.blaze3d.platform.InputConstants.Key key = null;
@@ -5625,7 +5679,9 @@ public final class AutoClearFeature {
         }
         KeyMapping.click(key);
         lastPressTick = now;
-        LocalPlayer p = client.player;
+        if (sceptre) {
+            lastSceptrePressTick = now;
+        }
         if (p != null) {
             castFrom = p.position();
             castLook = TeleportUtils.getLook(p.getYRot(), p.getXRot());

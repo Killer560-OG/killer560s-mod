@@ -12,7 +12,9 @@
      "Auto Clear no longer stands still while it checks whether a spot has a way back out: the check runs beside the game, so a trip waiting for it goes the next tick instead of up to 12 ticks later (in big rooms such as Mage the waits had added up to about 4 seconds).",
      "Test jars only: the Mining and Foraging categories and every feature in them are left out of testing jars; normal and release jars are unchanged.",
      "Secret Aura clicks a route's chest, lever or essence 2-3 ticks sooner after every teleport landing",
-     "Auto Clear and the Dungeons Autopilot stand still less before a trip: the sneak for the next etherwarp is now pressed during the room's last Wither Impact, while a trip waits on its way-out check and just before a roam, the Autopilot picks its next target in the same tick a step ends, and a trip planned while you were still coming down onto a block no longer stands 5 ticks when its plan comes in late."
+     "Auto Clear and the Dungeons Autopilot stand still less before a trip: the sneak for the next etherwarp is now pressed during the room's last Wither Impact, while a trip waits on its way-out check and just before a roam, the Autopilot picks its next target in the same tick a step ends, and a trip planned while you were still coming down onto a block no longer stands 5 ticks when its plan comes in late.",
+     "Auto Clear with the Spirit Sceptre now spaces its casts at least 4 ticks apart, so every cast sends a bat; Hypixel ignored about 4 in 10 of the faster ones, and some mobs were left to a bat that never flew",
+     "Auto Clear with the Spirit Sceptre now notices a cast that sent no bat (the server ignored it) and casts again instead of leaving the mob to a bat that never flew; the cast chain is also tested against your own right-clicks, swaps and clicks in the same tick"
     ]
    }
   ]

@@ -190,6 +190,20 @@ public final class SimSpiritSceptre {
     /** {@link #fire(Minecraft)} for a co-op guest (its UUID; null for the host), aimed through SimAim. */
     static boolean fire(Minecraft client, java.util.UUID guest) {
         if (!SimState.canAct(client) || client.player == null || client.level == null) return false;
+        // Hypixel drops a cast this close to the caster's last one that went off (his 11-27 run: 4+ ticks apart 41 of 41
+        // drew a bat, 2-3 apart 61 of 142); the use is still taken (no item fallback) but no bat flies.
+        long now = client.level.getGameTime();
+        Long last = LAST_CAST.get(guest);
+        if (last != null && now - last < MIN_CAST_GAP_TICKS && now >= last) {
+            droppedCasts++;
+            return true;
+        }
+        if (forceDrop > 0) {   // the testkit's stand-in for a cast the server ignores
+            forceDrop--;
+            droppedCasts++;
+            return true;
+        }
+        LAST_CAST.put(guest, now);
         // SimAim: the aim the use packet carried when the server fired this, his own otherwise.
         Vec3 eye = SimAim.eye(client.player);
         Vec3 look = SimAim.look(client.player);
@@ -227,10 +241,24 @@ public final class SimSpiritSceptre {
             removeBatEntity(client, bat);
         }
         FLYING.clear();
+        LAST_CAST.clear();
     }
 
     /** Bats currently in the air. For tests, which otherwise cannot tell "fired" from "did nothing". */
     public static int inFlight() { return FLYING.size(); }
+
+    /** Ticks a caster's next Guided Bat must come after the last one that went off, or the server drops it. */
+    static final int MIN_CAST_GAP_TICKS = 4;
+    /** Game tick of each caster's last cast that went off (null key: the host). */
+    private static final java.util.Map<java.util.UUID, Long> LAST_CAST = new java.util.HashMap<>();
+    private static int droppedCasts;
+    private static int forceDrop;
+
+    /** For the testkit: the next {@code n} casts make no bat, as if the server ignored them. */
+    public static void dropNextCasts(int n) { forceDrop = n; }
+
+    /** For the testkit: uses that cast nothing because they came too soon after the last bat, ever (only goes up). */
+    public static int droppedCasts() { return droppedCasts; }
 
     /** How many blasts have gone off since the game started - a counter a test can watch change. */
     public static int blasts() { return blastCount; }

@@ -163,6 +163,13 @@ there); Auto Routes is in [LESSONS-ROUTES.md](LESSONS-ROUTES.md); the sim's side
 
 ## Auto Clear
 
+- Hypixel drops a Spirit Sceptre cast that comes 2-3 ticks after the last use (autopilot-sceptre-run-1127, his 11-27 11:05
+  run on the logger's wire record: 4+ ticks apart 41 of 41 drew a bat, 2-3 apart 61 of 142, no cast sound for a dropped
+  one, mana never short). Auto Clear's 2-tick fresh presses (made for the Hyperion) wasted 81 of 183 sceptre uses, and 14
+  of 46 one-tap trusts went to a cast that never flew. A sceptre press now waits `SCEPTRE_REPEAT_TICKS` = 4, and the sim
+  drops a cast under 4 ticks after the caster's last one (`SimSpiritSceptre.droppedCasts`). Count bats on the wire
+  (spawn packets), not BatLog's "seen" lines: with several bats in the air it matches bats to the wrong use. Testkit
+  1127-sim-acsceptre-pace.
 - Learned Room Costs (idea-roomcosts-1124): `RoomClock.end("cleared")` records the room's seconds into `RoomCosts` (shared record `room-costs.json`, last 9 per room name, median read at 3+ clears; 1 s to 300 s only; given-up and left rooms are never recorded). Readers: `estimateSeconds` before the run's first clear and Dungeons Autopilot's CLEAR candidate (its running mean is the fallback). Hop and landing code is untouched. Testkit 1124-logic-roomcosts.
 - Generated sim floors have no mobs and clear every room on entry, so an Auto Clear comparison there measures nothing.
   Testkit 1016-sim-fullclear `-PfullclearMobs=N` places starred mobs (seeded by map code) and turns clear-on-entry off;
