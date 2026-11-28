@@ -877,3 +877,18 @@ his hotbar slot back (never behind a use in one server tick), or his next right 
   (next nearest), the planner's tile region and exact goals (refused with `EtherwarpPathfinder.NO_WAY_OUT`), and Auto
   Secret leaves such a target out at once with no recovery warp. Testkit 1127-sim-strand-cages.
 - Ice Fill with the solver off (autopilot-icefill-solver-off-1127, 11-27): Auto Ice Fill only waits ("waiting: Ice Fill Solver is off") when the Ice Fill Solver is off, yet the Autopilot still planned the trip (Ice Fill first, the tour PUZZLE pick, the puzzle-room stand, 60 s + 73 s of waiting). `Autopilot.iceFillAuto()` (auto AND solver on) now gates all three, as `QuizPlan.wanted()` already did for the Quiz. A testkit case that wants the Ice Fill trip turns the solver on itself (it defaults OFF); 1126-sim-instacost-icefill and 1118-sim-acbloodfirst fail the same way on origin (11-27, second PC), unrelated.
+
+## The tick ledger, and Secret Aura's teleport settle (tickledger-1127, his 11-27 morning runs)
+
+- `killer560s-mod-logs/tickledger-1127.py` puts every tick of an Autopilot run (from "[DungeonsAutopilot] on" to off) in one
+  class: acting (a packet went out), travel, server-forced (teleport answer, sneak reaching the server, click-gap hold, door
+  animation, start countdown), puzzle auto, dead by cause, or unknown. It reads the logger mod's acruns T lines and places the
+  game log's tick-stamped lines (AutoRoutes, SecretAura, puzzles) by a per-run offset fitted to the clock. 11-27: 19,131 ticks,
+  dead 26%, unknown 6.8%. Rerun it on any later log; the logger's rx= (route step), rc= (Room Clock bucket) and gd=
+  (ActionGate denials) columns, added the same day, turn most of the unknown ticks into named ones.
+- ActionGate's 6-tick teleport settle held Secret Aura on every route await after a landing (379 ticks in 9 runs, 2-3 a click:
+  chosen 2025, refused 2025-2027, body turn 2028, click 2029 after a landing at 2023). The aura re-picks its secret, face and
+  turn from each tick's eye, so it waives that settle like Breaker Aura and Door Tap, but keeps the quiet tick after a server
+  position (its block click beside a teleport accept is RotationPlace). Testkit 1127-tl-secaura-tpjump (-use, -swap).
+- 47 Auto Clear trips etherwarped although their own estimate put hops lower ("~4 ticks vs hops ~2"); handed to
+  autoclear-hype-hops-more-1127 (tickledger-1127-hops.py).

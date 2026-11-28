@@ -703,8 +703,11 @@ public final class ActionGate {
         if (armed && tick < screenSettleUntilTick && !(actor.freshEachTick && actor.kind == Kind.WORLD)) {
             return deny(actor, "settling after a screen transition");
         }
+        // Secret Aura waives the teleport settle only (tickledger-1127): it re-picks its secret, face and turn from this tick's
+        // eye, so nothing is stale; the quiet tick after a server position below still holds its block click (RotationPlace).
+        // The settle held every route await's chest, lever and essence 3-4 ticks after the landing (379 ticks in 9 runs).
         if (armed && tick < teleportSettleUntilTick && actor.kind != Kind.HOTBAR && !actor.freshEachTick
-                && !(actor == selfTeleportActor && tick <= selfTeleportUntilTick)) {
+                && actor != Actor.SECRET_AURA && !(actor == selfTeleportActor && tick <= selfTeleportUntilTick)) {
             return deny(actor, "settling after a teleport");
         }
         // Lever Aura waives the position-packet quiet (leverflake-1121): it picks its lever from this tick's eye, and the
