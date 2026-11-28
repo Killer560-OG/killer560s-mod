@@ -77,7 +77,7 @@ public final class ModuleKeybinds {
                     () -> com.killer560.hub.secrettrigger.SecretTriggerbotConfig.getInstance().isEnabled(),
                     v -> com.killer560.hub.secrettrigger.SecretTriggerbotConfig.getInstance().setEnabled(v),
                     () -> com.killer560.hub.secrettrigger.SecretTriggerbotConfig.getInstance().save()));
-            EXTRAS.put(STRUCTURE_SCANNER_ID, new Extra("Structure Scanner", STRUCTURE_SCANNER_LABEL,
+            if (com.killer560.hub.util.RemoveFor20.ACTIVE) EXTRAS.put(STRUCTURE_SCANNER_ID, new Extra("Structure Scanner", STRUCTURE_SCANNER_LABEL,
                     () -> com.killer560.hub.mining.scanner.StructureScannerConfig.getInstance().isEnabled(),
                     v -> com.killer560.hub.mining.scanner.StructureScannerConfig.getInstance().setEnabled(v),
                     () -> com.killer560.hub.mining.scanner.StructureScannerConfig.getInstance().save()));

@@ -38,7 +38,7 @@ public abstract class MithrilStoneSectionMixin {
                                               BlockStateModel model, long seed, Operation<Void> original) {
         BlockState swap = null;
         try {
-            swap = MithrilStone.replace(state, pos.getX(), pos.getY(), pos.getZ());
+            swap = com.killer560.hub.util.RemoveFor20.ACTIVE ? MithrilStone.replace(state, pos.getX(), pos.getY(), pos.getZ()) : null;
         } catch (RuntimeException ignored) {
             // never break the mesher
         }

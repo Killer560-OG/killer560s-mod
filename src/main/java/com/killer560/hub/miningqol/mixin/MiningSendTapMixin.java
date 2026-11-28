@@ -19,7 +19,7 @@ public abstract class MiningSendTapMixin {
     @Inject(method = "send", at = @At("HEAD"), cancellable = true, require = 0)
     private void killer560smod$miningSendTap(Packet<?> packet, CallbackInfo ci) {
         try {
-            if (HeldBreakResume.dropOnHypixel(packet)) {
+            if (com.killer560.hub.util.RemoveFor20.ACTIVE && HeldBreakResume.dropOnHypixel(packet)) {
                 ci.cancel();
             }
         } catch (Throwable ignored) {

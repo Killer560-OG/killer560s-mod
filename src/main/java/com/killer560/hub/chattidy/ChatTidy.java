@@ -152,7 +152,7 @@ public final class ChatTidy {
         if (com.killer560.hub.partyinvites.GuildListRequest.hides(ChatObserver.strip(message))) {
             return true; // the reply to the mod's own /guild list (already read by Auto Accept Invites)
         }
-        if (com.killer560.hub.foraging.TreeGiftHider.CFG.isEnabledRaw()) {
+        if (com.killer560.hub.util.RemoveFor20.ACTIVE && com.killer560.hub.foraging.TreeGiftHider.CFG.isEnabledRaw()) {
             var verdict = com.killer560.hub.foraging.TreeGiftHider.next(ChatObserver.strip(message), System.currentTimeMillis());
             if (verdict != com.killer560.hub.foraging.TreeGiftHider.Verdict.SHOW) {
                 retract = verdict == com.killer560.hub.foraging.TreeGiftHider.Verdict.HIDE_AND_RETRACT;

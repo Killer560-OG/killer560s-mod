@@ -285,36 +285,38 @@ public class Killer560ModClient implements ClientModInitializer {
         if (com.killer560.hub.BuildVariant.TESTING) {
             com.killer560.hub.testing.TestingCommands.register();
         }
-        // The Mining category's features pulled from staging-mining-3 (killer560, 2026-11-04: mining ships before 2.0
-        // now). No macros: Auto Nucleus Run and Lobby Swapper stay on the staging branch.
-        com.killer560.hub.mining.profit.MiningProfitTracker.register();
-        com.killer560.hub.mining.nucleus.NucleusRunProfitTracker.register();
-        com.killer560.hub.mining.chmap.ChDiscovery.register();
-        com.killer560.hub.mining.chmap.ChWaypointRender.register();
-        HudElementRegistry.register(new com.killer560.hub.mining.chmap.ChMapHud());
-        com.killer560.hub.mining.chmap.ChShare.register();
-        com.killer560.hub.mining.MiningIsland.register();
-        com.killer560.hub.mining.metaldetector.MetalDetectorFeature.register();
-        com.killer560.hub.mining.events.MiningEventsFeature.register();
-        HudElementRegistry.register(com.killer560.hub.mining.events.MiningEventsFeature.HUD);
-        com.killer560.hub.mining.lobby.LobbyTrackerFeature.register();
-        HudElementRegistry.register(com.killer560.hub.mining.lobby.LobbyTrackerFeature.HUD);
-        com.killer560.hub.mining.crystals.CrystalTrackerFeature.register();
-        HudElementRegistry.register(com.killer560.hub.mining.crystals.CrystalTrackerFeature.HUD);
-        com.killer560.hub.mining.fetchur.FetchurSolver.register();
-        com.killer560.hub.mining.puzzler.PuzzlerSolver.register();
-        com.killer560.hub.mining.cold.ColdOverlay.register();
-        com.killer560.hub.foraging.InvisibugHighlight.register();
-        com.killer560.hub.mineshaft.Mineshaft.register();
-        HudElementRegistry.register(com.killer560.hub.mineshaft.Mineshaft.HUD);
-        com.killer560.hub.mining.skymall.SkyMallDisplay.register();
-        com.killer560.hub.mining.deployables.MiningDeployables.register();
-        com.killer560.hub.mining.worms.WormAlert.register();
-        com.killer560.hub.mining.fossil.FossilSolver.register();
-        com.killer560.hub.mining.compass.WishingCompassSolver.register();
-        if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
-            com.killer560.hub.mining.scanner.StructureScannerFeature.register();
-            com.killer560.hub.mining.ghosts.GhostEspFeature.register();
+        if (com.killer560.hub.util.RemoveFor20.ACTIVE) {
+            // The Mining category's features pulled from staging-mining-3 (killer560, 2026-11-04: mining ships before 2.0
+            // now). No macros: Auto Nucleus Run and Lobby Swapper stay on the staging branch.
+            com.killer560.hub.mining.profit.MiningProfitTracker.register();
+            com.killer560.hub.mining.nucleus.NucleusRunProfitTracker.register();
+            com.killer560.hub.mining.chmap.ChDiscovery.register();
+            com.killer560.hub.mining.chmap.ChWaypointRender.register();
+            HudElementRegistry.register(new com.killer560.hub.mining.chmap.ChMapHud());
+            com.killer560.hub.mining.chmap.ChShare.register();
+            com.killer560.hub.mining.MiningIsland.register();
+            com.killer560.hub.mining.metaldetector.MetalDetectorFeature.register();
+            com.killer560.hub.mining.events.MiningEventsFeature.register();
+            HudElementRegistry.register(com.killer560.hub.mining.events.MiningEventsFeature.HUD);
+            com.killer560.hub.mining.lobby.LobbyTrackerFeature.register();
+            HudElementRegistry.register(com.killer560.hub.mining.lobby.LobbyTrackerFeature.HUD);
+            com.killer560.hub.mining.crystals.CrystalTrackerFeature.register();
+            HudElementRegistry.register(com.killer560.hub.mining.crystals.CrystalTrackerFeature.HUD);
+            com.killer560.hub.mining.fetchur.FetchurSolver.register();
+            com.killer560.hub.mining.puzzler.PuzzlerSolver.register();
+            com.killer560.hub.mining.cold.ColdOverlay.register();
+            com.killer560.hub.foraging.InvisibugHighlight.register();
+            com.killer560.hub.mineshaft.Mineshaft.register();
+            HudElementRegistry.register(com.killer560.hub.mineshaft.Mineshaft.HUD);
+            com.killer560.hub.mining.skymall.SkyMallDisplay.register();
+            com.killer560.hub.mining.deployables.MiningDeployables.register();
+            com.killer560.hub.mining.worms.WormAlert.register();
+            com.killer560.hub.mining.fossil.FossilSolver.register();
+            com.killer560.hub.mining.compass.WishingCompassSolver.register();
+            if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
+                com.killer560.hub.mining.scanner.StructureScannerFeature.register();
+                com.killer560.hub.mining.ghosts.GhostEspFeature.register();
+            }
         }
         HudElementRegistry.register(com.killer560.hub.blessings.BlessingsFeature.HUD);
         HudElementRegistry.register(com.killer560.hub.chatchannel.ChatChannelFeature.HUD);
@@ -528,11 +530,13 @@ public class Killer560ModClient implements ClientModInitializer {
         com.killer560.hub.chattidy.ChatTidy.register();
         com.killer560.hub.abilitycooldown.AbilityCooldownFeature.register();
         HudElementRegistry.register(new com.killer560.hub.abilitycooldown.AbilityCooldownFeature.CooldownHudElement());
-        // Pre-2.0 mining features (to-do Doc 2026-11-01): Commission HUD, Pickobulus Estimate, Ability Ready Alert,
-        // Carpet Highlighter, Mithril As Stone, Titanium Highlight, Raffle Ticket Highlight.
-        com.killer560.hub.miningqol.MiningQolFeatures.register();
-        // Crystal Hollows powder grinding (2026-11-03): treasure chests, lockpick helper, powder tracker, 2x powder.
-        com.killer560.hub.powdermining.PowderMiningFeatures.register();
+        if (com.killer560.hub.util.RemoveFor20.ACTIVE) {
+            // Pre-2.0 mining features (to-do Doc 2026-11-01): Commission HUD, Pickobulus Estimate, Ability Ready Alert,
+            // Carpet Highlighter, Mithril As Stone, Titanium Highlight, Raffle Ticket Highlight.
+            com.killer560.hub.miningqol.MiningQolFeatures.register();
+            // Crystal Hollows powder grinding (2026-11-03): treasure chests, lockpick helper, powder tracker, 2x powder.
+            com.killer560.hub.powdermining.PowderMiningFeatures.register();
+        }
         com.killer560.hub.collectiontracker.CollectionTracker.register();
         com.killer560.hub.lagdisplay.LagDisplayFeature.register();
         HudElementRegistry.register(new com.killer560.hub.lagdisplay.LagDisplayFeature.LagHudElement());
@@ -587,12 +591,14 @@ public class Killer560ModClient implements ClientModInitializer {
             com.killer560.hub.islands.AutoHarpFeature.register();
         }
         com.killer560.hub.islands.HarpHelperFeature.register();
-        com.killer560.hub.foraging.BeaconReadyAlert.register();
-        com.killer560.hub.foraging.BeaconTuner.register();
-        com.killer560.hub.foraging.BeeheemothHighlight.register();
-        com.killer560.hub.foraging.AgathaContest.register();
-        com.killer560.hub.foraging.TreeRegen.register();
-        com.killer560.hub.foraging.SweepOverlay.register();
+        if (com.killer560.hub.util.RemoveFor20.ACTIVE) {
+            com.killer560.hub.foraging.BeaconReadyAlert.register();
+            com.killer560.hub.foraging.BeaconTuner.register();
+            com.killer560.hub.foraging.BeeheemothHighlight.register();
+            com.killer560.hub.foraging.AgathaContest.register();
+            com.killer560.hub.foraging.TreeRegen.register();
+            com.killer560.hub.foraging.SweepOverlay.register();
+        }
         com.killer560.hub.autoanvil.AutoAnvilFeature.register();
         com.killer560.hub.bazaarflip.BazaarFlipFeature.register();
         com.killer560.hub.bazaaradvisor.BazaarAdvisorFeature.register();

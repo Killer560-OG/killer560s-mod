@@ -84,7 +84,7 @@ public abstract class ChatTidyMixin {
                                         GuiMessageTag tag, CallbackInfo ci, @Local GuiMessage built) {
         try {
             if (ChatTidy.shouldHide(message, source)) {
-                if (ChatTidy.takeRetract() && !allMessages.isEmpty() && com.killer560.hub.foraging.TreeGiftHider.isSeparator(
+                if (ChatTidy.takeRetract() && com.killer560.hub.util.RemoveFor20.ACTIVE && !allMessages.isEmpty() && com.killer560.hub.foraging.TreeGiftHider.isSeparator(
                         com.killer560.hub.util.ChatObserver.strip(allMessages.get(0).content()))) {
                     killer560smod$drop(allMessages.remove(0));
                 }

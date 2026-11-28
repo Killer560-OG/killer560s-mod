@@ -26,8 +26,10 @@ public abstract class MiningBlockUpdateMixin {
     @Inject(method = "handleBlockUpdate", at = @At("RETURN"), require = 0)
     private void killer560smod$miningBlock(ClientboundBlockUpdatePacket packet, CallbackInfo ci) {
         try {
-            MiningHighlights.onBlockChanged(packet.getPos());
-            com.killer560.hub.miningqol.CommissionProgress.onBlockChanged(packet.getPos());
+            if (com.killer560.hub.util.RemoveFor20.ACTIVE) {
+                MiningHighlights.onBlockChanged(packet.getPos());
+                com.killer560.hub.miningqol.CommissionProgress.onBlockChanged(packet.getPos());
+            }
             com.killer560.hub.playerstats.PlayerStatsFeature.onBlockChanged(packet.getPos());
         } catch (RuntimeException e) {
             killer560smod$mining$threw("blockUpdate", e);
@@ -37,7 +39,9 @@ public abstract class MiningBlockUpdateMixin {
     @Inject(method = "handleChunkBlocksUpdate", at = @At("RETURN"), require = 0)
     private void killer560smod$miningSection(ClientboundSectionBlocksUpdatePacket packet, CallbackInfo ci) {
         try {
-            MiningHighlights.onSectionChanged(packet);
+            if (com.killer560.hub.util.RemoveFor20.ACTIVE) {
+                MiningHighlights.onSectionChanged(packet);
+            }
             com.killer560.hub.playerstats.PlayerStatsFeature.onSectionChanged(packet);
         } catch (RuntimeException e) {
             killer560smod$mining$threw("sectionUpdate", e);
@@ -47,7 +51,9 @@ public abstract class MiningBlockUpdateMixin {
     @Inject(method = "handleLevelChunkWithLight", at = @At("RETURN"), require = 0)
     private void killer560smod$miningChunk(ClientboundLevelChunkWithLightPacket packet, CallbackInfo ci) {
         try {
-            MiningHighlights.onChunkLoaded(McPackets.chunkX(packet), McPackets.chunkZ(packet));
+            if (com.killer560.hub.util.RemoveFor20.ACTIVE) {
+                MiningHighlights.onChunkLoaded(McPackets.chunkX(packet), McPackets.chunkZ(packet));
+            }
         } catch (RuntimeException e) {
             killer560smod$mining$threw("levelChunk", e);
         }

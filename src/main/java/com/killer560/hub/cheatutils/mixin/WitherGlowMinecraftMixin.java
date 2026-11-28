@@ -18,7 +18,7 @@ public abstract class WitherGlowMinecraftMixin {
 
     @Inject(method = "shouldEntityAppearGlowing", at = @At("HEAD"), cancellable = true, require = 0)
     private void killer560smod$cheatutilsWitherGlow(Entity entity, CallbackInfoReturnable<Boolean> cir) {
-        if (MobEspFeature.shouldGlow(entity) || com.killer560.hub.miningqol.CommissionMobs.shouldGlow(entity)) {
+        if (MobEspFeature.shouldGlow(entity) || com.killer560.hub.util.RemoveFor20.ACTIVE && com.killer560.hub.miningqol.CommissionMobs.shouldGlow(entity)) {
             cir.setReturnValue(true);
         } else if (com.killer560.hub.objecthider.ObjectHiderConfig.getInstance().isNoGlow()) {
             cir.setReturnValue(false);

@@ -30,6 +30,9 @@ public abstract class TreeRegenLevelMixin {
     }
 
     private void change(BlockPos pos, BlockState state) {
+        if (!com.killer560.hub.util.RemoveFor20.ACTIVE) {
+            return;
+        }
         try {
             BlockState old = ((ClientLevel) (Object) this).getBlockState(pos);
             TreeRegen.onChange(this, pos, old, state);

@@ -40,7 +40,9 @@ public abstract class RightClickSendMixin {
                         && (a.getAction() == net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.START_DESTROY_BLOCK
                         || a.getAction() == net.minecraft.network.protocol.game.ServerboundPlayerActionPacket.Action.STOP_DESTROY_BLOCK)) {
                     // His digs: a powder chest appears at or beside the block he broke (TreasureChests, chestmiss-1113).
-                    com.killer560.hub.powdermining.TreasureChests.onDigSent(a.getPos());
+                    if (com.killer560.hub.util.RemoveFor20.ACTIVE) {
+                        com.killer560.hub.powdermining.TreasureChests.onDigSent(a.getPos());
+                    }
                 }
             }
             if (packet instanceof ServerboundUseItemOnPacket || packet instanceof ServerboundUseItemPacket
@@ -67,7 +69,9 @@ public abstract class RightClickSendMixin {
                 } else if (packet instanceof ServerboundUseItemOnPacket useOn) {
                     RightClick.onUseOn(mc.player, useOn);
                     // A chest click that really left: what a powder chest's loot or "already looted" reply answers.
-                    com.killer560.hub.powdermining.TreasureChests.onUseBlock(McPackets.useItemOnHitResult(useOn).getBlockPos());
+                    if (com.killer560.hub.util.RemoveFor20.ACTIVE) {
+                        com.killer560.hub.powdermining.TreasureChests.onUseBlock(McPackets.useItemOnHitResult(useOn).getBlockPos());
+                    }
                     com.killer560.hub.dungeonalerts.SecretSound.onUseSent(McPackets.useItemOnHitResult(useOn).getBlockPos());
                     com.killer560.hub.autoroutes.RouteExecutor.onBlockClickSent(mc.player, McPackets.useItemOnHand(useOn));
                 } else {

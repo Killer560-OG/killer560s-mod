@@ -22,7 +22,9 @@ public abstract class CommissionMenuSlotMixin {
     private void killer560smod$commissionSlot(GuiGraphicsExtractor graphics, Slot slot, int mouseX, int mouseY,
                                               CallbackInfo ci) {
         AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
-        CommissionMenuHighlight.drawSlot(graphics, screen, slot);
+        if (com.killer560.hub.util.RemoveFor20.ACTIVE) {
+            CommissionMenuHighlight.drawSlot(graphics, screen, slot);
+        }
         com.killer560.hub.loadoutkeybinds.LoadoutHighlight.drawSlot(graphics, screen, slot);
         com.killer560.hub.compactorpreview.CompactorMenuHighlight.drawSlot(graphics, screen, slot);
     }

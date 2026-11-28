@@ -33,12 +33,16 @@ public abstract class LocatorTrailMixin {
         }
         // The Wishing Compass Solver (Mining) reads the same happy-villager trails in the Crystal Hollows.
         try {
-            com.killer560.hub.mining.compass.WishingCompassSolver.onParticlePacket(packet, now);
+            if (com.killer560.hub.util.RemoveFor20.ACTIVE) {
+                com.killer560.hub.mining.compass.WishingCompassSolver.onParticlePacket(packet, now);
+            }
         } catch (RuntimeException e) {
             // Same: never disconnect over a particle.
         }
         try {
-            com.killer560.hub.foraging.InvisibugHighlight.onParticlePacket(packet);
+            if (com.killer560.hub.util.RemoveFor20.ACTIVE) {
+                com.killer560.hub.foraging.InvisibugHighlight.onParticlePacket(packet);
+            }
         } catch (RuntimeException e) {
             // Same.
         }

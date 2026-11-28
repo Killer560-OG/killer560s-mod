@@ -23,7 +23,7 @@ public abstract class TreasureChestHideMixin {
                                                ModelFeatureRenderer.CrumblingOverlay crumbling, boolean flag,
                                                CallbackInfoReturnable<BlockEntityRenderState> cir) {
         try {
-            if (TreasureChests.shouldHide(blockEntity.getBlockPos())) {
+            if (com.killer560.hub.util.RemoveFor20.ACTIVE && TreasureChests.shouldHide(blockEntity.getBlockPos())) {
                 cir.setReturnValue(null);
             }
         } catch (RuntimeException e) {

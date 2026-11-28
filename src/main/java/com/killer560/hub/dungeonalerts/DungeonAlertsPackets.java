@@ -41,7 +41,9 @@ public final class DungeonAlertsPackets {
         // rather than adding a second mixin for the same packet.
         guard("sound/ragaxe", com.killer560.hub.ragaxe.RagAxeFeature::onSoundPacket, packet);
         guard("sound/abilitycooldown", com.killer560.hub.abilitycooldown.AbilityCooldownFeature::onSoundPacket, packet);
-        guard("sound/beacontuner", com.killer560.hub.foraging.BeaconTuner::onSoundPacket, packet);
+        if (com.killer560.hub.util.RemoveFor20.ACTIVE) {
+            guard("sound/beacontuner", com.killer560.hub.foraging.BeaconTuner::onSoundPacket, packet);
+        }
         if (com.killer560.hub.BuildVariant.CHEAT_FEATURES_ENABLED) {
             guard("sound/harp", com.killer560.hub.islands.AutoHarpFeature::onSound, packet);
         }

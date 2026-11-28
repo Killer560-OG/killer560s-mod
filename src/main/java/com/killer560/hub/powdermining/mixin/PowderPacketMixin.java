@@ -32,7 +32,9 @@ public abstract class PowderPacketMixin {
     @Inject(method = "handleBlockUpdate", at = @At("RETURN"), require = 0)
     private void killer560smod$powderBlock(ClientboundBlockUpdatePacket packet, CallbackInfo ci) {
         try {
-            TreasureChests.onBlockChanged(packet.getPos());
+            if (com.killer560.hub.util.RemoveFor20.ACTIVE) {
+                TreasureChests.onBlockChanged(packet.getPos());
+            }
         } catch (RuntimeException e) {
             killer560smod$powder$threw("blockUpdate", e);
         }
@@ -41,8 +43,10 @@ public abstract class PowderPacketMixin {
     @Inject(method = "handleLevelChunkWithLight", at = @At("RETURN"), require = 0)
     private void killer560smod$powderChunk(ClientboundLevelChunkWithLightPacket packet, CallbackInfo ci) {
         try {
-            TreasureChests.onChunkLoaded(com.killer560.hub.compat.McPackets.chunkX(packet),
-                    com.killer560.hub.compat.McPackets.chunkZ(packet));
+            if (com.killer560.hub.util.RemoveFor20.ACTIVE) {
+                TreasureChests.onChunkLoaded(com.killer560.hub.compat.McPackets.chunkX(packet),
+                        com.killer560.hub.compat.McPackets.chunkZ(packet));
+            }
         } catch (RuntimeException e) {
             killer560smod$powder$threw("levelChunk", e);
         }
@@ -52,7 +56,7 @@ public abstract class PowderPacketMixin {
     @Inject(method = "handleBlockEvent", at = @At("RETURN"), require = 0)
     private void killer560smod$powderChestLid(ClientboundBlockEventPacket packet, CallbackInfo ci) {
         try {
-            if (packet.getB0() == 1 && packet.getB1() > 0 && packet.getBlock() == Blocks.CHEST) {
+            if (com.killer560.hub.util.RemoveFor20.ACTIVE && packet.getB0() == 1 && packet.getB1() > 0 && packet.getBlock() == Blocks.CHEST) {
                 TreasureChests.onChestOpened(packet.getPos());
             }
         } catch (RuntimeException e) {
@@ -63,7 +67,9 @@ public abstract class PowderPacketMixin {
     @Inject(method = "handleChunkBlocksUpdate", at = @At("RETURN"), require = 0)
     private void killer560smod$powderSection(ClientboundSectionBlocksUpdatePacket packet, CallbackInfo ci) {
         try {
-            PowderPackets.onSectionChanged(packet);
+            if (com.killer560.hub.util.RemoveFor20.ACTIVE) {
+                PowderPackets.onSectionChanged(packet);
+            }
         } catch (RuntimeException e) {
             killer560smod$powder$threw("sectionUpdate", e);
         }
@@ -73,7 +79,9 @@ public abstract class PowderPacketMixin {
             require = 0)
     private void killer560smod$powderParticle(ClientboundLevelParticlesPacket packet, CallbackInfo ci) {
         try {
-            LockpickHelper.onParticle(packet);
+            if (com.killer560.hub.util.RemoveFor20.ACTIVE) {
+                LockpickHelper.onParticle(packet);
+            }
         } catch (RuntimeException e) {
             killer560smod$powder$threw("particles", e);
         }

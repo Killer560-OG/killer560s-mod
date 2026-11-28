@@ -245,6 +245,9 @@ COLLECT_SUBMITS (families: thru-fill, depth-fill, block-fill, waypoint-fill, thr
 depth-line, and waypoint-depth: Secret Waypoints' depth-tested fill); `setForced(null, null)` stops it. Testkit
 1103-esp-depth-<family> puts water behind, in front of and around it; 1104-zfight-* draws it on a white cube's own faces.
 
+## Remove-for-2.0 gate (testjar-no-mining-foraging-1126, killer560 2026-11-26)
+`util/RemoveFor20.ACTIVE` is `!BuildVariant.TESTING`. Mining (miningqol, powdermining, mining, mineshaft) and Foraging (foraging) are gated on it in every testing jar: no category or card (`MenuCategories`), no registers (`Killer560ModClient`, three blocks), hooks in other packages and the packages' own mixin handlers are no-ops. Config files stay on disk and still load. The gate points are listed in killer560s-mod-logs/testjar-no-mining-foraging-1126-state.md; testkit 1126-ui-testjar-no-mining-foraging asserts absence on a testing jar and presence on a normal jar.
+
 System property `killer560smod.test.clipboardfile=<path>`: Screenshot Copy and the Screenshot Editor's Copy write the PNG to that file instead of the OS clipboard (no PowerShell, no clipboard touched). Testkit 1126-ui-screenshot-edit sets it at run time.
 
 ## Auto Clear first trip through the gate (`livemap/autoclear/ClearExecutor`)

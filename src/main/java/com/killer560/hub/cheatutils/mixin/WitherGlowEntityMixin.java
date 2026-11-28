@@ -16,7 +16,7 @@ public abstract class WitherGlowEntityMixin {
     @Inject(method = "getTeamColor", at = @At("HEAD"), cancellable = true, require = 0)
     private void killer560smod$cheatutilsWitherColor(CallbackInfoReturnable<Integer> cir) {
         Integer color = MobEspFeature.glowColor((Entity) (Object) this);
-        if (color == null) {
+        if (color == null && com.killer560.hub.util.RemoveFor20.ACTIVE) {
             color = com.killer560.hub.miningqol.CommissionMobs.glowColor((Entity) (Object) this);
         }
         if (color != null) {

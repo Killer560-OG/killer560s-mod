@@ -1,5 +1,6 @@
 package com.killer560.hub.gui.tab;
 
+import com.killer560.hub.util.RemoveFor20;
 import java.util.ArrayList;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
@@ -47,23 +48,30 @@ public final class MenuCategories {
         FolderTab helpers = new HelpersTab();
         FolderTab dungeon = new DungeonTab();
         // The pre-2.0 Mining category (to-do Doc, 2026-11-01): its tabs are made by MiningQolTab, like the other folders.
-        FolderTab mining = new MiningQolTab();
-        FolderTab foraging = new ForagingTab();
-        for (BaseTab t : List.of(home, profiles, general, display, chat, social, cosmetics, items, hud, helpers, dungeon,
-                mining, foraging)) {
+        // Not in a testing jar (RemoveFor20): no Mining or Foraging category, no card.
+        List<FolderTab> folders = new ArrayList<>(List.of(general, display, chat, social, cosmetics, items, hud, helpers, dungeon));
+        FolderTab mining = RemoveFor20.ACTIVE ? new MiningQolTab() : null;
+        FolderTab foraging = RemoveFor20.ACTIVE ? new ForagingTab() : null;
+        if (RemoveFor20.ACTIVE) {
+            folders.add(mining);
+            folders.add(foraging);
+        }
+        remember(home, home.name);
+        remember(profiles, profiles.name);
+        for (FolderTab t : folders) {
             remember(t, t.name);
         }
 
         Map<Class<?>, BaseTab> pool = new LinkedHashMap<>();
-        for (FolderTab f : List.of(general, display, chat, social, cosmetics, items, hud, helpers, dungeon, mining, foraging)) {
+        for (FolderTab f : folders) {
             for (BaseTab sub : f.subTabs()) {
                 pool.put(sub.getClass(), sub);
             }
         }
 
         List<BaseTab> dungeons = take(pool, dungeon.subTabs());
-        List<BaseTab> miningList = take(pool, mining.subTabs());
-        List<BaseTab> foragingList = take(pool, foraging.subTabs());
+        List<BaseTab> miningList = RemoveFor20.ACTIVE ? take(pool, mining.subTabs()) : List.of();
+        List<BaseTab> foragingList = RemoveFor20.ACTIVE ? take(pool, foraging.subTabs()) : List.of();
         List<BaseTab> hudList = new ArrayList<>();
         // Gather the HUD tabs; the order they are shown in is the alphabetical one cheatLast gives every category.
         for (Class<?> c : List.of(HealthAndManaBarsTab.class, CustomScoreboardTab.class, StorageOverlayTab.class,
@@ -92,8 +100,10 @@ public final class MenuCategories {
         List<BaseTab> top = new ArrayList<>();
         top.add(home);
         top.add(new CategoryTab("Dungeons", "⚔", cheatLast(dungeons)));
-        top.add(new CategoryTab("Mining", "⛏", cheatLast(miningList)));
-        top.add(new CategoryTab("Foraging", "☘", cheatLast(foragingList)));
+        if (RemoveFor20.ACTIVE) {
+            top.add(new CategoryTab("Mining", "⛏", cheatLast(miningList)));
+            top.add(new CategoryTab("Foraging", "☘", cheatLast(foragingList)));
+        }
         top.add(new CategoryTab("HUD", "▣", cheatLast(hudList)));
         top.add(new CategoryTab("Chat", "✉", cheatLast(chatList)));
         top.add(new CategoryTab("Items", "◆", cheatLast(itemsList)));
